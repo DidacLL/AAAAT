@@ -1,6 +1,33 @@
 import { useEffect, useState } from "react";
 
-import type { CandidatureOpportunityResearchAccess } from "../shared/candidature-opportunity-research-access-contracts";
+import type {
+  CandidatureOpportunityResearchAccess,
+  CandidatureOpportunityResearchTaskContext,
+} from "../shared/candidature-opportunity-research-access-contracts";
+import type { CandidatureRuntimeValue } from "../shared/contracts";
+
+const taskTemplates = [
+  {
+    id: "opportunity-research",
+    label: "Opportunity research",
+    instruction:
+      "Research this opportunity and produce a concise application brief with relevant verified facts and source links, positioning ideas supported by the supplied context, important unknowns or questions, and concrete preparation points. If key details are missing, state them instead of guessing.",
+  },
+  {
+    id: "interview-preparation",
+    label: "Interview preparation",
+    instruction:
+      "Prepare an interview brief for this opportunity. Identify useful areas to investigate or prepare from the supplied context, propose concrete questions to ask, and flag missing details that would materially change the preparation. Verify employer-specific facts when possible and do not invent them.",
+  },
+] as const;
+
+type BusyAction = "open" | "close" | "copy" | "export" | "retain" | "import";
+
+function displayValue(value: CandidatureRuntimeValue): string {
+  if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+}
 
 export function CandidatureOpportunityResearchAccessPanel({
   candidatureId,
@@ -10,8 +37,12 @@ export function CandidatureOpportunityResearchAccessPanel({
   readonly contextDirty: boolean;
 }) {
   const [access, setAccess] = useState<CandidatureOpportunityResearchAccess | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [portableBusy, setPortableBusy] = useState<"export" | "import" | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [taskContext, setTaskContext] = useState<CandidatureOpportunityResearchTaskContext | null>(null);
+  const [templateId, setTemplateId] = useState(taskTemplates[0].id);
+  const [instruction, setInstruction] = useState(taskTemplates[0].instruction);
+  const [resultText, setResultText] = useState("");
+  const [busy, setBusy] = useState<BusyAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,16 +52,22 @@ export function CandidatureOpportunityResearchAccessPanel({
     let active = true;
     void api
       .current(candidatureId)
-      .then((current) => {
-        if (active) setAccess(current);
+      .then(async (current) => {
+        if (!active) return;
+        setAccess(current);
+        if (!current.allowed || contextDirty) return;
+        const context = await api.taskContext();
+        if (!active) return;
+        setTaskContext(context);
+        setEditorOpen(true);
       })
       .catch(() => {
-        if (active) setError("AAAAT could not load external AI access for this application.");
+        if (active) setError("AAAAT could not prepare Send to my AI for this application.");
       });
     return () => {
       active = false;
     };
-  }, [candidatureId]);
+  }, [candidatureId, contextDirty]);
 
   useEffect(() => {
     if (!contextDirty || !access?.allowed) return;
@@ -42,135 +79,246 @@ export function CandidatureOpportunityResearchAccessPanel({
       .then((saved) => {
         if (!active) return;
         setAccess(saved);
-        setMessage("External AI access was turned off because this application has unsaved edits.");
+        setEditorOpen(false);
+        setTaskContext(null);
+        setMessage("Save or discard the application edits before sending it to AI.");
       })
       .catch(() => {
-        if (active) {
-          setError("AAAAT could not turn off external AI access after the application changed.");
-        }
+        if (active) setError("AAAAT could not refresh the external AI context after the application changed.");
       });
     return () => {
       active = false;
     };
   }, [access?.allowed, candidatureId, contextDirty]);
 
-  const update = async (allowed: boolean) => {
-    if (allowed && contextDirty) return;
+  const openEditor = async () => {
+    if (contextDirty) return;
     const api = window.aaaat.candidatureOpportunityResearchAccess;
     if (!api) return;
-    setSaving(true);
+    setBusy("open");
     setMessage(null);
     setError(null);
     try {
-      const saved = await api.update({ candidatureId, allowed });
+      const saved = await api.update({ candidatureId, allowed: true });
+      const context = await api.taskContext();
       setAccess(saved);
-      setMessage(
-        allowed
-          ? "External AI can now work with this application. Choosing another application will switch the selection."
-          : "External AI access is off for this application.",
-      );
+      setTaskContext(context);
+      setEditorOpen(true);
     } catch {
-      setError("AAAAT could not change external AI access for this application.");
+      setError("AAAAT could not prepare this application for external AI.");
     } finally {
-      setSaving(false);
+      setBusy(null);
+    }
+  };
+
+  const closeEditor = async () => {
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api) return;
+    setBusy("close");
+    setMessage(null);
+    setError(null);
+    try {
+      const saved = await api.update({ candidatureId, allowed: false });
+      setAccess(saved);
+      setEditorOpen(false);
+      setTaskContext(null);
+    } catch {
+      setError("AAAAT could not close the external AI task.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const chooseTemplate = (nextId: string) => {
+    const template = taskTemplates.find((candidate) => candidate.id === nextId);
+    if (!template) return;
+    setTemplateId(template.id);
+    setInstruction(template.instruction);
+    setMessage(null);
+    setError(null);
+  };
+
+  const copyTask = async () => {
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api || !editorOpen || !instruction.trim()) return;
+    setBusy("copy");
+    setMessage(null);
+    setError(null);
+    try {
+      await api.copyTask(instruction);
+      setMessage("Task copied.");
+    } catch {
+      setError("AAAAT could not copy the task.");
+    } finally {
+      setBusy(null);
     }
   };
 
   const exportTask = async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (!api || !access?.allowed) return;
-    setPortableBusy("export");
+    if (!api || !editorOpen || !instruction.trim()) return;
+    setBusy("export");
     setMessage(null);
     setError(null);
     try {
-      const result = await api.exportTask();
-      if (result === "exported") {
-        setMessage("Task exported. Give the file to the AI you want to work with.");
-      }
+      const result = await api.exportTask(instruction);
+      if (result === "exported") setMessage("Task file saved.");
     } catch {
       setError("AAAAT could not export the task.");
     } finally {
-      setPortableBusy(null);
+      setBusy(null);
+    }
+  };
+
+  const retainResult = async () => {
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api || !editorOpen || !resultText.trim()) return;
+    setBusy("retain");
+    setMessage(null);
+    setError(null);
+    try {
+      await api.retainResult(resultText);
+      setResultText("");
+      setMessage("Result saved as a Source on this application.");
+    } catch {
+      setError("AAAAT could not save the pasted AI result.");
+    } finally {
+      setBusy(null);
     }
   };
 
   const importResult = async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (!api || !access?.allowed) return;
-    setPortableBusy("import");
+    if (!api || !editorOpen) return;
+    setBusy("import");
     setMessage(null);
     setError(null);
     try {
       const result = await api.importResult();
-      if (result === "imported") {
-        setMessage("Result saved as a Source on this application.");
-      }
+      if (result === "imported") setMessage("Result saved as a Source on this application.");
     } catch {
-      setError("AAAAT could not import the result.");
+      setError("AAAAT could not import the AI result.");
     } finally {
-      setPortableBusy(null);
+      setBusy(null);
     }
   };
 
-  const busy = saving || portableBusy !== null;
+  const disabled = busy !== null;
 
   return (
-    <section className="manual-source-warning" aria-label="External opportunity research">
-      <h3>External opportunity research</h3>
-      <p>
-        Let another AI work with this application. It can use the application fields you allow for AI
-        and save returned research as a Source.
-      </p>
-      {access?.allowed ? (
-        <p className="compact-help">
-          Use a connected local AI directly, or export a task file for an AI running elsewhere and import
-          its returned Markdown or text result here.
-        </p>
-      ) : null}
-      {contextDirty ? (
-        <p className="compact-help">
-          Save or discard your application edits before enabling external AI.
-        </p>
-      ) : null}
+    <section className="manual-source-warning" aria-label="Send to my AI">
+      <h3>Send to my AI</h3>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       {message ? <p>{message}</p> : null}
-      {access ? (
-        <div className="button-row">
+
+      {!editorOpen ? (
+        <>
+          <p>Choose or write a task for this application and use it with your preferred AI.</p>
+          {contextDirty ? (
+            <p className="compact-help">Save or discard the application edits first.</p>
+          ) : null}
           <button
             type="button"
-            className={access.allowed ? undefined : "compact-secondary"}
-            disabled={busy || (!access.allowed && contextDirty)}
-            onClick={() => void update(!access.allowed)}
+            disabled={disabled || contextDirty || access === null}
+            onClick={() => void openEditor()}
           >
-            {saving
-              ? "Saving…"
-              : access.allowed
-                ? "Stop external AI access"
-                : "Use this application with external AI"}
+            {busy === "open" ? "Opening…" : "Send to my AI"}
           </button>
-          {access.allowed ? (
-            <>
-              <button
-                type="button"
-                className="compact-secondary"
-                disabled={busy}
-                onClick={() => void exportTask()}
-              >
-                {portableBusy === "export" ? "Exporting…" : "Export task…"}
-              </button>
-              <button
-                type="button"
-                className="compact-secondary"
-                disabled={busy}
-                onClick={() => void importResult()}
-              >
-                {portableBusy === "import" ? "Importing…" : "Import result…"}
-              </button>
-            </>
-          ) : null}
-        </div>
+        </>
       ) : (
-        <p>Loading external AI access…</p>
+        <>
+          <label htmlFor={`ai-task-template-${candidatureId}`}>Task</label>
+          <select
+            id={`ai-task-template-${candidatureId}`}
+            aria-label="Task template"
+            value={templateId}
+            disabled={disabled}
+            onChange={(event) => chooseTemplate(event.currentTarget.value)}
+          >
+            {taskTemplates.map((template) => (
+              <option key={template.id} value={template.id}>{template.label}</option>
+            ))}
+          </select>
+
+          <label htmlFor={`ai-task-instruction-${candidatureId}`}>Instructions</label>
+          <textarea
+            id={`ai-task-instruction-${candidatureId}`}
+            aria-label="Task instructions"
+            rows={7}
+            value={instruction}
+            disabled={disabled}
+            onChange={(event) => setInstruction(event.currentTarget.value)}
+          />
+
+          <section aria-label="Context sent with task">
+            <h4>Context</h4>
+            {taskContext?.information.length ? (
+              <dl>
+                {taskContext.information.map(({ label, value }) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{displayValue(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="compact-help">No application information is available to AI for this task.</p>
+            )}
+          </section>
+
+          <div className="button-row">
+            <button
+              type="button"
+              disabled={disabled || !instruction.trim()}
+              onClick={() => void copyTask()}
+            >
+              {busy === "copy" ? "Copying…" : "Copy task"}
+            </button>
+            <button
+              type="button"
+              className="compact-secondary"
+              disabled={disabled || !instruction.trim()}
+              onClick={() => void exportTask()}
+            >
+              {busy === "export" ? "Exporting…" : "Export file…"}
+            </button>
+          </div>
+
+          <label htmlFor={`ai-result-${candidatureId}`}>Paste AI result</label>
+          <textarea
+            id={`ai-result-${candidatureId}`}
+            aria-label="AI result"
+            rows={6}
+            value={resultText}
+            disabled={disabled}
+            onChange={(event) => setResultText(event.currentTarget.value)}
+          />
+          <div className="button-row">
+            <button
+              type="button"
+              disabled={disabled || !resultText.trim()}
+              onClick={() => void retainResult()}
+            >
+              {busy === "retain" ? "Saving…" : "Save result"}
+            </button>
+            <button
+              type="button"
+              className="compact-secondary"
+              disabled={disabled}
+              onClick={() => void importResult()}
+            >
+              {busy === "import" ? "Importing…" : "Import result…"}
+            </button>
+            <button
+              type="button"
+              className="compact-secondary"
+              disabled={disabled}
+              onClick={() => void closeEditor()}
+            >
+              {busy === "close" ? "Closing…" : "Close"}
+            </button>
+          </div>
+        </>
       )}
     </section>
   );
