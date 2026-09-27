@@ -1,7 +1,10 @@
 import {
+  externalAssistantConnectionSchema,
+  externalAssistantGuidanceCopyResultSchema,
+  externalAssistantGuidanceExportResultSchema,
+  externalAssistantGuidanceSchema,
   setupEnvironmentChannels,
   setupEnvironmentSnapshotSchema,
-  externalAssistantConnectionSchema,
   type SetupEnvironmentDesktopApi,
 } from "../shared/setup-environment-contracts";
 
@@ -17,6 +20,18 @@ export function createSetupEnvironmentDesktopApi(invoke: Invoke): SetupEnvironme
       externalConnection: async () =>
         externalAssistantConnectionSchema.parse(
           await invoke(setupEnvironmentChannels.externalConnection),
+        ),
+      externalGuidance: async () =>
+        externalAssistantGuidanceSchema.parse(
+          await invoke(setupEnvironmentChannels.externalGuidance),
+        ),
+      copyExternalGuidance: async () =>
+        externalAssistantGuidanceCopyResultSchema.parse(
+          await invoke(setupEnvironmentChannels.externalGuidanceCopy),
+        ),
+      exportExternalGuidance: async () =>
+        externalAssistantGuidanceExportResultSchema.parse(
+          await invoke(setupEnvironmentChannels.externalGuidanceExport),
         ),
     }),
   });
