@@ -634,6 +634,12 @@ export function CandidaturesWorkspace({
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
+      <CandidatureOpportunityResearchAccessPanel
+        key={`external-research-${selected.id}`}
+        candidatureId={selected.id}
+        contextDirty={taskContextDirty}
+      />
+
       <section
         className="section-surface candidature-primary-information"
         aria-label="Starred application information"
@@ -699,11 +705,6 @@ export function CandidaturesWorkspace({
             candidatureId={selected.id}
             onSourcesChanged={() => void handleSourcesChanged()}
             onDirtyChange={setSourceDirty}
-          />
-          <CandidatureOpportunityResearchAccessPanel
-            key={`external-research-${selected.id}`}
-            candidatureId={selected.id}
-            contextDirty={taskContextDirty}
           />
 
           <section className="section-surface" aria-label="Tags">
