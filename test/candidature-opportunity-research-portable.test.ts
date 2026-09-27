@@ -9,9 +9,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCandidatureOpportunityResearchAccessDesktopApi } from "../src/preload/candidature-opportunity-research-access-api";
 import {
   buildOpportunityResearchPortableTask,
+  deleteCandidatureAiTaskTemplate,
   importOpportunityResearchPortableResult,
+  listCandidatureAiTaskTemplates,
   maxOpportunityResearchPortableResultBytes,
   requireSelectedOpportunityResearchContext,
+  saveCandidatureAiTaskTemplate,
   updateCandidatureOpportunityResearchAccess,
 } from "../src/main/candidature-opportunity-research-access-service";
 import {
@@ -100,6 +103,36 @@ describe("portable no-local candidature AI carrier", () => {
     expect(task).not.toContain(root);
   });
 
+  it("persists, updates and deletes user-created candidature AI task templates without a schema change", () => {
+    const root = workspace();
+    expect(listCandidatureAiTaskTemplates(root)).toEqual([]);
+
+    const created = saveCandidatureAiTaskTemplate(root, {
+      name: "My interview review",
+      instruction: "Prepare five role-specific questions.",
+    });
+    expect(created.id).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(listCandidatureAiTaskTemplates(root)).toEqual([created]);
+
+    const updated = saveCandidatureAiTaskTemplate(root, {
+      id: created.id,
+      name: "My interview review",
+      instruction: "Prepare seven role-specific questions and likely follow-ups.",
+    });
+    expect(updated.id).toBe(created.id);
+    expect(listCandidatureAiTaskTemplates(root)).toEqual([updated]);
+
+    expect(() =>
+      saveCandidatureAiTaskTemplate(root, {
+        name: "MY INTERVIEW REVIEW",
+        instruction: "Duplicate name.",
+      }),
+    ).toThrow("already uses that name");
+
+    deleteCandidatureAiTaskTemplate(root, created.id);
+    expect(listCandidatureAiTaskTemplates(root)).toEqual([]);
+  });
+
   it("fails closed without a selected candidature", () => {
     const root = workspace();
     createCandidature(root, { values: [] });
@@ -158,23 +191,41 @@ describe("portable no-local candidature AI carrier", () => {
     expect(listCandidatureSources(root, candidature.id)).toEqual([]);
   });
 
-  it("keeps task context, copy/export and result retention selector-free at the preload boundary", async () => {
+  it("keeps templates and task/result operations bounded at the preload boundary", async () => {
     const instruction = "Prepare useful questions.";
-    const invoke = vi.fn(async (channel: string, input?: unknown) => {
+    const template = {
+      id: "00000000-0000-4000-8000-000000000654",
+      name: "My questions",
+      instruction,
+    };
+    const invoke = vi.fn(async (channel: string) => {
       if (channel === candidatureOpportunityResearchAccessChannels.taskContext) {
         return { information: [{ label: "Role", value: "Software Engineer" }] };
       }
+      if (channel === candidatureOpportunityResearchAccessChannels.taskTemplates) return [template];
+      if (channel === candidatureOpportunityResearchAccessChannels.taskTemplateSave) return template;
+      if (channel === candidatureOpportunityResearchAccessChannels.taskTemplateDelete) return "deleted";
       if (channel === candidatureOpportunityResearchAccessChannels.copyTask) return "copied";
       if (channel === candidatureOpportunityResearchAccessChannels.exportTask) return "exported";
       if (channel === candidatureOpportunityResearchAccessChannels.retainResult) return "retained";
       if (channel === candidatureOpportunityResearchAccessChannels.importResult) return "imported";
-      throw new Error(`Unexpected channel ${channel} ${String(input)}`);
+      throw new Error(`Unexpected channel ${channel}`);
     });
     const api = createCandidatureOpportunityResearchAccessDesktopApi(invoke);
 
     await expect(api.candidatureOpportunityResearchAccess.taskContext()).resolves.toEqual({
       information: [{ label: "Role", value: "Software Engineer" }],
     });
+    await expect(api.candidatureOpportunityResearchAccess.taskTemplates()).resolves.toEqual([template]);
+    await expect(
+      api.candidatureOpportunityResearchAccess.saveTaskTemplate({
+        name: template.name,
+        instruction,
+      }),
+    ).resolves.toEqual(template);
+    await expect(
+      api.candidatureOpportunityResearchAccess.deleteTaskTemplate(template.id),
+    ).resolves.toBe("deleted");
     await expect(api.candidatureOpportunityResearchAccess.copyTask(instruction)).resolves.toBe("copied");
     await expect(api.candidatureOpportunityResearchAccess.exportTask(instruction)).resolves.toBe("exported");
     await expect(
@@ -183,24 +234,29 @@ describe("portable no-local candidature AI carrier", () => {
     await expect(api.candidatureOpportunityResearchAccess.importResult()).resolves.toBe("imported");
 
     expect(invoke).toHaveBeenCalledWith(candidatureOpportunityResearchAccessChannels.taskContext);
+    expect(invoke).toHaveBeenCalledWith(candidatureOpportunityResearchAccessChannels.taskTemplates);
     expect(invoke).toHaveBeenCalledWith(
-      candidatureOpportunityResearchAccessChannels.copyTask,
-      instruction,
+      candidatureOpportunityResearchAccessChannels.taskTemplateSave,
+      { name: template.name, instruction },
     );
     expect(invoke).toHaveBeenCalledWith(
-      candidatureOpportunityResearchAccessChannels.exportTask,
+      candidatureOpportunityResearchAccessChannels.taskTemplateDelete,
+      template.id,
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      candidatureOpportunityResearchAccessChannels.copyTask,
       instruction,
     );
     expect(invoke).toHaveBeenCalledWith(
       candidatureOpportunityResearchAccessChannels.retainResult,
       "Useful returned result",
     );
-    expect(invoke).toHaveBeenCalledWith(candidatureOpportunityResearchAccessChannels.importResult);
 
     const malformed = createCandidatureOpportunityResearchAccessDesktopApi(
       vi.fn(async () => "unexpected"),
     );
     await expect(malformed.candidatureOpportunityResearchAccess.taskContext()).rejects.toThrow();
+    await expect(malformed.candidatureOpportunityResearchAccess.taskTemplates()).rejects.toThrow();
     await expect(malformed.candidatureOpportunityResearchAccess.copyTask(instruction)).rejects.toThrow();
     await expect(malformed.candidatureOpportunityResearchAccess.exportTask(instruction)).rejects.toThrow();
     await expect(
