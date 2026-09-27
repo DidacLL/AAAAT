@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
-  CandidatureFieldPreferences,
   CandidatureFieldUpdate,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
@@ -14,8 +13,9 @@ interface Props {
   readonly onClear: () => Promise<void>;
   readonly onDiscover?: () => void | Promise<void>;
   readonly onUpdateField?: (update: CandidatureFieldUpdate) => Promise<void>;
-  readonly onUpdatePreferences?: (patch: Partial<CandidatureFieldPreferences>) => Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly editing?: boolean;
+  readonly onEditingChange?: (editing: boolean) => void;
   readonly initialEditing?: boolean;
   readonly saveLabel?: string;
   readonly clearLabel?: string;
@@ -60,15 +60,16 @@ export function CandidatureFieldValueEditor({
   onClear,
   onDiscover,
   onUpdateField,
-  onUpdatePreferences,
   onDirtyChange,
+  editing: controlledEditing,
+  onEditingChange,
   initialEditing = false,
   saveLabel = "Save",
   clearLabel = "Clear",
   discoverLabel = "Ask AI to fill",
   showFieldControls = true,
 }: Props) {
-  const [editing, setEditing] = useState(initialEditing);
+  const [internalEditing, setInternalEditing] = useState(initialEditing);
   const [text, setText] = useState(textFor(value));
   const [choices, setChoices] = useState<string[]>(choicesFor(field, value));
   const [definitionName, setDefinitionName] = useState(field.definition.label);
@@ -76,6 +77,7 @@ export function CandidatureFieldValueEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onDirtyChangeRef = useRef(onDirtyChange);
+  const editing = controlledEditing ?? internalEditing;
 
   useEffect(() => {
     onDirtyChangeRef.current = onDirtyChange;
@@ -110,6 +112,11 @@ export function CandidatureFieldValueEditor({
     },
     [],
   );
+
+  const setEditing = (next: boolean) => {
+    if (controlledEditing === undefined) setInternalEditing(next);
+    onEditingChange?.(next);
+  };
 
   const parsedValue = (): CandidatureRuntimeValue | null => {
     const definition = field.definition;
@@ -210,33 +217,6 @@ export function CandidatureFieldValueEditor({
     }
   };
 
-  const updatePreferences = async (patch: Partial<CandidatureFieldPreferences>) => {
-    if (!onUpdatePreferences) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onUpdatePreferences(patch);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save this information setting.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const aiUseControl = onUpdatePreferences ? (
-    <button
-      type="button"
-      className="compact-secondary candidature-ai-use-control"
-      aria-label="AI may use this information"
-      aria-pressed={field.preferences.aiUseAllowed}
-      title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
-      disabled={busy || !field.definition.enabled}
-      onClick={() => void updatePreferences({ aiUseAllowed: !field.preferences.aiUseAllowed })}
-    >
-      AI use: {field.preferences.aiUseAllowed ? "On" : "Off"}
-    </button>
-  ) : null;
-
   const cancel = () => {
     setText(textFor(value));
     setChoices(choicesFor(field, value));
@@ -261,7 +241,6 @@ export function CandidatureFieldValueEditor({
           >
             Edit
           </button>
-          {aiUseControl}
           {onDiscover && field.preferences.aiUseAllowed ? (
             <button
               type="button"
@@ -357,39 +336,33 @@ export function CandidatureFieldValueEditor({
 
   return (
     <div className="candidature-value-editor candidature-value-editor-active">
-      {showFieldControls && onUpdateField ? (
-        <div className="candidature-field-definition-inline">
-          <label>
-            Name
-            <input
-              value={definitionName}
-              disabled={busy}
-              onChange={(event) => setDefinitionName(event.target.value)}
-            />
-          </label>
-          <label>
-            Details <span className="compact-help">optional</span>
-            <input
-              value={definitionDescription}
-              disabled={busy}
-              onChange={(event) => setDefinitionDescription(event.target.value)}
-            />
-          </label>
-        </div>
-      ) : null}
-
       <label className="candidature-value-input">
         Value
         {input}
       </label>
 
-      {showFieldControls && onUpdatePreferences ? (
-        <div className="candidature-field-inline-controls">
-          <span className="candidature-ai-use-inline">
-            {aiUseControl}
-            <span>AI may use this information</span>
-          </span>
-        </div>
+      {showFieldControls && onUpdateField ? (
+        <details className="candidature-field-details">
+          <summary>Edit information details</summary>
+          <div className="candidature-field-definition-inline">
+            <label>
+              Name
+              <input
+                value={definitionName}
+                disabled={busy}
+                onChange={(event) => setDefinitionName(event.target.value)}
+              />
+            </label>
+            <label>
+              Details <span className="compact-help">optional</span>
+              <input
+                value={definitionDescription}
+                disabled={busy}
+                onChange={(event) => setDefinitionDescription(event.target.value)}
+              />
+            </label>
+          </div>
+        </details>
       ) : null}
 
       <div className="button-row candidature-field-edit-actions">
