@@ -8,11 +8,11 @@ This is the durable sequencing and owner-requirements record for the path to alp
 
 This section supersedes older recovery-status statements below where they describe evidence as still missing. The older recovery text remains useful rationale for why mechanism proof is not product acceptance.
 
-Current main after PR #330: `ce1c1530a985342f0d0f552f69c90d5ae7dc56ad`.
+Current main after PR #336: `c272615286abbe8fc0274b035cf8449d23bafb6e`.
 
-- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is now actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial.
+- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial.
 - **PLAN[1] — retained.**
-- **PLAN[2] — ACTIVE, one acceptance gate remains.** The local-computer third-party-host journey is actually demonstrated through llama.cpp Web UI + Granite 4.1 3B using the bounded ADR-0025 opportunity-research read/Source-write operations. PR #330 implements the separate no-local portable task/result carrier and is green. Issue #329 remains open only for the real no-local external-AI journey: export bounded task → external AI with no local-machine access performs substantive work → returned Markdown/text file → AAAAT selector-free import → Source visible in normal UI. Do not close PLAN[2] from carrier/unit evidence alone.
+- **PLAN[2] — ACTIVE, product-shape acceptance remains.** The local-computer third-party-host boundary is actually demonstrated through llama.cpp Web UI + Granite 4.1 3B. The no-local boundary is also actually demonstrated through PR #330 + closed Issue #329. Those prove carriers/domain boundaries, not the final UX. Issue #333 now owns the user-facing `Send to my AI` model. PR #335 implemented the candidature editor, shipped editable tasks, Copy/Paste and file alternatives; PR #336 implemented user-created reusable candidature tasks. Both are implemented but only synthetically demonstrated. PR #335 also left the entry point under `More`, preserving a discoverability problem; Issue #338 is the bounded correction/evidence task. Reusable host guidance remains missing. PR #337 was started prematurely and closed unmerged.
 - **PLAN[3] — retained.**
 - **PLAN[4] — REOPENED, still after PLAN[2].** Production rendering/portable/immutable artifact infrastructure remains real. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains unresolved and requires the ADR-0015 owner-paired design phase.
 - **PLAN[5] — NOT STARTED and BLOCKED.**
@@ -21,12 +21,12 @@ Current recovery debts that must not be lost:
 
 - host/setup UX is still partial and too technical; a real host proving MCP works does not make raw executable/MCP setup guidance an accepted ordinary-user setup journey;
 - PR #319 removed prior VS Code setup and external CV description/content/render capabilities; neither deletion nor historical existence decides whether they should be restored, replaced or remain superseded;
-- the older JSON `applicationHandoff` (`sourceText + outputs`) is a separate mechanism and not evidence of external AI returning useful completed work;
-- PR #330’s portable file carrier is intentionally one named-task carrier, not authority for a generic handoff/result framework;
-- an OpenAI-compatible endpoint remains an implementation adapter, not product/provider authority;
-- scarce Codex/Copilot quotas should not be spent on deterministic harness/setup work when the orchestrator can execute narrow actions directly.
+- the older JSON `applicationHandoff` (`sourceText + outputs`) is a separate mechanism and not the `Send to my AI` product model;
+- OpenAI-compatible remains an implementation adapter, not product/provider authority;
+- scarce Codex/Copilot quotas should not be spent on deterministic harness/setup work when the orchestrator can execute narrow actions directly;
+- the orchestrator must not implement substantial product slices itself: small deterministic corrections are direct; substantial autonomous implementation belongs to a bounded specialist, followed by independent orchestrator review and evidence classification.
 
-After the real no-local #329 journey succeeds, propagate PLAN[2] classification before advancing. Reassess remaining recovery/setup debts against authority rather than automatically declaring all interoperability/setup work complete.
+Do not advance sequence from carrier proof or synthetic UI tests. Complete #338 evidence, reclassify #333, then choose the smallest separate host-guidance artifact/skill path and only then decide whether another context such as career/document is justified.
 
 ## Recovery checkpoint — origin and rationale
 
@@ -76,9 +76,11 @@ Validate bounded journeys that **begin in real third-party AI systems**, includi
 - at least one representative environment with local-computer/tool access; and
 - at least one representative environment without local-computer access.
 
-The local-computer requirement is now actually demonstrated: llama.cpp Web UI + Granite 4.1 3B originated the journey, read the locally selected candidature through `opportunity_research_context_read`, produced useful application-preparation reasoning, wrote it through `candidature_source_add`, and the returned Source was visible in normal AAAAT UI. llama.cpp/Granite are representative evidence fixtures only.
+The local-computer requirement is actually demonstrated: llama.cpp Web UI + Granite 4.1 3B originated the journey, read the locally selected candidature through `opportunity_research_context_read`, produced useful application-preparation reasoning, wrote it through `candidature_source_add`, and the returned Source was visible in normal AAAAT UI. llama.cpp/Granite are representative evidence fixtures only.
 
-The no-local carrier is implemented by PR #330. It exports the same bounded selected-candidature projection as readable Markdown and imports one returned Markdown/text result through the same selector-free Source-only mutation. Real no-local acceptance remains pending in #329 and must use an external AI environment that cannot access the local AAAAT workspace.
+The no-local requirement is also actually demonstrated through PR #330 and closed Issue #329: AAAAT exported bounded readable task context, an external AI with no access to the local AAAAT computer produced substantive Markdown work, the returned result was imported through the selector-free Source-only mutation, and the result was visible in normal AAAAT UI.
+
+Carrier/domain feasibility does not complete PLAN[2]. The Product Owner superseded the specialized `External opportunity research` surface with Issue #333’s contextual **Send to my AI** interaction. PR #335 implemented the candidature task editor, shipped editable tasks, visible bounded context, Copy task, pasted-result retention and file alternatives. PR #336 implemented reusable user-created candidature tasks. Those are currently synthetic implementation evidence only. Issue #338 must correct the remaining discoverability regression (the only entry point is still under `More`) and demonstrate the new user-facing task concept through both a real local-access host journey and a real no-local journey. Reusable host skill/definition guidance remains a separate #333 acceptance item; PR #337 was closed unmerged because it was started before that evidence/reassessment.
 
 MCP, files, clipboard, browser/desktop automation, synchronized rendezvous mechanisms or another carrier may be appropriate for a concrete environment. None is the PLAN outcome by itself.
 
