@@ -161,17 +161,32 @@ describe("portable LaTeX Blueprint/package boundary", () => {
     expect(blueprint).toContain("\\AAAATRenderLetter");
   });
 
-  it("maps the supported Latin-language codes and rejects unsupported supplied languages", () => {
+  it("accepts supported language names/codes and rejects unsupported supplied languages", () => {
     expect(resolveDocumentBabelLanguage(undefined)).toBe("english");
+
+    expect(resolveDocumentBabelLanguage("English")).toBe("english");
+    expect(resolveDocumentBabelLanguage("english")).toBe("english");
+    expect(resolveDocumentBabelLanguage("  ENGLISH  ")).toBe("english");
+    expect(resolveDocumentBabelLanguage("Catalan")).toBe("catalan");
+    expect(resolveDocumentBabelLanguage("German")).toBe("german");
+    expect(resolveDocumentBabelLanguage("Spanish")).toBe("spanish");
+    expect(resolveDocumentBabelLanguage("French")).toBe("french");
+    expect(resolveDocumentBabelLanguage("Italian")).toBe("italian");
+    expect(resolveDocumentBabelLanguage("Portuguese")).toBe("portuguese");
+
     expect(resolveDocumentBabelLanguage("ca-ES")).toBe("catalan");
     expect(resolveDocumentBabelLanguage("de-DE")).toBe("german");
     expect(resolveDocumentBabelLanguage("en-GB")).toBe("english");
     expect(resolveDocumentBabelLanguage("es-ES")).toBe("spanish");
-    expect(resolveDocumentBabelLanguage("fr-FR")).toBe("french");
+    expect(resolveDocumentBabelLanguage("fr-CA")).toBe("french");
     expect(resolveDocumentBabelLanguage("it-IT")).toBe("italian");
     expect(resolveDocumentBabelLanguage("pt-PT")).toBe("portuguese");
+    expect(resolveDocumentBabelLanguage("ca-ES / fr-FR")).toBe("catalan");
+
     expect(() => resolveDocumentBabelLanguage("ja-JP")).toThrow(/Unsupported document language/);
+    expect(() => resolveDocumentBabelLanguage("Japanese")).toThrow(/Unsupported document language/);
     expect(() => resolveDocumentBabelLanguage("ru-RU")).toThrow(/Unsupported document language/);
-    expect(() => resolveDocumentBabelLanguage("not-a-language")).toThrow(/Unsupported document language/);
+    expect(() => resolveDocumentBabelLanguage("arbitrary invalid text"))
+      .toThrow(/supports these Latin-script languages through Babel: English, Catalan, German, Spanish, French, Italian, Portuguese/);
   });
 });
