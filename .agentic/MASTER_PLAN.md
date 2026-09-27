@@ -10,24 +10,27 @@ This section supersedes older recovery-status statements below where they descri
 
 Current main after PR #342: `21f45debffdfaad931a1a7c19015950c704ebb3a`.
 
-- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial.
+- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial but a bounded audit found no setup item that blocks the sequence.
 - **PLAN[1] — retained.**
 - **PLAN[2] — COMPLETE.** The local-computer third-party-host boundary is actually demonstrated through llama.cpp Web UI + Granite 4.1 3B. The no-local boundary is actually demonstrated through PR #330 + closed Issue #329. PRs #335/#336 implemented the candidature `Send to my AI` editor, shipped editable tasks, Copy/Paste and file alternatives, and user-created reusable tasks. PR #341 made the action directly discoverable on the selected candidature surface. PR #342 added reusable external-host guidance separately from individual task payloads. Issue #333 is closed. These real-host results are durable boundary evidence and are not to be rerun after ordinary UI/refactoring changes unless the external boundary materially changes.
 - **PLAN[3] — retained.**
-- **PLAN[4] — REOPENED, after one bounded setup-debt audit.** Production rendering/portable/immutable artifact infrastructure remains real. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains unresolved and requires the ADR-0015 owner-paired design phase.
+- **PLAN[4] — ACTIVE DESIGN PHASE.** The post-PLAN[2] setup audit found no sequence blocker. Production rendering/portable/immutable artifact infrastructure remains real. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains unresolved and now enters the ADR-0015 owner-paired design phase.
 - **PLAN[5] — NOT STARTED and BLOCKED.**
 
 Current recovery debts that must not be lost:
 
-- host/setup UX is still partial and too technical; a real host proving MCP works does not make raw executable/MCP setup guidance an accepted ordinary-user setup journey;
-- PR #319 removed prior VS Code setup and external CV description/content/render capabilities; neither deletion nor historical existence decides whether they should be restored, replaced or remain superseded;
+- host/setup UX is still partial and too technical; a real host proving MCP works does not make raw executable/MCP setup guidance an accepted ordinary-user setup journey, but clipboard/file `Send to my AI` makes that optional and it does not block PLAN[4];
+- AI connection setup/routing is implemented and has real production-path evidence, while ordinary-user setup polish remains partial and optional;
+- TeX prerequisite detection and the rendering self-test are implemented; document editing remains available without TeX, while real rendering naturally requires it;
+- `installer.ai` and `configurator.ai` remain bounded optional assistance. The rendering self-test is real; configurator ordinary-user usefulness remains partial/synthetic. Neither blocks the sequence;
+- PR #319 removed prior VS Code setup and external CV description/content/render capabilities. VS Code-specific setup is superseded unless a future concrete host journey justifies it; external document operations should only be reconsidered against the settled PLAN[4] document model;
 - the older JSON `applicationHandoff` (`sourceText + outputs`) is a separate mechanism and not the `Send to my AI` product model;
 - OpenAI-compatible remains an implementation adapter, not product/provider authority;
 - scarce Codex/Copilot quotas should not be spent on deterministic harness/setup work when the orchestrator can execute narrow actions directly;
 - the Product Owner is not a transport or routine QA layer; manual real-environment checks are scarce boundary evidence, not a gate to repeat after each implementation increment;
 - the orchestrator must not implement substantial product slices itself: small deterministic corrections are direct; substantial autonomous implementation belongs to a bounded specialist, followed by independent orchestrator review and evidence classification.
 
-Before starting PLAN[4], audit remaining setup/integration debt only far enough to decide whether anything materially blocks the sequence. If not, record the classification and resume PLAN[4]. Do not create work merely to eliminate historical mechanism gaps.
+The setup audit is complete: no remaining setup/integration item blocks PLAN[4]. Keep those partial items visible for later refinement instead of creating work merely to eliminate historical mechanism gaps.
 
 ## Recovery checkpoint — origin and rationale
 
@@ -63,7 +66,7 @@ The accepted baseline established the current candidature/domain model and owner
 
 Affordable/lightweight AI usefulness remains a product requirement. PR #326 now provides real constrained-model evidence for a target-scoped one-field job-extraction journey and proves the existing partial-result salvage/local validation can preserve a useful result while rejecting bad siblings. It does not prove every broad/current-field extraction request is useful: the demonstrated ordinary four-field request produced no model response within AAAAT’s intended 15-minute ceiling.
 
-Setup/integration capability removed or narrowed during PR #319 is not automatically obsolete merely because the integrated baseline was accepted. Recover the user journey from higher authority before deciding whether deleted VS Code configuration, CV disclosure/render operations or other prior work should be restored, replaced or remain superseded.
+Setup/integration capability removed or narrowed during PR #319 is not automatically obsolete merely because the integrated baseline was accepted. Recover the user journey from higher authority before deciding whether deleted host-specific setup, CV disclosure/render operations or other prior work should be restored, replaced or remain superseded.
 
 ### PLAN[1] — real test basis
 
@@ -93,9 +96,9 @@ Do not build a generic provider/plugin/integration framework. Choose representat
 
 The completed PLAN[3] code may remain: explicit main-process composition, removal of registration side effects, readability work and dependency-health classification are compatible with the product direction.
 
-Revisit only pieces directly affected by recovered PLAN[2]/PLAN[4] requirements. Avoid architecture churn for its own sake.
+Revisit only pieces directly affected by recovered PLAN[4] requirements. Avoid architecture churn for its own sake.
 
-### PLAN[4] — document/LaTeX package and AAAAT integration — REOPENED
+### PLAN[4] — document/LaTeX package and AAAAT integration — ACTIVE DESIGN PHASE
 
 Retain the useful production infrastructure already implemented:
 
@@ -115,7 +118,7 @@ Completion still requires the owner-approved document-package design preserved b
 - owner collaboration on detailed blueprint/language/font design;
 - coherent AAAAT integration around the resulting document model.
 
-Do not rewrite SPEC/ADR language to make the current small `aaaat.sty` facade equal that unresolved design.
+The current mission must first reduce those unresolved points to concrete owner design decisions. Do not rewrite SPEC/ADR language to make the current small `aaaat.sty` facade equal that unresolved design, and do not start a broad package rewrite before the owner-paired design is fixed.
 
 ### PLAN[5] — UX refinement — blocked
 
