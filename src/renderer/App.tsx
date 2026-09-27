@@ -19,6 +19,7 @@ import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
 import "./settings-rail-recovery.css";
 import "./shell.css";
+import { TagVisor } from "./TagVisor";
 import { WorkspaceRailStatus } from "./WorkspaceRailStatus";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
 
@@ -52,10 +53,19 @@ function ProfileArea({
   );
 }
 
-function CandidaturesArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
+function CandidaturesArea({
+  onDirtyChange,
+  onTagGlossaryChange,
+}: {
+  readonly onDirtyChange: (dirty: boolean) => void;
+  readonly onTagGlossaryChange: () => void;
+}) {
   return (
     <div className="destination-area">
-      <CandidaturesAiWorkspace onDirtyChange={onDirtyChange} />
+      <CandidaturesAiWorkspace
+        onDirtyChange={onDirtyChange}
+        onTagGlossaryChange={onTagGlossaryChange}
+      />
     </div>
   );
 }
@@ -85,6 +95,7 @@ export function App() {
   const [documentWorkspaceRevision, setDocumentWorkspaceRevision] = useState(0);
   const [workspaceContentRevision, setWorkspaceContentRevision] = useState(0);
   const [railStatusRevision, setRailStatusRevision] = useState(0);
+  const [tagGlossaryRevision, setTagGlossaryRevision] = useState(0);
   const [aiAttentionConnectionName, setAiAttentionConnectionName] = useState<string | null>(null);
   const [documentHandoff, setDocumentHandoff] = useState<DocumentHandoff | null>(null);
   const [professionalInformationHandoff, setProfessionalInformationHandoff] =
@@ -93,6 +104,10 @@ export function App() {
 
   const refreshRailStatus = useCallback(() => {
     setRailStatusRevision((current) => current + 1);
+  }, []);
+
+  const refreshTagGlossary = useCallback(() => {
+    setTagGlossaryRevision((current) => current + 1);
   }, []);
 
   const reportAiValidationState = useCallback((connectionName: string, needsAttention: boolean) => {
@@ -497,6 +512,11 @@ export function App() {
                   attentionConnectionName={aiAttentionConnectionName}
                 />
                 <AiTaskStatus />
+                <TagVisor
+                  key={`tag-visor-${workspace.rootPath}`}
+                  workspaceKey={workspace.rootPath}
+                  refreshRevision={tagGlossaryRevision + workspaceContentRevision}
+                />
               </aside>
 
               <section className="work-surface">
@@ -531,6 +551,7 @@ export function App() {
                     <CandidaturesArea
                       key={`candidatures-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(candidatureWorkspaceRevision)}`}
                       onDirtyChange={setCandidatureDirty}
+                      onTagGlossaryChange={refreshTagGlossary}
                     />
                   </div>
                 ) : null}
