@@ -179,7 +179,7 @@ describe("document production", () => {
     const renderedCv = await renderWorkingCv(root, working.id);
     const cvProject = path.join(root, "rendered-cvs", renderedCv.id);
     const cvData = readFileSync(path.join(cvProject, "data.tex"), "utf8");
-    expect(cvData).toContain("\\AAAATSection{Experience}");
+    expect(cvData).toContain("\\AAAATBlock{Experience}{");
     expect(cvData).not.toContain("{experience}");
     expect(cvData).not.toContain("\\input{evil}");
     expect(cvData).toContain("\\AAAATLineBreak{}");
