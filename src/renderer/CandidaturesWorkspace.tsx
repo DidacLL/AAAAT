@@ -30,6 +30,7 @@ import {
 import "./candidatures.css";
 import "./candidature-recovery.css";
 import "./owner-feedback-recovery.css";
+import "./tag-glossary.css";
 
 type CandidatureMode = "corpus" | "selected";
 const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
@@ -47,8 +48,10 @@ function normalizedTagText(value: string): string { return value.trim().toLocale
 
 export function CandidaturesWorkspace({
   onDirtyChange,
+  onTagGlossaryChange,
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly onTagGlossaryChange?: () => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
@@ -251,6 +254,10 @@ export function CandidaturesWorkspace({
     if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return;
     setTagEditorOpen(true); setEditingTagId(tag.id); setTagEditorDraft(tagDraft(tag)); setTagAliasesText(tag.aliases.join(", "));
   };
+  const closeTagEditor = () => {
+    if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return;
+    setTagEditorOpen(false); setEditingTagId(null);
+  };
   const saveTag = async () => {
     const input = { ...tagEditorDraft, name: tagEditorDraft.name.trim(), definition: tagEditorDraft.definition.trim(), aliases: aliasesFromText(tagAliasesText) };
     if (!input.name || !input.definition) return;
@@ -263,6 +270,7 @@ export function CandidaturesWorkspace({
       });
       if (isNew && selected) await persistTagIds([...new Set([...selectedTagIds, saved.id])]);
       setEditingTagId(saved.id); setTagEditorDraft(tagDraft(saved)); setTagAliasesText(saved.aliases.join(", ")); setSelectedTagId(saved.id); setTagQuery("");
+      onTagGlossaryChange?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this Tag."); }
   };
 
@@ -701,6 +709,171 @@ export function CandidaturesWorkspace({
         )}
       </section>
 
+      <section className="section-surface candidature-tags-direct" aria-label="Tags">
+        <div className="candidature-editor-heading">
+          <div>
+            <p className="eyebrow">Shared glossary</p>
+            <h3>Tags</h3>
+          </div>
+        </div>
+        <div className="tag-chip-list" aria-label="Attached Tags">
+          {attachedTags.length === 0 ? (
+            <span className="compact-help">No Tags attached.</span>
+          ) : (
+            attachedTags.map((tag) => (
+              <span className="tag-chip" key={tag.id}>
+                <button
+                  type="button"
+                  className="tag-chip-label"
+                  onClick={() => setSelectedTagId(tag.id)}
+                >
+                  {tag.name}
+                </button>
+                <button
+                  type="button"
+                  className="tag-chip-remove"
+                  aria-label={`Remove ${tag.name}`}
+                  onClick={() =>
+                    void persistTagIds(
+                      selectedTagIds.filter((id) => id !== tag.id),
+                    )
+                  }
+                >
+                  ×
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+        <div className="tag-attach-control">
+          <label>
+            Attach Tag
+            <input
+              type="search"
+              value={tagQuery}
+              onChange={(event) => setTagQuery(event.target.value)}
+              placeholder="Search name or alias…"
+            />
+          </label>
+          {tagMatches.length > 0 ? (
+            <div className="tag-search-results">
+              {tagMatches.map((tag) => (
+                <button
+                  type="button"
+                  key={tag.id}
+                  onClick={() => {
+                    void persistTagIds([...selectedTagIds, tag.id]);
+                    setTagQuery("");
+                  }}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {normalizedTagQuery && !exactTagMatch ? (
+            <button
+              type="button"
+              className="compact-secondary"
+              onClick={() => startNewTag(tagQuery.trim())}
+            >
+              Create “{tagQuery.trim()}”
+            </button>
+          ) : null}
+        </div>
+        {selectedTag ? (
+          <article className="selected-tag-definition">
+            <strong>{selectedTag.name}</strong>
+            <p>{selectedTag.definition}</p>
+            {selectedTag.aliases.length > 0 ? (
+              <p><strong>Aliases:</strong> {selectedTag.aliases.join(", ")}</p>
+            ) : null}
+            {selectedTag.notes ? (
+              <p><strong>Notes:</strong> {selectedTag.notes}</p>
+            ) : null}
+            <button
+              type="button"
+              className="compact-secondary"
+              onClick={() => editTag(selectedTag)}
+            >
+              Edit shared Tag
+            </button>
+          </article>
+        ) : null}
+        {tagEditorOpen ? (
+          <form
+            className="tag-editor"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveTag();
+            }}
+          >
+            <label>
+              Name
+              <input
+                value={tagEditorDraft.name}
+                maxLength={120}
+                onChange={(event) =>
+                  setTagEditorDraft((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Aliases
+              <input
+                value={tagAliasesText}
+                onChange={(event) => setTagAliasesText(event.target.value)}
+                placeholder="Comma separated"
+              />
+            </label>
+            <label>
+              Definition
+              <textarea
+                value={tagEditorDraft.definition}
+                maxLength={3000}
+                onChange={(event) =>
+                  setTagEditorDraft((current) => ({
+                    ...current,
+                    definition: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Notes
+              <textarea
+                value={tagEditorDraft.notes ?? ""}
+                maxLength={5000}
+                onChange={(event) =>
+                  setTagEditorDraft((current) => ({
+                    ...current,
+                    notes: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <div className="button-row">
+              <button
+                type="submit"
+                disabled={!tagEditorDraft.name.trim() || !tagEditorDraft.definition.trim()}
+              >
+                Save Tag
+              </button>
+              <button
+                type="button"
+                className="compact-secondary"
+                onClick={closeTagEditor}
+              >
+                Close
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </section>
+
       <details className="candidature-more">
         <summary>More</summary>
         <div className="candidature-more-content">
@@ -744,174 +917,6 @@ export function CandidaturesWorkspace({
             onSourcesChanged={() => void handleSourcesChanged()}
             onDirtyChange={setSourceDirty}
           />
-
-          <section className="section-surface" aria-label="Tags">
-            <div className="candidature-editor-heading">
-              <div>
-                <p className="eyebrow">Shared glossary</p>
-                <h3>Tags</h3>
-              </div>
-            </div>
-            <div className="tag-chip-list" aria-label="Attached Tags">
-              {attachedTags.length === 0 ? (
-                <span className="compact-help">No Tags attached.</span>
-              ) : (
-                attachedTags.map((tag) => (
-                  <span className="tag-chip" key={tag.id}>
-                    <button
-                      type="button"
-                      className="tag-chip-label"
-                      onClick={() => setSelectedTagId(tag.id)}
-                    >
-                      {tag.name}
-                    </button>
-                    <button
-                      type="button"
-                      className="tag-chip-remove"
-                      aria-label={`Remove ${tag.name}`}
-                      onClick={() =>
-                        void persistTagIds(
-                          selectedTagIds.filter((id) => id !== tag.id),
-                        )
-                      }
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))
-              )}
-            </div>
-            <div className="tag-attach-control">
-              <label>
-                Attach Tag
-                <input
-                  type="search"
-                  value={tagQuery}
-                  onChange={(event) => setTagQuery(event.target.value)}
-                  placeholder="Search name or alias…"
-                />
-              </label>
-              {tagMatches.length > 0 ? (
-                <div className="tag-search-results">
-                  {tagMatches.map((tag) => (
-                    <button
-                      type="button"
-                      key={tag.id}
-                      onClick={() => {
-                        void persistTagIds([...selectedTagIds, tag.id]);
-                        setTagQuery("");
-                      }}
-                    >
-                      {tag.name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {normalizedTagQuery && !exactTagMatch ? (
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => startNewTag(tagQuery.trim())}
-                >
-                  Create “{tagQuery.trim()}”
-                </button>
-              ) : null}
-            </div>
-            {selectedTag ? (
-              <article className="selected-tag-definition">
-                <strong>{selectedTag.name}</strong>
-                <p>{selectedTag.definition}</p>
-                {selectedTag.aliases.length > 0 ? (
-                  <p><strong>Aliases:</strong> {selectedTag.aliases.join(", ")}</p>
-                ) : null}
-                {selectedTag.notes ? (
-                  <p><strong>Notes:</strong> {selectedTag.notes}</p>
-                ) : null}
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => editTag(selectedTag)}
-                >
-                  Edit shared Tag
-                </button>
-              </article>
-            ) : null}
-            {tagEditorOpen ? (
-              <form
-                className="tag-editor"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void saveTag();
-                }}
-              >
-                <label>
-                  Name
-                  <input
-                    value={tagEditorDraft.name}
-                    maxLength={120}
-                    onChange={(event) =>
-                      setTagEditorDraft((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  Aliases
-                  <input
-                    value={tagAliasesText}
-                    onChange={(event) => setTagAliasesText(event.target.value)}
-                    placeholder="Comma separated"
-                  />
-                </label>
-                <label>
-                  Definition
-                  <textarea
-                    value={tagEditorDraft.definition}
-                    maxLength={3000}
-                    onChange={(event) =>
-                      setTagEditorDraft((current) => ({
-                        ...current,
-                        definition: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  Notes
-                  <textarea
-                    value={tagEditorDraft.notes ?? ""}
-                    maxLength={5000}
-                    onChange={(event) =>
-                      setTagEditorDraft((current) => ({
-                        ...current,
-                        notes: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <div className="button-row">
-                  <button
-                    type="submit"
-                    disabled={!tagEditorDraft.name.trim() || !tagEditorDraft.definition.trim()}
-                  >
-                    Save Tag
-                  </button>
-                  <button
-                    type="button"
-                    className="compact-secondary"
-                    onClick={() => {
-                      setTagEditorOpen(false);
-                      setEditingTagId(null);
-                    }}
-                  >
-                    Close
-                  </button>
-                </div>
-              </form>
-            ) : null}
-          </section>
 
           <section className="section-surface" aria-label="Application documents">
             <div className="candidature-editor-heading">
