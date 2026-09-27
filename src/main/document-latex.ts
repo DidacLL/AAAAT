@@ -8,8 +8,7 @@ import type {
 
 import aaatStyle from "./latex/aaaat.sty?raw";
 import applicationPacketTemplate from "./latex/application-packet.tex?raw";
-import coverLetterTemplate from "./latex/cover-letter.tex?raw";
-import cvTemplate from "./latex/cv.tex?raw";
+import documentEntrypoint from "./latex/document.tex?raw";
 
 const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
   "\\": "\\textbackslash{}",
@@ -49,15 +48,20 @@ function babelLanguage(language: string | undefined): string {
   return (primaryCode && babelLanguageByPrimaryCode[primaryCode]) || "english";
 }
 
-function documentDataHeader(title: string, language: string | undefined): string[] {
+function documentDataHeader(
+  kind: "cv" | "letter",
+  title: string,
+  language: string | undefined,
+): string[] {
   return [
+    `\\AAAATDocumentKind{${kind}}`,
     `\\AAAATDocumentLanguage{${babelLanguage(language)}}`,
     `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
   ];
 }
 
 function cvData(working: WorkingCvRecord): string {
-  const lines = documentDataHeader(working.title, working.language);
+  const lines = documentDataHeader("cv", working.title, working.language);
   for (const section of working.sections) {
     lines.push(`\\AAAATBlock{${encodeDocumentText(section.name)}}{`);
     for (const item of section.items) {
@@ -75,7 +79,7 @@ function cvData(working: WorkingCvRecord): string {
 }
 
 function coverLetterData(letter: CoverLetterSnapshot): string {
-  const lines = documentDataHeader(letter.title, letter.language);
+  const lines = documentDataHeader("letter", letter.title, letter.language);
   if (letter.recipient) {
     lines.push(`\\AAAATMetadata{To}{${encodeDocumentText(letter.recipient)}}`);
   }
@@ -93,24 +97,30 @@ function coverLetterData(letter: CoverLetterSnapshot): string {
 
 function writePortableDocumentProject(
   projectPath: string,
-  mainSource: string,
   dataSource: string,
+  blueprintSource: string,
 ): void {
   mkdirSync(projectPath, { recursive: true });
-  writeFileSync(path.join(projectPath, "main.tex"), mainSource, "utf8");
+  writeFileSync(path.join(projectPath, "main.tex"), documentEntrypoint, "utf8");
+  writeFileSync(path.join(projectPath, "blueprint.tex"), blueprintSource, "utf8");
   writeFileSync(path.join(projectPath, "data.tex"), dataSource, "utf8");
   writeFileSync(path.join(projectPath, "aaaat.sty"), aaatStyle, "utf8");
 }
 
-export function writeCvLatexProject(projectPath: string, working: WorkingCvRecord): void {
-  writePortableDocumentProject(projectPath, cvTemplate, cvData(working));
+export function writeCvLatexProject(
+  projectPath: string,
+  working: WorkingCvRecord,
+  blueprintSource: string,
+): void {
+  writePortableDocumentProject(projectPath, cvData(working), blueprintSource);
 }
 
 export function writeCoverLetterLatexProject(
   projectPath: string,
   letter: CoverLetterSnapshot,
+  blueprintSource: string,
 ): void {
-  writePortableDocumentProject(projectPath, coverLetterTemplate, coverLetterData(letter));
+  writePortableDocumentProject(projectPath, coverLetterData(letter), blueprintSource);
 }
 
 export function writeApplicationPacketEntrypoint(projectPath: string): void {

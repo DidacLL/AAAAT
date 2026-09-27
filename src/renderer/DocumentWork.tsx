@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ProfileItem } from "../shared/contracts";
 import type {
+  BlueprintSummary,
   CoverLetterRecord,
   CvTemplateItem,
   CvTemplateSection,
@@ -22,6 +23,58 @@ const emptyCollections: DocumentCollections = {
   renderedLetters: [],
   applicationPackets: [],
 };
+
+function useBlueprintSelection(): {
+  blueprints: BlueprintSummary[];
+  selectedBlueprintId: string;
+  setSelectedBlueprintId: (id: string) => void;
+} {
+  const [blueprints, setBlueprints] = useState<BlueprintSummary[]>([]);
+  const [selectedBlueprintId, setSelectedBlueprintId] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.documentDomain.blueprints().then((available) => {
+      if (!active) return;
+      setBlueprints(available);
+      setSelectedBlueprintId((current) =>
+        available.some((blueprint) => blueprint.id === current)
+          ? current
+          : available[0]?.id ?? "",
+      );
+    });
+    return () => { active = false; };
+  }, []);
+
+  return { blueprints, selectedBlueprintId, setSelectedBlueprintId };
+}
+
+function BlueprintRenderChoice({
+  blueprints,
+  selectedBlueprintId,
+  onChange,
+}: {
+  readonly blueprints: readonly BlueprintSummary[];
+  readonly selectedBlueprintId: string;
+  readonly onChange: (id: string) => void;
+}) {
+  return (
+    <label className="blueprint-render-choice">
+      <span>Blueprint</span>
+      <select
+        aria-label="Blueprint"
+        value={selectedBlueprintId}
+        disabled={blueprints.length === 0}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {blueprints.length === 0 ? <option value="">Loading…</option> : null}
+        {blueprints.map((blueprint) => (
+          <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 function profileContent(item: ProfileItem): WorkingCvItem["content"] {
   return {
@@ -107,6 +160,7 @@ export function WorkingCvEditor({
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature } = useContextualHandoffs();
+  const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
@@ -331,12 +385,16 @@ export function WorkingCvEditor({
   };
 
   const render = async () => {
+    if (!selectedBlueprintId) return;
     setBusy(true);
     setError(null);
     setRenderSettingsSuggested(false);
     try {
       const saved = dirty ? await persistDraft() : draft;
-      const rendered = await window.aaaat.documentDomain.renderCv(saved.id);
+      const rendered = await window.aaaat.documentDomain.renderCv({
+        cvId: saved.id,
+        blueprintId: selectedBlueprintId,
+      });
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedCv(rendered.id);
     } catch (reason) {
@@ -363,7 +421,8 @@ export function WorkingCvEditor({
             <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAiToTailor()}>Ask AI to tailor</button>
           ) : null}
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" disabled={busy} onClick={() => void render()}>Render PDF</button>
+          <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
+          <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>Render PDF</button>
         </div>
       </header>
 
@@ -552,6 +611,7 @@ function LetterEditor({
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, returnToCandidature } = useContextualHandoffs();
+  const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
   const [busy, setBusy] = useState(false);
@@ -618,12 +678,16 @@ function LetterEditor({
   };
 
   const renderLetter = async () => {
+    if (!selectedBlueprintId) return;
     setBusy(true);
     setError(null);
     setProductionMessage(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
-      const rendered = await window.aaaat.documentDomain.renderLetter(saved.id);
+      const rendered = await window.aaaat.documentDomain.renderLetter({
+        letterId: saved.id,
+        blueprintId: selectedBlueprintId,
+      });
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedLetter(rendered.id);
       setProductionMessage("Rendered cover letter retained.");
@@ -658,7 +722,8 @@ function LetterEditor({
           {documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}
           <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAi()}>Ask AI to draft</button>
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" disabled={busy} onClick={() => void renderLetter()}>Render PDF</button>
+          <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
+          <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void renderLetter()}>Render PDF</button>
           {latestRendered ? (
             <>
               <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>Open rendered PDF</button>

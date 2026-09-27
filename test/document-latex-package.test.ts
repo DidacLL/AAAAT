@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { BUILTIN_BLUEPRINT_SOURCE } from "../src/main/document-blueprints";
 import {
   writeCoverLetterLatexProject,
   writeCvLatexProject,
@@ -33,8 +34,8 @@ afterEach(() => {
   }
 });
 
-describe("portable LaTeX package boundary", () => {
-  it("keeps CV data content-oriented while the blueprint and package own block placement", () => {
+describe("portable LaTeX Blueprint/package boundary", () => {
+  it("keeps CV data content-oriented while one retained Blueprint owns presentation", () => {
     const now = new Date().toISOString();
     const working: WorkingCvRecord = {
       id: crypto.randomUUID(),
@@ -84,12 +85,14 @@ describe("portable LaTeX package boundary", () => {
     };
 
     const project = temporaryProject("aaaat-cv-package-");
-    writeCvLatexProject(project, working);
+    writeCvLatexProject(project, working, BUILTIN_BLUEPRINT_SOURCE);
 
     const data = source(project, "data.tex");
     const main = source(project, "main.tex");
+    const blueprint = source(project, "blueprint.tex");
     const style = source(project, "aaaat.sty");
 
+    expect(data).toContain("\\AAAATDocumentKind{cv}");
     expect(data).toContain("\\AAAATDocumentLanguage{catalan}");
     expect(data).toContain("\\AAAATBlock{Experience}{");
     expect(data).toContain("\\AAAATBlock{Skills}{");
@@ -97,17 +100,19 @@ describe("portable LaTeX package boundary", () => {
     expect(data).not.toContain("textwidth");
     expect(data).not.toContain("minipage");
 
-    expect(main).toContain("\\AAAATFullWidthHeader");
-    expect(main).toContain("\\AAAATTwoRegionBody");
-    expect(main).toContain("\\AAAATRenderRailBlocks");
-    expect(main).toContain("\\AAAATRenderMainBlocks");
+    expect(main.trim()).toBe("\\input{blueprint.tex}");
+    expect(blueprint).toContain("\\AAAATIfDocumentKindTF{cv}");
+    expect(blueprint).toContain("\\AAAATTwoRegionBody");
+    expect(blueprint).toContain("\\AAAATRenderLetter");
 
     expect(style).toContain("\\ProvidesExplPackage");
+    expect(style).toContain("\\AAAATDocumentKind");
+    expect(style).toContain("\\AAAATIfDocumentKindTF");
     expect(style).toContain("\\AAAATBlock");
     expect(style).toContain("\\babelprovide");
   });
 
-  it("uses the same Babel seam for cover letters without exposing language as document metadata", () => {
+  it("uses the same Blueprint contract and Babel seam for cover letters", () => {
     const letter: CoverLetterSnapshot = {
       candidatureId: null,
       title: "Lettre portable",
@@ -119,14 +124,15 @@ describe("portable LaTeX package boundary", () => {
     };
 
     const project = temporaryProject("aaaat-letter-package-");
-    writeCoverLetterLatexProject(project, letter);
+    writeCoverLetterLatexProject(project, letter, BUILTIN_BLUEPRINT_SOURCE);
 
     const data = source(project, "data.tex");
-    const main = source(project, "main.tex");
+    const blueprint = source(project, "blueprint.tex");
 
+    expect(data).toContain("\\AAAATDocumentKind{letter}");
     expect(data).toContain("\\AAAATDocumentLanguage{french}");
     expect(data).not.toContain("\\AAAATMetadata{Language}");
-    expect(main.indexOf("\\input{data.tex}")).toBeLessThan(main.indexOf("\\begin{document}"));
-    expect(main).toContain("\\AAAATRenderLetter");
+    expect(blueprint.indexOf("\\input{data.tex}")).toBeLessThan(blueprint.indexOf("\\begin{document}"));
+    expect(blueprint).toContain("\\AAAATRenderLetter");
   });
 });

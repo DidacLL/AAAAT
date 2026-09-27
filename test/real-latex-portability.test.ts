@@ -8,6 +8,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { createCandidature } from "../src/main/candidature-service";
+import { BUILTIN_BLUEPRINT_SOURCE } from "../src/main/document-blueprints";
 import {
   createApplicationPacket,
   createCoverLetter,
@@ -29,12 +30,15 @@ const realLatexIt = process.env.AAAAT_REAL_LATEX === "1" ? it : it.skip;
 function allSourceText(project: string): string {
   const names = [
     "main.tex",
+    "blueprint.tex",
     "data.tex",
     "aaaat.sty",
     path.join("cv", "main.tex"),
+    path.join("cv", "blueprint.tex"),
     path.join("cv", "data.tex"),
     path.join("cv", "aaaat.sty"),
     path.join("cover-letter", "main.tex"),
+    path.join("cover-letter", "blueprint.tex"),
     path.join("cover-letter", "data.tex"),
     path.join("cover-letter", "aaaat.sty"),
   ];
@@ -144,7 +148,12 @@ describe("real pdfLaTeX portability boundary", () => {
           candidatureId: candidature.id,
           source: { kind: "profile" },
         });
-        const renderedCv = await renderWorkingCv(root, working.id, 60_000);
+        const renderedCv = await renderWorkingCv(
+          root,
+          working.id,
+          BUILTIN_BLUEPRINT_SOURCE,
+          60_000,
+        );
 
         const standaloneLetter = createCoverLetter(root, {
           candidatureId: null,
@@ -162,6 +171,7 @@ describe("real pdfLaTeX portability boundary", () => {
         const renderedStandaloneLetter = await renderCoverLetter(
           root,
           standaloneLetter.id,
+          BUILTIN_BLUEPRINT_SOURCE,
           60_000,
         );
 
@@ -180,6 +190,7 @@ describe("real pdfLaTeX portability boundary", () => {
         const renderedApplicationLetter = await renderCoverLetter(
           root,
           applicationLetter.id,
+          BUILTIN_BLUEPRINT_SOURCE,
           60_000,
         );
 
@@ -232,8 +243,8 @@ describe("real pdfLaTeX portability boundary", () => {
         expect(allSourceText(exportedCv)).toContain("Núria Müller");
         expect(allSourceText(exportedStandaloneLetter)).toContain("Équipe R");
         expect(allSourceText(exportedApplicationLetter)).toContain("presentació");
-        expect(existsSync(path.join(exportedPacket, "cv", "aaaat.sty"))).toBe(true);
-        expect(existsSync(path.join(exportedPacket, "cover-letter", "aaaat.sty"))).toBe(true);
+        expect(existsSync(path.join(exportedPacket, "cv", "blueprint.tex"))).toBe(true);
+        expect(existsSync(path.join(exportedPacket, "cover-letter", "blueprint.tex"))).toBe(true);
       } finally {
         rmSync(root, { recursive: true, force: true });
         rmSync(exportParent, { recursive: true, force: true });
@@ -250,7 +261,7 @@ describe("real pdfLaTeX portability boundary", () => {
         const { working, entryMarkers, sectionNames } = longWorkingCv();
         expect(entryMarkers).toHaveLength(37);
         expect(sectionNames).toHaveLength(7);
-        writeCvLatexProject(project, working);
+        writeCvLatexProject(project, working, BUILTIN_BLUEPRINT_SOURCE);
 
         await runLatexmk(project, 60_000);
 

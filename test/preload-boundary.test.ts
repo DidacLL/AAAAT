@@ -233,6 +233,12 @@ describe("desktop preload boundary", () => {
       if (channel === candidatureOpportunityResearchAccessChannels.update) return input;
       if (channel === workspaceRecoveryChannels.backup) return { status: "backed_up" };
       if (channel === workspaceRecoveryChannels.restore) return { status: "cancelled" };
+      if (channel === documentDomainChannels.blueprints) {
+        return [
+          { id: "builtin:default", name: "AAAAT Default" },
+          { id: "user:Compact.tex", name: "Compact" },
+        ];
+      }
       if (channel === documentDomainChannels.exportRenderedCv) {
         return { exportedPath: "/tmp/portable-rendered-cv" };
       }
@@ -278,10 +284,17 @@ describe("desktop preload boundary", () => {
     ).resolves.toEqual({ candidatureId, allowed: false });
     await expect(recovery.workspaceRecovery.backup()).resolves.toEqual({ status: "backed_up" });
     await expect(recovery.workspaceRecovery.restore()).resolves.toEqual({ status: "cancelled" });
+    await expect(documents.documentDomain.blueprints()).resolves.toEqual([
+      { id: "builtin:default", name: "AAAAT Default" },
+      { id: "user:Compact.tex", name: "Compact" },
+    ]);
     await expect(documents.documentDomain.exportRenderedCv(candidatureId)).resolves.toEqual({
       exportedPath: "/tmp/portable-rendered-cv",
     });
-    await expect(documents.documentDomain.renderLetter(candidatureId)).resolves.toMatchObject({
+    await expect(documents.documentDomain.renderLetter({
+      letterId: candidatureId,
+      blueprintId: "builtin:default",
+    })).resolves.toMatchObject({
       id: sourceId,
       coverLetterId: candidatureId,
       hasPdf: true,
@@ -306,8 +319,12 @@ describe("desktop preload boundary", () => {
     );
     expect(invoke).toHaveBeenCalledWith(workspaceRecoveryChannels.backup);
     expect(invoke).toHaveBeenCalledWith(workspaceRecoveryChannels.restore);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.blueprints);
     expect(invoke).toHaveBeenCalledWith(documentDomainChannels.exportRenderedCv, candidatureId);
-    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.renderLetter, candidatureId);
+    expect(invoke).toHaveBeenCalledWith(documentDomainChannels.renderLetter, {
+      letterId: candidatureId,
+      blueprintId: "builtin:default",
+    });
     expect(invoke).toHaveBeenCalledWith(documentDomainChannels.openRenderedLetter, sourceId);
     expect(invoke).toHaveBeenCalledWith(documentDomainChannels.exportRenderedLetter, sourceId);
     expect(invoke).toHaveBeenCalledWith(documentDomainChannels.packetExport, sourceId);
@@ -322,5 +339,4 @@ describe("desktop preload boundary", () => {
       research.candidatureOpportunityResearchAccess.current("not-a-uuid"),
     ).rejects.toThrow();
   });
-
 });

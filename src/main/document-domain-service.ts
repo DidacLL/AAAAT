@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {accessSync, constants, cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync} from 'node:fs';
+import {accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync} from 'node:fs';
 import path from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
 
@@ -261,6 +261,12 @@ function packetProjectPath(rootPath: string, row: PacketRow): string {
 }
 function retainedPdf(projectPath: string): string {
   return path.join(projectPath, 'build', 'main.pdf');
+}
+function retainedBlueprintSource(projectPath: string): string {
+  const blueprintPath = path.join(projectPath, 'blueprint.tex');
+  if (!existsSync(blueprintPath))
+    throw new DocumentDomainServiceError('The retained document Blueprint source is missing.');
+  return readFileSync(blueprintPath, 'utf8');
 }
 function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
   return renderedCvRecordSchema.parse({
@@ -718,7 +724,8 @@ async function compileProject(projectPath: string, timeoutMs: number): Promise<v
     throw new DocumentDomainServiceError('TeX rendering did not produce a PDF.');
 }
 export async function renderWorkingCv(
-    rootPath: string, workingCvId: string, timeoutMs = 30000): Promise<RenderedCvRecord> {
+    rootPath: string, workingCvId: string, blueprintSource: string,
+    timeoutMs = 30000): Promise<RenderedCvRecord> {
   const working =
       withWorkspaceDatabase(rootPath, (database) => requireWorkingCv(database, workingCvId));
   const id = randomUUID();
@@ -733,7 +740,7 @@ export async function renderWorkingCv(
     sections: working.sections
   });
   try {
-    writeCvLatexProject(stagePath, working);
+    writeCvLatexProject(stagePath, working, blueprintSource);
     await compileProject(stagePath, timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
@@ -879,7 +886,7 @@ export function removeCoverLetter(rootPath: string, letterId: string): DocumentC
   });
 }
 export async function renderCoverLetter(
-    rootPath: string, coverLetterId: string,
+    rootPath: string, coverLetterId: string, blueprintSource: string,
     timeoutMs = 30000): Promise<RenderedCoverLetterRecord> {
   const letter =
       withWorkspaceDatabase(rootPath, (database) => requireLetter(database, coverLetterId));
@@ -889,7 +896,7 @@ export async function renderCoverLetter(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
-    writeCoverLetterLatexProject(stagePath, snapshot);
+    writeCoverLetterLatexProject(stagePath, snapshot, blueprintSource);
     await compileProject(stagePath, timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
@@ -941,6 +948,7 @@ export async function createApplicationPacket(
       throw new DocumentDomainServiceError('Choose a cover letter owned by this application.');
     return {cvRow: rendered, letter: currentLetter};
   });
+  const blueprintSource = retainedBlueprintSource(renderedProjectPath(rootPath, cvRow));
   const id = randomUUID();
   const relativePath = path.join('application-packets', id);
   const projectPath = path.join(rootPath, relativePath);
@@ -949,7 +957,7 @@ export async function createApplicationPacket(
     mkdirSync(stagePath, {recursive: true});
     const letterSnapshot = snapshotCoverLetter(letter);
     const letterPath = path.join(stagePath, 'cover-letter');
-    writeCoverLetterLatexProject(letterPath, letterSnapshot);
+    writeCoverLetterLatexProject(letterPath, letterSnapshot, blueprintSource);
     await compileProject(letterPath, timeoutMs);
     cpSync(
         renderedProjectPath(rootPath, cvRow), path.join(stagePath, 'cv'),

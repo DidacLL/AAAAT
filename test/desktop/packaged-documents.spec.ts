@@ -233,6 +233,9 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
     await expect(running.page.getByRole("region", { name: "CV and document work" })).toBeVisible();
 
     const result = await running.page.evaluate(async (applicationId) => {
+      const availableBlueprints = await window.aaaat.documentDomain.blueprints();
+      const blueprintId = availableBlueprints[0]?.id;
+      if (!blueprintId) throw new Error("No built-in Blueprint available");
       const working = await window.aaaat.documentDomain.createWorkingCv({
         title: "Packaged application CV",
         candidatureId: applicationId,
@@ -248,9 +251,9 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
         title: "Packaged application letter",
         bodyParagraphs: ["Exact packet letter."],
       });
-      const renderedCv = await window.aaaat.documentDomain.renderCv(working.id);
-      const renderedStandalone = await window.aaaat.documentDomain.renderLetter(standaloneLetter.id);
-      const renderedApplication = await window.aaaat.documentDomain.renderLetter(applicationLetter.id);
+      const renderedCv = await window.aaaat.documentDomain.renderCv({ cvId: working.id, blueprintId });
+      const renderedStandalone = await window.aaaat.documentDomain.renderLetter({ letterId: standaloneLetter.id, blueprintId });
+      const renderedApplication = await window.aaaat.documentDomain.renderLetter({ letterId: applicationLetter.id, blueprintId });
       const packet = await window.aaaat.documentDomain.createPacket({
         candidatureId: applicationId,
         renderedCvId: renderedCv.id,
@@ -258,6 +261,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
       });
       const collections = await window.aaaat.documentDomain.collections();
       return {
+        availableBlueprints,
         renderedCv,
         renderedStandalone,
         renderedApplication,
@@ -270,6 +274,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
       };
     }, candidatureId);
 
+    expect(result.availableBlueprints[0]).toEqual({ id: "builtin:default", name: "AAAAT Default" });
     expect(result.renderedCv.hasPdf).toBe(true);
     expect(result.renderedStandalone.hasPdf).toBe(true);
     expect(result.renderedApplication.hasPdf).toBe(true);
@@ -278,7 +283,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
     expect(JSON.stringify(result)).not.toContain(workspace);
 
     expect(
-      existsSync(path.join(workspace, "rendered-cvs", result.renderedCv.id, "aaaat.sty")),
+      existsSync(path.join(workspace, "rendered-cvs", result.renderedCv.id, "blueprint.tex")),
     ).toBe(true);
     expect(
       existsSync(
@@ -286,7 +291,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
           workspace,
           "rendered-cover-letters",
           result.renderedStandalone.id,
-          "aaaat.sty",
+          "blueprint.tex",
         ),
       ),
     ).toBe(true);
@@ -300,7 +305,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
           "application-packets",
           result.packet.id,
           "cover-letter",
-          "data.tex",
+          "blueprint.tex",
         ),
       ),
     ).toBe(true);
