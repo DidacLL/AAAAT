@@ -37,6 +37,7 @@ describe("CV template reusable-source integrity", () => {
         sections: [{
           id: crypto.randomUUID(),
           name: "Experience",
+          presentationRole: "main",
           items: [{ id: crypto.randomUUID(), sourceMode: "current", profileItemId: item.id }],
         }],
       });
@@ -71,6 +72,7 @@ describe("CV template reusable-source integrity", () => {
         sections: [{
           id: crypto.randomUUID(),
           name: "Experience",
+          presentationRole: "secondary",
           items: [{
             id: crypto.randomUUID(),
             sourceMode: "variant",

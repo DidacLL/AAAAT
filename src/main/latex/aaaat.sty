@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-27}{0.4.0}{AAAAT portable document package}
+\ProvidesExplPackage{aaaat}{2026-09-27}{0.5.0}{AAAAT portable document package}
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
@@ -11,9 +11,8 @@
 \tl_new:N \g_aaaat_document_title_tl
 \seq_new:N \g_aaaat_metadata_seq
 \seq_new:N \g_aaaat_paragraph_seq
-\seq_new:N \g_aaaat_blocks_seq
-\int_new:N \l_aaaat_rail_block_count_int
-\int_new:N \l_aaaat_main_block_count_int
+\seq_new:N \g_aaaat_main_blocks_seq
+\seq_new:N \g_aaaat_secondary_blocks_seq
 \box_new:N \l_aaaat_header_box
 \box_new:N \l_aaaat_rail_body_box
 \box_new:N \l_aaaat_main_body_box
@@ -52,10 +51,26 @@
       {\aaaat_paragraph_render:n {#1}}
   }
 
-\NewDocumentCommand{\AAAATBlock}{mm}
+\NewDocumentCommand{\AAAATBlock}{mmm}
   {
-    \seq_gput_right:Nn \g_aaaat_blocks_seq
-      {\aaaat_block_render:nn {#1} {#2}}
+    \str_case:nnF {#1}
+      {
+        {main}
+          {
+            \seq_gput_right:Nn \g_aaaat_main_blocks_seq
+              {\aaaat_block_render:nn {#2} {#3}}
+          }
+        {secondary}
+          {
+            \seq_gput_right:Nn \g_aaaat_secondary_blocks_seq
+              {\aaaat_block_render:nn {#2} {#3}}
+          }
+      }
+      {
+        \PackageError{aaaat}
+          {Unsupported~CV~section~presentation~role~'#1'}
+          {Use~main~or~secondary.}
+      }
   }
 
 \NewDocumentCommand{\AAAATEntry}{mmmmm}
@@ -109,18 +124,14 @@
     #2
   }
 
-\cs_new_protected:Npn \aaaat_set_block_split:
+\cs_new_protected:Npn \aaaat_render_blocks:N #1
   {
-    \int_set:Nn \l_aaaat_rail_block_count_int
-      {\int_div_truncate:nn {\seq_count:N \g_aaaat_blocks_seq} {3}}
-    \int_compare:nNnTF {\seq_count:N \g_aaaat_blocks_seq} < {2}
-      {\int_zero:N \l_aaaat_rail_block_count_int}
+    \seq_map_indexed_inline:Nn #1
       {
-        \int_compare:nNnT {\l_aaaat_rail_block_count_int} < {1}
-          {\int_set:Nn \l_aaaat_rail_block_count_int {1}}
+        ##2
+        \int_compare:nNnT {##1} < {\seq_count:N #1}
+          {\par\medskip}
       }
-    \int_set:Nn \l_aaaat_main_block_count_int
-      {\seq_count:N \g_aaaat_blocks_seq - \l_aaaat_rail_block_count_int}
   }
 
 \cs_new_protected:Npn \aaaat_prepare_two_region_body:nn #1#2
@@ -237,33 +248,11 @@
     \endgroup
   }
 
-\NewDocumentCommand{\AAAATRenderRailBlocks}{}
-  {
-    \aaaat_set_block_split:
-    \seq_map_indexed_inline:Nn \g_aaaat_blocks_seq
-      {
-        \int_compare:nNnT {##1} > {\l_aaaat_main_block_count_int}
-          {
-            ##2
-            \int_compare:nNnT {##1} < {\seq_count:N \g_aaaat_blocks_seq}
-              {\par\medskip}
-          }
-      }
-  }
+\NewDocumentCommand{\AAAATRenderSecondaryBlocks}{}
+  {\aaaat_render_blocks:N \g_aaaat_secondary_blocks_seq}
 
 \NewDocumentCommand{\AAAATRenderMainBlocks}{}
-  {
-    \aaaat_set_block_split:
-    \seq_map_indexed_inline:Nn \g_aaaat_blocks_seq
-      {
-        \int_compare:nNnF {##1} > {\l_aaaat_main_block_count_int}
-          {
-            ##2
-            \int_compare:nNnT {##1} < {\l_aaaat_main_block_count_int}
-              {\par\medskip}
-          }
-      }
-  }
+  {\aaaat_render_blocks:N \g_aaaat_main_blocks_seq}
 
 \NewDocumentCommand{\AAAATRenderLetter}{}
   {

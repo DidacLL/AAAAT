@@ -91,7 +91,7 @@ afterEach(() => {
 });
 
 describe("document production", () => {
-  it("keeps current, variant, override and custom CV template ownership semantics explicit", () => {
+  it("keeps template item ownership and section presentation roles explicit", () => {
     const root = workspace();
     const profileItem = addProfileItem(root, {
       kind: "experience",
@@ -114,6 +114,7 @@ describe("document production", () => {
       sections: [{
         id: crypto.randomUUID(),
         name: "Experience",
+        presentationRole: "secondary",
         items: [
           { id: crypto.randomUUID(), sourceMode: "current", profileItemId: profileItem.id },
           {
@@ -151,6 +152,7 @@ describe("document production", () => {
       candidatureId: null,
       source: { kind: "template", templateId: template.id },
     });
+    expect(working.sections[0]?.presentationRole).toBe("secondary");
     expect(working.sections[0]?.items.map((item) => [item.sourceMode, item.content.title])).toEqual([
       ["current", "Platform Engineer"],
       ["variant", "Platform Lead"],
@@ -174,6 +176,7 @@ describe("document production", () => {
       sections: [{
         id: crypto.randomUUID(),
         name: "Experience",
+        presentationRole: "main",
         items: [{
           id: crypto.randomUUID(),
           templateItemId: null,
@@ -195,6 +198,8 @@ describe("document production", () => {
       .toBe(BUILTIN_BLUEPRINT_SOURCE);
     expect(readFileSync(path.join(root, "rendered-cvs", second.id, "blueprint.tex"), "utf8"))
       .toBe(alternateBlueprint);
+    expect(readFileSync(path.join(root, "rendered-cvs", first.id, "data.tex"), "utf8"))
+      .toBe(readFileSync(path.join(root, "rendered-cvs", second.id, "data.tex"), "utf8"));
     expect(JSON.stringify(reopened)).not.toContain("blueprint");
   });
 
@@ -215,11 +220,12 @@ describe("document production", () => {
       candidatureId: candidature.id,
       source: { kind: "profile" },
     });
+    expect(working.sections.every((section) => section.presentationRole === "main")).toBe(true);
     const renderedCv = await renderWorkingCv(root, working.id, BUILTIN_BLUEPRINT_SOURCE);
     const cvProject = path.join(root, "rendered-cvs", renderedCv.id);
     const cvData = readFileSync(path.join(cvProject, "data.tex"), "utf8");
     expect(cvData).toContain("\\AAAATDocumentKind{cv}");
-    expect(cvData).toContain("\\AAAATBlock{Experience}{");
+    expect(cvData).toContain("\\AAAATBlock{main}{Experience}{");
     expect(cvData).not.toContain("{experience}");
     expect(cvData).not.toContain("\\input{evil}");
     expect(cvData).toContain("\\AAAATLineBreak{}");

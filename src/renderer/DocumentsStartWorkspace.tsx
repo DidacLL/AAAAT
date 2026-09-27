@@ -59,6 +59,7 @@ function RenderedCvInspection({
           {document.snapshot.sections.map((section) => (
             <section key={section.id} className="working-cv-section">
               <h4>{section.name}</h4>
+              <small>{section.presentationRole === "secondary" ? "Secondary" : "Main"}</small>
               {section.items.length === 0 ? <p className="compact-empty">No content in this section.</p> : section.items.map((item) => (
                 <article key={item.id} className="working-cv-item">
                   <span className="item-kind">{item.content.kind}</span>
@@ -165,6 +166,29 @@ export function DocumentsStartWorkspace({
     } finally { setBusy(false); }
   };
 
+  const updateTemplateSectionRole = async (
+    templateId: string,
+    sectionId: string,
+    presentationRole: "main" | "secondary",
+  ) => {
+    if (busy) return;
+    const template = collections.templates.find((candidate) => candidate.id === templateId);
+    if (!template) return;
+    setBusy(true); setError(null);
+    try {
+      setCollections(await window.aaaat.documentDomain.updateTemplate({
+        id: template.id,
+        name: template.name,
+        language: template.language,
+        sections: template.sections.map((section) =>
+          section.id === sectionId ? { ...section, presentationRole } : section,
+        ),
+      }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not update this template section.");
+    } finally { setBusy(false); }
+  };
+
   const createLetter = async () => {
     if (busy) return;
     setBusy(true); setError(null);
@@ -222,6 +246,31 @@ export function DocumentsStartWorkspace({
               <article key={template.id} className="document-intent-row">
                 <button type="button" disabled={busy} onClick={() => void openTemplate(template.id, template.name)}><span className="item-kind">Template</span><strong>{template.name}</strong><small>{template.language ? `${template.language} · ` : ""}Use as a new Working CV</small></button>
                 <button type="button" className="compact-secondary" disabled={busy} onClick={() => void renameTemplate(template.id)}>Rename</button>
+                {template.sections.length > 0 ? (
+                  <details className="document-start-options">
+                    <summary>Section roles</summary>
+                    <div className="document-start-options-grid">
+                      {template.sections.map((section) => (
+                        <label key={section.id}>
+                          {section.name}
+                          <select
+                            aria-label={`${template.name} ${section.name} presentation role`}
+                            value={section.presentationRole}
+                            disabled={busy}
+                            onChange={(event) => void updateTemplateSectionRole(
+                              template.id,
+                              section.id,
+                              event.target.value === "secondary" ? "secondary" : "main",
+                            )}
+                          >
+                            <option value="main">Main</option>
+                            <option value="secondary">Secondary</option>
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
               </article>
             ))}
           </div>

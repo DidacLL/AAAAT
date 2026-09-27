@@ -76,6 +76,7 @@ function longWorkingCv(): { working: WorkingCvRecord; entryMarkers: string[]; se
   const sections = sectionNames.map((name, sectionIndex) => ({
     id: crypto.randomUUID(),
     name,
+    presentationRole: sectionIndex >= 5 ? "secondary" as const : "main" as const,
     items: Array.from({ length: entriesPerSection[sectionIndex] ?? 0 }, (_, itemIndex) => {
       entryNumber += 1;
       const marker = `ENTRY${String(entryNumber).padStart(2, "0")}MARKER`;
@@ -254,13 +255,15 @@ describe("real pdfLaTeX portability boundary", () => {
   );
 
   realLatexIt(
-    "paginates a realistic long CV without vertical overflow or losing first-page/body content",
+    "paginates a realistic long CV with main and secondary sections without losing content",
     async () => {
       const project = mkdtempSync(path.join(tmpdir(), "aaaat-real-latex-long-cv-"));
       try {
         const { working, entryMarkers, sectionNames } = longWorkingCv();
         expect(entryMarkers).toHaveLength(37);
         expect(sectionNames).toHaveLength(7);
+        expect(working.sections.filter((section) => section.presentationRole === "main")).toHaveLength(5);
+        expect(working.sections.filter((section) => section.presentationRole === "secondary")).toHaveLength(2);
         writeCvLatexProject(project, working, BUILTIN_BLUEPRINT_SOURCE);
 
         await runLatexmk(project, 60_000);

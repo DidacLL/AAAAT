@@ -33,6 +33,8 @@ const babelLanguageByPrimaryCode: Readonly<Record<string, string>> = Object.free
   pt: "portuguese",
 });
 
+const supportedLanguageCodes = Object.freeze(Object.keys(babelLanguageByPrimaryCode).sort());
+
 export function encodeDocumentText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
@@ -40,12 +42,17 @@ export function encodeDocumentText(value: string): string {
     .replace(/\n/g, "\\AAAATLineBreak{}");
 }
 
-function babelLanguage(language: string | undefined): string {
+export function resolveDocumentBabelLanguage(language: string | undefined): string {
+  if (language === undefined) return "english";
   const primaryCode = language
-    ?.trim()
+    .trim()
     .match(/^([A-Za-z]{2})(?:[-_/\s]|$)/u)?.[1]
     ?.toLowerCase();
-  return (primaryCode && babelLanguageByPrimaryCode[primaryCode]) || "english";
+  const babelLanguage = primaryCode ? babelLanguageByPrimaryCode[primaryCode] : undefined;
+  if (babelLanguage) return babelLanguage;
+  throw new Error(
+    `Unsupported document language "${language}". AAAAT currently supports these Latin-script language codes through Babel: ${supportedLanguageCodes.join(", ")}.`,
+  );
 }
 
 function documentDataHeader(
@@ -55,7 +62,7 @@ function documentDataHeader(
 ): string[] {
   return [
     `\\AAAATDocumentKind{${kind}}`,
-    `\\AAAATDocumentLanguage{${babelLanguage(language)}}`,
+    `\\AAAATDocumentLanguage{${resolveDocumentBabelLanguage(language)}}`,
     `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
   ];
 }
@@ -63,7 +70,9 @@ function documentDataHeader(
 function cvData(working: WorkingCvRecord): string {
   const lines = documentDataHeader("cv", working.title, working.language);
   for (const section of working.sections) {
-    lines.push(`\\AAAATBlock{${encodeDocumentText(section.name)}}{`);
+    lines.push(
+      `\\AAAATBlock{${section.presentationRole}}{${encodeDocumentText(section.name)}}{`,
+    );
     for (const item of section.items) {
       const dates =
         item.content.startDate && item.content.endDate

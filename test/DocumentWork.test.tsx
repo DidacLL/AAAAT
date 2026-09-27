@@ -16,6 +16,7 @@ import { DocumentWork, WorkingCvEditor } from "../src/renderer/DocumentWork";
 const letterId = "00000000-0000-4000-8000-000000000901";
 const candidatureId = "00000000-0000-4000-8000-000000000902";
 const cvId = "00000000-0000-4000-8000-000000000904";
+const sectionId = "00000000-0000-4000-8000-000000000906";
 const now = "2026-09-18T00:00:00.000Z";
 const blueprints = [
   { id: "builtin:default", name: "AAAAT Default" },
@@ -41,7 +42,12 @@ const workingCv = {
   language: "en",
   sourceTemplateId: null,
   candidatureId: null,
-  sections: [],
+  sections: [{
+    id: sectionId,
+    name: "Experience",
+    presentationRole: "main" as const,
+    items: [],
+  }],
   createdAt: now,
   updatedAt: now,
 };
@@ -103,7 +109,7 @@ beforeEach(() => {
       language: workingCv.language,
       sourceTemplateId: null,
       candidatureId: null,
-      sections: [],
+      sections: workingCv.sections,
     },
     createdAt: now,
     hasPdf: true,
@@ -205,6 +211,37 @@ describe("document render Blueprint choice", () => {
       blueprintId: "user:Compact.tex",
     }));
     expect(updateWorkingCv).not.toHaveBeenCalled();
+  });
+
+  it("edits and saves a semantic section role without changing Blueprint selection", async () => {
+    const user = userEvent.setup();
+    render(
+      <WorkingCvEditor
+        document={workingCv}
+        profile={[]}
+        variants={[]}
+        collections={{
+          templates: [], workingCvs: [workingCv], renderedCvs: [], letters: [],
+          renderedLetters: [], applicationPackets: [],
+        }}
+        onSaved={vi.fn()}
+        onCollections={vi.fn()}
+      />,
+    );
+
+    const role = screen.getByRole("combobox", { name: "Experience presentation role" });
+    expect(role).toHaveValue("main");
+    await user.selectOptions(role, "secondary");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(updateWorkingCv).toHaveBeenCalledWith(expect.objectContaining({
+      id: cvId,
+      sections: [expect.objectContaining({
+        id: sectionId,
+        presentationRole: "secondary",
+      })],
+    })));
+    expect(screen.getByRole("combobox", { name: "Blueprint" })).toHaveValue("builtin:default");
   });
 
   it("persists unsaved user edits before asking AI to replace the draft", async () => {
