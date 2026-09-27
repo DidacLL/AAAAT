@@ -3,6 +3,7 @@
 Current explicit Product Owner instruction remains highest authority.
 
 Base main: `dd16cacd9233084bfec1b13755942eb7aa51d469`.
+Recovery coordination: PR #374.
 
 PLAN[0]/[1]/[3] remain retained. PLAN[2] remains complete on its previously demonstrated real-host boundaries. **PLAN[4] is active and not accepted. PLAN[5] is blocked and not accepted.**
 
