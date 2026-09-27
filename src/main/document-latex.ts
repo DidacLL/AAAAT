@@ -33,7 +33,25 @@ const babelLanguageByPrimaryCode: Readonly<Record<string, string>> = Object.free
   pt: "portuguese",
 });
 
-const supportedLanguageCodes = Object.freeze(Object.keys(babelLanguageByPrimaryCode).sort());
+const babelLanguageByName: Readonly<Record<string, string>> = Object.freeze({
+  catalan: "catalan",
+  english: "english",
+  french: "french",
+  german: "german",
+  italian: "italian",
+  portuguese: "portuguese",
+  spanish: "spanish",
+});
+
+const supportedLanguageNames = Object.freeze([
+  "English",
+  "Catalan",
+  "German",
+  "Spanish",
+  "French",
+  "Italian",
+  "Portuguese",
+]);
 
 export function encodeDocumentText(value: string): string {
   return value
@@ -44,14 +62,15 @@ export function encodeDocumentText(value: string): string {
 
 export function resolveDocumentBabelLanguage(language: string | undefined): string {
   if (language === undefined) return "english";
-  const primaryCode = language
-    .trim()
-    .match(/^([A-Za-z]{2})(?:[-_/\s]|$)/u)?.[1]
-    ?.toLowerCase();
+  const normalizedLanguage = language.trim().toLowerCase();
+  const namedLanguage = babelLanguageByName[normalizedLanguage];
+  if (namedLanguage) return namedLanguage;
+
+  const primaryCode = normalizedLanguage.match(/^([a-z]{2})(?:[-_/\s]|$)/u)?.[1];
   const babelLanguage = primaryCode ? babelLanguageByPrimaryCode[primaryCode] : undefined;
   if (babelLanguage) return babelLanguage;
   throw new Error(
-    `Unsupported document language "${language}". AAAAT currently supports these Latin-script language codes through Babel: ${supportedLanguageCodes.join(", ")}.`,
+    `Unsupported document language "${language}". AAAAT currently supports these Latin-script languages through Babel: ${supportedLanguageNames.join(", ")}. Use a supported language name, primary ISO code, or region variant.`,
   );
 }
 
