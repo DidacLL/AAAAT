@@ -161,6 +161,9 @@ export function CandidatureFieldAiState({
             clearLabel="Dismiss"
             onSave={acceptIssueEdit}
             onClear={async () => dismissIssue()}
+            onEditingChange={(editing) => {
+              if (!editing) setEditingIssue(false);
+            }}
           />
         ) : (
           <div className="button-row candidature-ai-review-actions">
@@ -195,6 +198,9 @@ export function CandidatureFieldAiState({
             clearLabel="Dismiss"
             onSave={accept}
             onClear={async () => reject()}
+            onEditingChange={(editing) => {
+              if (!editing) setEditingProposal(false);
+            }}
           />
         ) : (
           <>
