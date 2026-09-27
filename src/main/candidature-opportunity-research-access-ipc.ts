@@ -1,5 +1,5 @@
 import { lstatSync, readFileSync, writeFileSync } from "node:fs";
-import { dialog, ipcMain, type BrowserWindow } from "electron";
+import { clipboard, dialog, ipcMain, type BrowserWindow } from "electron";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
@@ -7,13 +7,19 @@ import {
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
   candidatureOpportunityResearchResultImportResultSchema,
+  candidatureOpportunityResearchResultRetainResultSchema,
+  candidatureOpportunityResearchResultTextSchema,
+  candidatureOpportunityResearchTaskContextSchema,
+  candidatureOpportunityResearchTaskCopyResultSchema,
   candidatureOpportunityResearchTaskExportResultSchema,
+  candidatureOpportunityResearchTaskInstructionSchema,
 } from "../shared/candidature-opportunity-research-access-contracts";
 import {
   buildOpportunityResearchPortableTask,
   getCandidatureOpportunityResearchAccess,
   importOpportunityResearchPortableResult,
   maxOpportunityResearchPortableResultBytes,
+  requireSelectedOpportunityResearchContext,
   updateCandidatureOpportunityResearchAccess,
 } from "./candidature-opportunity-research-access-service";
 
@@ -43,28 +49,59 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
       ),
     );
   });
-  ipcMain.handle(candidatureOpportunityResearchAccessChannels.exportTask, async (event) => {
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.taskContext, (event) => {
     assertTrustedSender(event, mainWindow);
-    const task = buildOpportunityResearchPortableTask(requireWorkspaceRoot());
-    const selection = await dialog.showSaveDialog(mainWindow, {
-      title: "Export task for external AI",
-      buttonLabel: "Export task",
-      defaultPath: "aaaat-opportunity-research-task.md",
-      filters: [
-        { name: "Markdown", extensions: ["md"] },
-        { name: "Text", extensions: ["txt"] },
-      ],
-    });
-    if (selection.canceled || !selection.filePath) {
-      return candidatureOpportunityResearchTaskExportResultSchema.parse("cancelled");
-    }
-    writeFileSync(selection.filePath, task, "utf8");
-    return candidatureOpportunityResearchTaskExportResultSchema.parse("exported");
+    return candidatureOpportunityResearchTaskContextSchema.parse(
+      requireSelectedOpportunityResearchContext(requireWorkspaceRoot()),
+    );
   });
+  ipcMain.handle(
+    candidatureOpportunityResearchAccessChannels.copyTask,
+    (event, rawInstruction: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      const instruction = candidatureOpportunityResearchTaskInstructionSchema.parse(rawInstruction);
+      clipboard.writeText(buildOpportunityResearchPortableTask(requireWorkspaceRoot(), instruction));
+      return candidatureOpportunityResearchTaskCopyResultSchema.parse("copied");
+    },
+  );
+  ipcMain.handle(
+    candidatureOpportunityResearchAccessChannels.exportTask,
+    async (event, rawInstruction: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      const instruction = candidatureOpportunityResearchTaskInstructionSchema.parse(rawInstruction);
+      const task = buildOpportunityResearchPortableTask(requireWorkspaceRoot(), instruction);
+      const selection = await dialog.showSaveDialog(mainWindow, {
+        title: "Export AI task",
+        buttonLabel: "Export task",
+        defaultPath: "aaaat-ai-task.md",
+        filters: [
+          { name: "Markdown", extensions: ["md"] },
+          { name: "Text", extensions: ["txt"] },
+        ],
+      });
+      if (selection.canceled || !selection.filePath) {
+        return candidatureOpportunityResearchTaskExportResultSchema.parse("cancelled");
+      }
+      writeFileSync(selection.filePath, task, "utf8");
+      return candidatureOpportunityResearchTaskExportResultSchema.parse("exported");
+    },
+  );
+  ipcMain.handle(
+    candidatureOpportunityResearchAccessChannels.retainResult,
+    (event, rawSourceText: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      const sourceText = candidatureOpportunityResearchResultTextSchema.parse(rawSourceText);
+      const retained = importOpportunityResearchPortableResult(requireWorkspaceRoot(), sourceText);
+      if (!retained) {
+        throw new Error("Choose Send to my AI on an application before retaining a result.");
+      }
+      return candidatureOpportunityResearchResultRetainResultSchema.parse("retained");
+    },
+  );
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.importResult, async (event) => {
     assertTrustedSender(event, mainWindow);
     const selection = await dialog.showOpenDialog(mainWindow, {
-      title: "Import external AI result",
+      title: "Import AI result",
       buttonLabel: "Import result",
       filters: [
         { name: "Markdown or text", extensions: ["md", "txt"] },
@@ -84,7 +121,7 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
       readFileSync(filePath, "utf8"),
     );
     if (!retained) {
-      throw new Error("Select an application for external opportunity research before importing a result.");
+      throw new Error("Choose Send to my AI on an application before importing a result.");
     }
     return candidatureOpportunityResearchResultImportResultSchema.parse("imported");
   });
