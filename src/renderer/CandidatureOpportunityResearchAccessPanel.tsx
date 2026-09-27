@@ -39,8 +39,8 @@ export function CandidatureOpportunityResearchAccessPanel({
   const [access, setAccess] = useState<CandidatureOpportunityResearchAccess | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [taskContext, setTaskContext] = useState<CandidatureOpportunityResearchTaskContext | null>(null);
-  const [templateId, setTemplateId] = useState(taskTemplates[0].id);
-  const [instruction, setInstruction] = useState(taskTemplates[0].instruction);
+  const [templateId, setTemplateId] = useState<string>(taskTemplates[0].id);
+  const [instruction, setInstruction] = useState<string>(taskTemplates[0].instruction);
   const [resultText, setResultText] = useState("");
   const [busy, setBusy] = useState<BusyAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
