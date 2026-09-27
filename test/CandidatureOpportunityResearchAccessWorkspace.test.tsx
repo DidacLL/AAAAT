@@ -196,8 +196,8 @@ describe("selected candidature Send to my AI", () => {
     await user.click(open);
 
     await user.selectOptions(screen.getByLabelText("Task template"), "interview-preparation");
-    expect(screen.getByLabelText("Task instructions")).toHaveValue(
-      expect.stringContaining("interview brief"),
+    expect((screen.getByLabelText("Task instructions") as HTMLTextAreaElement).value).toContain(
+      "interview brief",
     );
 
     const instruction = screen.getByLabelText("Task instructions");
