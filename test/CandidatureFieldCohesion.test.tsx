@@ -247,10 +247,11 @@ describe("candidature field cohesion", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Role" }));
     expect(screen.getByLabelText("Value")).toHaveValue("Platform Engineer");
-    expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
-    expect(screen.getByText("Edit information details")).toBeVisible();
+    const detailsDisclosure = screen.getByText("Edit information details").closest("details");
+    expect(detailsDisclosure).not.toHaveAttribute("open");
 
     await user.click(screen.getByText("Edit information details"));
+    expect(detailsDisclosure).toHaveAttribute("open");
     const name = screen.getByRole("textbox", { name: "Name" });
     await user.clear(name);
     await user.type(name, "Target role");
@@ -307,6 +308,12 @@ describe("candidature field cohesion", () => {
     await user.click(within(roleCard).getByRole("button", { name: "Edit Role" }));
     await user.clear(within(roleCard).getByLabelText("Value"));
     await user.type(within(roleCard).getByLabelText("Value"), "Unsaved role");
+
+    await user.click(screen.getByRole("button", { name: "← Applications" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved application edits?");
+    expect(screen.getByRole("region", { name: "Application information" })).toBeVisible();
+    confirm.mockClear();
+
     const companyCard = within(primary).getByRole("article", { name: "Company information" });
     await user.click(within(companyCard).getByRole("button", { name: "Edit Company" }));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved changes to Role?");
@@ -349,8 +356,10 @@ describe("candidature field cohesion", () => {
 
     const card = screen.getByRole("article", { name: "Role information" });
     await user.click(within(card).getByRole("button", { name: "Edit Role" }));
-    expect(within(card).queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
+    const detailsDisclosure = within(card).getByText("Edit information details").closest("details");
+    expect(detailsDisclosure).not.toHaveAttribute("open");
     await user.click(within(card).getByText("Edit information details"));
+    expect(detailsDisclosure).toHaveAttribute("open");
     const name = within(card).getByRole("textbox", { name: "Name" });
     const details = within(card).getByRole("textbox", { name: /Details/i });
     await user.clear(name);
