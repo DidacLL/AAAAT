@@ -71,6 +71,7 @@ export function CandidaturesWorkspace({
   const [tagQuery, setTagQuery] = useState("");
   const [sourceDirty, setSourceDirty] = useState(false);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
+  const [activeFieldEditorId, setActiveFieldEditorId] = useState<string | null>(null);
   const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
@@ -98,6 +99,7 @@ export function CandidaturesWorkspace({
     setSelectedTagIds(record?.tagIds ?? []);
     setSelectedTagId(record?.tagIds[0] ?? null);
     setTagQuery(""); setSourceDirty(false); setValueEditorDirty(new Set());
+    setActiveFieldEditorId(null);
     setFieldDefinitionsDirty(false); setDiscoveryFieldId(null); setBulkInferenceOpen(false);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
@@ -178,6 +180,17 @@ export function CandidaturesWorkspace({
   const setEditorDirty = (fieldId: string, dirty: boolean) => setValueEditorDirty((current) => {
     const next = new Set(current); if (dirty) next.add(fieldId); else next.delete(fieldId); return next;
   });
+  const requestFieldEditor = (fieldId: string) => {
+    if (activeFieldEditorId === fieldId) return;
+    if (activeFieldEditorId && valueEditorDirty.has(activeFieldEditorId)) {
+      const activeField = fields.find((field) => field.definition.id === activeFieldEditorId);
+      if (!window.confirm(`Discard unsaved changes to ${activeField?.definition.label ?? "this information"}?`)) return;
+    }
+    setActiveFieldEditorId(fieldId);
+  };
+  const closeFieldEditor = (fieldId: string) => {
+    if (activeFieldEditorId === fieldId) setActiveFieldEditorId(null);
+  };
   const setValue = async (fieldId: string, value: CandidatureRuntimeValue) => {
     if (!selected) return;
     const updated = await window.aaaat.candidatures.setFieldValue({ candidatureId: selected.id, fieldId, value });
@@ -322,6 +335,13 @@ export function CandidaturesWorkspace({
     field: CandidatureFieldConfiguration,
     favourite: boolean,
   ) => {
+    if (activeFieldEditorId === field.definition.id) {
+      if (
+        valueEditorDirty.has(field.definition.id) &&
+        !window.confirm(`Discard unsaved changes to ${field.definition.label}?`)
+      ) return;
+      setActiveFieldEditorId(null);
+    }
     await updateFieldPreference(field, {
       favourite,
       favouriteOrder: null,
@@ -544,56 +564,70 @@ export function CandidaturesWorkspace({
             <h4>{field.definition.label}</h4>
             {field.definition.description ? <p>{field.definition.description}</p> : null}
           </div>
-          <div className="candidature-field-presentation-controls">
+          <div className="candidature-field-context-controls">
             <button
               type="button"
-              className="candidature-star-button"
-              aria-label={favourite ? `Unstar ${field.definition.label}` : `Star ${field.definition.label}`}
-              aria-pressed={favourite}
-              title={favourite ? "Remove from primary information" : "Show in primary information"}
-              onClick={() => void setFavourite(field, !favourite)}
+              className="candidature-icon-button candidature-ai-use-eye"
+              aria-label="AI may use this information"
+              aria-pressed={field.preferences.aiUseAllowed}
+              title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
+              onClick={() => void updateFieldPreference(field, { aiUseAllowed: !field.preferences.aiUseAllowed })}
             >
-              <span aria-hidden="true">{favourite ? "★" : "☆"}</span>
+              <span aria-hidden="true">👁</span>
             </button>
-            {favourite ? (
-              <>
+            <details className="candidature-field-options">
+              <summary>Field options</summary>
+              <div className="candidature-field-options-panel">
                 <button
                   type="button"
                   className="compact-secondary"
-                  aria-label={`Move ${field.definition.label} up`}
-                  disabled={favouriteIndex === 0}
-                  onClick={() => void moveFavourite(field, -1)}
+                  onClick={() => void setFavourite(field, !favourite)}
                 >
-                  ↑
+                  {favourite ? "Remove from primary information" : "Show in primary information"}
                 </button>
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  aria-label={`Move ${field.definition.label} down`}
-                  disabled={favouriteIndex === favouriteFields.length - 1}
-                  onClick={() => void moveFavourite(field, 1)}
-                >
-                  ↓
-                </button>
-                <label className="candidature-prominence-control">
-                  Card size
-                  <select
-                    aria-label={`${field.definition.label} card size`}
-                    value={field.preferences.presentationSize}
-                    onChange={(event) =>
-                      void updateFieldPreference(field, {
-                        presentationSize: event.target.value as
-                          CandidatureFieldConfiguration["preferences"]["presentationSize"],
-                      })
-                    }
-                  >
-                    <option value="compact">Compact</option>
-                    <option value="normal">Normal</option>
-                    <option value="wide">Wide</option>
-                  </select>
-                </label>
-              </>
-            ) : null}
+                {favourite ? (
+                  <>
+                    <div className="candidature-field-order-actions">
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        aria-label={`Move ${field.definition.label} earlier`}
+                        disabled={favouriteIndex === 0}
+                        onClick={() => void moveFavourite(field, -1)}
+                      >
+                        Move earlier
+                      </button>
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        aria-label={`Move ${field.definition.label} later`}
+                        disabled={favouriteIndex === favouriteFields.length - 1}
+                        onClick={() => void moveFavourite(field, 1)}
+                      >
+                        Move later
+                      </button>
+                    </div>
+                    <label className="candidature-prominence-control">
+                      Card size
+                      <select
+                        aria-label={`${field.definition.label} card size`}
+                        value={field.preferences.presentationSize}
+                        onChange={(event) =>
+                          void updateFieldPreference(field, {
+                            presentationSize: event.target.value as
+                              CandidatureFieldConfiguration["preferences"]["presentationSize"],
+                          })
+                        }
+                      >
+                        <option value="compact">Compact</option>
+                        <option value="normal">Normal</option>
+                        <option value="wide">Wide</option>
+                      </select>
+                    </label>
+                  </>
+                ) : null}
+              </div>
+            </details>
           </div>
         </div>
         <CandidatureFieldValueEditor
@@ -603,8 +637,12 @@ export function CandidaturesWorkspace({
           onClear={() => clearValue(field.definition.id)}
           onDiscover={() => setDiscoveryFieldId(field.definition.id)}
           onUpdateField={updateFieldDefinition}
-          onUpdatePreferences={(patch) => updateFieldPreference(field, patch)}
           onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
+          editing={activeFieldEditorId === field.definition.id}
+          onEditingChange={(editing) => {
+            if (editing) requestFieldEditor(field.definition.id);
+            else closeFieldEditor(field.definition.id);
+          }}
           showFieldControls
         />
         <CandidatureFieldAiState
@@ -648,7 +686,7 @@ export function CandidaturesWorkspace({
           <div>
             <p className="eyebrow">Primary information</p>
             <p className="compact-help">
-              Star the fields you want to see first. Their order and size are yours.
+              Choose which information stays up front. Order and card size are available in Field options.
             </p>
           </div>
         </div>
@@ -658,7 +696,7 @@ export function CandidaturesWorkspace({
           </div>
         ) : (
           <p className="compact-empty">
-            No starred information yet. Open More and star any field you want to keep up front.
+            No primary information yet. Open More and choose Show in primary information from a field's options.
           </p>
         )}
       </section>
@@ -688,7 +726,7 @@ export function CandidaturesWorkspace({
               onRetry={() => setBulkInferenceOpen(true)}
             />
             {remainingFields.length === 0 ? (
-              <p className="compact-help">All enabled fields are starred.</p>
+              <p className="compact-help">All enabled fields are in primary information.</p>
             ) : (
               <div className="retained-information-list candidature-information-grid">
                 {remainingFields.map(renderInformationField)}
