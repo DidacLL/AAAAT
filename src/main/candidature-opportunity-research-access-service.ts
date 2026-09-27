@@ -245,3 +245,66 @@ export function addSourceToSelectedOpportunityResearchCandidature(
     }),
   );
 }
+
+export const maxOpportunityResearchPortableResultBytes = 64 * 1024;
+
+function portableValue(value: CandidatureRuntimeValue): string {
+  if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+}
+
+export function buildOpportunityResearchPortableTask(rootPath: string): string {
+  const context = selectedOpportunityResearchContext(rootPath);
+  if (context === null) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Select an application for external opportunity research before exporting a task.",
+    );
+  }
+
+  const information = context.information.length > 0
+    ? context.information.map(({ label, value }) => `- **${label.replaceAll(/\s+/g, " ").trim()}:** ${portableValue(value)}`)
+    : ["- No retained application information is currently permitted for AI context."];
+
+  return [
+    "# AAAAT external opportunity research task",
+    "",
+    "This file contains only the application information the user selected and permitted AAAAT to disclose for this task.",
+    "",
+    "## Application context",
+    "",
+    ...information,
+    "",
+    "## Requested work",
+    "",
+    "Use the application context above to produce useful opportunity/application research or analysis. Add substantive reasoning or findings rather than merely repeating the supplied fields. Clearly distinguish facts you verified from assumptions or questions that still need checking.",
+    "",
+    "Return the completed work as a UTF-8 Markdown or plain-text file. Do not include AAAAT database identifiers, local paths, or instructions that require access to the user's computer.",
+    "",
+  ].join("\n");
+}
+
+export function importOpportunityResearchPortableResult(
+  rootPath: string,
+  sourceText: string,
+): boolean {
+  if (Buffer.byteLength(sourceText, "utf8") > maxOpportunityResearchPortableResultBytes) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "The external AI result is too large to import.",
+    );
+  }
+  const content = sourceText.trim();
+  if (!content) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "The external AI result is empty.",
+    );
+  }
+  return addSourceToSelectedOpportunityResearchCandidature(rootPath, {
+    source: {
+      kind: "conversation",
+      title: "External AI opportunity research",
+      url: "",
+      sourceText: content,
+    },
+  });
+}

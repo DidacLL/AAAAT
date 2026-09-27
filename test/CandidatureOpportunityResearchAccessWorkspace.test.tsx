@@ -31,6 +31,8 @@ const candidatureId = "00000000-0000-4000-8000-000000000551";
 const fieldId = "00000000-0000-4000-8000-000000000552";
 const current = vi.fn();
 const update = vi.fn();
+const exportTask = vi.fn();
+const importResult = vi.fn();
 
 function field(): CandidatureFieldConfiguration {
   return {
@@ -95,7 +97,7 @@ function installApi() {
           applicationPackets: [],
         })),
       },
-      candidatureOpportunityResearchAccess: { current, update },
+      candidatureOpportunityResearchAccess: { current, update, exportTask, importResult },
     },
   });
 }
@@ -106,6 +108,8 @@ function prepareAccessApi() {
     candidatureId,
     allowed,
   }));
+  exportTask.mockResolvedValue("exported");
+  importResult.mockResolvedValue("imported");
   installApi();
 }
 
@@ -184,5 +188,29 @@ describe("selected candidature opportunity-research access", () => {
         name: "Allow external opportunity research for this candidature",
       }),
     ).toBeDisabled();
+  });
+
+  it("offers the portable no-local task and result actions only after access is enabled", async () => {
+    prepareAccessApi();
+    const user = userEvent.setup();
+
+    const allow = await openSelectedCandidature(user);
+    expect(screen.queryByRole("button", { name: "Export task for external AI…" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import external AI result…" })).toBeNull();
+
+    await user.click(allow);
+
+    const exportButton = screen.getByRole("button", { name: "Export task for external AI…" });
+    const importButton = screen.getByRole("button", { name: "Import external AI result…" });
+    expect(exportButton).toBeEnabled();
+    expect(importButton).toBeEnabled();
+
+    await user.click(exportButton);
+    expect(exportTask).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/External AI task exported/i)).toBeVisible();
+
+    await user.click(importButton);
+    expect(importResult).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/retained as a Source/i)).toBeVisible();
   });
 });
