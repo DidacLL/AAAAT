@@ -225,7 +225,9 @@ describe("Working CV read-first editing", () => {
     renderEditor();
 
     expect(screen.getByLabelText("CV document outline")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "CV sections" })).getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByRole("list", { name: "CV sections" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Experience section" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Skills section" })).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Experience items" })).toBeInTheDocument();
     expect(screen.getByText("Platform Engineer")).toBeInTheDocument();
     expect(screen.getByText("Acme Systems")).toBeInTheDocument();
@@ -233,10 +235,14 @@ describe("Working CV read-first editing", () => {
     expect(screen.getByText("Community Work")).toBeInTheDocument();
     expect(screen.getByText("My information — current")).toBeInTheDocument();
     expect(screen.getAllByText("This CV only")).toHaveLength(2);
-    expect(screen.queryByRole("textbox", { name: "Title" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Subtitle" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Start date" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Experience presentation role" })).not.toBeInTheDocument();
+
+    for (const itemName of ["Platform Engineer CV item", "Community Work CV item", "TypeScript · React · SQLite CV item"]) {
+      const item = screen.getByRole("article", { name: itemName });
+      expect(within(item).queryByRole("textbox")).not.toBeInTheDocument();
+      expect(within(item).queryByRole("combobox")).not.toBeInTheDocument();
+    }
+    const sectionOptions = screen.getByLabelText("Experience section options").closest("details") as HTMLDetailsElement;
+    expect(sectionOptions.open).toBe(false);
     expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(3);
   });
 
@@ -246,19 +252,20 @@ describe("Working CV read-first editing", () => {
     const experienceItems = screen.getByRole("list", { name: "Experience items" });
 
     await user.click(within(experienceItems).getAllByRole("button", { name: "Edit" })[0]!);
-    expect(screen.getByLabelText("Edit Platform Engineer")).toBeInTheDocument();
+    const platformEditor = screen.getByLabelText("Edit Platform Engineer");
+    expect(platformEditor).toBeInTheDocument();
     expect(screen.queryByLabelText("Edit Community Work")).not.toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Platform Engineer");
-    expect(screen.getByRole("textbox", { name: "Subtitle" })).toHaveValue("Acme Systems");
-    expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue("Built resilient internal platforms.");
-    expect(screen.queryByRole("textbox", { name: "Start date" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "End date" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "Link" })).not.toBeInTheDocument();
+    expect(within(platformEditor).getByRole("textbox", { name: "Title" })).toHaveValue("Platform Engineer");
+    expect(within(platformEditor).getByRole("textbox", { name: "Subtitle" })).toHaveValue("Acme Systems");
+    expect(within(platformEditor).getByRole("textbox", { name: "Description" })).toHaveValue("Built resilient internal platforms.");
+    expect(within(platformEditor).queryByRole("textbox", { name: "Start date" })).not.toBeInTheDocument();
+    expect(within(platformEditor).queryByRole("textbox", { name: "End date" })).not.toBeInTheDocument();
+    expect(within(platformEditor).queryByRole("textbox", { name: "Link" })).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Add detail to Platform Engineer" }), "url");
-    const link = screen.getByRole("textbox", { name: "Link" });
+    await user.selectOptions(within(platformEditor).getByRole("combobox", { name: "Add detail to Platform Engineer" }), "url");
+    const link = within(platformEditor).getByRole("textbox", { name: "Link" });
     await user.type(link, "https://example.com/platform");
-    const subtitle = screen.getByRole("textbox", { name: "Subtitle" });
+    const subtitle = within(platformEditor).getByRole("textbox", { name: "Subtitle" });
     await user.clear(subtitle);
     expect(subtitle).toHaveValue("");
     expect(screen.getByText("Maintained an open source accessibility toolkit.")).toBeInTheDocument();
@@ -268,9 +275,10 @@ describe("Working CV read-first editing", () => {
     expect(screen.getByText("https://example.com/platform")).toBeInTheDocument();
 
     await user.click(within(experienceItems).getAllByRole("button", { name: "Edit" })[1]!);
-    expect(screen.getByLabelText("Edit Community Work")).toBeInTheDocument();
+    const communityEditor = screen.getByLabelText("Edit Community Work");
+    expect(communityEditor).toBeInTheDocument();
     expect(screen.queryByLabelText("Edit Platform Engineer")).not.toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Community Work");
+    expect(within(communityEditor).getByRole("textbox", { name: "Title" })).toHaveValue("Community Work");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateWorkingCv).toHaveBeenCalled());
@@ -288,19 +296,21 @@ describe("Working CV read-first editing", () => {
     const user = userEvent.setup();
     renderEditor();
     await user.click(within(screen.getByRole("list", { name: "Experience items" })).getAllByRole("button", { name: "Edit" })[0]!);
+    const platformEditor = screen.getByLabelText("Edit Platform Engineer");
 
-    const source = screen.getByRole("combobox", { name: "Wording source" });
+    const source = within(platformEditor).getByRole("combobox", { name: "Wording source" });
     expect(source).toHaveValue("current");
     expect(within(source).getByRole("option", { name: "My information — current" })).toBeInTheDocument();
     expect(within(source).getByRole("option", { name: "Saved variation — Leadership" })).toBeInTheDocument();
 
     await user.selectOptions(source, variantId);
-    expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Staff Platform Engineer");
-    expect(screen.getByRole("textbox", { name: "Link" })).toHaveValue("https://example.com/leadership");
+    const variantEditor = screen.getByLabelText("Edit Staff Platform Engineer");
+    expect(within(variantEditor).getByRole("textbox", { name: "Title" })).toHaveValue("Staff Platform Engineer");
+    expect(within(variantEditor).getByRole("textbox", { name: "Link" })).toHaveValue("https://example.com/leadership");
     expect(screen.getAllByText("Saved variation — Leadership").length).toBeGreaterThan(0);
     expect(screen.queryByText("These changes are only in this CV.")).not.toBeInTheDocument();
 
-    const title = screen.getByRole("textbox", { name: "Title" });
+    const title = within(variantEditor).getByRole("textbox", { name: "Title" });
     await user.clear(title);
     await user.type(title, "Targeted Platform Lead");
     expect(screen.getAllByText("This CV only").length).toBeGreaterThan(0);
@@ -320,25 +330,34 @@ describe("Working CV read-first editing", () => {
   it("keeps composition, creation, reuse, AI, Blueprint and render controls reachable and functional", async () => {
     const user = userEvent.setup();
     renderEditor();
+    const experienceSection = screen.getByRole("region", { name: "Experience section" });
+    const sectionOptionsSummary = screen.getByLabelText("Experience section options");
+    const sectionOptions = sectionOptionsSummary.closest("details") as HTMLDetailsElement;
+    expect(sectionOptions.open).toBe(false);
+    await user.click(sectionOptionsSummary);
+    expect(sectionOptions.open).toBe(true);
 
-    await user.click(screen.getByLabelText("Experience section options"));
-    const role = screen.getByRole("combobox", { name: "Experience presentation role" });
+    const role = within(experienceSection).getByRole("combobox", { name: "Experience presentation role" });
     await user.selectOptions(role, "secondary");
     expect(role).toHaveValue("secondary");
-    expect(screen.getByRole("button", { name: "Move Experience section down" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(within(experienceSection).getByRole("button", { name: "Move Experience section down" })).toBeInTheDocument();
+    expect(within(experienceSection).getAllByRole("button", { name: "Remove" }).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByLabelText("Platform Engineer item actions"));
-    await user.click(screen.getByRole("button", { name: "Move Platform Engineer down" }));
+    const itemActionsSummary = within(experienceSection).getByLabelText("Platform Engineer item actions");
+    const itemActions = itemActionsSummary.closest("details") as HTMLDetailsElement;
+    expect(itemActions.open).toBe(false);
+    await user.click(itemActionsSummary);
+    expect(itemActions.open).toBe(true);
+    await user.click(within(experienceSection).getByRole("button", { name: "Move Platform Engineer down" }));
     const articles = within(screen.getByRole("list", { name: "Experience items" })).getAllByRole("article");
     expect(articles[0]).toHaveAccessibleName("Community Work CV item");
     expect(articles[1]).toHaveAccessibleName("Platform Engineer CV item");
 
-    await user.click(screen.getByRole("button", { name: "＋ Add information" }));
-    await user.selectOptions(screen.getByRole("combobox", { name: "From My information" }), secondProfileItemId);
+    await user.click(within(experienceSection).getByRole("button", { name: "＋ Add information" }));
+    await user.selectOptions(within(experienceSection).getByRole("combobox", { name: "From My information" }), secondProfileItemId);
     expect(screen.getByText("Mentoring")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "＋ Add information" }));
-    await user.click(screen.getByRole("button", { name: "Add custom content" }));
+    await user.click(within(experienceSection).getByRole("button", { name: "＋ Add information" }));
+    await user.click(within(experienceSection).getByRole("button", { name: "Add custom content" }));
     expect(screen.getByLabelText("Edit New content")).toBeInTheDocument();
 
     await user.click(screen.getByText("＋ Add section", { selector: "summary" }));
@@ -369,7 +388,8 @@ describe("Working CV read-first editing", () => {
 
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
     await user.click(within(screen.getByRole("list", { name: "Experience items" })).getAllByRole("button", { name: "Edit" })[0]!);
-    const title = screen.getByRole("textbox", { name: "Title" });
+    const platformEditor = screen.getByLabelText("Edit Platform Engineer");
+    const title = within(platformEditor).getByRole("textbox", { name: "Title" });
     await user.clear(title);
     await user.type(title, "Locally tailored title");
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
