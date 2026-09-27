@@ -14,6 +14,16 @@ interface ItemFormState {
   url: string;
 }
 
+type OptionalDetail = "subtitle" | "description" | "startDate" | "endDate" | "url";
+
+const optionalDetails: readonly { key: OptionalDetail; label: string }[] = [
+  { key: "subtitle", label: "Subtitle" },
+  { key: "description", label: "Description" },
+  { key: "startDate", label: "Start date" },
+  { key: "endDate", label: "End date" },
+  { key: "url", label: "Link" },
+];
+
 const emptyItem: ItemFormState = {
   kind: "other",
   title: "",
@@ -35,7 +45,7 @@ function itemForm(item?: ProfileItem): ItemFormState {
         endDate: item.endDate ?? "",
         url: item.url ?? "",
       }
-    : emptyItem;
+    : { ...emptyItem };
 }
 
 function itemInput(draft: ItemFormState): ProfileItemInput {
@@ -78,9 +88,13 @@ function newVariantDraft(item?: ProfileItem) {
   };
 }
 
-function dateRange(item: ProfileItem): string | null {
-  if (item.startDate && item.endDate) return `${item.startDate} – ${item.endDate}`;
-  return item.startDate ?? item.endDate ?? null;
+function retainedOptionalDetails(value: Pick<ItemFormState, OptionalDetail>): OptionalDetail[] {
+  return optionalDetails.filter(({ key }) => value[key].trim().length > 0).map(({ key }) => key);
+}
+
+function dateRange(value: { readonly startDate?: string; readonly endDate?: string }): string | null {
+  if (value.startDate && value.endDate) return `${value.startDate} – ${value.endDate}`;
+  return value.startDate ?? value.endDate ?? null;
 }
 
 export function ProfileWorkspace({
@@ -95,9 +109,12 @@ export function ProfileWorkspace({
   const [selectedId, setSelectedId] = useState<string | null>(initialItemId ?? null);
   const [creating, setCreating] = useState(false);
   const [editingItem, setEditingItem] = useState(false);
-  const [draft, setDraft] = useState<ItemFormState>(emptyItem);
+  const [draft, setDraft] = useState<ItemFormState>({ ...emptyItem });
+  const [itemDetails, setItemDetails] = useState<OptionalDetail[]>([]);
+  const [editingVariant, setEditingVariant] = useState(false);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [variant, setVariant] = useState(variantDraft());
+  const [variantDetails, setVariantDetails] = useState<OptionalDetail[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,10 +129,16 @@ export function ProfileWorkspace({
           initialItemId && nextSnapshot.items.some((item) => item.id === initialItemId)
             ? initialItemId
             : nextSnapshot.items[0]?.id ?? null;
+        const requestedItem = nextSnapshot.items.find((item) => item.id === requested);
         setSelectedId(requested);
-        setDraft(itemForm(nextSnapshot.items.find((item) => item.id === requested)));
+        setDraft(itemForm(requestedItem));
+        setItemDetails(retainedOptionalDetails(itemForm(requestedItem)));
         setCreating(false);
         setEditingItem(false);
+        setEditingVariant(false);
+        setEditingVariantId(null);
+        setVariant(variantDraft());
+        setVariantDetails([]);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load My information.");
@@ -130,34 +153,34 @@ export function ProfileWorkspace({
     () => variants.filter((candidate) => candidate.itemId === selectedId),
     [variants, selectedId],
   );
-  const itemDirty =
-    creating
-      ? JSON.stringify(draft) !== JSON.stringify(emptyItem)
-      : selected && editingItem
-        ? JSON.stringify(draft) !== JSON.stringify(itemForm(selected))
-        : false;
+  const groups = useMemo(() => [...new Set(snapshot.items.map((item) => item.kind))], [snapshot.items]);
+  const availableItemDetails = optionalDetails.filter(({ key }) => !itemDetails.includes(key));
+  const availableVariantDetails = optionalDetails.filter(({ key }) => !variantDetails.includes(key));
+
+  const itemDirty = creating
+    ? JSON.stringify(draft) !== JSON.stringify(emptyItem)
+    : selected && editingItem
+      ? JSON.stringify(draft) !== JSON.stringify(itemForm(selected))
+      : false;
   const persistedVariant = editingVariantId
     ? variants.find((candidate) => candidate.id === editingVariantId)
     : undefined;
-  const variantEditorOpen =
-    editingVariantId !== null ||
-    variant.name.length > 0 ||
-    variant.title.length > 0 ||
-    variant.subtitle.length > 0 ||
-    variant.description.length > 0 ||
-    variant.startDate.length > 0 ||
-    variant.endDate.length > 0 ||
-    variant.url.length > 0;
   const variantBaseline = editingVariantId
     ? variantDraft(persistedVariant)
     : newVariantDraft(selected ?? undefined);
-  const variantDirty =
-    variantEditorOpen && JSON.stringify(variant) !== JSON.stringify(variantBaseline);
+  const variantDirty = editingVariant && JSON.stringify(variant) !== JSON.stringify(variantBaseline);
 
   useEffect(() => {
     onDirtyChange?.(itemDirty || variantDirty);
     return () => onDirtyChange?.(false);
   }, [itemDirty, variantDirty, onDirtyChange]);
+
+  const resetVariantEditor = () => {
+    setEditingVariant(false);
+    setEditingVariantId(null);
+    setVariant(variantDraft());
+    setVariantDetails([]);
+  };
 
   const confirmDiscard = () =>
     !(itemDirty || variantDirty) || window.confirm("Discard unsaved My information edits?");
@@ -167,9 +190,10 @@ export function ProfileWorkspace({
     setCreating(false);
     setEditingItem(false);
     setSelectedId(item.id);
-    setDraft(itemForm(item));
-    setEditingVariantId(null);
-    setVariant(variantDraft());
+    const nextDraft = itemForm(item);
+    setDraft(nextDraft);
+    setItemDetails(retainedOptionalDetails(nextDraft));
+    resetVariantEditor();
     setError(null);
   };
 
@@ -178,9 +202,20 @@ export function ProfileWorkspace({
     setCreating(true);
     setEditingItem(true);
     setSelectedId(null);
-    setDraft(emptyItem);
-    setEditingVariantId(null);
-    setVariant(variantDraft());
+    setDraft({ ...emptyItem });
+    setItemDetails([]);
+    resetVariantEditor();
+    setError(null);
+  };
+
+  const startItemEdit = () => {
+    if (!selected) return;
+    if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
+    resetVariantEditor();
+    const nextDraft = itemForm(selected);
+    setDraft(nextDraft);
+    setItemDetails(retainedOptionalDetails(nextDraft));
+    setEditingItem(true);
     setError(null);
   };
 
@@ -190,9 +225,13 @@ export function ProfileWorkspace({
       setCreating(false);
       const first = snapshot.items[0] ?? null;
       setSelectedId(first?.id ?? null);
-      setDraft(itemForm(first ?? undefined));
+      const nextDraft = itemForm(first ?? undefined);
+      setDraft(nextDraft);
+      setItemDetails(retainedOptionalDetails(nextDraft));
     } else if (selected) {
-      setDraft(itemForm(selected));
+      const nextDraft = itemForm(selected);
+      setDraft(nextDraft);
+      setItemDetails(retainedOptionalDetails(nextDraft));
     }
     setEditingItem(false);
     setError(null);
@@ -205,10 +244,9 @@ export function ProfileWorkspace({
     setError(null);
     try {
       const selectedItemId = selected?.id ?? null;
-      const next =
-        creating || !selectedItemId
-          ? await window.aaaat.profile.addItem(input)
-          : await window.aaaat.profile.updateItem({ id: selectedItemId, item: input });
+      const next = creating || !selectedItemId
+        ? await window.aaaat.profile.addItem(input)
+        : await window.aaaat.profile.updateItem({ id: selectedItemId, item: input });
       setSnapshot(next);
       const saved = creating
         ? next.items.at(-1) ?? null
@@ -216,7 +254,9 @@ export function ProfileWorkspace({
       setCreating(false);
       setEditingItem(false);
       setSelectedId(saved?.id ?? null);
-      setDraft(itemForm(saved ?? undefined));
+      const nextDraft = itemForm(saved ?? undefined);
+      setDraft(nextDraft);
+      setItemDetails(retainedOptionalDetails(nextDraft));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save this information.");
     } finally {
@@ -233,8 +273,11 @@ export function ProfileWorkspace({
       setSnapshot(next);
       const first = next.items[0] ?? null;
       setSelectedId(first?.id ?? null);
-      setDraft(itemForm(first ?? undefined));
+      const nextDraft = itemForm(first ?? undefined);
+      setDraft(nextDraft);
+      setItemDetails(retainedOptionalDetails(nextDraft));
       setEditingItem(false);
+      resetVariantEditor();
       setVariants((current) => current.filter((candidate) => candidate.itemId !== selected.id));
     } catch (reason) {
       setError(
@@ -248,15 +291,26 @@ export function ProfileWorkspace({
   };
 
   const editVariant = (candidate?: ProfileVariantRecord) => {
+    if (itemDirty && !window.confirm("Discard unsaved My information edits?")) return;
     if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
+    if (editingItem && selected) {
+      const nextDraft = itemForm(selected);
+      setDraft(nextDraft);
+      setItemDetails(retainedOptionalDetails(nextDraft));
+      setEditingItem(false);
+    }
+    const nextVariant = candidate ? variantDraft(candidate) : newVariantDraft(selected ?? undefined);
+    setEditingVariant(true);
     setEditingVariantId(candidate?.id ?? null);
-    setVariant(candidate ? variantDraft(candidate) : newVariantDraft(selected ?? undefined));
+    setVariant(nextVariant);
+    setVariantDetails(retainedOptionalDetails(nextVariant));
+    setError(null);
   };
 
   const closeVariant = () => {
     if (variantDirty && !window.confirm("Discard unsaved variation edits?")) return;
-    setEditingVariantId(null);
-    setVariant(variantDraft());
+    resetVariantEditor();
+    setError(null);
   };
 
   const saveVariant = async () => {
@@ -284,15 +338,14 @@ export function ProfileWorkspace({
             content,
           });
       setVariants(next);
-      const saved =
-        next.find((candidate) => candidate.id === editingVariantId) ??
-        next.find(
-          (candidate) =>
-            candidate.itemId === selected.id && candidate.name === variant.name.trim(),
-        ) ??
-        null;
+      const saved = next.find((candidate) => candidate.id === editingVariantId)
+        ?? next.find((candidate) => candidate.itemId === selected.id && candidate.name === variant.name.trim())
+        ?? null;
+      setEditingVariant(true);
       setEditingVariantId(saved?.id ?? null);
-      setVariant(variantDraft(saved ?? undefined));
+      const nextVariant = variantDraft(saved ?? undefined);
+      setVariant(nextVariant);
+      setVariantDetails(retainedOptionalDetails(nextVariant));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save this variation.");
     } finally {
@@ -306,8 +359,7 @@ export function ProfileWorkspace({
     setError(null);
     try {
       setVariants(await window.aaaat.profileVariants.remove(editingVariantId));
-      setEditingVariantId(null);
-      setVariant(variantDraft());
+      resetVariantEditor();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -318,8 +370,6 @@ export function ProfileWorkspace({
       setBusy(false);
     }
   };
-
-  const groups = [...new Set(snapshot.items.map((item) => item.kind))];
 
   return (
     <section className="profile-workspace professional-information-area" aria-label="My information">
@@ -340,7 +390,7 @@ export function ProfileWorkspace({
             <p className="compact-empty">No reusable information yet.</p>
           ) : (
             groups.map((kind) => (
-              <section key={kind}>
+              <section key={kind} aria-label={`${kind} group`}>
                 <h2>{kind}</h2>
                 {snapshot.items
                   .filter((item) => item.kind === kind)
@@ -349,6 +399,7 @@ export function ProfileWorkspace({
                       type="button"
                       key={item.id}
                       className={item.id === selectedId ? "active" : ""}
+                      aria-current={item.id === selectedId ? "true" : undefined}
                       onClick={() => selectItem(item)}
                     >
                       <strong>{item.title}</strong>
@@ -362,273 +413,234 @@ export function ProfileWorkspace({
 
         <div className="professional-information-editor">
           {creating || selected ? (
-            <>
-              <section className="section-surface professional-information-item">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">{creating ? "New information" : selected?.kind}</p>
-                    <h2>{creating ? "Add information" : selected?.title}</h2>
-                  </div>
-                  {selected ? <ProfileItemAiDisclosureControl itemId={selected.id} /> : null}
+            <section className="section-surface professional-information-item" aria-label={creating ? "New information" : `${selected?.title ?? "Information"} details`}>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">{creating ? "New information" : selected?.kind}</p>
+                  <h2>{creating ? "Add information" : selected?.title}</h2>
                 </div>
+                {selected ? <ProfileItemAiDisclosureControl itemId={selected.id} /> : null}
+              </div>
 
-                {creating || editingItem ? (
-                  <>
-                    <div className="profile-item-form">
-                      <label>
-                        Kind
-                        <input
-                          value={draft.kind}
-                          maxLength={80}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, kind: event.target.value }))
-                          }
-                          placeholder="experience, project, skill…"
-                        />
-                      </label>
-                      <label>
-                        Title
-                        <input
-                          value={draft.title}
-                          maxLength={200}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, title: event.target.value }))
-                          }
-                        />
-                      </label>
+              {creating || editingItem ? (
+                <div className="professional-information-item-editor" aria-label={creating ? "Edit new information" : `Edit ${selected?.title ?? "information"}`}>
+                  <div className="profile-item-form">
+                    <label>
+                      Group
+                      <input
+                        value={draft.kind}
+                        maxLength={80}
+                        onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value }))}
+                        placeholder="experience, project, research…"
+                      />
+                    </label>
+                    <label>
+                      Title
+                      <input
+                        value={draft.title}
+                        maxLength={200}
+                        onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+                      />
+                    </label>
+                    {itemDetails.includes("subtitle") ? (
                       <label className="profile-wide-field">
                         Subtitle
-                        <input
-                          value={draft.subtitle}
-                          maxLength={300}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, subtitle: event.target.value }))
-                          }
-                        />
+                        <input value={draft.subtitle} maxLength={300} onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))} />
                       </label>
+                    ) : null}
+                    {itemDetails.includes("description") ? (
                       <label className="profile-wide-field">
                         Description
-                        <textarea
-                          rows={6}
-                          value={draft.description}
-                          maxLength={5000}
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              description: event.target.value,
-                            }))
-                          }
-                        />
+                        <textarea rows={6} value={draft.description} maxLength={5000} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} />
                       </label>
-                      <div className="profile-date-row profile-wide-field">
-                        <label>
-                          Start
-                          <input
-                            value={draft.startDate}
-                            maxLength={40}
-                            onChange={(event) =>
-                              setDraft((current) => ({
-                                ...current,
-                                startDate: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        <label>
-                          End
-                          <input
-                            value={draft.endDate}
-                            maxLength={40}
-                            onChange={(event) =>
-                              setDraft((current) => ({ ...current, endDate: event.target.value }))
-                            }
-                          />
-                        </label>
-                      </div>
+                    ) : null}
+                    {itemDetails.includes("startDate") ? (
+                      <label>
+                        Start date
+                        <input value={draft.startDate} maxLength={40} onChange={(event) => setDraft((current) => ({ ...current, startDate: event.target.value }))} />
+                      </label>
+                    ) : null}
+                    {itemDetails.includes("endDate") ? (
+                      <label>
+                        End date
+                        <input value={draft.endDate} maxLength={40} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
+                      </label>
+                    ) : null}
+                    {itemDetails.includes("url") ? (
                       <label className="profile-wide-field">
-                        URL
-                        <input
-                          type="url"
-                          value={draft.url}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, url: event.target.value }))
-                          }
-                        />
+                        Link
+                        <input type="url" value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} />
                       </label>
-                    </div>
-                    <div className="button-row">
-                      <button
-                        type="button"
-                        disabled={!draft.title.trim() || busy}
-                        onClick={() => void saveItem()}
+                    ) : null}
+                  </div>
+
+                  {availableItemDetails.length > 0 ? (
+                    <label className="profile-add-detail">
+                      <span>Add detail</span>
+                      <select
+                        aria-label="Add information detail"
+                        value=""
+                        onChange={(event) => {
+                          const key = event.target.value as OptionalDetail;
+                          if (key) setItemDetails((current) => current.includes(key) ? current : [...current, key]);
+                        }}
                       >
-                        {busy ? "Saving…" : "Save"}
-                      </button>
-                      <button type="button" className="compact-secondary" onClick={cancelItemEdit}>
-                        Cancel
-                      </button>
-                      {selected ? (
-                        <button
-                          type="button"
-                          className="compact-secondary"
-                          disabled={busy}
-                          onClick={() => void removeItem()}
-                        >
-                          Remove
-                        </button>
-                      ) : null}
-                    </div>
-                  </>
-                ) : selected ? (
-                  <>
-                    <div className="profile-item-readout">
-                      {selected.subtitle ? <p className="profile-item-subtitle">{selected.subtitle}</p> : null}
-                      {selected.description ? (
-                        <p className="profile-item-description">{selected.description}</p>
-                      ) : (
-                        <p className="compact-help">No description saved.</p>
-                      )}
-                      {dateRange(selected) ? (
-                        <p className="profile-item-meta">
-                          <span>Dates</span>
-                          <strong>{dateRange(selected)}</strong>
-                        </p>
-                      ) : null}
-                      {selected.url ? (
-                        <p className="profile-item-meta">
-                          <span>Link</span>
-                          <span>{selected.url}</span>
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="button-row">
-                      <button type="button" onClick={() => setEditingItem(true)}>Edit</button>
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        disabled={busy}
-                        onClick={() => void removeItem()}
-                      >
+                        <option value="">Choose…</option>
+                        {availableItemDetails.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+                      </select>
+                    </label>
+                  ) : null}
+
+                  <div className="button-row">
+                    <button type="button" disabled={!draft.title.trim() || busy} onClick={() => void saveItem()}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button type="button" className="compact-secondary" onClick={cancelItemEdit}>Cancel</button>
+                    {selected ? (
+                      <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeItem()}>
                         Remove
                       </button>
-                    </div>
-                  </>
-                ) : null}
-              </section>
-
-              {selected ? (
-                <section className="section-surface" aria-label="Saved variations">
-                  <div className="section-heading">
-                    <div>
-                      <p className="eyebrow">Optional reuse</p>
-                      <h2>Saved variations</h2>
-                    </div>
-                    <button
-                      type="button"
-                      className="compact-secondary"
-                      onClick={() => editVariant()}
-                    >
-                      New variation
-                    </button>
+                    ) : null}
                   </div>
-                  {selectedVariants.length === 0 ? (
-                    <p className="compact-empty">No alternate wording saved for this item.</p>
-                  ) : (
-                    <div className="profile-variant-list">
-                      {selectedVariants.map((candidate) => (
-                        <button
-                          type="button"
-                          key={candidate.id}
-                          className={candidate.id === editingVariantId ? "active" : ""}
-                          onClick={() => editVariant(candidate)}
-                        >
-                          <strong>{candidate.name}</strong>
-                          <small>{candidate.content.title}</small>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {variantEditorOpen ? (
-                    <div className="profile-variant-editor">
-                      <label>
-                        Name
-                        <input
-                          value={variant.name}
-                          onChange={(event) =>
-                            setVariant((current) => ({ ...current, name: event.target.value }))
-                          }
-                          placeholder="Leadership emphasis"
-                        />
-                      </label>
-                      <label>
-                        Title
-                        <input
-                          value={variant.title}
-                          onChange={(event) =>
-                            setVariant((current) => ({ ...current, title: event.target.value }))
-                          }
-                        />
-                      </label>
-                      <label>
-                        Subtitle
-                        <input
-                          value={variant.subtitle}
-                          onChange={(event) =>
-                            setVariant((current) => ({
-                              ...current,
-                              subtitle: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className="profile-variant-description">
-                        Description
-                        <textarea
-                          rows={5}
-                          value={variant.description}
-                          onChange={(event) =>
-                            setVariant((current) => ({
-                              ...current,
-                              description: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <div className="button-row profile-variant-actions">
-                        <button
-                          type="button"
-                          disabled={!variant.name.trim() || !variant.title.trim() || busy}
-                          onClick={() => void saveVariant()}
-                        >
-                          Save variation
-                        </button>
-                        {editingVariantId ? (
-                          <button
-                            type="button"
-                            className="compact-secondary"
-                            onClick={() => void removeVariant()}
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="compact-secondary"
-                          onClick={closeVariant}
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </section>
+                </div>
+              ) : selected ? (
+                <>
+                  <div className="profile-item-readout">
+                    {selected.subtitle ? <p className="profile-item-subtitle">{selected.subtitle}</p> : null}
+                    {selected.description ? <p className="profile-item-description">{selected.description}</p> : null}
+                    {dateRange(selected) ? (
+                      <p className="profile-item-meta"><span>Dates</span><strong>{dateRange(selected)}</strong></p>
+                    ) : null}
+                    {selected.url ? (
+                      <p className="profile-item-meta"><span>Link</span><span>{selected.url}</span></p>
+                    ) : null}
+                  </div>
+                  <div className="button-row profile-item-primary-actions">
+                    <button type="button" onClick={startItemEdit}>Edit</button>
+                    <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeItem()}>Remove</button>
+                  </div>
+                </>
               ) : null}
-            </>
+
+              {selected && !editingItem ? (
+                <details className="profile-variations" aria-label="Saved variations" open={editingVariant || undefined}>
+                  <summary>
+                    <span>Saved variations</span>
+                    <span>{selectedVariants.length === 0 ? "Optional" : `${String(selectedVariants.length)} saved`}</span>
+                  </summary>
+                  <div className="profile-variations-content">
+                    <div className="profile-variations-heading">
+                      <p className="compact-help">Optional reusable alternate content for this item. The base information above remains the primary record.</p>
+                      {!editingVariant ? (
+                        <button type="button" className="compact-secondary" onClick={() => editVariant()}>
+                          New variation
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {selectedVariants.length === 0 && !editingVariant ? (
+                      <p className="compact-empty">No saved variations. None is required for ordinary use.</p>
+                    ) : null}
+
+                    {selectedVariants.length > 0 ? (
+                      <div className="profile-variant-list" aria-label="Variations for selected information">
+                        {selectedVariants.map((candidate) => {
+                          const range = dateRange(candidate.content);
+                          return (
+                            <article key={candidate.id} className="profile-variant-readout" aria-label={`${candidate.name} variation`}>
+                              <div>
+                                <strong>{candidate.name}</strong>
+                                <span>{candidate.content.title}</span>
+                                {candidate.content.subtitle ? <small>{candidate.content.subtitle}</small> : null}
+                              </div>
+                              {candidate.content.description ? <p>{candidate.content.description}</p> : null}
+                              {range ? <small>{range}</small> : null}
+                              {candidate.content.url ? <small>{candidate.content.url}</small> : null}
+                              {editingVariantId !== candidate.id ? (
+                                <button type="button" className="compact-secondary" onClick={() => editVariant(candidate)}>Edit variation</button>
+                              ) : null}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    {editingVariant ? (
+                      <div className="profile-variant-editor" aria-label={editingVariantId ? `Edit ${variant.name} variation` : "Edit new variation"}>
+                        <label>
+                          Variation name
+                          <input value={variant.name} onChange={(event) => setVariant((current) => ({ ...current, name: event.target.value }))} placeholder="Leadership emphasis" />
+                        </label>
+                        <label>
+                          Title
+                          <input value={variant.title} onChange={(event) => setVariant((current) => ({ ...current, title: event.target.value }))} />
+                        </label>
+                        {variantDetails.includes("subtitle") ? (
+                          <label className="profile-wide-field">
+                            Subtitle
+                            <input value={variant.subtitle} onChange={(event) => setVariant((current) => ({ ...current, subtitle: event.target.value }))} />
+                          </label>
+                        ) : null}
+                        {variantDetails.includes("description") ? (
+                          <label className="profile-wide-field">
+                            Description
+                            <textarea rows={5} value={variant.description} onChange={(event) => setVariant((current) => ({ ...current, description: event.target.value }))} />
+                          </label>
+                        ) : null}
+                        {variantDetails.includes("startDate") ? (
+                          <label>
+                            Start date
+                            <input value={variant.startDate} onChange={(event) => setVariant((current) => ({ ...current, startDate: event.target.value }))} />
+                          </label>
+                        ) : null}
+                        {variantDetails.includes("endDate") ? (
+                          <label>
+                            End date
+                            <input value={variant.endDate} onChange={(event) => setVariant((current) => ({ ...current, endDate: event.target.value }))} />
+                          </label>
+                        ) : null}
+                        {variantDetails.includes("url") ? (
+                          <label className="profile-wide-field">
+                            Link
+                            <input type="url" value={variant.url} onChange={(event) => setVariant((current) => ({ ...current, url: event.target.value }))} />
+                          </label>
+                        ) : null}
+
+                        {availableVariantDetails.length > 0 ? (
+                          <label className="profile-add-detail profile-wide-field">
+                            <span>Add detail</span>
+                            <select
+                              aria-label="Add variation detail"
+                              value=""
+                              onChange={(event) => {
+                                const key = event.target.value as OptionalDetail;
+                                if (key) setVariantDetails((current) => current.includes(key) ? current : [...current, key]);
+                              }}
+                            >
+                              <option value="">Choose…</option>
+                              {availableVariantDetails.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+                            </select>
+                          </label>
+                        ) : null}
+
+                        <div className="button-row profile-variant-actions">
+                          <button type="button" disabled={!variant.name.trim() || !variant.title.trim() || busy} onClick={() => void saveVariant()}>
+                            {busy ? "Saving…" : "Save variation"}
+                          </button>
+                          {editingVariantId ? (
+                            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeVariant()}>Remove variation</button>
+                          ) : null}
+                          <button type="button" className="compact-secondary" onClick={closeVariant}>Close</button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </details>
+              ) : null}
+            </section>
           ) : (
-            <section className="section-surface">
-              <p className="compact-empty">
-                Select an item or add reusable professional information.
-              </p>
+            <section className="section-surface" aria-label="My information empty selection">
+              <p className="compact-empty">Select an item or add reusable professional information.</p>
             </section>
           )}
         </div>
