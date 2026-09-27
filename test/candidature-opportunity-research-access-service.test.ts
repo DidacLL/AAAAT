@@ -85,7 +85,7 @@ describe("external opportunity-research task access", () => {
         candidatureId: second.id,
         allowed: true,
       }),
-    ).toThrow("Archived candidatures cannot be selected for external opportunity research.");
+    ).toThrow("Archived candidatures cannot be used with external AI.");
 
     const database = new DatabaseSync(path.join(root, "workspace.sqlite"), { readOnly: true });
     try {
