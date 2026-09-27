@@ -1,71 +1,105 @@
-# Current mission — close PLAN[2] no-local acceptance
+# Current mission — PLAN[2] “Send to my AI” product shape
 
 Current explicit Product Owner instruction remains highest authority.
 
-This mission continues the recovery sequence after the authority correction in PR #325 and the evidence/implementation work that followed. The repository is no longer at the earlier “choose a PLAN[2] journey” checkpoint: one representative local-computer external-AI journey is actually demonstrated, and the bounded no-local carrier is implemented. The remaining immediate gate is the real no-local-computer acceptance journey.
+Base main: `a0615293de8af4108e2c44e1a25c5d6b64a5a0ed`.
 
-Base main: `ce1c1530a985342f0d0f552f69c90d5ae7dc56ad` (PR #330 merged).
-
-Do not start PLAN[4] or PLAN[5] until this PLAN[2] acceptance gate is classified honestly.
+Do not start PLAN[4] or PLAN[5]. The remaining PLAN[2] work is no longer transport proof; both representative external-AI environments have been demonstrated. The active product gap is the user-facing external-AI task model in Issue #333.
 
 ## Achieved and actually demonstrated
 
-- Recovery authority/state correction and truthful TeX rendering self-test from PR #325 remain in force.
-- Direct AAAAT AI: PR #326 exercised the production job-extraction path through a real constrained model (`qwen2.5:0.5b-instruct` via Ollama). A target-scoped one-field Role request produced useful accepted output while AAAAT rejected bad sibling material through existing local validation/salvage. This is real-model usefulness evidence for that bounded case, not proof that every current-field/broad extraction request is useful.
-- The provider transport defect exposed by that evidence was corrected so AAAAT’s configured timeout, not Node/Undici’s shorter parser timeout, is authoritative. The ordinary four-field request still failed to produce a model response within AAAAT’s 15-minute ceiling; do not overclaim broad constrained-model usefulness.
-- PR #328 restored the real user-controlled `External opportunity research` authorization UI and dirty-state revocation behavior for the selected candidature.
-- PLAN[2] local-computer third-party host: actually demonstrated using llama.cpp Web UI + Granite 4.1 3B. The journey originated in the external host, called AAAAT’s bounded `opportunity_research_context_read`, produced useful external reasoning, called `candidature_source_add`, and the returned Source was visible in normal AAAAT UI. llama.cpp/Granite are evidence fixtures, not product architecture or defaults.
-- PR #330 implements the no-local portable carrier for the same ADR-0025 task: readable Markdown export of the existing bounded selected-candidature projection and selector-free Markdown/text import through the existing Source-only mutation. Verify run `36305537889` passed ordinary verification and the Verification gate.
+- PR #326: direct job extraction exercised through a real constrained model (`qwen2.5:0.5b-instruct` via Ollama). One target-scoped Role extraction was useful; broad four-field constrained-model usefulness remains partial because the demonstrated request timed out at AAAAT’s intended 15-minute ceiling.
+- PR #328: restored the selected-candidature external-AI authorization surface and dirty-state revocation. This code is mechanism/scaffold evidence now, not accepted final UX.
+- PLAN[2] local-computer external host: demonstrated with llama.cpp Web UI + Granite 4.1 3B. The external host originated the work, read AAAAT context through bounded tools, produced useful reasoning, wrote a Source back, and the result was visible in normal AAAAT UI.
+- PR #330 + Issue #329: no-local portable task/result carrier implemented and then demonstrated with an external AI that had no access to the local AAAAT computer. The returned Markdown result imported successfully. #329 is closed as completed transport/journey evidence.
+- PR #332: removed defensive implementation framing from the current exported task and related wording. This improves the scaffold but does not make the specialized opportunity-research UX acceptable.
 
-## Immediate missing acceptance
+Evidence hosts/models/carriers are fixtures only. llama.cpp, Granite, Markdown files and MCP are not product defaults or architecture authority.
 
-Issue #329 remains open only for the real no-local-computer journey:
+## Current Product Owner direction — Issue #333
 
-1. packaged/current AAAAT selects and authorizes one candidature;
-2. AAAAT exports the bounded opportunity-research task file;
-3. an external AI environment with no local-machine access receives only that file and performs substantive work beyond copying it;
-4. the external AI returns a UTF-8 Markdown/text file;
-5. AAAAT imports that file through `Import external AI result…` with no candidature selector/ID from the external side;
-6. the returned Source is verified in normal AAAAT UI.
+The current `External opportunity research` concept is rejected as the final product surface. It is too specialized, hidden and explanation-heavy.
 
-The intended next acceptance host may be this ChatGPT conversation because it has no access to the user’s local AAAAT workspace. Host choice is evidence only and must not become AAAAT architecture.
+Replace it with a contextual **Send to my AI** interaction.
 
-If this journey succeeds, close #329 and classify the no-local PLAN[2] boundary as **implemented and actually demonstrated**. Then reassess whether any remaining recovery debt is a PLAN[2] blocker before advancing sequence.
+The intended product model is:
+
+1. From a candidature, career-information/document context, or another justified local context, the user chooses **Send to my AI**.
+2. AAAAT opens a task editor.
+3. The editor loads a shipped task template appropriate to that context, for example opportunity research, career-path/role adequacy, CV evaluation/tailoring or another useful task.
+4. The complete task instruction is visible in ordinary editable text and may be changed freely before sending/exporting.
+5. The user may choose another shipped template and may save/add their own reusable task templates.
+6. AAAAT supplies the relevant user-approved local context separately from the task instruction.
+7. The task is sent/exported through an available external-AI route.
+8. Returned useful work is retained through an appropriate bounded AAAAT domain action.
+
+### Task text versus local authority
+
+Do not conflate these layers:
+
+- **Task instruction:** user-owned and fully editable.
+- **Local context projection:** AAAAT-owned, privacy-aware and appropriate to the current task/context.
+- **Return mutation:** AAAAT-owned and bounded to legitimate domain actions.
+
+User freedom to edit the task does not imply generic database/filesystem/shell authority.
+
+### Reusable external-host guidance
+
+Provider/host UX is not only transported task files or exposed tools.
+
+AAAAT should provide reusable skills/definitions/host guidance for external AI environments, especially hosts without local-computer access. That reusable material explains how to work with AAAAT and how returned material is handled.
+
+It is separate from individual task payloads. A task should contain only its own concerns plus relevant user-approved context. Do not repeatedly inject AAAAT architecture, local IDs, MCP vocabulary, filesystem/database warnings or defensive implementation explanations into every task.
+
+Where a host supports reusable skills/instructions, use that mechanism when justified. Where it does not, a concise reusable instruction artifact is sufficient. Do not turn a demonstrated host into AAAAT architecture.
 
 ## Current capability classification
 
-- Direct bounded job extraction with one real lightweight/constrained model: **implemented and actually demonstrated** for the target-scoped one-field case.
-- Broad/multi-field constrained-model usefulness: **partial**; the demonstrated four-field request timed out at AAAAT’s intended ceiling.
-- PLAN[2] external AI with local-computer/tool access: **implemented and actually demonstrated** through llama.cpp + Granite over the bounded MCP task.
-- PLAN[2] no-local portable carrier: **implemented but not yet actually demonstrated end-to-end**; real external-host acceptance pending in #329.
-- ADR-0025 selected-candidature opportunity-research read + Source-only return semantics: **implemented and actually demonstrated** on the local-host path; portable no-local carrier shares the same projection/mutation boundary.
-- Setup/integration UX: **partial/scaffold**. Current host use still exposes technical setup/mechanics; no representative setup experience has been accepted as the ordinary user path.
-- `installer.ai` / `configurator.ai`: useful bounded mechanisms exist, but representative real setup usefulness remains **partial/scaffold** unless separately demonstrated.
+- Direct bounded one-field constrained-model extraction: **implemented and actually demonstrated**.
+- Broad/multi-field constrained-model usefulness: **partial**.
+- External AI with local-computer/tool access: **implemented and actually demonstrated** at the carrier/domain boundary.
+- External AI without local-computer access: **implemented and actually demonstrated** at the portable-carrier/domain boundary.
+- Current specialized `External opportunity research` UX: **superseded by explicit Product Owner direction** as final UX; retain only useful implementation pieces.
+- General editable `Send to my AI` task UX: **missing**.
+- Shipped editable task templates: **missing**.
+- User-created reusable task templates: **missing**.
+- Reusable external-host skills/definitions separated from task payloads: **missing**.
+- Setup/integration UX: **partial/scaffold**; current technical MCP/executable configuration is not accepted ordinary-user setup.
 - PLAN[3]: retained.
-- PLAN[4] real rendering/portable/immutable artifact infrastructure: **implemented and actually demonstrated** as infrastructure. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains **partial/missing** and requires the owner-paired design phase preserved by ADR 0015.
+- PLAN[4] rendering/portable/immutable artifact infrastructure: **implemented and actually demonstrated** as infrastructure; ADR-0015 document-package design remains incomplete.
 - PLAN[5]: blocked.
 
-## Known debt / drift still to resolve
+## Architecture boundaries
 
-- Do not restore VS Code integration merely because PR #319 removed it. The local-host proof shows the bounded MCP task works in a real host, but ordinary host setup remains too technical. Recover the user setup intention before choosing any host-specific setup work.
-- PR #319 also removed external CV description/content/render capabilities. Their removal is historical evidence, not proof that the broader external-document contribution intention is obsolete. Reassess against current Product Definition/ADR 0015 when the sequence reaches the relevant document work; do not revive them automatically.
-- The older JSON `applicationHandoff` carrying `{ sourceText, outputs }` remains a mechanism for creating application material. It is not PLAN[2] external-AI acceptance and must not be used as evidence for useful completed external work.
-- The new portable no-local carrier is intentionally one carrier for one named task, not a generic handoff/result framework. Do not generalize it pre-emptively.
-- Setup probes/status surfaces and raw executable/MCP guidance are not equivalent to a completed user setup journey.
-- The direct AI provider remains OpenAI-compatible as an implementation adapter only; do not turn that protocol into product/provider authority.
-- Scarce Codex/Copilot quotas are not to be spent on deterministic setup/harness work. The orchestrator should execute narrow GitHub/code actions directly and use specialists only where substantial autonomous work is justified.
+Preserve useful existing mechanisms without normalizing their current UX:
 
-## Orchestrator execution contract
+- existing privacy projections and AI visibility choices;
+- bounded external mutations instead of generic CRUD;
+- Source retention/search/activity behavior;
+- local workspace ownership;
+- MCP/file carriers where they fit a host;
+- manual/no-AI completeness.
 
-The orchestrator owns sequence, acceptance and repository state.
+Do not build a generic workflow engine, task queue, provider marketplace, host registry, agent planner, generic permission framework or generic CRUD API. A small user-maintainable set of task templates is product data, not justification for an orchestration framework.
 
-- Inspect actual implementation/evidence before issuing work.
-- Execute small bounded fixes/actions directly; do not use the Product Owner as a transport layer for routine engineering.
-- Do not convert an evidence host/model/carrier into project architecture.
-- Mechanism tests prove only the mechanism they exercise.
-- Do not close #329 or PLAN[2] from export/import unit tests alone; require the real no-local external-AI work loop.
-- After PLAN[2] is honestly settled, propagate the classification into this mission/master plan before moving to the next gate.
+ADR 0025 remains useful evidence for bounded task-specific projection/mutation semantics and already anticipated future user-defined tasks. Its one `opportunity_research` task and selection UI are not authority for the final product surface after the owner direction in #333.
+
+## Known debt / drift
+
+- PR #319 removed VS Code setup and external CV description/content/render capabilities. Do not restore them automatically; evaluate only where #333 or later document work requires a concrete capability.
+- The older JSON `applicationHandoff` (`sourceText + outputs`) remains a separate mechanism and is not the `Send to my AI` product model.
+- OpenAI-compatible remains an adapter only, not provider/product authority.
+- Scarce Codex/Copilot quotas must not be spent on deterministic setup/harness work that the orchestrator can execute directly.
 
 ## Next
 
-Wait for the exported task artifact from the current packaged/main AAAAT build. Process that artifact in the no-local external AI environment, return one substantive Markdown/text result file, have the user import it through AAAAT, verify normal UI retention, close #329 if successful, and then determine the next recovery gate from authority rather than automatically jumping to PLAN[4].
+Drive Issue #333 from UX/domain shape first. Inspect the existing candidature panel, task projection services, MCP operations, portable file carrier and AI privacy model, then define the smallest coherent implementation that:
+
+- introduces the contextual `Send to my AI` editor;
+- supports shipped editable task templates and user-created reusable templates;
+- cleanly separates task instruction from context projection;
+- reuses current local-host and no-local carriers behind the same user-facing task concept;
+- provides one reusable host-skill/definition path without embedding host explanations in every task;
+- migrates/removes the specialized opportunity-research product surface without weakening privacy or bounded mutation authority.
+
+Do not advance sequence until that product shape is implemented and demonstrated in both a local-access and no-local external host journey.
