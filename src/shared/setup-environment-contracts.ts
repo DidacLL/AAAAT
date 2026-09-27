@@ -5,6 +5,9 @@ import { aiOperationSchema, aiOperations } from "./ai-connection-contracts";
 export const setupEnvironmentChannels = Object.freeze({
   current: "aaaat:setup-environment-current",
   externalConnection: "aaaat:setup-environment-external-connection",
+  externalGuidance: "aaaat:setup-environment-external-guidance",
+  externalGuidanceCopy: "aaaat:setup-environment-external-guidance-copy",
+  externalGuidanceExport: "aaaat:setup-environment-external-guidance-export",
 } as const);
 
 export const externalAssistantConnectionSchema = z
@@ -15,6 +18,17 @@ export const externalAssistantConnectionSchema = z
   })
   .strict();
 export type ExternalAssistantConnection = z.infer<typeof externalAssistantConnectionSchema>;
+
+export const externalAssistantGuidanceSchema = z
+  .object({
+    title: z.string().min(1).max(120),
+    content: z.string().min(1).max(12_000),
+  })
+  .strict();
+export type ExternalAssistantGuidance = z.infer<typeof externalAssistantGuidanceSchema>;
+
+export const externalAssistantGuidanceCopyResultSchema = z.literal("copied");
+export const externalAssistantGuidanceExportResultSchema = z.enum(["exported", "cancelled"]);
 
 export const setupTexCommandSchema = z.enum(["latexmk", "pdflatex"]);
 export type SetupTexCommand = z.infer<typeof setupTexCommandSchema>;
@@ -109,5 +123,8 @@ export interface SetupEnvironmentDesktopApi {
   readonly setupEnvironment: {
     readonly current: () => Promise<SetupEnvironmentSnapshot>;
     readonly externalConnection: () => Promise<ExternalAssistantConnection>;
+    readonly externalGuidance: () => Promise<ExternalAssistantGuidance>;
+    readonly copyExternalGuidance: () => Promise<"copied">;
+    readonly exportExternalGuidance: () => Promise<"exported" | "cancelled">;
   };
 }

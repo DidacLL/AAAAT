@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
-import type { ExternalAssistantConnection } from "../shared/setup-environment-contracts";
+import type {
+  ExternalAssistantConnection,
+  ExternalAssistantGuidance,
+} from "../shared/setup-environment-contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
 import { SetupActionAuthorityPanel } from "./SetupActionAuthorityPanel";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
@@ -33,6 +36,91 @@ const settingsLabels: Readonly<Record<SettingsView, string>> = {
 
 function folderName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+}
+
+function ExternalAssistantGuidancePanel() {
+  const [guidance, setGuidance] = useState<ExternalAssistantGuidance | null>(null);
+  const [busy, setBusy] = useState<"copy" | "export" | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.setupEnvironment.externalGuidance()
+      .then((next) => {
+        if (active) setGuidance(next);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not load its reusable external-AI instructions.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const copy = async () => {
+    setBusy("copy");
+    setMessage(null);
+    setError(null);
+    try {
+      await window.aaaat.setupEnvironment.copyExternalGuidance();
+      setMessage("Reusable AI instructions copied.");
+    } catch {
+      setError("AAAAT could not copy the reusable AI instructions.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const exportGuidance = async () => {
+    setBusy("export");
+    setMessage(null);
+    setError(null);
+    try {
+      const result = await window.aaaat.setupEnvironment.exportExternalGuidance();
+      if (result === "exported") setMessage("Reusable AI instructions saved.");
+    } catch {
+      setError("AAAAT could not save the reusable AI instructions.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <section className="profile-column" aria-label="Use AAAAT with another AI">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">External AI</p>
+          <h2>Use AAAAT with another AI</h2>
+        </div>
+      </div>
+      <p>
+        Give your preferred AI these reusable AAAAT instructions once, for example as project instructions,
+        custom instructions or a skill. Individual tasks can then stay focused on the work itself.
+      </p>
+      {guidance ? (
+        <details>
+          <summary>Preview reusable instructions</summary>
+          <pre className="external-ai-guidance-preview">{guidance.content}</pre>
+        </details>
+      ) : null}
+      <div className="button-row">
+        <button type="button" disabled={busy !== null || !guidance} onClick={() => void copy()}>
+          {busy === "copy" ? "Copying…" : "Copy reusable instructions"}
+        </button>
+        <button
+          type="button"
+          className="compact-secondary"
+          disabled={busy !== null || !guidance}
+          onClick={() => void exportGuidance()}
+        >
+          {busy === "export" ? "Saving…" : "Save instructions…"}
+        </button>
+      </div>
+      {message ? <p>{message}</p> : null}
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
+    </section>
+  );
 }
 
 function ExternalAssistantConnectionPanel() {
@@ -188,8 +276,9 @@ export function SettingsWorkspace({
               onEnvironmentChange={onEnvironmentChange}
               onValidationState={onAiValidationState}
             />
+            <ExternalAssistantGuidancePanel />
             <details className="settings-advanced-disclosure">
-              <summary>Advanced: connect an external assistant</summary>
+              <summary>Advanced: connect a local tool-capable assistant</summary>
               <ExternalAssistantConnectionPanel />
               <SetupActionAuthorityPanel />
             </details>
