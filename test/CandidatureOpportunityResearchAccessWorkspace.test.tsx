@@ -117,9 +117,7 @@ async function openSelectedCandidature(user: ReturnType<typeof userEvent.setup>)
   render(<CandidaturesWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open saved application" }));
   await user.click(screen.getByText("More"));
-  return screen.findByRole("button", {
-    name: "Allow external opportunity research for this candidature",
-  });
+  return screen.findByRole("button", { name: "Use this application with external AI" });
 }
 
 afterEach(() => {
@@ -139,11 +137,9 @@ describe("selected candidature opportunity-research access", () => {
     await user.click(allow);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
     expect(
-      await screen.findByText(/available to the bounded external opportunity-research task/i),
+      await screen.findByText(/External AI can now work with this application/i),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Revoke external opportunity research" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Stop external AI access" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Edit Role" }));
     const value = screen.getByLabelText("Value");
@@ -154,12 +150,10 @@ describe("selected candidature opportunity-research access", () => {
       expect(update).toHaveBeenCalledWith({ candidatureId, allowed: false }),
     );
     expect(
-      await screen.findByText(/revoked because the task context has unsaved edits/i),
+      await screen.findByText(/turned off because this application has unsaved edits/i),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "Allow external opportunity research for this candidature",
-      }),
+      screen.getByRole("button", { name: "Use this application with external AI" }),
     ).toBeDisabled();
   });
 
@@ -170,9 +164,7 @@ describe("selected candidature opportunity-research access", () => {
     const allow = await openSelectedCandidature(user);
     await user.click(allow);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
-    expect(
-      screen.getByRole("button", { name: "Revoke external opportunity research" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Stop external AI access" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.type(screen.getByPlaceholderText("Flight hours"), "Seniority");
@@ -181,12 +173,10 @@ describe("selected candidature opportunity-research access", () => {
       expect(update).toHaveBeenCalledWith({ candidatureId, allowed: false }),
     );
     expect(
-      await screen.findByText(/revoked because the task context has unsaved edits/i),
+      await screen.findByText(/turned off because this application has unsaved edits/i),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "Allow external opportunity research for this candidature",
-      }),
+      screen.getByRole("button", { name: "Use this application with external AI" }),
     ).toBeDisabled();
   });
 
@@ -195,22 +185,22 @@ describe("selected candidature opportunity-research access", () => {
     const user = userEvent.setup();
 
     const allow = await openSelectedCandidature(user);
-    expect(screen.queryByRole("button", { name: "Export task for external AI…" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Import external AI result…" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Export task…" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import result…" })).toBeNull();
 
     await user.click(allow);
 
-    const exportButton = screen.getByRole("button", { name: "Export task for external AI…" });
-    const importButton = screen.getByRole("button", { name: "Import external AI result…" });
+    const exportButton = screen.getByRole("button", { name: "Export task…" });
+    const importButton = screen.getByRole("button", { name: "Import result…" });
     expect(exportButton).toBeEnabled();
     expect(importButton).toBeEnabled();
 
     await user.click(exportButton);
     expect(exportTask).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText(/External AI task exported/i)).toBeVisible();
+    expect(await screen.findByText(/Task exported/i)).toBeVisible();
 
     await user.click(importButton);
     expect(importResult).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText(/retained as a Source/i)).toBeVisible();
+    expect(await screen.findByText(/Result saved as a Source/i)).toBeVisible();
   });
 });
