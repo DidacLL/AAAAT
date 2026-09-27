@@ -29,7 +29,7 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
           <button
             type="button"
             onClick={() => {
-              state.tagSets[state.activeRoot] = state.tagSets[state.activeRoot].map((tag) =>
+              state.tagSets[state.activeRoot] = (state.tagSets[state.activeRoot] ?? []).map((tag) =>
                 tag.name === "Reliability engineering"
                   ? { ...tag, definition: "Updated shared reliability meaning" }
                   : tag,
@@ -43,7 +43,7 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
             type="button"
             onClick={() => {
               state.tagSets[state.activeRoot] = [
-                ...state.tagSets[state.activeRoot],
+                ...(state.tagSets[state.activeRoot] ?? []),
                 {
                   id: "00000000-0000-4000-8000-000000003699",
                   name: "Aviation safety",
