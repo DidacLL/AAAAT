@@ -3,7 +3,7 @@
 Current explicit Product Owner instruction remains highest authority.
 
 Base main: `dd16cacd9233084bfec1b13755942eb7aa51d469`.
-Recovery coordination: PR #374.
+Recovery coordination: PR #374. This recovery also corrects `docs/UX_DEFINITION.md`, whose prior Focus/All-data and single-capture-screen wording had drifted from the current Product Definition.
 
 PLAN[0]/[1]/[3] remain retained. PLAN[2] remains complete on its previously demonstrated real-host boundaries. **PLAN[4] is active and not accepted. PLAN[5] is blocked and not accepted.**
 
@@ -93,7 +93,7 @@ Once a workspace is loaded:
 - Home may surface useful local/workspace state, ongoing work/tasks and clear continuations into ordinary work without redundantly reproducing every persistent rail badge;
 - branding/art supports the landing composition but must not consume the useful work area.
 
-This explicit Product Owner decision resolves the former `UX_DEFINITION.md` versus older roadmap Home conflict. Derived UX documentation must be corrected before/with the eventual PLAN[5] implementation so agents do not recover the obsolete either/or interpretation.
+This explicit Product Owner decision resolves the former `UX_DEFINITION.md` versus older roadmap Home conflict. The recovery branch corrects that derived UX documentation now so later agents do not recover the obsolete either/or interpretation.
 
 ## PLAN[5] acceptance method
 
