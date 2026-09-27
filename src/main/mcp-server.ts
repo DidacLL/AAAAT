@@ -145,7 +145,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     opportunityResearchContextReadToolName,
     {
-      description: "Read only the AI-permitted retained information of the single application the user locally selected for the external opportunity-research task. Returns null when none is selected.",
+      description: "Read the application context selected in AAAAT for opportunity research. Returns null when no application is selected.",
       inputSchema: externalOpportunityResearchContextRequestSchema,
     },
     async (input) => {
@@ -158,7 +158,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     candidatureSourceAddToolName,
     {
-      description: "Retain one Source on the single application the user locally selected for external opportunity research. Accepts no application selector or local ID.",
+      description: "Save research or analysis as a Source on the application selected in AAAAT.",
       inputSchema: externalCandidatureSourceAddInputSchema,
     },
     async (input) => {

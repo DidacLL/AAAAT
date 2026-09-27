@@ -77,9 +77,13 @@ describe("portable no-local opportunity research carrier", () => {
     });
 
     const task = buildOpportunityResearchPortableTask(root);
-    expect(task).toContain("# AAAAT external opportunity research task");
+    expect(task).toContain("# Application research");
     expect(task).toContain("**Role:** Software Engineer");
-    expect(task).toContain("Return the completed work as a UTF-8 Markdown or plain-text file");
+    expect(task).toContain("Research this opportunity and produce a concise application brief");
+    expect(task).toContain("If key details are missing, state them instead of guessing");
+    expect(task).not.toContain("selected and permitted");
+    expect(task).not.toContain("database identifiers");
+    expect(task).not.toContain("workspace paths");
     expect(task).not.toContain("PRIVATE NOTES");
     expect(task).not.toContain("SOURCE SECRET");
     expect(task).not.toContain("SOURCE BODY SECRET");
