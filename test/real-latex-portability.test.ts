@@ -243,7 +243,7 @@ describe("real pdfLaTeX portability boundary", () => {
   );
 
   realLatexIt(
-    "paginates a realistic long CV without vertical overflow or losing block content",
+    "paginates a realistic long CV without vertical overflow or losing first-page/body content",
     async () => {
       const project = mkdtempSync(path.join(tmpdir(), "aaaat-real-latex-long-cv-"));
       try {
@@ -264,6 +264,12 @@ describe("real pdfLaTeX portability boundary", () => {
         const text = extractedPdfText(path.join(project, "build", "main.pdf"));
         for (const sectionName of sectionNames) expect(text).toContain(sectionName);
         for (const marker of entryMarkers) expect(text).toContain(marker);
+
+        const firstPageText = text.split("\f")[0] ?? "";
+        expect(firstPageText).toContain(working.title);
+        expect(
+          [...sectionNames, ...entryMarkers].some((bodyMarker) => firstPageText.includes(bodyMarker)),
+        ).toBe(true);
       } finally {
         rmSync(project, { recursive: true, force: true });
       }
