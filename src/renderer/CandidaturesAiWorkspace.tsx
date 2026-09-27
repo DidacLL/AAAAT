@@ -7,8 +7,10 @@ import "./candidature-capture.css";
 
 export function CandidaturesAiWorkspace({
   onDirtyChange,
+  onTagGlossaryChange,
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly onTagGlossaryChange?: () => void;
 }) {
   const [view, setView] = useState<"applications" | "new">("applications");
   const [revision, setRevision] = useState(0);
@@ -98,7 +100,11 @@ export function CandidaturesAiWorkspace({
               </button>
             </div>
           ) : null}
-          <CandidaturesWorkspace key={revision} onDirtyChange={reportDirty} />
+          <CandidaturesWorkspace
+            key={revision}
+            onDirtyChange={reportDirty}
+            onTagGlossaryChange={onTagGlossaryChange}
+          />
         </>
       )}
     </div>
