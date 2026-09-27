@@ -26,14 +26,10 @@ export function TagVisor({ workspaceKey, refreshRevision }: Props) {
   useEffect(() => {
     let active = true;
     const listTags = window.aaaat.candidatures?.listTags;
-    if (!listTags) {
-      setTags([]);
-      setError("Tags are unavailable.");
-      return () => {
-        active = false;
-      };
-    }
-    void listTags()
+    const request = listTags
+      ? listTags()
+      : Promise.reject(new Error("Tag glossary API unavailable"));
+    void request
       .then((nextTags) => {
         if (!active) return;
         setTags(nextTags);
