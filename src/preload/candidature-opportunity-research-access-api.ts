@@ -14,6 +14,8 @@ import {
 
 type Invoke = (channel: string, ...args: readonly unknown[]) => Promise<unknown>;
 
+type ResearchApi = CandidatureOpportunityResearchAccessDesktopApi["candidatureOpportunityResearchAccess"];
+
 export function createCandidatureOpportunityResearchAccessDesktopApi(
   invoke: Invoke,
 ): CandidatureOpportunityResearchAccessDesktopApi {
@@ -26,11 +28,7 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
             candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId),
           ),
         ),
-      update: async (
-        input: Parameters<
-          CandidatureOpportunityResearchAccessDesktopApi["candidatureOpportunityResearchAccess"]["update"]
-        >[0],
-      ) =>
+      update: async (input: Parameters<ResearchApi["update"]>[0]) =>
         candidatureOpportunityResearchAccessSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.update,
@@ -41,21 +39,21 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
         candidatureOpportunityResearchTaskContextSchema.parse(
           await invoke(candidatureOpportunityResearchAccessChannels.taskContext),
         ),
-      copyTask: async (instruction) =>
+      copyTask: async (instruction: Parameters<ResearchApi["copyTask"]>[0]) =>
         candidatureOpportunityResearchTaskCopyResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.copyTask,
             candidatureOpportunityResearchTaskInstructionSchema.parse(instruction),
           ),
         ),
-      exportTask: async (instruction) =>
+      exportTask: async (instruction: Parameters<ResearchApi["exportTask"]>[0]) =>
         candidatureOpportunityResearchTaskExportResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.exportTask,
             candidatureOpportunityResearchTaskInstructionSchema.parse(instruction),
           ),
         ),
-      retainResult: async (sourceText) =>
+      retainResult: async (sourceText: Parameters<ResearchApi["retainResult"]>[0]) =>
         candidatureOpportunityResearchResultRetainResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.retainResult,
