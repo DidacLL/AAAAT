@@ -79,4 +79,4 @@ Durable owner findings preserved in `MASTER_PLAN.md` include:
 - user-editable AI guidance should be clearly centralized in AI Settings;
 - CV editing should read as one coherent document/composition rather than unrelated generic record boxes and should expose only relevant fields/controls.
 
-The master orchestrator must inspect current authority and implementation, choose the first coherent PLAN[5] slice, and delegate substantial implementation as one bounded run. Do not bundle all PLAN[5] areas into one redesign.
+The order of those findings is not an implementation priority by itself. The master orchestrator must inspect current authority and implementation, choose the first coherent PLAN[5] slice, and delegate substantial implementation as one bounded run. Do not bundle all PLAN[5] areas into one redesign.
