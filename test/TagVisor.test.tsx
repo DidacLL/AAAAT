@@ -17,7 +17,6 @@ const operations: TagRecord = {
   name: "Platform operations",
   aliases: ["Ops"],
   definition: "Operational ownership of the platform",
-  notes: null,
 };
 
 function installListTags(listTags: ReturnType<typeof vi.fn>) {
