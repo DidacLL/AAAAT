@@ -1,9 +1,14 @@
 import { z } from "zod";
 
+import { externalOpportunityResearchInformationSchema } from "./external-assistant-contracts";
+
 export const candidatureOpportunityResearchAccessChannels = Object.freeze({
   current: "aaaat:candidature-opportunity-research-access-current",
   update: "aaaat:candidature-opportunity-research-access-update",
+  taskContext: "aaaat:candidature-opportunity-research-task-context",
+  copyTask: "aaaat:candidature-opportunity-research-copy-task",
   exportTask: "aaaat:candidature-opportunity-research-export-task",
+  retainResult: "aaaat:candidature-opportunity-research-retain-result",
   importResult: "aaaat:candidature-opportunity-research-import-result",
 } as const);
 
@@ -23,12 +28,44 @@ export type CandidatureOpportunityResearchAccessUpdate = z.infer<
   typeof candidatureOpportunityResearchAccessUpdateSchema
 >;
 
+export const candidatureOpportunityResearchTaskContextSchema = z
+  .object({
+    information: z.array(externalOpportunityResearchInformationSchema).max(64),
+  })
+  .strict();
+export type CandidatureOpportunityResearchTaskContext = z.infer<
+  typeof candidatureOpportunityResearchTaskContextSchema
+>;
+
+export const candidatureOpportunityResearchTaskInstructionSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(20_000);
+export type CandidatureOpportunityResearchTaskInstruction = z.infer<
+  typeof candidatureOpportunityResearchTaskInstructionSchema
+>;
+
+export const candidatureOpportunityResearchResultTextSchema = z
+  .string()
+  .max(64 * 1024);
+
+export const candidatureOpportunityResearchTaskCopyResultSchema = z.literal("copied");
+export type CandidatureOpportunityResearchTaskCopyResult = z.infer<
+  typeof candidatureOpportunityResearchTaskCopyResultSchema
+>;
+
 export const candidatureOpportunityResearchTaskExportResultSchema = z.enum([
   "exported",
   "cancelled",
 ]);
 export type CandidatureOpportunityResearchTaskExportResult = z.infer<
   typeof candidatureOpportunityResearchTaskExportResultSchema
+>;
+
+export const candidatureOpportunityResearchResultRetainResultSchema = z.literal("retained");
+export type CandidatureOpportunityResearchResultRetainResult = z.infer<
+  typeof candidatureOpportunityResearchResultRetainResultSchema
 >;
 
 export const candidatureOpportunityResearchResultImportResultSchema = z.enum([
@@ -47,7 +84,16 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly update: (
       input: CandidatureOpportunityResearchAccessUpdate,
     ) => Promise<CandidatureOpportunityResearchAccess>;
-    readonly exportTask: () => Promise<CandidatureOpportunityResearchTaskExportResult>;
+    readonly taskContext: () => Promise<CandidatureOpportunityResearchTaskContext>;
+    readonly copyTask: (
+      instruction: CandidatureOpportunityResearchTaskInstruction,
+    ) => Promise<CandidatureOpportunityResearchTaskCopyResult>;
+    readonly exportTask: (
+      instruction: CandidatureOpportunityResearchTaskInstruction,
+    ) => Promise<CandidatureOpportunityResearchTaskExportResult>;
+    readonly retainResult: (
+      sourceText: string,
+    ) => Promise<CandidatureOpportunityResearchResultRetainResult>;
     readonly importResult: () => Promise<CandidatureOpportunityResearchResultImportResult>;
   };
 }
