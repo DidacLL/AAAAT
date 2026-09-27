@@ -25,7 +25,15 @@ export function TagVisor({ workspaceKey, refreshRevision }: Props) {
 
   useEffect(() => {
     let active = true;
-    void window.aaaat.candidatures.listTags()
+    const listTags = window.aaaat.candidatures?.listTags;
+    if (!listTags) {
+      setTags([]);
+      setError("Tags are unavailable.");
+      return () => {
+        active = false;
+      };
+    }
+    void listTags()
       .then((nextTags) => {
         if (!active) return;
         setTags(nextTags);
