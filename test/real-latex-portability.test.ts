@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,9 +18,11 @@ import {
   renderCoverLetter,
   renderWorkingCv,
 } from "../src/main/document-domain-service";
+import { writeCvLatexProject } from "../src/main/document-latex";
 import { runLatexmk } from "../src/main/latex-runner";
 import { addProfileItem } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
+import type { WorkingCvRecord } from "../src/shared/document-domain-contracts";
 
 const realLatexIt = process.env.AAAAT_REAL_LATEX === "1" ? it : it.skip;
 
@@ -40,6 +43,74 @@ function allSourceText(project: string): string {
     .filter(existsSync)
     .map((name) => readFileSync(name, "utf8"))
     .join("\n");
+}
+
+function extractedPdfText(pdfPath: string): string {
+  const result = spawnSync("pdftotext", [pdfPath, "-"], { encoding: "utf8" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`pdftotext failed with exit code ${result.status ?? "unknown"}: ${result.stderr}`);
+  }
+  return result.stdout;
+}
+
+function longWorkingCv(): { working: WorkingCvRecord; entryMarkers: string[]; sectionNames: string[] } {
+  const now = new Date().toISOString();
+  const sectionNames = [
+    "SectionA",
+    "SectionB",
+    "SectionC",
+    "SectionD",
+    "SectionE",
+    "SectionF",
+    "SectionG",
+  ];
+  const entriesPerSection = [6, 6, 5, 5, 5, 5, 5];
+  const entryMarkers: string[] = [];
+  let entryNumber = 0;
+
+  const sections = sectionNames.map((name, sectionIndex) => ({
+    id: crypto.randomUUID(),
+    name,
+    items: Array.from({ length: entriesPerSection[sectionIndex] ?? 0 }, (_, itemIndex) => {
+      entryNumber += 1;
+      const marker = `ENTRY${String(entryNumber).padStart(2, "0")}MARKER`;
+      entryMarkers.push(marker);
+      return {
+        id: crypto.randomUUID(),
+        templateItemId: null,
+        sourceMode: "custom" as const,
+        profileItemId: null,
+        profileVariantId: null,
+        content: {
+          kind: `section-${sectionIndex + 1}`,
+          title: marker,
+          subtitle: `Context ${sectionIndex + 1}.${itemIndex + 1}`,
+          startDate: "2021",
+          endDate: "2026",
+          description:
+            "Delivered a realistic body of work across planning, implementation, testing, documentation, stakeholder coordination and operational follow-through. " +
+            "This deliberately long fixture exercises normal paragraph wrapping and enough cumulative vertical content to require safe pagination across several pages.",
+          url: `https://example.test/work/${sectionIndex + 1}/${itemIndex + 1}`,
+        },
+      };
+    }),
+  }));
+
+  return {
+    working: {
+      id: crypto.randomUUID(),
+      title: "Long portable CV",
+      language: "en-GB",
+      sourceTemplateId: null,
+      candidatureId: null,
+      sections,
+      createdAt: now,
+      updatedAt: now,
+    },
+    entryMarkers,
+    sectionNames,
+  };
 }
 
 describe("real pdfLaTeX portability boundary", () => {
@@ -169,5 +240,40 @@ describe("real pdfLaTeX portability boundary", () => {
       }
     },
     180_000,
+  );
+
+  realLatexIt(
+    "paginates a realistic long CV without vertical overflow or losing first-page/body content",
+    async () => {
+      const project = mkdtempSync(path.join(tmpdir(), "aaaat-real-latex-long-cv-"));
+      try {
+        const { working, entryMarkers, sectionNames } = longWorkingCv();
+        expect(entryMarkers).toHaveLength(37);
+        expect(sectionNames).toHaveLength(7);
+        writeCvLatexProject(project, working);
+
+        await runLatexmk(project, 60_000);
+
+        const log = readFileSync(path.join(project, "build", "main.log"), "utf8");
+        expect(log).not.toMatch(/Overfull \\vbox/u);
+
+        const pageCountMatch = log.match(/Output written on .+ \((\d+) pages?,/u);
+        expect(pageCountMatch).not.toBeNull();
+        expect(Number(pageCountMatch?.[1] ?? "0")).toBeGreaterThan(1);
+
+        const text = extractedPdfText(path.join(project, "build", "main.pdf"));
+        for (const sectionName of sectionNames) expect(text).toContain(sectionName);
+        for (const marker of entryMarkers) expect(text).toContain(marker);
+
+        const firstPageText = text.split("\f")[0] ?? "";
+        expect(firstPageText).toContain(working.title);
+        expect(
+          [...sectionNames, ...entryMarkers].some((bodyMarker) => firstPageText.includes(bodyMarker)),
+        ).toBe(true);
+      } finally {
+        rmSync(project, { recursive: true, force: true });
+      }
+    },
+    120_000,
   );
 });
