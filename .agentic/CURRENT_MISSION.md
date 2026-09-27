@@ -82,7 +82,7 @@ Required bounded outcome:
 - AI permission remains distinct from `Ask AI to fill`; do not render a second `AI use: On/Off` control inside the editor;
 - preserve per-field and bulk extraction, queued/working/failure/no-result/proposal/partial-issue/applied states, explicit accept/edit/dismiss/retry behavior and partial-result salvage;
 - proposal correction may reuse typed value editing but must not expose field-definition/presentation administration;
-- keep `CandidatureFieldDefinitionsPanel` as the advanced complete definition-management surface;
+- preserve `CandidatureFieldDefinitionsPanel` as the existing advanced field-creation/value-format surface; existing-field label/description editing remains reachable through the field-object interaction;
 - preserve custom fields, enable/disable, choice/cardinality definitions and constrained-window reachability.
 
 Prefer renderer-local changes around `CandidaturesWorkspace.tsx`, `CandidatureFieldValueEditor.tsx`, `CandidatureFieldAiState.tsx`, candidature CSS and focused semantic tests.
