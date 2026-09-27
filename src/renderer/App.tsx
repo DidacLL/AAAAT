@@ -513,7 +513,7 @@ export function App() {
                 />
                 <AiTaskStatus />
                 <TagVisor
-                  key={workspace.rootPath}
+                  key={`tag-visor-${workspace.rootPath}`}
                   workspaceKey={workspace.rootPath}
                   refreshRevision={tagGlossaryRevision + workspaceContentRevision}
                 />
