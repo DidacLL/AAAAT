@@ -3,8 +3,10 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
+  candidatureOpportunityResearchTaskInstructionSchema,
   type CandidatureOpportunityResearchAccess,
   type CandidatureOpportunityResearchAccessUpdate,
+  type CandidatureOpportunityResearchTaskContext,
 } from "../shared/candidature-opportunity-research-access-contracts";
 import type {
   CandidatureFieldConfiguration,
@@ -20,9 +22,7 @@ import {
   listCandidatureFieldsInDatabase,
   readCandidatureFieldValuesInDatabase,
 } from "./candidature-field-service";
-import {
-  addCandidatureSourceInDatabase,
-} from "./candidature-service";
+import { addCandidatureSourceInDatabase } from "./candidature-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface AccessRow {
@@ -133,7 +133,7 @@ export function updateCandidatureOpportunityResearchAccess(
       const current = requireRow(database, update.candidatureId);
       if (update.allowed && current.archived === 1) {
         throw new CandidatureOpportunityResearchAccessServiceError(
-          "Archived candidatures cannot be selected for external opportunity research.",
+          "Archived candidatures cannot be used with external AI.",
         );
       }
       if ((current.selected === 1) === update.allowed) return accessFor(current);
@@ -189,7 +189,7 @@ function exposedChoiceLabels(
     const resolved = choices.get(candidate);
     if (resolved === undefined) {
       throw new CandidatureOpportunityResearchAccessServiceError(
-        "Stored opportunity-research information is invalid.",
+        "Stored external-AI task information is invalid.",
       );
     }
     return resolved;
@@ -227,6 +227,18 @@ export function selectedOpportunityResearchContext(
   );
 }
 
+export function requireSelectedOpportunityResearchContext(
+  rootPath: string,
+): CandidatureOpportunityResearchTaskContext {
+  const context = selectedOpportunityResearchContext(rootPath);
+  if (context === null) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Choose Send to my AI on an application before using an external AI task.",
+    );
+  }
+  return context;
+}
+
 export function addSourceToSelectedOpportunityResearchCandidature(
   rootPath: string,
   rawInput: ExternalCandidatureSourceAddInput,
@@ -248,26 +260,30 @@ export function addSourceToSelectedOpportunityResearchCandidature(
 
 export const maxOpportunityResearchPortableResultBytes = 64 * 1024;
 
+export const defaultOpportunityResearchTaskInstruction =
+  "Research this opportunity and produce a concise application brief with relevant verified facts and source links, positioning ideas supported by the supplied context, important unknowns or questions, and concrete preparation points. If key details are missing, state them instead of guessing.";
+
 function portableValue(value: CandidatureRuntimeValue): string {
   if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 }
 
-export function buildOpportunityResearchPortableTask(rootPath: string): string {
-  const context = selectedOpportunityResearchContext(rootPath);
-  if (context === null) {
-    throw new CandidatureOpportunityResearchAccessServiceError(
-      "Select an application for external opportunity research before exporting a task.",
-    );
-  }
-
+export function buildOpportunityResearchPortableTask(
+  rootPath: string,
+  rawInstruction: string = defaultOpportunityResearchTaskInstruction,
+): string {
+  const context = requireSelectedOpportunityResearchContext(rootPath);
+  const instruction = candidatureOpportunityResearchTaskInstructionSchema.parse(rawInstruction);
   const information = context.information.length > 0
-    ? context.information.map(({ label, value }) => `- **${label.replaceAll(/\s+/g, " ").trim()}:** ${portableValue(value)}`)
+    ? context.information.map(
+        ({ label, value }) =>
+          `- **${label.replaceAll(/\s+/g, " ").trim()}:** ${portableValue(value)}`,
+      )
     : ["- No application context provided."];
 
   return [
-    "# Application research",
+    "# Application task",
     "",
     "## Context",
     "",
@@ -275,9 +291,7 @@ export function buildOpportunityResearchPortableTask(rootPath: string): string {
     "",
     "## Task",
     "",
-    "Research this opportunity and produce a concise application brief with relevant verified facts and source links, positioning ideas supported by the context, important unknowns or questions, and concrete preparation points.",
-    "",
-    "If key details are missing, state them instead of guessing. Return Markdown or plain text.",
+    instruction,
     "",
   ].join("\n");
 }
@@ -288,7 +302,7 @@ export function importOpportunityResearchPortableResult(
 ): boolean {
   if (Buffer.byteLength(sourceText, "utf8") > maxOpportunityResearchPortableResultBytes) {
     throw new CandidatureOpportunityResearchAccessServiceError(
-      "The external AI result is too large to import.",
+      "The external AI result is too large to retain.",
     );
   }
   const content = sourceText.trim();
@@ -300,7 +314,7 @@ export function importOpportunityResearchPortableResult(
   return addSourceToSelectedOpportunityResearchCandidature(rootPath, {
     source: {
       kind: "conversation",
-      title: "External AI opportunity research",
+      title: "External AI result",
       url: "",
       sourceText: content,
     },
