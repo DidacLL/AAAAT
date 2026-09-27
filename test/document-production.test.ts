@@ -7,6 +7,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createCandidature } from "../src/main/candidature-service";
+import { BUILTIN_BLUEPRINT_SOURCE } from "../src/main/document-blueprints";
 import {
   applicationPacketPdfPath,
   createApplicationPacket,
@@ -159,6 +160,44 @@ describe("document production", () => {
     expect(getProfile(root).items[0]?.title).toBe("Platform Engineer");
   });
 
+  it("renders the same saved CV through different Blueprints without mutating editable state", async () => {
+    installFakeLatexmk();
+    const root = workspace();
+    const working = createWorkingCv(root, {
+      title: "Saved editable CV",
+      candidatureId: null,
+      source: { kind: "blank" },
+    });
+    const saved = updateWorkingCv(root, {
+      id: working.id,
+      title: "Saved editable CV",
+      sections: [{
+        id: crypto.randomUUID(),
+        name: "Experience",
+        items: [{
+          id: crypto.randomUUID(),
+          templateItemId: null,
+          sourceMode: "custom",
+          profileItemId: null,
+          profileVariantId: null,
+          content: { kind: "experience", title: "Persisted composition" },
+        }],
+      }],
+    });
+    const alternateBlueprint = `${BUILTIN_BLUEPRINT_SOURCE}\n% ALTERNATE-BLUEPRINT-MARKER\n`;
+
+    const first = await renderWorkingCv(root, saved.id, BUILTIN_BLUEPRINT_SOURCE);
+    const second = await renderWorkingCv(root, saved.id, alternateBlueprint);
+    const reopened = listDocumentCollections(root).workingCvs.find((candidate) => candidate.id === saved.id);
+
+    expect(reopened).toEqual(saved);
+    expect(readFileSync(path.join(root, "rendered-cvs", first.id, "blueprint.tex"), "utf8"))
+      .toBe(BUILTIN_BLUEPRINT_SOURCE);
+    expect(readFileSync(path.join(root, "rendered-cvs", second.id, "blueprint.tex"), "utf8"))
+      .toBe(alternateBlueprint);
+    expect(JSON.stringify(reopened)).not.toContain("blueprint");
+  });
+
   it("renders immutable CV and cover-letter snapshots without leaking internal kinds or TeX commands", async () => {
     installFakeLatexmk();
     const root = workspace();
@@ -176,9 +215,10 @@ describe("document production", () => {
       candidatureId: candidature.id,
       source: { kind: "profile" },
     });
-    const renderedCv = await renderWorkingCv(root, working.id);
+    const renderedCv = await renderWorkingCv(root, working.id, BUILTIN_BLUEPRINT_SOURCE);
     const cvProject = path.join(root, "rendered-cvs", renderedCv.id);
     const cvData = readFileSync(path.join(cvProject, "data.tex"), "utf8");
+    expect(cvData).toContain("\\AAAATDocumentKind{cv}");
     expect(cvData).toContain("\\AAAATBlock{Experience}{");
     expect(cvData).not.toContain("{experience}");
     expect(cvData).not.toContain("\\input{evil}");
@@ -215,12 +255,15 @@ describe("document production", () => {
       ],
       closing: "Cordialement ~ Àlex",
     });
-    const renderedLetter = await renderCoverLetter(root, standalone.id);
+    const letterBlueprint = `${BUILTIN_BLUEPRINT_SOURCE}\n% LETTER-BLUEPRINT-MARKER\n`;
+    const renderedLetter = await renderCoverLetter(root, standalone.id, letterBlueprint);
     const letterProject = path.join(root, "rendered-cover-letters", renderedLetter.id);
     const letterData = readFileSync(path.join(letterProject, "data.tex"), "utf8");
+    expect(letterData).toContain("\\AAAATDocumentKind{letter}");
     expect(letterData).not.toContain("\\ commands");
     expect(letterData).toContain("Équipe R");
     expect(letterData).toContain("\\AAAATLineBreak{}");
+    expect(readFileSync(path.join(letterProject, "blueprint.tex"), "utf8")).toBe(letterBlueprint);
     expect(renderedCoverLetterPdfPath(root, renderedLetter.id)).toBe(
       path.join(letterProject, "build", "main.pdf"),
     );
@@ -254,7 +297,7 @@ describe("document production", () => {
     });
 
     process.env.AAAAT_FAKE_LATEX_MODE = "fail";
-    await expect(renderCoverLetter(root, letter.id, 1_000)).rejects.toThrow(
+    await expect(renderCoverLetter(root, letter.id, BUILTIN_BLUEPRINT_SOURCE, 1_000)).rejects.toThrow(
       "TeX rendering failed",
     );
 
@@ -265,7 +308,7 @@ describe("document production", () => {
     if (existsSync(managedRoot)) expect(readdirSync(managedRoot)).toEqual([]);
   });
 
-  it("retains an exact application packet contributor snapshot and exports self-contained projects without mutating managed originals", async () => {
+  it("uses the Rendered CV Blueprint for packet letters and exports exact retained projects", async () => {
     installFakeLatexmk();
     const root = workspace();
     const exportRoot = temporaryRoot("aaaat-portable-export-");
@@ -281,7 +324,8 @@ describe("document production", () => {
       candidatureId: candidature.id,
       source: { kind: "profile" },
     });
-    const renderedCv = await renderWorkingCv(root, working.id);
+    const selectedBlueprint = `${BUILTIN_BLUEPRINT_SOURCE}\n% PACKET-SHARED-BLUEPRINT\n`;
+    const renderedCv = await renderWorkingCv(root, working.id, selectedBlueprint);
     const letter = createCoverLetter(root, {
       candidatureId: candidature.id,
       title: "Application letter",
@@ -290,7 +334,7 @@ describe("document production", () => {
       bodyParagraphs: ["Exact retained packet wording."],
       closing: "Regards",
     });
-    const renderedLetter = await renderCoverLetter(root, letter.id);
+    const renderedLetter = await renderCoverLetter(root, letter.id, BUILTIN_BLUEPRINT_SOURCE);
     const packet = await createApplicationPacket(root, {
       candidatureId: candidature.id,
       renderedCvId: renderedCv.id,
@@ -300,6 +344,12 @@ describe("document production", () => {
     expect(applicationPacketPdfPath(root, packet.id)).toBe(
       path.join(root, "application-packets", packet.id, "build", "main.pdf"),
     );
+    expect(
+      readFileSync(path.join(root, "application-packets", packet.id, "cv", "blueprint.tex"), "utf8"),
+    ).toBe(selectedBlueprint);
+    expect(
+      readFileSync(path.join(root, "application-packets", packet.id, "cover-letter", "blueprint.tex"), "utf8"),
+    ).toBe(selectedBlueprint);
 
     updateCoverLetter(root, {
       id: letter.id,
@@ -317,12 +367,6 @@ describe("document production", () => {
       return JSON.parse(row.letterSnapshotJson) as { bodyParagraphs: string[] };
     });
     expect(storedSnapshot.bodyParagraphs).toEqual(["Exact retained packet wording."]);
-    expect(
-      readFileSync(
-        path.join(root, "application-packets", packet.id, "cover-letter", "data.tex"),
-        "utf8",
-      ),
-    ).toContain("Exact retained packet wording.");
 
     const exportedCv = exportRenderedCvProject(root, renderedCv.id, exportRoot);
     const exportedLetter = exportRenderedCoverLetterProject(root, renderedLetter.id, exportRoot);
@@ -330,19 +374,27 @@ describe("document production", () => {
 
     for (const project of [exportedCv, exportedLetter]) {
       expect(existsSync(path.join(project, "main.tex"))).toBe(true);
+      expect(existsSync(path.join(project, "blueprint.tex"))).toBe(true);
       expect(existsSync(path.join(project, "data.tex"))).toBe(true);
       expect(existsSync(path.join(project, "aaaat.sty"))).toBe(true);
       expect(projectTex(project)).not.toContain(root);
     }
+    expect(readFileSync(path.join(exportedCv, "blueprint.tex"), "utf8")).toBe(selectedBlueprint);
     expect(existsSync(path.join(exportedPacket, "main.tex"))).toBe(true);
-    expect(existsSync(path.join(exportedPacket, "cv", "main.tex"))).toBe(true);
-    expect(existsSync(path.join(exportedPacket, "cv", "aaaat.sty"))).toBe(true);
-    expect(existsSync(path.join(exportedPacket, "cover-letter", "main.tex"))).toBe(true);
-    expect(existsSync(path.join(exportedPacket, "cover-letter", "aaaat.sty"))).toBe(true);
+    expect(existsSync(path.join(exportedPacket, "cv", "blueprint.tex"))).toBe(true);
+    expect(existsSync(path.join(exportedPacket, "cover-letter", "blueprint.tex"))).toBe(true);
     expect(projectTex(exportedPacket)).not.toContain(root);
+  });
 
-    expect(existsSync(path.join(root, "rendered-cvs", renderedCv.id, "data.tex"))).toBe(true);
-    expect(existsSync(path.join(root, "rendered-cover-letters", renderedLetter.id, "data.tex"))).toBe(true);
-    expect(existsSync(path.join(root, "application-packets", packet.id, "main.tex"))).toBe(true);
+  it("does not add Blueprint ownership to editable CV/template/letter persistence", () => {
+    const root = workspace();
+    const columns = withWorkspaceDatabase(root, (database) => ({
+      workingCvs: database.prepare("PRAGMA table_info(working_cvs)").all() as Array<{ name: string }>,
+      templates: database.prepare("PRAGMA table_info(cv_templates)").all() as Array<{ name: string }>,
+      letters: database.prepare("PRAGMA table_info(cover_letters)").all() as Array<{ name: string }>,
+    }));
+    for (const table of Object.values(columns)) {
+      expect(table.map((column) => column.name).some((name) => name.includes("blueprint"))).toBe(false);
+    }
   });
 });

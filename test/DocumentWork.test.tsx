@@ -11,11 +11,16 @@ vi.mock("../src/renderer/contextual-handoffs", () => ({
   }),
 }));
 
-import { DocumentWork } from "../src/renderer/DocumentWork";
+import { DocumentWork, WorkingCvEditor } from "../src/renderer/DocumentWork";
 
 const letterId = "00000000-0000-4000-8000-000000000901";
 const candidatureId = "00000000-0000-4000-8000-000000000902";
+const cvId = "00000000-0000-4000-8000-000000000904";
 const now = "2026-09-18T00:00:00.000Z";
+const blueprints = [
+  { id: "builtin:default", name: "AAAAT Default" },
+  { id: "user:Compact.tex", name: "Compact" },
+];
 
 const letter = {
   id: letterId,
@@ -30,9 +35,23 @@ const letter = {
   updatedAt: now,
 };
 
+const workingCv = {
+  id: cvId,
+  title: "Saved CV",
+  language: "en",
+  sourceTemplateId: null,
+  candidatureId: null,
+  sections: [],
+  createdAt: now,
+  updatedAt: now,
+};
+
 const updateLetter = vi.fn();
 const renderLetter = vi.fn();
 const openRenderedLetter = vi.fn();
+const updateWorkingCv = vi.fn();
+const renderCv = vi.fn();
+const openRenderedCv = vi.fn();
 const draftCoverLetter = vi.fn();
 
 beforeEach(() => {
@@ -41,6 +60,11 @@ beforeEach(() => {
     ...letter,
     ...input,
     candidatureId,
+    updatedAt: "2026-09-18T00:01:00.000Z",
+  }));
+  updateWorkingCv.mockImplementation(async (input) => ({
+    ...workingCv,
+    ...input,
     updatedAt: "2026-09-18T00:01:00.000Z",
   }));
   draftCoverLetter.mockResolvedValue({
@@ -67,7 +91,25 @@ beforeEach(() => {
     createdAt: now,
     hasPdf: true,
   });
+  renderCv.mockResolvedValue({
+    id: "00000000-0000-4000-8000-000000000905",
+    workingCvId: cvId,
+    sourceTemplateId: null,
+    candidatureId: null,
+    title: workingCv.title,
+    language: workingCv.language,
+    snapshot: {
+      title: workingCv.title,
+      language: workingCv.language,
+      sourceTemplateId: null,
+      candidatureId: null,
+      sections: [],
+    },
+    createdAt: now,
+    hasPdf: true,
+  });
   openRenderedLetter.mockResolvedValue({ opened: true });
+  openRenderedCv.mockResolvedValue({ opened: true });
 
   Object.defineProperty(window, "aaaat", {
     configurable: true,
@@ -81,10 +123,14 @@ beforeEach(() => {
           renderedLetters: [],
           applicationPackets: [],
         })),
+        blueprints: vi.fn(async () => blueprints),
         updateLetter,
         renderLetter,
         openRenderedLetter,
         exportRenderedLetter: vi.fn(async () => null),
+        updateWorkingCv,
+        renderCv,
+        openRenderedCv,
       },
       profile: {
         current: vi.fn(async () => ({ items: [] })),
@@ -94,6 +140,7 @@ beforeEach(() => {
       },
       ai: {
         draftCoverLetter,
+        tailorCv: vi.fn(),
       },
     },
   });
@@ -104,8 +151,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("cover-letter work", () => {
-  it("persists unsaved user edits before rendering and opens the retained output", async () => {
+describe("document render Blueprint choice", () => {
+  it("persists unsaved letter edits, defaults to the built-in Blueprint and renders explicitly", async () => {
     const user = userEvent.setup();
     render(<DocumentWork />);
 
@@ -113,9 +160,13 @@ describe("cover-letter work", () => {
     await user.clear(body);
     await user.type(body, "User-edited render body.");
 
+    expect(await screen.findByRole("combobox", { name: "Blueprint" })).toHaveValue("builtin:default");
     await user.click(screen.getByRole("button", { name: "Render PDF" }));
 
-    await waitFor(() => expect(renderLetter).toHaveBeenCalledWith(letterId));
+    await waitFor(() => expect(renderLetter).toHaveBeenCalledWith({
+      letterId,
+      blueprintId: "builtin:default",
+    }));
     expect(updateLetter).toHaveBeenCalledWith(expect.objectContaining({
       id: letterId,
       bodyParagraphs: ["User-edited render body."],
@@ -126,6 +177,34 @@ describe("cover-letter work", () => {
     expect(openRenderedLetter).toHaveBeenCalledWith(
       "00000000-0000-4000-8000-000000000903",
     );
+  });
+
+  it("uses an ephemeral alternate Blueprint for a CV render without putting it in save input", async () => {
+    const user = userEvent.setup();
+    render(
+      <WorkingCvEditor
+        document={workingCv}
+        profile={[]}
+        variants={[]}
+        collections={{
+          templates: [], workingCvs: [workingCv], renderedCvs: [], letters: [],
+          renderedLetters: [], applicationPackets: [],
+        }}
+        onSaved={vi.fn()}
+        onCollections={vi.fn()}
+      />,
+    );
+
+    const selector = await screen.findByRole("combobox", { name: "Blueprint" });
+    expect(selector).toHaveValue("builtin:default");
+    await user.selectOptions(selector, "user:Compact.tex");
+    await user.click(screen.getByRole("button", { name: "Render PDF" }));
+
+    await waitFor(() => expect(renderCv).toHaveBeenCalledWith({
+      cvId,
+      blueprintId: "user:Compact.tex",
+    }));
+    expect(updateWorkingCv).not.toHaveBeenCalled();
   });
 
   it("persists unsaved user edits before asking AI to replace the draft", async () => {

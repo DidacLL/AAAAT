@@ -4,6 +4,7 @@ import { profileItemContentSchema, profileItemKindSchema } from "./contracts";
 
 export const documentDomainChannels = Object.freeze({
   collections: "aaaat:document-domain-collections",
+  blueprints: "aaaat:document-blueprints",
   templateCreate: "aaaat:cv-template-create",
   templateUpdate: "aaaat:cv-template-update",
   templateRemove: "aaaat:cv-template-remove",
@@ -29,6 +30,24 @@ export const documentDomainChannels = Object.freeze({
 
 const optionalLanguageSchema = z.string().trim().min(1).max(40).optional();
 const optionalUuidSchema = z.string().uuid().nullable();
+
+export const blueprintIdSchema = z.string().trim().min(1).max(240);
+export const blueprintSummarySchema = z.object({
+  id: blueprintIdSchema,
+  name: z.string().trim().min(1).max(200),
+}).strict();
+export type BlueprintSummary = z.infer<typeof blueprintSummarySchema>;
+export const availableBlueprintsSchema = z.array(blueprintSummarySchema).min(1).max(200);
+export const renderCvRequestSchema = z.object({
+  cvId: z.string().uuid(),
+  blueprintId: blueprintIdSchema,
+}).strict().readonly();
+export type RenderCvRequest = z.infer<typeof renderCvRequestSchema>;
+export const renderLetterRequestSchema = z.object({
+  letterId: z.string().uuid(),
+  blueprintId: blueprintIdSchema,
+}).strict().readonly();
+export type RenderLetterRequest = z.infer<typeof renderLetterRequestSchema>;
 
 export const cvContentSchema = profileItemContentSchema
   .extend({ kind: profileItemKindSchema })
@@ -161,6 +180,7 @@ export type PortableProjectExportResult = z.infer<typeof portableProjectExportRe
 export interface DocumentDomainDesktopApi {
   readonly documentDomain: {
     readonly collections: () => Promise<DocumentCollections>;
+    readonly blueprints: () => Promise<BlueprintSummary[]>;
     readonly createTemplate: (input: CvTemplateInput) => Promise<DocumentCollections>;
     readonly updateTemplate: (input: CvTemplateUpdate) => Promise<DocumentCollections>;
     readonly removeTemplate: (templateId: string) => Promise<DocumentCollections>;
@@ -169,14 +189,14 @@ export interface DocumentDomainDesktopApi {
     readonly removeWorkingCv: (workingCvId: string) => Promise<DocumentCollections>;
     readonly saveWorkingItem: (input: WorkingCvSaveItem) => Promise<WorkingCvRecord>;
     readonly saveWorkingAsTemplate: (input: WorkingCvSaveTemplate) => Promise<CvTemplateRecord>;
-    readonly renderCv: (workingCvId: string) => Promise<RenderedCvRecord>;
+    readonly renderCv: (input: RenderCvRequest) => Promise<RenderedCvRecord>;
     readonly duplicateRenderedCv: (renderedCvId: string) => Promise<WorkingCvRecord>;
     readonly openRenderedCv: (renderedCvId: string) => Promise<OpenGeneratedResult>;
     readonly exportRenderedCv: (renderedCvId: string) => Promise<PortableProjectExportResult>;
     readonly createLetter: (input: CoverLetterInput) => Promise<CoverLetterRecord>;
     readonly updateLetter: (input: CoverLetterUpdate) => Promise<CoverLetterRecord>;
     readonly removeLetter: (letterId: string) => Promise<DocumentCollections>;
-    readonly renderLetter: (letterId: string) => Promise<RenderedCoverLetterRecord>;
+    readonly renderLetter: (input: RenderLetterRequest) => Promise<RenderedCoverLetterRecord>;
     readonly openRenderedLetter: (renderedLetterId: string) => Promise<OpenGeneratedResult>;
     readonly exportRenderedLetter: (renderedLetterId: string) => Promise<PortableProjectExportResult>;
     readonly createPacket: (input: ApplicationPacketCreate) => Promise<ApplicationPacketRecord>;

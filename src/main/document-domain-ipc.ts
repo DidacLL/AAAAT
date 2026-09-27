@@ -1,9 +1,10 @@
-import { dialog, ipcMain, shell, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
   applicationPacketCreateSchema,
   applicationPacketRecordSchema,
+  availableBlueprintsSchema,
   coverLetterInputSchema,
   coverLetterRecordSchema,
   coverLetterUpdateSchema,
@@ -16,6 +17,8 @@ import {
   portableProjectExportResultSchema,
   renderedCoverLetterRecordSchema,
   renderedCvRecordSchema,
+  renderCvRequestSchema,
+  renderLetterRequestSchema,
   workingCvCreateSchema,
   workingCvRecordSchema,
   workingCvSaveItemSchema,
@@ -46,6 +49,7 @@ import {
   updateCvTemplate,
   updateWorkingCv,
 } from "./document-domain-service";
+import { listAvailableBlueprints, resolveBlueprintSource } from "./document-blueprints";
 
 export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(documentDomainChannels)) ipcMain.removeHandler(channel);
@@ -53,6 +57,10 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(documentDomainChannels.collections, (event) => {
     assertTrustedSender(event, mainWindow);
     return documentCollectionsSchema.parse(listDocumentCollections(requireWorkspaceRoot()));
+  });
+  ipcMain.handle(documentDomainChannels.blueprints, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return availableBlueprintsSchema.parse(listAvailableBlueprints(app.getPath("userData")));
   });
   ipcMain.handle(documentDomainChannels.templateCreate, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
@@ -86,10 +94,12 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return cvTemplateRecordSchema.parse(saveWorkingCvAsTemplate(requireWorkspaceRoot(), workingCvSaveTemplateSchema.parse(input)));
   });
-  ipcMain.handle(documentDomainChannels.renderCv, async (event, workingCvId: unknown) => {
+  ipcMain.handle(documentDomainChannels.renderCv, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
+    const request = renderCvRequestSchema.parse(input);
+    const blueprintSource = resolveBlueprintSource(app.getPath("userData"), request.blueprintId);
     return renderedCvRecordSchema.parse(
-      await renderWorkingCv(requireWorkspaceRoot(), workingCvRecordSchema.shape.id.parse(workingCvId)),
+      await renderWorkingCv(requireWorkspaceRoot(), request.cvId, blueprintSource),
     );
   });
   ipcMain.handle(documentDomainChannels.duplicateRenderedCv, (event, renderedCvId: unknown) => {
@@ -129,13 +139,12 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return documentCollectionsSchema.parse(removeCoverLetter(requireWorkspaceRoot(), coverLetterRecordSchema.shape.id.parse(letterId)));
   });
-  ipcMain.handle(documentDomainChannels.renderLetter, async (event, letterId: unknown) => {
+  ipcMain.handle(documentDomainChannels.renderLetter, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
+    const request = renderLetterRequestSchema.parse(input);
+    const blueprintSource = resolveBlueprintSource(app.getPath("userData"), request.blueprintId);
     return renderedCoverLetterRecordSchema.parse(
-      await renderCoverLetter(
-        requireWorkspaceRoot(),
-        coverLetterRecordSchema.shape.id.parse(letterId),
-      ),
+      await renderCoverLetter(requireWorkspaceRoot(), request.letterId, blueprintSource),
     );
   });
   ipcMain.handle(documentDomainChannels.openRenderedLetter, async (event, renderedLetterId: unknown) => {

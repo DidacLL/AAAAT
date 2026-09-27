@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-27}{0.3.2}{AAAAT portable document package}
+\ProvidesExplPackage{aaaat}{2026-09-27}{0.4.0}{AAAAT portable document package}
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
@@ -7,6 +7,7 @@
 
 \ExplSyntaxOn
 
+\tl_new:N \g_aaaat_document_kind_tl
 \tl_new:N \g_aaaat_document_title_tl
 \seq_new:N \g_aaaat_metadata_seq
 \seq_new:N \g_aaaat_paragraph_seq
@@ -20,6 +21,12 @@
 \box_new:N \l_aaaat_main_page_box
 \dim_new:N \l_aaaat_region_page_height_dim
 \bool_new:N \l_aaaat_header_pending_bool
+
+\NewDocumentCommand{\AAAATDocumentKind}{m}
+  {\tl_gset:Nn \g_aaaat_document_kind_tl {#1}}
+
+\NewDocumentCommand{\AAAATIfDocumentKindTF}{mmm}
+  {\tl_if_eq:NnTF \g_aaaat_document_kind_tl {#1} {#2} {#3}}
 
 \NewDocumentCommand{\AAAATDocumentLanguage}{m}
   {
