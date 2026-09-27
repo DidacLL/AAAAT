@@ -143,6 +143,22 @@ function dateRange(item: WorkingCvItem): string | null {
   return item.content.startDate ?? item.content.endDate ?? null;
 }
 
+type OptionalCvDetail = "subtitle" | "description" | "startDate" | "endDate" | "url";
+
+const optionalCvDetails: readonly { key: OptionalCvDetail; label: string }[] = [
+  { key: "subtitle", label: "Subtitle" },
+  { key: "description", label: "Description" },
+  { key: "startDate", label: "Start date" },
+  { key: "endDate", label: "End date" },
+  { key: "url", label: "Link" },
+];
+
+function populatedOptionalDetails(content: WorkingCvItem["content"]): OptionalCvDetail[] {
+  return optionalCvDetails
+    .filter(({ key }) => Boolean(content[key]))
+    .map(({ key }) => key);
+}
+
 export function WorkingCvEditor({
   document,
   profile,
@@ -164,6 +180,7 @@ export function WorkingCvEditor({
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingOptionalDetails, setEditingOptionalDetails] = useState<OptionalCvDetail[]>([]);
   const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
   const [addingToSectionId, setAddingToSectionId] = useState<string | null>(null);
   const [sectionName, setSectionName] = useState("");
@@ -202,6 +219,16 @@ export function WorkingCvEditor({
       profileVariantId: null,
       content: { ...current.content, ...content },
     }));
+  };
+
+  const toggleItemEditing = (item: WorkingCvItem) => {
+    if (editingItemId === item.id) {
+      setEditingItemId(null);
+      setEditingOptionalDetails([]);
+      return;
+    }
+    setEditingItemId(item.id);
+    setEditingOptionalDetails(populatedOptionalDetails(item.content));
   };
 
   const persistDraft = async (): Promise<WorkingCvRecord> => {
@@ -280,6 +307,7 @@ export function WorkingCvEditor({
     }));
     setAddingToSectionId(null);
     setEditingItemId(itemId);
+    setEditingOptionalDetails([]);
   };
 
   const chooseSource = (sectionId: string, item: WorkingCvItem, value: string) => {
@@ -287,22 +315,26 @@ export function WorkingCvEditor({
     const base = profile.find((candidate) => candidate.id === item.profileItemId);
     if (!base) return;
     if (value === "current") {
+      const content = profileContent(base);
       updateItem(sectionId, item.id, (current) => ({
         ...current,
         sourceMode: "current",
         profileVariantId: null,
-        content: profileContent(base),
+        content,
       }));
+      setEditingOptionalDetails(populatedOptionalDetails(content));
       return;
     }
     const variant = variants.find((candidate) => candidate.id === value && candidate.itemId === base.id);
     if (variant) {
+      const content = { kind: base.kind, ...variant.content };
       updateItem(sectionId, item.id, (current) => ({
         ...current,
         sourceMode: "variant",
         profileVariantId: variant.id,
-        content: { kind: base.kind, ...variant.content },
+        content,
       }));
+      setEditingOptionalDetails(populatedOptionalDetails(content));
     }
   };
 
@@ -448,149 +480,186 @@ export function WorkingCvEditor({
         </div>
       </details>
 
-      <div className="working-cv-composition" aria-label="CV composition">
+      <div className="working-cv-composition" aria-label="CV document outline">
         {draft.sections.length === 0 ? <p className="compact-empty">This CV is blank. Add a section, then add My information or custom content.</p> : null}
-        <div className="working-cv-sections">
-          {draft.sections.map((section, sectionIndex) => (
-            <section key={section.id} className="working-cv-section" aria-label={`${section.name} section`}>
-              <header className="working-cv-section-heading">
-                <div className="working-cv-section-title">
-                  {renamingSectionId === section.id ? (
-                    <label>
-                      <span className="visually-hidden">Section name</span>
-                      <input aria-label={`Rename ${section.name} section`} value={section.name} onChange={(event) => updateSection(section.id, (current) => ({ ...current, name: event.target.value }))} />
-                    </label>
-                  ) : <h2>{section.name}</h2>}
-                  <span>{section.items.length} {section.items.length === 1 ? "item" : "items"}</span>
-                </div>
-                <div className="working-cv-compact-controls">
-                  <label>
-                    Role
-                    <select
-                      aria-label={`${section.name} presentation role`}
-                      value={section.presentationRole}
-                      onChange={(event) => updateSection(section.id, (current) => ({
-                        ...current,
-                        presentationRole: event.target.value === "secondary" ? "secondary" : "main",
-                      }))}
-                    >
-                      <option value="main">Main</option>
-                      <option value="secondary">Secondary</option>
-                    </select>
-                  </label>
-                  <button type="button" className="compact-secondary" onClick={() => setRenamingSectionId((current) => current === section.id ? null : section.id)}>{renamingSectionId === section.id ? "Done" : "Rename"}</button>
-                  <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${section.name} section up`} disabled={sectionIndex === 0} onClick={() => setSections(move(draft.sections, sectionIndex, -1))}>↑</button>
-                  <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${section.name} section down`} disabled={sectionIndex === draft.sections.length - 1} onClick={() => setSections(move(draft.sections, sectionIndex, 1))}>↓</button>
-                  <button type="button" className="compact-secondary" onClick={() => setSections(draft.sections.filter((candidate) => candidate.id !== section.id))}>Remove</button>
-                </div>
-              </header>
-
-              <div className="working-cv-items">
-                {section.items.length === 0 ? <p className="working-cv-section-empty">No information in this section yet.</p> : null}
-                {section.items.map((item, itemIndex) => {
-                  const itemVariants = item.profileItemId ? variants.filter((variant) => variant.itemId === item.profileItemId) : [];
-                  const editing = editingItemId === item.id;
-                  const dates = dateRange(item);
-                  return (
-                    <article key={item.id} className={editing ? "working-cv-item working-cv-item-editing" : "working-cv-item"} aria-label={`${item.content.title} CV item`}>
-                      <div className="working-cv-item-heading">
-                        <div className="working-cv-item-copy">
-                          <strong>{item.content.title}</strong>
-                          {item.content.subtitle ? <span>{item.content.subtitle}</span> : null}
-                          {dates ? <small>{dates}</small> : null}
-                        </div>
-                        <div className="working-cv-compact-controls">
-                          <button type="button" className="compact-secondary" onClick={() => setEditingItemId(editing ? null : item.id)}>{editing ? "Done" : "Edit"}</button>
-                          <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${item.content.title} up`} disabled={itemIndex === 0} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, -1) }))}>↑</button>
-                          <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${item.content.title} down`} disabled={itemIndex === section.items.length - 1} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, 1) }))}>↓</button>
-                          <button type="button" className="compact-secondary" onClick={() => {
-                            updateSection(section.id, (current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }));
-                            if (editingItemId === item.id) setEditingItemId(null);
-                          }}>Remove</button>
-                        </div>
+        {draft.sections.length > 0 ? (
+          <ol className="working-cv-sections" aria-label="CV sections">
+            {draft.sections.map((section, sectionIndex) => (
+              <li key={section.id} className="working-cv-section-entry">
+                <section className="working-cv-section" aria-label={`${section.name} section`}>
+                  <header className="working-cv-section-heading">
+                    <div className="working-cv-section-title">
+                      {renamingSectionId === section.id ? (
+                        <label>
+                          <span className="visually-hidden">Section name</span>
+                          <input aria-label={`Rename ${section.name} section`} value={section.name} onChange={(event) => updateSection(section.id, (current) => ({ ...current, name: event.target.value }))} />
+                        </label>
+                      ) : <h2>{section.name}</h2>}
+                      <span>{section.items.length} {section.items.length === 1 ? "item" : "items"}</span>
+                    </div>
+                    <details className="working-cv-section-options">
+                      <summary aria-label={`${section.name} section options`}>Section options</summary>
+                      <div className="working-cv-compact-controls">
+                        <label>
+                          Role
+                          <select
+                            aria-label={`${section.name} presentation role`}
+                            value={section.presentationRole}
+                            onChange={(event) => updateSection(section.id, (current) => ({
+                              ...current,
+                              presentationRole: event.target.value === "secondary" ? "secondary" : "main",
+                            }))}
+                          >
+                            <option value="main">Main</option>
+                            <option value="secondary">Secondary</option>
+                          </select>
+                        </label>
+                        <button type="button" className="compact-secondary" onClick={() => setRenamingSectionId((current) => current === section.id ? null : section.id)}>{renamingSectionId === section.id ? "Done" : "Rename"}</button>
+                        <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${section.name} section up`} disabled={sectionIndex === 0} onClick={() => setSections(move(draft.sections, sectionIndex, -1))}>↑</button>
+                        <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${section.name} section down`} disabled={sectionIndex === draft.sections.length - 1} onClick={() => setSections(move(draft.sections, sectionIndex, 1))}>↓</button>
+                        <button type="button" className="compact-secondary" onClick={() => setSections(draft.sections.filter((candidate) => candidate.id !== section.id))}>Remove</button>
                       </div>
+                    </details>
+                  </header>
 
-                      {item.content.description ? <p className="working-cv-description">{item.content.description}</p> : null}
-                      {item.content.url ? <p className="working-cv-link">{item.content.url}</p> : null}
-                      <div className="working-cv-source-summary">
-                        <span>{sourceLabel(item, variants)}</span>
-                        {item.profileItemId && !editing ? <button type="button" className="working-cv-link-button" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button> : null}
-                      </div>
-                      {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
-
-                      {editing ? (
-                        <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
-                          {item.profileItemId ? (
-                            item.sourceMode === "override" ? (
-                              <div className="working-source-row working-source-override">
-                                <span className="working-cv-source-chip">This CV only</span>
-                                <div className="button-row">
-                                  <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
-                                  <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                  {section.items.length === 0 ? <p className="working-cv-section-empty">No information in this section yet.</p> : (
+                    <ol className="working-cv-items" aria-label={`${section.name} items`}>
+                      {section.items.map((item, itemIndex) => {
+                        const itemVariants = item.profileItemId ? variants.filter((variant) => variant.itemId === item.profileItemId) : [];
+                        const editing = editingItemId === item.id;
+                        const dates = dateRange(item);
+                        const availableOptionalDetails = optionalCvDetails.filter(({ key }) => !editingOptionalDetails.includes(key));
+                        return (
+                          <li key={item.id} className="working-cv-item-entry">
+                            <article className={editing ? "working-cv-item working-cv-item-editing" : "working-cv-item"} aria-label={`${item.content.title} CV item`}>
+                              <div className="working-cv-item-heading">
+                                <div className="working-cv-item-copy">
+                                  <strong>{item.content.title}</strong>
+                                  {item.content.subtitle ? <span>{item.content.subtitle}</span> : null}
+                                  {dates ? <small>{dates}</small> : null}
+                                </div>
+                                <div className="working-cv-item-controls">
+                                  <button type="button" className="compact-secondary" onClick={() => toggleItemEditing(item)}>{editing ? "Done" : "Edit"}</button>
+                                  <details className="working-cv-item-options">
+                                    <summary aria-label={`${item.content.title} item actions`}>•••</summary>
+                                    <div className="working-cv-compact-controls">
+                                      <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${item.content.title} up`} disabled={itemIndex === 0} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, -1) }))}>↑</button>
+                                      <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${item.content.title} down`} disabled={itemIndex === section.items.length - 1} onClick={() => updateSection(section.id, (current) => ({ ...current, items: move(current.items, itemIndex, 1) }))}>↓</button>
+                                      <button type="button" className="compact-secondary" onClick={() => {
+                                        updateSection(section.id, (current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }));
+                                        if (editingItemId === item.id) {
+                                          setEditingItemId(null);
+                                          setEditingOptionalDetails([]);
+                                        }
+                                      }}>Remove</button>
+                                    </div>
+                                  </details>
                                 </div>
                               </div>
-                            ) : (
-                              <div className="working-source-row">
-                                <label>
-                                  Wording source
-                                  <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
-                                    <option value="current">My information — current</option>
-                                    {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>Saved variation — {variant.name}</option>)}
-                                  </select>
-                                </label>
-                                <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
-                              </div>
-                            )
-                          ) : <span className="working-cv-source-chip">This CV only</span>}
 
-                          <div className="working-cv-edit-fields">
-                            <label>Title<input value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} /></label>
-                            <label>Subtitle<input value={item.content.subtitle ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { subtitle: event.target.value || undefined })} /></label>
-                            <label className="working-cv-wide-field">Description<textarea rows={5} value={item.content.description ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { description: event.target.value || undefined })} /></label>
-                            <label>Start date<input value={item.content.startDate ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { startDate: event.target.value || undefined })} /></label>
-                            <label>End date<input value={item.content.endDate ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { endDate: event.target.value || undefined })} /></label>
-                            <label className="working-cv-wide-field">Link<input value={item.content.url ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { url: event.target.value || undefined })} /></label>
-                          </div>
-
-                          {item.profileItemId && item.sourceMode === "override" ? (
-                            <div className="ownership-actions">
-                              <strong>These changes are only in this CV.</strong>
-                              <span>Keep them here, or deliberately reuse this wording elsewhere.</span>
-                              <div className="working-cv-ownership-buttons">
-                                {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Save to template</button> : null}
-                                <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
+                              {item.content.description ? <p className="working-cv-description">{item.content.description}</p> : null}
+                              {item.content.url ? <p className="working-cv-link">{item.content.url}</p> : null}
+                              <div className="working-cv-source-summary">
+                                <span>{sourceLabel(item, variants)}</span>
+                                {item.profileItemId && !editing ? <button type="button" className="working-cv-link-button" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button> : null}
                               </div>
-                              <div className="working-cv-variant-save">
-                                <label>Variation name<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
-                                <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save as profile variant</button>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
+                              {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
 
-              {addingToSectionId === section.id ? (
-                <div className="working-cv-add-row">
-                  <label>
-                    From My information
-                    <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
-                      <option value="">Choose…</option>
-                      {profile.filter((item) => !section.items.some((current) => current.profileItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-                    </select>
-                  </label>
-                  <button type="button" className="compact-secondary" onClick={() => addCustomItem(section.id)}>Add custom content</button>
-                  <button type="button" className="working-cv-link-button" onClick={() => setAddingToSectionId(null)}>Cancel</button>
-                </div>
-              ) : (
-                <button type="button" className="working-cv-add-information" onClick={() => setAddingToSectionId(section.id)}>＋ Add information</button>
-              )}
-            </section>
-          ))}
-        </div>
+                              {editing ? (
+                                <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
+                                  {item.profileItemId ? (
+                                    item.sourceMode === "override" ? (
+                                      <div className="working-source-row working-source-override">
+                                        <span className="working-cv-source-chip">This CV only</span>
+                                        <div className="button-row">
+                                          <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
+                                          <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="working-source-row">
+                                        <label>
+                                          Wording source
+                                          <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
+                                            <option value="current">My information — current</option>
+                                            {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>Saved variation — {variant.name}</option>)}
+                                          </select>
+                                        </label>
+                                        <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                                      </div>
+                                    )
+                                  ) : <span className="working-cv-source-chip">This CV only</span>}
+
+                                  <div className="working-cv-edit-fields">
+                                    <label>Title<input value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} /></label>
+                                    {editingOptionalDetails.includes("subtitle") ? <label>Subtitle<input value={item.content.subtitle ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { subtitle: event.target.value || undefined })} /></label> : null}
+                                    {editingOptionalDetails.includes("description") ? <label className="working-cv-wide-field">Description<textarea rows={5} value={item.content.description ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { description: event.target.value || undefined })} /></label> : null}
+                                    {editingOptionalDetails.includes("startDate") ? <label>Start date<input value={item.content.startDate ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { startDate: event.target.value || undefined })} /></label> : null}
+                                    {editingOptionalDetails.includes("endDate") ? <label>End date<input value={item.content.endDate ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { endDate: event.target.value || undefined })} /></label> : null}
+                                    {editingOptionalDetails.includes("url") ? <label className="working-cv-wide-field">Link<input value={item.content.url ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { url: event.target.value || undefined })} /></label> : null}
+                                  </div>
+
+                                  {availableOptionalDetails.length > 0 ? (
+                                    <label className="working-cv-add-detail">
+                                      <span>Add detail</span>
+                                      <select
+                                        aria-label={`Add detail to ${item.content.title}`}
+                                        value=""
+                                        onChange={(event) => {
+                                          const key = event.target.value as OptionalCvDetail;
+                                          if (!key) return;
+                                          setEditingOptionalDetails((current) => current.includes(key) ? current : [...current, key]);
+                                        }}
+                                      >
+                                        <option value="">Choose…</option>
+                                        {availableOptionalDetails.map((detail) => <option key={detail.key} value={detail.key}>{detail.label}</option>)}
+                                      </select>
+                                    </label>
+                                  ) : null}
+
+                                  {item.profileItemId && item.sourceMode === "override" ? (
+                                    <div className="ownership-actions">
+                                      <strong>These changes are only in this CV.</strong>
+                                      <span>Keep them here, or deliberately reuse this wording elsewhere.</span>
+                                      <div className="working-cv-ownership-buttons">
+                                        {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Save to template</button> : null}
+                                        <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
+                                      </div>
+                                      <div className="working-cv-variant-save">
+                                        <label>Variation name<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
+                                        <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save as profile variant</button>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </article>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+
+                  {addingToSectionId === section.id ? (
+                    <div className="working-cv-add-row">
+                      <label>
+                        From My information
+                        <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
+                          <option value="">Choose…</option>
+                          {profile.filter((item) => !section.items.some((current) => current.profileItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                        </select>
+                      </label>
+                      <button type="button" className="compact-secondary" onClick={() => addCustomItem(section.id)}>Add custom content</button>
+                      <button type="button" className="working-cv-link-button" onClick={() => setAddingToSectionId(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button type="button" className="working-cv-add-information" onClick={() => setAddingToSectionId(section.id)}>＋ Add information</button>
+                  )}
+                </section>
+              </li>
+            ))}
+          </ol>
+        ) : null}
 
         <details className="working-cv-add-section">
           <summary>＋ Add section</summary>
