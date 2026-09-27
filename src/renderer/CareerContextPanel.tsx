@@ -4,16 +4,6 @@ import type { CareerContext } from "../shared/contracts";
 import type { CareerContextAiDisclosureKey } from "../shared/career-context-ai-disclosure-contracts";
 import { CareerContextAiDisclosureControl } from "./CareerContextAiDisclosureControl";
 
-const emptyContext: CareerContext = {
-  careerDirection: "",
-  objectives: "",
-  constraints: "",
-  targetRoles: "",
-  targetMarketsLocations: "",
-  workPreferences: "",
-  applicationWritingPreferences: "",
-};
-
 const fields: readonly {
   key: CareerContextAiDisclosureKey;
   label: string;
@@ -62,8 +52,9 @@ export function CareerContextPanel({
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [context, setContext] = useState<CareerContext | null>(null);
-  const [draft, setDraft] = useState<CareerContext>(emptyContext);
-  const [editing, setEditing] = useState(false);
+  const [editingKey, setEditingKey] = useState<CareerContextAiDisclosureKey | null>(null);
+  const [draftValue, setDraftValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,7 +64,6 @@ export function CareerContextPanel({
       .then((current) => {
         if (!active) return;
         setContext(current);
-        setDraft(current);
       })
       .catch(() => {
         if (active) setError("AAAAT could not load your career preferences.");
@@ -90,32 +80,89 @@ export function CareerContextPanel({
         : [],
     [context],
   );
-
-  const dirty = context ? JSON.stringify(draft) !== JSON.stringify(context) : false;
+  const available = useMemo(
+    () =>
+      context
+        ? fields.filter(({ key }) => context[key].trim().length === 0 && key !== editingKey)
+        : [],
+    [context, editingKey],
+  );
+  const dirty = Boolean(
+    context && editingKey && draftValue !== context[editingKey],
+  );
 
   useEffect(() => {
-    onDirtyChange?.(editing && dirty);
+    onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
-  }, [dirty, editing, onDirtyChange]);
+  }, [dirty, onDirtyChange]);
 
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
+  const beginEdit = (key: CareerContextAiDisclosureKey) => {
+    if (!context) return;
+    if (dirty && !window.confirm("Discard unsaved career preference edits?")) return;
+    setEditingKey(key);
+    setDraftValue(context[key]);
     setError(null);
-    try {
-      const saved = await window.aaaat.careerContext.update(draft);
-      setContext(saved);
-      setDraft(saved);
-      setEditing(false);
-    } catch {
-      setError("AAAAT could not save your career preferences.");
-    }
   };
 
   const cancel = () => {
-    if (dirty && !window.confirm("Discard unsaved career preferences edits?")) return;
-    setDraft(context ?? emptyContext);
-    setEditing(false);
+    if (dirty && !window.confirm("Discard unsaved career preference edits?")) return;
+    setEditingKey(null);
+    setDraftValue("");
     setError(null);
+  };
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!context || !editingKey) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await window.aaaat.careerContext.update({
+        ...context,
+        [editingKey]: draftValue,
+      });
+      setContext(saved);
+      setEditingKey(null);
+      setDraftValue("");
+    } catch {
+      setError("AAAAT could not save your career preferences.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderEditor = (key: CareerContextAiDisclosureKey) => {
+    const field = fields.find((candidate) => candidate.key === key);
+    if (!field) return null;
+    return (
+      <form
+        className="career-preference-editor"
+        aria-label={`Edit ${field.label}`}
+        onSubmit={(event) => void save(event)}
+      >
+        <div className="career-context-field-heading">
+          <div>
+            <strong>{field.label}</strong>
+            <span className="field-hint">{field.hint}</span>
+          </div>
+          <CareerContextAiDisclosureControl fieldKey={field.key} />
+        </div>
+        <textarea
+          aria-label={field.label}
+          value={draftValue}
+          onChange={(event) => setDraftValue(event.target.value)}
+          autoFocus
+        />
+        <div className="button-row">
+          <button className="compact-primary" type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save preference"}
+          </button>
+          <button className="compact-secondary" type="button" onClick={cancel}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
   };
 
   if (!context) {
@@ -126,79 +173,67 @@ export function CareerContextPanel({
     );
   }
 
-  if (editing) {
-    return (
-      <section className="career-context-panel career-context-editing" aria-label="Career preferences">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Optional context</p>
-            <h2>Career preferences</h2>
-            <p className="profile-intro">Keep only the direction, constraints or preferences that are useful to you.</p>
-          </div>
-        </div>
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
-        <form className="editor-card career-context-editor" onSubmit={(event) => void save(event)}>
-          {fields.map(({ key, label, hint }) => (
-            <label className="wide-field" key={key}>
-              <span className="career-context-field-heading">
-                <span>{label}</span>
-                <CareerContextAiDisclosureControl fieldKey={key} />
-              </span>
-              <span className="field-hint">{hint}</span>
-              <textarea
-                aria-label={label}
-                value={draft[key]}
-                onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
-              />
-            </label>
-          ))}
-          <div className="form-actions wide-field">
-            <button className="compact-primary" type="submit">
-              Save preferences
-            </button>
-            <button className="compact-secondary" type="button" onClick={cancel}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      </section>
-    );
-  }
-
   return (
-    <details className="career-context-panel career-context-compact" aria-label="Career preferences">
-      <summary>
-        <span>Career preferences</span>
-        <span>{nonEmpty.length === 0 ? "Optional" : `${String(nonEmpty.length)} saved`}</span>
-      </summary>
-      <div className="career-context-compact-content">
-        {error ? <p className="error-message" role="alert">{error}</p> : null}
-        {nonEmpty.length === 0 ? (
-          <p className="compact-help">Add only preferences or constraints that are useful to your work.</p>
-        ) : (
-          <dl className="career-context-summary">
-            {nonEmpty.map(({ key, label }) => (
-              <div key={key}>
-                <dt>
-                  <span>{label}</span>
-                  <CareerContextAiDisclosureControl fieldKey={key} />
-                </dt>
-                <dd>{context[key]}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        <button
-          className="compact-secondary"
-          type="button"
-          onClick={() => {
-            setDraft(context);
-            setEditing(true);
-          }}
-        >
-          {nonEmpty.length === 0 ? "Add preferences" : "Edit preferences"}
-        </button>
+    <section className="career-context-panel career-context-compact" aria-label="Career preferences">
+      <div className="career-context-heading">
+        <div>
+          <p className="eyebrow">Optional targeting context</p>
+          <h2>Career preferences</h2>
+          <p className="profile-intro">Your own direction, constraints and preferences. Keep only what is useful.</p>
+        </div>
+        <span className="career-context-count">
+          {nonEmpty.length === 0 ? "Optional" : `${String(nonEmpty.length)} saved`}
+        </span>
       </div>
-    </details>
+
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
+
+      {nonEmpty.length === 0 && editingKey === null ? (
+        <p className="compact-help">No career preferences saved. Add one when it helps describe what you want next.</p>
+      ) : null}
+
+      <div className="career-context-summary" aria-label="Saved career preferences">
+        {nonEmpty.map(({ key, label }) =>
+          editingKey === key ? (
+            <div key={key} className="career-preference-edit-row">
+              {renderEditor(key)}
+            </div>
+          ) : (
+            <article key={key} className="career-preference-readout" aria-label={`${label} preference`}>
+              <div className="career-context-field-heading">
+                <strong>{label}</strong>
+                <div className="career-preference-actions">
+                  <CareerContextAiDisclosureControl fieldKey={key} />
+                  <button className="compact-secondary" type="button" onClick={() => beginEdit(key)}>
+                    Edit
+                  </button>
+                </div>
+              </div>
+              <p>{context[key]}</p>
+            </article>
+          ),
+        )}
+        {editingKey && context[editingKey].trim().length === 0 ? (
+          <div className="career-preference-edit-row">{renderEditor(editingKey)}</div>
+        ) : null}
+      </div>
+
+      {editingKey === null && available.length > 0 ? (
+        <label className="career-preference-add">
+          <span>Add preference</span>
+          <select
+            aria-label="Add career preference"
+            value=""
+            onChange={(event) => {
+              const key = event.target.value as CareerContextAiDisclosureKey;
+              if (key) beginEdit(key);
+            }}
+          >
+            <option value="">Choose…</option>
+            {available.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+          </select>
+        </label>
+      ) : null}
+    </section>
   );
 }
