@@ -58,14 +58,14 @@ export function CareerContextAiDisclosureControl({
     <span className="career-context-ai-use">
       <button
         type="button"
-        className="compact-secondary ai-use-control"
+        className="ai-use-eye"
         aria-label="AI may use this information"
         aria-pressed={allowed}
         title={value && !allowed ? "AI will not use this information" : "AI may use this information"}
         disabled={!value || saving}
         onClick={() => void toggle()}
       >
-        AI use: {allowed ? "On" : "Off"}
+        <span aria-hidden="true">👁</span>
       </button>
       {error ? <span className="error-message" role="alert">{error}</span> : null}
     </span>
