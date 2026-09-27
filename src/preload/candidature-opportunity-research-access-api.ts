@@ -1,4 +1,8 @@
 import {
+  candidatureAiTaskTemplateDeleteSchema,
+  candidatureAiTaskTemplateSaveSchema,
+  candidatureAiTaskTemplateSchema,
+  candidatureAiTaskTemplatesSchema,
   candidatureOpportunityResearchAccessChannels,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
@@ -39,6 +43,25 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
         candidatureOpportunityResearchTaskContextSchema.parse(
           await invoke(candidatureOpportunityResearchAccessChannels.taskContext),
         ),
+      taskTemplates: async () =>
+        candidatureAiTaskTemplatesSchema.parse(
+          await invoke(candidatureOpportunityResearchAccessChannels.taskTemplates),
+        ),
+      saveTaskTemplate: async (input: Parameters<ResearchApi["saveTaskTemplate"]>[0]) =>
+        candidatureAiTaskTemplateSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.taskTemplateSave,
+            candidatureAiTaskTemplateSaveSchema.parse(input),
+          ),
+        ),
+      deleteTaskTemplate: async (id: string) => {
+        const result = await invoke(
+          candidatureOpportunityResearchAccessChannels.taskTemplateDelete,
+          candidatureAiTaskTemplateDeleteSchema.parse(id),
+        );
+        if (result !== "deleted") throw new Error("Invalid task template delete response.");
+        return "deleted" as const;
+      },
       copyTask: async (instruction: Parameters<ResearchApi["copyTask"]>[0]) =>
         candidatureOpportunityResearchTaskCopyResultSchema.parse(
           await invoke(
