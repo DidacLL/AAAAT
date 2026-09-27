@@ -1,9 +1,13 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  candidatureAiTaskTemplateSaveSchema,
+  candidatureAiTaskTemplatesSchema,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
   candidatureOpportunityResearchTaskInstructionSchema,
+  type CandidatureAiTaskTemplate,
+  type CandidatureAiTaskTemplateSave,
   type CandidatureOpportunityResearchAccess,
   type CandidatureOpportunityResearchAccessUpdate,
   type CandidatureOpportunityResearchTaskContext,
@@ -34,6 +38,8 @@ interface AccessRow {
 type ResearchAccessActivity =
   | "candidature.opportunity-research-access.allow"
   | "candidature.opportunity-research-access.revoke";
+
+const candidatureTaskTemplatesKey = "external_ai.candidature_task_templates.v1";
 
 export class CandidatureOpportunityResearchAccessServiceError extends Error {
   constructor(message: string) {
@@ -174,6 +180,80 @@ export function updateCandidatureOpportunityResearchAccess(
       }
 
       return accessFor(requireRow(database, update.candidatureId));
+    }),
+  );
+}
+
+function readTaskTemplates(database: DatabaseSync): CandidatureAiTaskTemplate[] {
+  const row = database
+    .prepare("SELECT value FROM workspace_metadata WHERE key = ?")
+    .get(candidatureTaskTemplatesKey) as { readonly value: string } | undefined;
+  if (!row) return [];
+  try {
+    return candidatureAiTaskTemplatesSchema.parse(JSON.parse(row.value) as unknown);
+  } catch {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Saved AI task templates are invalid.",
+    );
+  }
+}
+
+function writeTaskTemplates(database: DatabaseSync, templates: readonly CandidatureAiTaskTemplate[]): void {
+  const parsed = candidatureAiTaskTemplatesSchema.parse(templates);
+  database
+    .prepare(
+      `INSERT INTO workspace_metadata(key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    )
+    .run(candidatureTaskTemplatesKey, JSON.stringify(parsed));
+}
+
+export function listCandidatureAiTaskTemplates(rootPath: string): CandidatureAiTaskTemplate[] {
+  return withWorkspaceDatabase(rootPath, (database) => readTaskTemplates(database));
+}
+
+export function saveCandidatureAiTaskTemplate(
+  rootPath: string,
+  rawInput: CandidatureAiTaskTemplateSave,
+): CandidatureAiTaskTemplate {
+  const input = candidatureAiTaskTemplateSaveSchema.parse(rawInput);
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const templates = readTaskTemplates(database);
+      const duplicate = templates.find(
+        (candidate) => candidate.name.toLocaleLowerCase() === input.name.toLocaleLowerCase()
+          && candidate.id !== input.id,
+      );
+      if (duplicate) {
+        throw new CandidatureOpportunityResearchAccessServiceError(
+          "A saved AI task already uses that name.",
+        );
+      }
+      const id = input.id ?? crypto.randomUUID();
+      if (input.id && !templates.some((candidate) => candidate.id === input.id)) {
+        throw new CandidatureOpportunityResearchAccessServiceError(
+          "The saved AI task no longer exists.",
+        );
+      }
+      const saved = {
+        id,
+        name: input.name,
+        instruction: input.instruction,
+      } satisfies CandidatureAiTaskTemplate;
+      const next = templates.filter((candidate) => candidate.id !== id);
+      next.push(saved);
+      writeTaskTemplates(database, next);
+      return saved;
+    }),
+  );
+}
+
+export function deleteCandidatureAiTaskTemplate(rootPath: string, id: string): void {
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const templates = readTaskTemplates(database);
+      if (!templates.some((candidate) => candidate.id === id)) return;
+      writeTaskTemplates(database, templates.filter((candidate) => candidate.id !== id));
     }),
   );
 }
