@@ -4,30 +4,44 @@ This is the durable sequencing and owner-requirements record for the path to alp
 
 `CURRENT_MISSION.md` describes only the active run. This file preserves later PLANs and owner findings so they are not lost when missions, issues, PRs, or agents change.
 
-## Recovery checkpoint — active and blocking further sequence
+## Current execution checkpoint — 2026-09-27
+
+This section supersedes older recovery-status statements below where they describe evidence as still missing. The older recovery text remains useful rationale for why mechanism proof is not product acceptance.
+
+Current main after PR #330: `ce1c1530a985342f0d0f552f69c90d5ae7dc56ad`.
+
+- **PLAN[0] — integrated UI/domain baseline retained.** Direct AI usefulness is now actually demonstrated for one target-scoped constrained-model extraction case by PR #326 (`qwen2.5:0.5b-instruct` via Ollama). The ordinary four-field constrained-model request still timed out at AAAAT’s intended 15-minute ceiling, so do not generalize the one-field evidence to broad extraction usefulness. Setup/integration remains partial.
+- **PLAN[1] — retained.**
+- **PLAN[2] — ACTIVE, one acceptance gate remains.** The local-computer third-party-host journey is actually demonstrated through llama.cpp Web UI + Granite 4.1 3B using the bounded ADR-0025 opportunity-research read/Source-write operations. PR #330 implements the separate no-local portable task/result carrier and is green. Issue #329 remains open only for the real no-local external-AI journey: export bounded task → external AI with no local-machine access performs substantive work → returned Markdown/text file → AAAAT selector-free import → Source visible in normal UI. Do not close PLAN[2] from carrier/unit evidence alone.
+- **PLAN[3] — retained.**
+- **PLAN[4] — REOPENED, still after PLAN[2].** Production rendering/portable/immutable artifact infrastructure remains real. The owner-approved LaTeX2e public API + expl3 internals + user-owned editable blueprint/package-source design remains unresolved and requires the ADR-0015 owner-paired design phase.
+- **PLAN[5] — NOT STARTED and BLOCKED.**
+
+Current recovery debts that must not be lost:
+
+- host/setup UX is still partial and too technical; a real host proving MCP works does not make raw executable/MCP setup guidance an accepted ordinary-user setup journey;
+- PR #319 removed prior VS Code setup and external CV description/content/render capabilities; neither deletion nor historical existence decides whether they should be restored, replaced or remain superseded;
+- the older JSON `applicationHandoff` (`sourceText + outputs`) is a separate mechanism and not evidence of external AI returning useful completed work;
+- PR #330’s portable file carrier is intentionally one named-task carrier, not authority for a generic handoff/result framework;
+- an OpenAI-compatible endpoint remains an implementation adapter, not product/provider authority;
+- scarce Codex/Copilot quotas should not be spent on deterministic harness/setup work when the orchestrator can execute narrow actions directly.
+
+After the real no-local #329 journey succeeds, propagate PLAN[2] classification before advancing. Reassess remaining recovery/setup debts against authority rather than automatically declaring all interoperability/setup work complete.
+
+## Recovery checkpoint — origin and rationale
 
 A Product Owner-directed re-audit after PLAN[4] found that several earlier completions confused **mechanism proof** with **product capability completion**. Later missions and derived documentation then normalized those mechanisms as if they were the original requirement.
 
 This checkpoint is not a new PLAN number and is not permission for another broad redesign. It restores authority before any further implementation.
 
-Current status:
+The recovery established these durable rules:
 
-- **PLAN[0] — integrated UI/domain baseline accepted, but some AI/setup/interoperability foundation claims require recovery.** Preserve the accepted candidature/domain/UI corrections, current-schema authority, local ownership and mutation boundaries. Do not reopen those merely because integration/setup capability was narrowed. Re-audit only the specific foundation claims whose acceptance depended on synthetic/model/host evidence or whose useful interoperability capability was removed.
-- **PLAN[1] — test-basis cleanup retained.** The smaller test basis is useful engineering work. It does not prove real-model or real-third-party-host acceptance, and removal of packaged synthetic AI tests must not be cited as evidence that those product outcomes are complete.
-- **PLAN[2] — REOPENED.** The MCP stdio server and portable application-handoff JSON are implemented carriers, not completion of external-AI-originated user journeys. Acceptance must begin in representative real third-party AI environments, with and without local-computer access, and must carry useful work produced by that external AI rather than reducing the external system to a raw-offer launcher for deterministic AAAAT boilerplate.
-- **PLAN[3] — implementation retained.** The explicit IPC composition, readability work and dependency triage remain useful unless a recovered product requirement directly invalidates a piece. Do not redo PLAN[3] merely because the preceding gate was falsely closed.
-- **PLAN[4] — REOPENED.** Retain the real portable rendering, immutable artifact and cover-letter/packet infrastructure from PR #324. The intended owner-approved document package remains unresolved: LaTeX2e public API, expl3 internals, and user-owned editable blueprints/modified package sources require the owner-paired design phase preserved by ADR 0015. A small macro facade and real pdfLaTeX portability proof are infrastructure, not completion of that design.
-- **PLAN[5] — NOT STARTED and BLOCKED.** Do not perform final UX refinement until the recovered PLAN[2] gate is settled and PLAN[4] is genuinely completed.
-
-The recovery checkpoint exits only when:
-
-1. current owner authority has been traced to the actual implementation for the affected AI/setup/interoperability/document capabilities;
-2. each major affected capability is classified as **implemented and actually demonstrated**, **implemented but only synthetically demonstrated**, **partial/scaffold**, **removed during drift**, **missing**, or **superseded by explicit owner decision**;
-3. derived SPEC/Mission text no longer presents current carriers or scaffolds as the product requirement;
-4. known false claims such as the non-rendering rendering self-test are corrected;
-5. one concrete PLAN[2] acceptance set is defined from representative real user environments without pre-selecting a transport merely because it already exists.
-
-No PLAN[5] work and no new broad feature implementation belongs inside this checkpoint.
+- synthetic/model/carrier tests prove only the boundary they exercise;
+- a real third-party environment is required where the PLAN names one;
+- carrier choice follows the user journey rather than defining it;
+- external-AI-first work must be able to retain useful external results, not merely launch deterministic AAAAT work from raw opportunity text;
+- setup is a user journey, not command/protocol vocabulary;
+- rendering infrastructure does not equal completion of the owner-approved document-package design.
 
 ## Sequence to alpha
 
@@ -45,7 +59,7 @@ The accepted baseline established the current candidature/domain model and owner
 - `schema.sql` is the single structural workspace schema authority;
 - ordinary development verification is proportional.
 
-Affordable/lightweight AI usefulness remains a product requirement. Existing provider contracts, partial-result salvage and local validation are useful foundations, but mocked OpenAI-compatible HTTP is not sufficient evidence that an actual constrained model satisfies the required journeys.
+Affordable/lightweight AI usefulness remains a product requirement. PR #326 now provides real constrained-model evidence for a target-scoped one-field job-extraction journey and proves the existing partial-result salvage/local validation can preserve a useful result while rejecting bad siblings. It does not prove every broad/current-field extraction request is useful: the demonstrated ordinary four-field request produced no model response within AAAAT’s intended 15-minute ceiling.
 
 Setup/integration capability removed or narrowed during PR #319 is not automatically obsolete merely because the integrated baseline was accepted. Recover the user journey from higher authority before deciding whether deleted VS Code configuration, CV disclosure/render operations or other prior work should be restored, replaced or remain superseded.
 
@@ -55,14 +69,16 @@ Retain the cleanup of development-era AI-generated faux guardrails and the small
 
 Do not use passing tests, lower test count or removal of packaged synthetic AI journeys as product-acceptance evidence for PLAN[0]/PLAN[2]. Verification evidence proves only the boundary actually exercised.
 
-### PLAN[2] — external-AI-originated journeys — REOPENED
+### PLAN[2] — external-AI-originated journeys — ACTIVE
 
 Validate bounded journeys that **begin in real third-party AI systems**, including:
 
 - at least one representative environment with local-computer/tool access; and
 - at least one representative environment without local-computer access.
 
-The product goal is a bounded working channel through an interaction surface the user already has, with setup that hides transport/configuration mechanics where practical.
+The local-computer requirement is now actually demonstrated: llama.cpp Web UI + Granite 4.1 3B originated the journey, read the locally selected candidature through `opportunity_research_context_read`, produced useful application-preparation reasoning, wrote it through `candidature_source_add`, and the returned Source was visible in normal AAAAT UI. llama.cpp/Granite are representative evidence fixtures only.
+
+The no-local carrier is implemented by PR #330. It exports the same bounded selected-candidature projection as readable Markdown and imports one returned Markdown/text result through the same selector-free Source-only mutation. Real no-local acceptance remains pending in #329 and must use an external AI environment that cannot access the local AAAAT workspace.
 
 MCP, files, clipboard, browser/desktop automation, synchronized rendezvous mechanisms or another carrier may be appropriate for a concrete environment. None is the PLAN outcome by itself.
 
@@ -72,7 +88,7 @@ Do not build a generic provider/plugin/integration framework. Choose representat
 
 ### PLAN[3] — architecture and dependency health — retained
 
-The completed PLAN[3] code may remain: explicit main-process composition, removal of registration side effects, readability improvements and dependency-health classification are compatible with the product direction.
+The completed PLAN[3] code may remain: explicit main-process composition, removal of registration side effects, readability work and dependency-health classification are compatible with the product direction.
 
 Revisit only pieces directly affected by recovered PLAN[2]/PLAN[4] requirements. Avoid architecture churn for its own sake.
 
@@ -154,8 +170,10 @@ A green test or package run is evidence only for the premise it exercised. Synth
 The master orchestrator owns sequence, scope, continuity and acceptance.
 
 - Fix small, well-bounded corrections directly.
-- Use a bounded specialist only for substantial autonomous work where it materially reduces owner effort.
+- Do not use the Product Owner as a transport layer for routine engineering or deterministic setup work.
+- Use a bounded specialist only for substantial autonomous work where it materially reduces owner effort; scarce Codex/Copilot quota is not for small deterministic tasks.
 - A run orchestrator may inspect broadly enough to understand one PLAN outcome, but its implementation prompt must remain inside that outcome.
 - Implementation agents must not edit higher-authority/derived requirements to normalize their own implementation.
 - Prefer one coherent specialist pass, continue the same specialist with short deltas, then independently review the actual diff and cross-surface consequences.
 - A specialist never advances the PLAN sequence or declares its own PLAN complete.
+- Evidence environments, models and carriers are fixtures, not project architecture.
