@@ -1,68 +1,62 @@
-# Current mission — PLAN[4] post-minimal design recovery
+# Current mission — PLAN[4] Blueprint render model
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `d60f07e280147767d62a0f45f823d29f2e69659b`.
+Base main: `f5671f4dfeaff7c45045abe8a876b878178313d3`.
 
-PLAN[0]/[1]/[3] are retained. PLAN[2] is complete. The post-PLAN[2] setup audit found no sequence blocker. PLAN[4] remains active. PLAN[5] remains blocked until PLAN[4] settles.
+PLAN[0]/[1]/[3] are retained. PLAN[2] is complete. PLAN[4] remains active. PLAN[5] remains blocked until PLAN[4] settles.
 
 ## Execution model
 
 The master orchestrator owns sequencing, scope, repository reading, design recovery, branch/diff review, independent evidence interpretation, PR creation/merge and durable state propagation.
 
-Normal substantial implementation is done by a GitHub-capable chat specialist working through GitHub only. The Product Owner should only need to start a specialist chat for a coherent bounded implementation slice or answer genuinely unresolved product decisions. Do not dispatch read-only/review/planning specialists merely to transport analysis the orchestrator can perform directly.
+Normal substantial implementation is done by one GitHub-capable specialist per coherent bounded slice. Do not use the Product Owner as a prompt courier for read-only/review/planning microsteps.
 
-## Completed PLAN[4] evidence to reuse
+## Accepted PLAN[4] rendering evidence
 
-Issue #344 established the authorized minimal package/blueprint slice. PR #346 implemented the first version, but its initial portability acceptance was later found insufficient: an independent long-CV audit exposed severe fixed-height `minipage` overflow despite successful compilation. Issue #344 was reopened.
+Issue #344 / PR #348 established and corrected the first real package/rendering boundary:
 
-PR #348 corrected that acceptance defect and is the accepted #344 state:
+- `aaaat.sty` exposes LaTeX2e commands with expl3 internals;
+- TypeScript owns generated document data in `data.tex`;
+- the current CV layout paginates long content without intentional truncation;
+- branch Verify #1572 (`36323791503`) passed on correction head `0d4bc9a8ee265495d50ae48c98f96415fb7620bd`;
+- orchestrator independent real-LaTeX validation produced a 5-page 7-section / 37-entry CV with all content retained, no `Overfull \\vbox`, and body content on page 1;
+- PR #348 real-LaTeX run `36324026414` passed the strengthened multipage/content-survival boundary.
 
-- real `aaaat.sty` package boundary with LaTeX2e public commands and expl3 internals;
-- one generic CV blueprint with full-width header and rail/main body;
-- TypeScript still owns generated content in `data.tex`;
-- first-page header height is budgeted into the available body height and later pages receive full-page rail/main budgets;
-- rail/main content is split across physical pages without intentional truncation;
-- straightforward Babel language selection remains, with no visible `Language:` metadata row;
-- cover-letter, immutable snapshot, portable export and Application packet behavior remain preserved;
-- branch Verify #1572 (`36323791503`) passed on exact correction head `0d4bc9a8ee265495d50ae48c98f96415fb7620bd`;
-- orchestrator independently compiled a separate 7-section / 37-entry adversarial CV with real `latexmk`/`pdflatex`: 5 pages, 37/37 entry markers, 7/7 section headings, no `Overfull \\vbox`, and real body content on page 1; visual page-1 inspection confirmed header + rail/main content;
-- PR #348 strengthened real-LaTeX portability run `36324026414` passed on that exact head, including multipage/content-survival/overflow assertions.
+Reuse that evidence only while later work does not materially alter the TeX/rendering boundary.
 
-Reuse this evidence unless a later change materially alters the TeX/rendering boundary.
+## Product Owner corrected Blueprint model
 
-## Fixed PLAN[4] authority
+The following replaces the previous incorrect ownership/persistence interpretation.
 
-- no in-app LaTeX editor;
-- a Blueprint is block/layout structure, not a font/theme/style preset;
-- LaTeX2e public package API with expl3 internals;
-- pdfTeX/pdfLaTeX remains the renderer;
-- TypeScript owns generated document data;
-- generated/exported document projects are user-owned and editable;
-- persistent user-modified blueprint/package-source reuse and selection remains a required unresolved part of the recovered document-package design;
-- detailed blueprint/customization, richer language behavior and font decisions remain owner-paired design debt;
-- do not conflate a Blueprint with the existing reusable CV Template, which is content composition;
-- do not invent a generic document/layout engine, marketplace, drag/drop designer, DSL, image/header asset system or PLAN[5] CV-editor redesign.
+- Do not introduce a **Saved CV** product concept.
+- A CV is the editable CV data/composition that AAAAT feeds into a Blueprint. The existing `WorkingCvRecord` / `working_cvs` implementation may represent that editable data, but PLAN[4] must not invent an additional saved-CV layer or attach Blueprint ownership semantics to it.
+- The same CV data can be rendered through different Blueprints.
+- Blueprint choice is a **render-time input**, not persisted CV state. Do not add Blueprint IDs/paths/defaults/last-used values to CV records, CV Templates, or the workspace database for this slice.
+- A CV Template remains reusable content/composition. It does not select or own presentation.
+- AAAAT ships one compatible Blueprint initially and may ship more later.
+- A Blueprint is a LaTeX source file conforming to the AAAAT document-data/package contract. It is not a normal-user-created CV version and there is no in-app Blueprint editor/designer/customizer.
+- Advanced users may add compatible Blueprint files to AAAAT's application/configuration area. Once present there, AAAAT discovers them and offers them as render choices. This is application-level configuration, not per-workspace duplication and not an arbitrary external-path dependency.
+- Keep one shared AAAAT LaTeX package/library. Do not duplicate that library per Blueprint merely to create a new design.
+- Blueprint design covers **both CV and cover-letter presentation**. Cover letters are not a separate customization system.
+- TypeScript remains responsible for data feeding; LaTeX remains responsible for presentation/layout.
+- LaTeX2e public API + expl3 internals + pdfLaTeX remain the technical boundary.
+- A rendered CV, rendered letter, or Application packet retains the exact source project actually used for that render. This is immutable artifact behavior, not persistent Blueprint selection on editable CV/letter data.
+- Do not invent a Blueprint marketplace, registry framework, plugin system, generic document/layout engine, DSL, drag/drop designer, font/theme abstraction, image/header asset system, or PLAN[5] editor redesign.
 
-## Current recovery boundary
+## Next coherent slice
 
-The corrected minimal working blueprint is accepted as a first PLAN[4] slice, not PLAN[4] completion.
+Implement render-time Blueprint discovery and selection across both CV and cover-letter rendering:
 
-Remaining material debt is:
+1. define one small compatible Blueprint-file contract on top of the shared `aaaat.sty` data/package API;
+2. ship the current design as the first built-in Blueprint under that contract;
+3. discover additional compatible Blueprint files from an AAAAT application-level Blueprint directory under Electron `userData`;
+4. expose the available Blueprint list through a typed trusted boundary;
+5. pass the selected Blueprint explicitly into CV and cover-letter render operations without persisting that selection on editable document data;
+6. retain the exact selected Blueprint source plus shared package/data/entrypoint sources inside each generated artifact/project;
+7. expose Blueprint choice beside the render action for both CV and cover-letter work;
+8. preserve Application packet semantics using the already-retained contributor artifacts.
 
-1. persistent ownership/reuse/selection of user-modified blueprint and package sources;
-2. exact boundary between shipped defaults, user-owned copies, Working CV selection and rendered immutable snapshots;
-3. detailed blueprint/customization behavior;
-4. fuller language/font design beyond the minimal Babel mapping;
-5. final coherent AAAAT integration around the settled document model before PLAN[5] can start.
+No schema migration machinery or new workspace persistence is justified for this slice.
 
-The Product Owner explicitly cannot perform the originally intended detailed pair-design now. Do not silently convert unresolved product decisions into implementation choices merely to advance the sequence.
-
-## Next
-
-The master orchestrator directly performs the PLAN[4] ownership/persistence recovery against current `main`, using repository authority and the current implementation. It must determine what semantics are already fixed versus what genuinely requires Product Owner input.
-
-Only after that analysis should the orchestrator choose either:
-
-- one coherent bounded implementation slice for a GitHub-capable specialist, with the full acceptance boundary in a single prompt; or
-- a short Product Owner decision set if implementation would otherwise invent unresolved document-product semantics.
+The implementation specialist may choose the smallest LaTeX macro/file shape that satisfies this model, but may not change the product semantics above.
