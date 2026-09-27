@@ -233,6 +233,7 @@ describe("My information read-first interaction", () => {
 
   it("keeps saved variations secondary while exposing every retained variation content property through existing API shapes", async () => {
     const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<ProfileWorkspace />);
     await screen.findByRole("region", { name: "Principal Researcher details" });
 
@@ -382,10 +383,12 @@ describe("My information read-first interaction", () => {
     const { unmount } = render(<CareerContextPanel />);
     const panel = await screen.findByRole("region", { name: "Career preferences" });
 
-    await user.click(within(panel).getByRole("article", { name: "Target roles preference" }).getByRole("button", { name: "Edit" }));
+    const targetRolesReadout = within(panel).getByRole("article", { name: "Target roles preference" });
+    await user.click(within(targetRolesReadout).getByRole("button", { name: "Edit" }));
     const targetRolesEditor = within(panel).getByRole("form", { name: "Edit Target roles" });
     await user.type(within(targetRolesEditor).getByRole("textbox", { name: "Target roles" }), " / staff");
-    await user.click(within(panel).getByRole("article", { name: "Target markets / locations preference" }).getByRole("button", { name: "Edit" }));
+    const locationsReadout = within(panel).getByRole("article", { name: "Target markets / locations preference" });
+    await user.click(within(locationsReadout).getByRole("button", { name: "Edit" }));
     expect(confirm).toHaveBeenCalled();
     expect(within(panel).getByRole("form", { name: "Edit Target roles" })).toBeInTheDocument();
 
