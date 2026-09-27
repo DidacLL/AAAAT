@@ -264,22 +264,20 @@ export function buildOpportunityResearchPortableTask(rootPath: string): string {
 
   const information = context.information.length > 0
     ? context.information.map(({ label, value }) => `- **${label.replaceAll(/\s+/g, " ").trim()}:** ${portableValue(value)}`)
-    : ["- No retained application information is currently permitted for AI context."];
+    : ["- No application context provided."];
 
   return [
-    "# AAAAT external opportunity research task",
+    "# Application research",
     "",
-    "This file contains only the application information the user selected and permitted AAAAT to disclose for this task.",
-    "",
-    "## Application context",
+    "## Context",
     "",
     ...information,
     "",
-    "## Requested work",
+    "## Task",
     "",
-    "Use the application context above to produce useful opportunity/application research or analysis. Add substantive reasoning or findings rather than merely repeating the supplied fields. Clearly distinguish facts you verified from assumptions or questions that still need checking.",
+    "Research this opportunity and produce a concise application brief with relevant verified facts and source links, positioning ideas supported by the context, important unknowns or questions, and concrete preparation points.",
     "",
-    "Return the completed work as a UTF-8 Markdown or plain-text file. Do not include AAAAT database identifiers, local paths, or instructions that require access to the user's computer.",
+    "If key details are missing, state them instead of guessing. Return Markdown or plain text.",
     "",
   ].join("\n");
 }
