@@ -11,6 +11,7 @@ import {
   buildOpportunityResearchPortableTask,
   importOpportunityResearchPortableResult,
   maxOpportunityResearchPortableResultBytes,
+  requireSelectedOpportunityResearchContext,
   updateCandidatureOpportunityResearchAccess,
 } from "../src/main/candidature-opportunity-research-access-service";
 import {
@@ -43,8 +44,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("portable no-local opportunity research carrier", () => {
-  it("exports exactly the selected AI-permitted task projection as readable text", () => {
+describe("portable no-local candidature AI carrier", () => {
+  it("combines an editable task instruction with exactly the selected AI-permitted context", () => {
     const root = workspace();
     const candidature = createCandidature(root, {
       source: {
@@ -76,11 +77,19 @@ describe("portable no-local opportunity research carrier", () => {
       allowed: true,
     });
 
-    const task = buildOpportunityResearchPortableTask(root);
-    expect(task).toContain("# Application research");
+    expect(requireSelectedOpportunityResearchContext(root)).toEqual({
+      information: [expect.objectContaining({ label: "Role", value: "Software Engineer" })],
+    });
+
+    const task = buildOpportunityResearchPortableTask(
+      root,
+      "Compare this opportunity with the supplied context and return five preparation questions.",
+    );
+    expect(task).toContain("# Application task");
     expect(task).toContain("**Role:** Software Engineer");
-    expect(task).toContain("Research this opportunity and produce a concise application brief");
-    expect(task).toContain("If key details are missing, state them instead of guessing");
+    expect(task).toContain(
+      "Compare this opportunity with the supplied context and return five preparation questions.",
+    );
     expect(task).not.toContain("selected and permitted");
     expect(task).not.toContain("database identifiers");
     expect(task).not.toContain("workspace paths");
@@ -91,16 +100,19 @@ describe("portable no-local opportunity research carrier", () => {
     expect(task).not.toContain(root);
   });
 
-  it("fails closed without a selected task candidature", () => {
+  it("fails closed without a selected candidature", () => {
     const root = workspace();
     createCandidature(root, { values: [] });
-    expect(() => buildOpportunityResearchPortableTask(root)).toThrow(
-      "Select an application for external opportunity research",
+    expect(() => requireSelectedOpportunityResearchContext(root)).toThrow(
+      "Choose Send to my AI",
+    );
+    expect(() => buildOpportunityResearchPortableTask(root, "Useful task")).toThrow(
+      "Choose Send to my AI",
     );
     expect(importOpportunityResearchPortableResult(root, "Useful returned research")).toBe(false);
   });
 
-  it("imports one bounded returned text file as a Source on the locally selected candidature", () => {
+  it("retains one bounded returned text result as a Source on the locally selected candidature", () => {
     const root = workspace();
     const selected = createCandidature(root, { values: [] });
     const other = createCandidature(root, { values: [] });
@@ -118,7 +130,7 @@ describe("portable no-local opportunity research carrier", () => {
     expect(listCandidatureSources(root, selected.id)).toEqual([
       expect.objectContaining({
         kind: "conversation",
-        title: "External AI opportunity research",
+        title: "External AI result",
         url: "",
         sourceText: "Useful external analysis with concrete preparation points.",
       }),
@@ -126,7 +138,7 @@ describe("portable no-local opportunity research carrier", () => {
     expect(listCandidatureSources(root, other.id)).toEqual([]);
   });
 
-  it("rejects empty and oversized returned files before mutation", () => {
+  it("rejects empty and oversized returned results before mutation", () => {
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
     updateCandidatureOpportunityResearchAccess(root, {
@@ -146,23 +158,54 @@ describe("portable no-local opportunity research carrier", () => {
     expect(listCandidatureSources(root, candidature.id)).toEqual([]);
   });
 
-  it("keeps the preload API selector-free for portable export and import", async () => {
-    const invoke = vi.fn(async (channel: string) => {
+  it("keeps task context, copy/export and result retention selector-free at the preload boundary", async () => {
+    const instruction = "Prepare useful questions.";
+    const invoke = vi.fn(async (channel: string, input?: unknown) => {
+      if (channel === candidatureOpportunityResearchAccessChannels.taskContext) {
+        return { information: [{ label: "Role", value: "Software Engineer" }] };
+      }
+      if (channel === candidatureOpportunityResearchAccessChannels.copyTask) return "copied";
       if (channel === candidatureOpportunityResearchAccessChannels.exportTask) return "exported";
+      if (channel === candidatureOpportunityResearchAccessChannels.retainResult) return "retained";
       if (channel === candidatureOpportunityResearchAccessChannels.importResult) return "imported";
-      throw new Error(`Unexpected channel ${channel}`);
+      throw new Error(`Unexpected channel ${channel} ${String(input)}`);
     });
     const api = createCandidatureOpportunityResearchAccessDesktopApi(invoke);
 
-    await expect(api.candidatureOpportunityResearchAccess.exportTask()).resolves.toBe("exported");
+    await expect(api.candidatureOpportunityResearchAccess.taskContext()).resolves.toEqual({
+      information: [{ label: "Role", value: "Software Engineer" }],
+    });
+    await expect(api.candidatureOpportunityResearchAccess.copyTask(instruction)).resolves.toBe("copied");
+    await expect(api.candidatureOpportunityResearchAccess.exportTask(instruction)).resolves.toBe("exported");
+    await expect(
+      api.candidatureOpportunityResearchAccess.retainResult("Useful returned result"),
+    ).resolves.toBe("retained");
     await expect(api.candidatureOpportunityResearchAccess.importResult()).resolves.toBe("imported");
-    expect(invoke).toHaveBeenCalledWith(candidatureOpportunityResearchAccessChannels.exportTask);
+
+    expect(invoke).toHaveBeenCalledWith(candidatureOpportunityResearchAccessChannels.taskContext);
+    expect(invoke).toHaveBeenCalledWith(
+      candidatureOpportunityResearchAccessChannels.copyTask,
+      instruction,
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      candidatureOpportunityResearchAccessChannels.exportTask,
+      instruction,
+    );
+    expect(invoke).toHaveBeenCalledWith(
+      candidatureOpportunityResearchAccessChannels.retainResult,
+      "Useful returned result",
+    );
     expect(invoke).toHaveBeenCalledWith(candidatureOpportunityResearchAccessChannels.importResult);
 
     const malformed = createCandidatureOpportunityResearchAccessDesktopApi(
       vi.fn(async () => "unexpected"),
     );
-    await expect(malformed.candidatureOpportunityResearchAccess.exportTask()).rejects.toThrow();
+    await expect(malformed.candidatureOpportunityResearchAccess.taskContext()).rejects.toThrow();
+    await expect(malformed.candidatureOpportunityResearchAccess.copyTask(instruction)).rejects.toThrow();
+    await expect(malformed.candidatureOpportunityResearchAccess.exportTask(instruction)).rejects.toThrow();
+    await expect(
+      malformed.candidatureOpportunityResearchAccess.retainResult("Useful returned result"),
+    ).rejects.toThrow();
     await expect(malformed.candidatureOpportunityResearchAccess.importResult()).rejects.toThrow();
   });
 });

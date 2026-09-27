@@ -31,7 +31,10 @@ const candidatureId = "00000000-0000-4000-8000-000000000551";
 const fieldId = "00000000-0000-4000-8000-000000000552";
 const current = vi.fn();
 const update = vi.fn();
+const taskContext = vi.fn();
+const copyTask = vi.fn();
 const exportTask = vi.fn();
+const retainResult = vi.fn();
 const importResult = vi.fn();
 
 function field(): CandidatureFieldConfiguration {
@@ -97,7 +100,15 @@ function installApi() {
           applicationPackets: [],
         })),
       },
-      candidatureOpportunityResearchAccess: { current, update, exportTask, importResult },
+      candidatureOpportunityResearchAccess: {
+        current,
+        update,
+        taskContext,
+        copyTask,
+        exportTask,
+        retainResult,
+        importResult,
+      },
     },
   });
 }
@@ -108,7 +119,12 @@ function prepareAccessApi() {
     candidatureId,
     allowed,
   }));
+  taskContext.mockResolvedValue({
+    information: [{ label: "Role", value: "Platform Engineer" }],
+  });
+  copyTask.mockResolvedValue("copied");
   exportTask.mockResolvedValue("exported");
+  retainResult.mockResolvedValue("retained");
   importResult.mockResolvedValue("imported");
   installApi();
 }
@@ -117,7 +133,7 @@ async function openSelectedCandidature(user: ReturnType<typeof userEvent.setup>)
   render(<CandidaturesWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open saved application" }));
   await user.click(screen.getByText("More"));
-  return screen.findByRole("button", { name: "Use this application with external AI" });
+  return screen.findByRole("button", { name: "Send to my AI" });
 }
 
 afterEach(() => {
@@ -126,20 +142,20 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("selected candidature opportunity-research access", () => {
-  it("lets the user enable the existing task and revokes it when retained candidature context becomes dirty", async () => {
+describe("selected candidature Send to my AI", () => {
+  it("opens the task editor on the current candidature and revokes it when retained context becomes dirty", async () => {
     prepareAccessApi();
     const user = userEvent.setup();
 
-    const allow = await openSelectedCandidature(user);
-    expect(allow).toBeVisible();
+    const open = await openSelectedCandidature(user);
+    await user.click(open);
 
-    await user.click(allow);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
-    expect(
-      await screen.findByText(/External AI can now work with this application/i),
-    ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Stop external AI access" })).toBeEnabled();
+    expect(taskContext).toHaveBeenCalledTimes(1);
+    expect(await screen.findByLabelText("Task instructions")).toBeVisible();
+    expect(screen.getByRole("region", { name: "Context sent with task" })).toHaveTextContent(
+      "Platform Engineer",
+    );
 
     await user.click(screen.getByRole("button", { name: "Edit Role" }));
     const value = screen.getByLabelText("Value");
@@ -150,21 +166,18 @@ describe("selected candidature opportunity-research access", () => {
       expect(update).toHaveBeenCalledWith({ candidatureId, allowed: false }),
     );
     expect(
-      await screen.findByText(/turned off because this application has unsaved edits/i),
+      await screen.findByText(/Save or discard the application edits before sending it to AI/i),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Use this application with external AI" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send to my AI" })).toBeDisabled();
   });
 
-  it("revokes enabled access while an Add information draft is dirty", async () => {
+  it("revokes the selected external context while an Add information draft is dirty", async () => {
     prepareAccessApi();
     const user = userEvent.setup();
 
-    const allow = await openSelectedCandidature(user);
-    await user.click(allow);
+    const open = await openSelectedCandidature(user);
+    await user.click(open);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
-    expect(screen.getByRole("button", { name: "Stop external AI access" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.type(screen.getByPlaceholderText("Flight hours"), "Seniority");
@@ -172,35 +185,43 @@ describe("selected candidature opportunity-research access", () => {
     await waitFor(() =>
       expect(update).toHaveBeenCalledWith({ candidatureId, allowed: false }),
     );
-    expect(
-      await screen.findByText(/turned off because this application has unsaved edits/i),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Use this application with external AI" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send to my AI" })).toBeDisabled();
   });
 
-  it("offers the portable no-local task and result actions only after access is enabled", async () => {
+  it("lets the user edit a shipped task, copy/export it, and paste or import the result", async () => {
     prepareAccessApi();
     const user = userEvent.setup();
 
-    const allow = await openSelectedCandidature(user);
-    expect(screen.queryByRole("button", { name: "Export task…" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Import result…" })).toBeNull();
+    const open = await openSelectedCandidature(user);
+    await user.click(open);
 
-    await user.click(allow);
+    await user.selectOptions(screen.getByLabelText("Task template"), "interview-preparation");
+    expect((screen.getByLabelText("Task instructions") as HTMLTextAreaElement).value).toContain(
+      "interview brief",
+    );
 
-    const exportButton = screen.getByRole("button", { name: "Export task…" });
-    const importButton = screen.getByRole("button", { name: "Import result…" });
-    expect(exportButton).toBeEnabled();
-    expect(importButton).toBeEnabled();
+    const instruction = screen.getByLabelText("Task instructions");
+    await user.clear(instruction);
+    await user.type(instruction, "Compare this role with the supplied context and give me five interview questions.");
 
-    await user.click(exportButton);
-    expect(exportTask).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText(/Task exported/i)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Copy task" }));
+    expect(copyTask).toHaveBeenCalledWith(
+      "Compare this role with the supplied context and give me five interview questions.",
+    );
+    expect(await screen.findByText("Task copied.")).toBeVisible();
 
-    await user.click(importButton);
-    expect(importResult).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Export file…" }));
+    expect(exportTask).toHaveBeenCalledWith(
+      "Compare this role with the supplied context and give me five interview questions.",
+    );
+
+    const result = screen.getByLabelText("AI result");
+    await user.type(result, "Useful returned analysis from the external AI.");
+    await user.click(screen.getByRole("button", { name: "Save result" }));
+    expect(retainResult).toHaveBeenCalledWith("Useful returned analysis from the external AI.");
     expect(await screen.findByText(/Result saved as a Source/i)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Import result…" }));
+    expect(importResult).toHaveBeenCalledTimes(1);
   });
 });
