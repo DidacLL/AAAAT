@@ -66,7 +66,14 @@ export const cvTemplateItemSchema = z.discriminatedUnion("sourceMode", [
   templateCustomItemSchema,
 ]);
 export type CvTemplateItem = z.infer<typeof cvTemplateItemSchema>;
-export const cvTemplateSectionSchema = z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), items: z.array(cvTemplateItemSchema).max(100) }).strict();
+export const cvSectionPresentationRoleSchema = z.enum(["main", "secondary"]);
+export type CvSectionPresentationRole = z.infer<typeof cvSectionPresentationRoleSchema>;
+export const cvTemplateSectionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  presentationRole: cvSectionPresentationRoleSchema,
+  items: z.array(cvTemplateItemSchema).max(100),
+}).strict();
 export type CvTemplateSection = z.infer<typeof cvTemplateSectionSchema>;
 export const cvTemplateInputSchema = z.object({ name: z.string().trim().min(1).max(200), language: optionalLanguageSchema, sections: z.array(cvTemplateSectionSchema).max(40) }).strict();
 export type CvTemplateInput = z.infer<typeof cvTemplateInputSchema>;
@@ -88,7 +95,12 @@ export const workingCvItemSchema = z.object({
   if (item.sourceMode === "variant" && item.profileVariantId === null) context.addIssue({ code: "custom", message: "Variant CV content needs a saved item variant." });
 });
 export type WorkingCvItem = z.infer<typeof workingCvItemSchema>;
-export const workingCvSectionSchema = z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(120), items: z.array(workingCvItemSchema).max(100) }).strict();
+export const workingCvSectionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  presentationRole: cvSectionPresentationRoleSchema,
+  items: z.array(workingCvItemSchema).max(100),
+}).strict();
 export type WorkingCvSection = z.infer<typeof workingCvSectionSchema>;
 
 export const workingCvSourceSchema = z.discriminatedUnion("kind", [

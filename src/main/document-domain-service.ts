@@ -474,7 +474,7 @@ function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] 
   return order.flatMap((name) => {
     const groupedItems = grouped.get(name);
     return groupedItems && groupedItems.length > 0 ?
-        [{id: randomUUID(), name, items: groupedItems}] :
+        [{id: randomUUID(), name, presentationRole: 'main', items: groupedItems}] :
         [];
   });
 }
@@ -562,6 +562,7 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
         (section) => ({
           id: randomUUID(),
           name: section.name,
+          presentationRole: section.presentationRole,
           items: section.items.map((item) => resolveTemplateItem(rootPath, item))
         }));
   }
@@ -670,6 +671,7 @@ function templateSectionsFromWorking(working: WorkingCvRecord): CvTemplateSectio
       (section) => ({
         id: randomUUID(),
         name: section.name,
+        presentationRole: section.presentationRole,
         items: section.items.map(
             (item):
                 CvTemplateItem => {

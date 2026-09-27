@@ -92,6 +92,7 @@ function templateSections(working: WorkingCvRecord): CvTemplateSection[] {
   return working.sections.map((section) => ({
     id: section.id,
     name: section.name,
+    presentationRole: section.presentationRole,
     items: section.items.map((item): CvTemplateItem => {
       const id = item.templateItemId ?? crypto.randomUUID();
       if (item.sourceMode === "custom" || item.profileItemId === null) {
@@ -232,7 +233,12 @@ export function WorkingCvEditor({
   const addSection = () => {
     const name = sectionName.trim();
     if (!name) return;
-    setSections([...draft.sections, { id: crypto.randomUUID(), name, items: [] }]);
+    setSections([...draft.sections, {
+      id: crypto.randomUUID(),
+      name,
+      presentationRole: "main",
+      items: [],
+    }]);
     setSectionName("");
   };
 
@@ -458,6 +464,20 @@ export function WorkingCvEditor({
                   <span>{section.items.length} {section.items.length === 1 ? "item" : "items"}</span>
                 </div>
                 <div className="working-cv-compact-controls">
+                  <label>
+                    Role
+                    <select
+                      aria-label={`${section.name} presentation role`}
+                      value={section.presentationRole}
+                      onChange={(event) => updateSection(section.id, (current) => ({
+                        ...current,
+                        presentationRole: event.target.value === "secondary" ? "secondary" : "main",
+                      }))}
+                    >
+                      <option value="main">Main</option>
+                      <option value="secondary">Secondary</option>
+                    </select>
+                  </label>
                   <button type="button" className="compact-secondary" onClick={() => setRenamingSectionId((current) => current === section.id ? null : section.id)}>{renamingSectionId === section.id ? "Done" : "Rename"}</button>
                   <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${section.name} section up`} disabled={sectionIndex === 0} onClick={() => setSections(move(draft.sections, sectionIndex, -1))}>↑</button>
                   <button type="button" className="compact-secondary working-cv-icon-button" aria-label={`Move ${section.name} section down`} disabled={sectionIndex === draft.sections.length - 1} onClick={() => setSections(move(draft.sections, sectionIndex, 1))}>↓</button>

@@ -33,6 +33,26 @@ const babelLanguageByPrimaryCode: Readonly<Record<string, string>> = Object.free
   pt: "portuguese",
 });
 
+const babelLanguageByName: Readonly<Record<string, string>> = Object.freeze({
+  catalan: "catalan",
+  english: "english",
+  french: "french",
+  german: "german",
+  italian: "italian",
+  portuguese: "portuguese",
+  spanish: "spanish",
+});
+
+const supportedLanguageNames = Object.freeze([
+  "English",
+  "Catalan",
+  "German",
+  "Spanish",
+  "French",
+  "Italian",
+  "Portuguese",
+]);
+
 export function encodeDocumentText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
@@ -40,12 +60,18 @@ export function encodeDocumentText(value: string): string {
     .replace(/\n/g, "\\AAAATLineBreak{}");
 }
 
-function babelLanguage(language: string | undefined): string {
-  const primaryCode = language
-    ?.trim()
-    .match(/^([A-Za-z]{2})(?:[-_/\s]|$)/u)?.[1]
-    ?.toLowerCase();
-  return (primaryCode && babelLanguageByPrimaryCode[primaryCode]) || "english";
+export function resolveDocumentBabelLanguage(language: string | undefined): string {
+  if (language === undefined) return "english";
+  const normalizedLanguage = language.trim().toLowerCase();
+  const namedLanguage = babelLanguageByName[normalizedLanguage];
+  if (namedLanguage) return namedLanguage;
+
+  const primaryCode = normalizedLanguage.match(/^([a-z]{2})(?:[-_/\s]|$)/u)?.[1];
+  const babelLanguage = primaryCode ? babelLanguageByPrimaryCode[primaryCode] : undefined;
+  if (babelLanguage) return babelLanguage;
+  throw new Error(
+    `Unsupported document language "${language}". AAAAT currently supports these Latin-script languages through Babel: ${supportedLanguageNames.join(", ")}. Use a supported language name, primary ISO code, or region variant.`,
+  );
 }
 
 function documentDataHeader(
@@ -55,7 +81,7 @@ function documentDataHeader(
 ): string[] {
   return [
     `\\AAAATDocumentKind{${kind}}`,
-    `\\AAAATDocumentLanguage{${babelLanguage(language)}}`,
+    `\\AAAATDocumentLanguage{${resolveDocumentBabelLanguage(language)}}`,
     `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
   ];
 }
@@ -63,7 +89,9 @@ function documentDataHeader(
 function cvData(working: WorkingCvRecord): string {
   const lines = documentDataHeader("cv", working.title, working.language);
   for (const section of working.sections) {
-    lines.push(`\\AAAATBlock{${encodeDocumentText(section.name)}}{`);
+    lines.push(
+      `\\AAAATBlock{${section.presentationRole}}{${encodeDocumentText(section.name)}}{`,
+    );
     for (const item of section.items) {
       const dates =
         item.content.startDate && item.content.endDate
