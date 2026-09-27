@@ -24,6 +24,16 @@ const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
   "~": "\\textasciitilde{}",
 });
 
+const babelLanguageByPrimaryCode: Readonly<Record<string, string>> = Object.freeze({
+  ca: "catalan",
+  de: "german",
+  en: "english",
+  es: "spanish",
+  fr: "french",
+  it: "italian",
+  pt: "portuguese",
+});
+
 export function encodeDocumentText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
@@ -31,13 +41,25 @@ export function encodeDocumentText(value: string): string {
     .replace(/\n/g, "\\AAAATLineBreak{}");
 }
 
+function babelLanguage(language: string | undefined): string {
+  const primaryCode = language
+    ?.trim()
+    .match(/^([A-Za-z]{2})(?:[-_/\s]|$)/u)?.[1]
+    ?.toLowerCase();
+  return (primaryCode && babelLanguageByPrimaryCode[primaryCode]) || "english";
+}
+
+function documentDataHeader(title: string, language: string | undefined): string[] {
+  return [
+    `\\AAAATDocumentLanguage{${babelLanguage(language)}}`,
+    `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
+  ];
+}
+
 function cvData(working: WorkingCvRecord): string {
-  const lines = [`\\AAAATDocumentTitle{${encodeDocumentText(working.title)}}`];
-  if (working.language) {
-    lines.push(`\\AAAATMetadata{Language}{${encodeDocumentText(working.language)}}`);
-  }
+  const lines = documentDataHeader(working.title, working.language);
   for (const section of working.sections) {
-    lines.push(`\\AAAATSection{${encodeDocumentText(section.name)}}`);
+    lines.push(`\\AAAATBlock{${encodeDocumentText(section.name)}}{`);
     for (const item of section.items) {
       const dates =
         item.content.startDate && item.content.endDate
@@ -47,12 +69,13 @@ function cvData(working: WorkingCvRecord): string {
         `\\AAAATEntry{${encodeDocumentText(item.content.title)}}{${encodeDocumentText(item.content.subtitle ?? "")}}{${encodeDocumentText(dates)}}{${encodeDocumentText(item.content.description ?? "")}}{${encodeDocumentText(item.content.url ?? "")}}`,
       );
     }
+    lines.push("}");
   }
   return `${lines.join("\n")}\n`;
 }
 
 function coverLetterData(letter: CoverLetterSnapshot): string {
-  const lines = [`\\AAAATDocumentTitle{${encodeDocumentText(letter.title)}}`];
+  const lines = documentDataHeader(letter.title, letter.language);
   if (letter.recipient) {
     lines.push(`\\AAAATMetadata{To}{${encodeDocumentText(letter.recipient)}}`);
   }

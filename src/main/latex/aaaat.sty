@@ -1,37 +1,47 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-21}{0.2.0}{AAAAT portable document styles}
+\ProvidesExplPackage{aaaat}{2026-09-27}{0.3.0}{AAAAT portable document package}
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
+\RequirePackage[english]{babel}
 
 \ExplSyntaxOn
+
+\tl_new:N \g_aaaat_document_title_tl
+\seq_new:N \g_aaaat_metadata_seq
+\seq_new:N \g_aaaat_paragraph_seq
+\seq_new:N \g_aaaat_blocks_seq
+\int_new:N \l_aaaat_rail_block_count_int
+\int_new:N \l_aaaat_main_block_count_int
+
+\NewDocumentCommand{\AAAATDocumentLanguage}{m}
+  {
+    \babelprovide[import]{#1}
+    \AtBeginDocument{\selectlanguage{#1}}
+  }
 
 \NewDocumentCommand{\AAAATLineBreak}{}
   {\\}
 
 \NewDocumentCommand{\AAAATDocumentTitle}{m}
-  {
-    \par
-    {\LARGE\bfseries #1\par}
-    \vspace{0.35em}
-    \hrule height 0.8pt
-    \vspace{0.8em}
-  }
+  {\tl_gset:Nn \g_aaaat_document_title_tl {#1}}
 
 \NewDocumentCommand{\AAAATMetadata}{mm}
   {
-    \par\noindent
-    {\small\bfseries #1:}\nobreakspace{\small #2}
-    \par
+    \seq_gput_right:Nn \g_aaaat_metadata_seq
+      {\aaaat_metadata_render:nn {#1} {#2}}
   }
 
-\NewDocumentCommand{\AAAATSection}{m}
+\NewDocumentCommand{\AAAATParagraph}{m}
   {
-    \par\bigskip
-    {\large\bfseries #1\par}
-    \vspace{0.2em}
-    \hrule height 0.35pt
-    \vspace{0.45em}
+    \seq_gput_right:Nn \g_aaaat_paragraph_seq
+      {\aaaat_paragraph_render:n {#1}}
+  }
+
+\NewDocumentCommand{\AAAATBlock}{mm}
+  {
+    \seq_gput_right:Nn \g_aaaat_blocks_seq
+      {\aaaat_block_render:nn {#1} {#2}}
   }
 
 \NewDocumentCommand{\AAAATEntry}{mmmmm}
@@ -49,11 +59,120 @@
       {{\footnotesize\ttfamily #5}\par}
   }
 
-\NewDocumentCommand{\AAAATParagraph}{m}
+\cs_new_protected:Npn \aaaat_document_title_render:
+  {
+    \tl_if_empty:NF \g_aaaat_document_title_tl
+      {
+        \par
+        {\LARGE\bfseries \tl_use:N \g_aaaat_document_title_tl \par}
+        \vspace{0.35em}
+        \hrule height 0.8pt
+        \vspace{0.8em}
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_metadata_render:nn #1#2
+  {
+    \par\noindent
+    {\small\bfseries #1:}\nobreakspace{\small #2}
+    \par
+  }
+
+\cs_new_protected:Npn \aaaat_paragraph_render:n #1
   {
     \par\noindent
     #1
     \par
+  }
+
+\cs_new_protected:Npn \aaaat_block_render:nn #1#2
+  {
+    \par\noindent
+    {\large\bfseries #1\par}
+    \vspace{0.2em}
+    \hrule height 0.35pt
+    \vspace{0.45em}
+    #2
+  }
+
+\cs_new_protected:Npn \aaaat_set_block_split:
+  {
+    \int_set:Nn \l_aaaat_rail_block_count_int
+      {\int_div_truncate:nn {\seq_count:N \g_aaaat_blocks_seq} {3}}
+    \int_compare:nNnTF {\seq_count:N \g_aaaat_blocks_seq} < {2}
+      {\int_zero:N \l_aaaat_rail_block_count_int}
+      {
+        \int_compare:nNnT {\l_aaaat_rail_block_count_int} < {1}
+          {\int_set:Nn \l_aaaat_rail_block_count_int {1}}
+      }
+    \int_set:Nn \l_aaaat_main_block_count_int
+      {\seq_count:N \g_aaaat_blocks_seq - \l_aaaat_rail_block_count_int}
+  }
+
+\NewDocumentCommand{\AAAATRenderDocumentTitle}{}
+  {\aaaat_document_title_render:}
+
+\NewDocumentCommand{\AAAATFullWidthHeader}{m}
+  {
+    \par\noindent
+    \begin{minipage}{\textwidth}
+      #1
+    \end{minipage}
+    \par\vspace{0.8em}
+  }
+
+\NewDocumentCommand{\AAAATTwoRegionBody}{mm}
+  {
+    \par\noindent
+    \begin{minipage}[t][0.78\textheight][s]{0.28\textwidth}
+      \vspace{0pt}
+      \small
+      #1
+    \end{minipage}
+    \hfill
+    {\vrule width 0.45pt height 0.78\textheight}
+    \hfill
+    \begin{minipage}[t][0.78\textheight][s]{0.66\textwidth}
+      \vspace{0pt}
+      #2
+    \end{minipage}
+    \par
+  }
+
+\NewDocumentCommand{\AAAATRenderRailBlocks}{}
+  {
+    \aaaat_set_block_split:
+    \seq_map_indexed_inline:Nn \g_aaaat_blocks_seq
+      {
+        \int_compare:nNnT {##1} > {\l_aaaat_main_block_count_int}
+          {
+            ##2
+            \int_compare:nNnT {##1} < {\seq_count:N \g_aaaat_blocks_seq}
+              {\par\vfill}
+          }
+      }
+  }
+
+\NewDocumentCommand{\AAAATRenderMainBlocks}{}
+  {
+    \aaaat_set_block_split:
+    \seq_map_indexed_inline:Nn \g_aaaat_blocks_seq
+      {
+        \int_compare:nNnF {##1} > {\l_aaaat_main_block_count_int}
+          {
+            ##2
+            \int_compare:nNnT {##1} < {\l_aaaat_main_block_count_int}
+              {\par\vfill}
+          }
+      }
+  }
+
+\NewDocumentCommand{\AAAATRenderLetter}{}
+  {
+    \aaaat_document_title_render:
+    \seq_map_inline:Nn \g_aaaat_metadata_seq {##1}
+    \vspace{0.8em}
+    \seq_map_inline:Nn \g_aaaat_paragraph_seq {##1}
   }
 
 \ExplSyntaxOff
