@@ -4,16 +4,6 @@ import type { CareerContext } from "../shared/contracts";
 import type { CareerContextAiDisclosureKey } from "../shared/career-context-ai-disclosure-contracts";
 import { CareerContextAiDisclosureControl } from "./CareerContextAiDisclosureControl";
 
-const emptyContext: CareerContext = {
-  careerDirection: "",
-  objectives: "",
-  constraints: "",
-  targetRoles: "",
-  targetMarketsLocations: "",
-  workPreferences: "",
-  applicationWritingPreferences: "",
-};
-
 const fields: readonly {
   key: CareerContextAiDisclosureKey;
   label: string;
