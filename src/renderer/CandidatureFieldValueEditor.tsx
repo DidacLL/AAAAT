@@ -5,6 +5,7 @@ import type {
   CandidatureFieldUpdate,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
+import "./candidature-field-cohesion.css";
 
 interface Props {
   readonly field: CandidatureFieldConfiguration;
