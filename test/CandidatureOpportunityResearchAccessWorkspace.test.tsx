@@ -136,7 +136,6 @@ function prepareAccessApi() {
 async function openSelectedCandidature(user: ReturnType<typeof userEvent.setup>) {
   render(<CandidaturesWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open saved application" }));
-  await user.click(screen.getByText("More"));
   return screen.findByRole("button", { name: "Send to my AI" });
 }
 
@@ -148,10 +147,11 @@ afterEach(() => {
 });
 
 describe("selected candidature Send to my AI", () => {
-  it("opens the task editor on the current candidature and revokes it when retained context becomes dirty", async () => {
+  it("is directly discoverable and revokes the selected context when retained context becomes dirty", async () => {
     prepareAccessApi();
     const user = userEvent.setup();
     const open = await openSelectedCandidature(user);
+    expect(screen.queryByRole("group", { name: "More" })).not.toBeInTheDocument();
     await user.click(open);
 
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
@@ -176,6 +176,7 @@ describe("selected candidature Send to my AI", () => {
     await user.click(open);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
 
+    await user.click(screen.getByText("More"));
     await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.type(screen.getByPlaceholderText("Flight hours"), "Seniority");
 
