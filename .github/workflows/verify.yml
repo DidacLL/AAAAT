@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - ".github/workflows/**"
+      - ".agentic/**"
       - "src/**"
       - "test/**"
       - "package.json"
