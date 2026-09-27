@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-27}{0.3.1}{AAAAT portable document package}
+\ProvidesExplPackage{aaaat}{2026-09-27}{0.3.2}{AAAAT portable document package}
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
@@ -13,11 +13,13 @@
 \seq_new:N \g_aaaat_blocks_seq
 \int_new:N \l_aaaat_rail_block_count_int
 \int_new:N \l_aaaat_main_block_count_int
+\box_new:N \l_aaaat_header_box
 \box_new:N \l_aaaat_rail_body_box
 \box_new:N \l_aaaat_main_body_box
 \box_new:N \l_aaaat_rail_page_box
 \box_new:N \l_aaaat_main_page_box
 \dim_new:N \l_aaaat_region_page_height_dim
+\bool_new:N \l_aaaat_header_pending_bool
 
 \NewDocumentCommand{\AAAATDocumentLanguage}{m}
   {
@@ -135,42 +137,61 @@
 
 \cs_new_protected:Npn \aaaat_set_region_page_height:
   {
-    \dim_set:Nn \l_aaaat_region_page_height_dim
-      {\textheight - \pagetotal - 1em}
-    \dim_compare:nNnT {\l_aaaat_region_page_height_dim} < {0.35\textheight}
+    \dim_set:Nn \l_aaaat_region_page_height_dim {\textheight}
+    \bool_if:NT \l_aaaat_header_pending_bool
       {
-        \newpage
-        \dim_set:Nn \l_aaaat_region_page_height_dim {\textheight - 1em}
+        \dim_sub:Nn \l_aaaat_region_page_height_dim
+          {\box_ht:N \l_aaaat_header_box + \box_dp:N \l_aaaat_header_box}
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_split_region_page:
+  {
+    \setbox\l_aaaat_rail_page_box=
+      \vsplit\l_aaaat_rail_body_box to \l_aaaat_region_page_height_dim
+    \setbox\l_aaaat_main_page_box=
+      \vsplit\l_aaaat_main_body_box to \l_aaaat_region_page_height_dim
+  }
+
+\cs_new_protected:Npn \aaaat_render_region_row:
+  {
+    \hbox to \textwidth
+      {
+        \hbox to 0.28\textwidth
+          {
+            \vbox to \l_aaaat_region_page_height_dim
+              {\box\l_aaaat_rail_page_box\vfil}
+            \hss
+          }
+        \hfil
+        {\vrule width 0.45pt height \l_aaaat_region_page_height_dim depth 0pt}
+        \hfil
+        \hbox to 0.66\textwidth
+          {
+            \vbox to \l_aaaat_region_page_height_dim
+              {\box\l_aaaat_main_page_box\vfil}
+            \hss
+          }
       }
   }
 
 \cs_new_protected:Npn \aaaat_render_two_region_page:
   {
     \aaaat_set_region_page_height:
-    \setbox\l_aaaat_rail_page_box=
-      \vsplit\l_aaaat_rail_body_box to \l_aaaat_region_page_height_dim
-    \setbox\l_aaaat_main_page_box=
-      \vsplit\l_aaaat_main_body_box to \l_aaaat_region_page_height_dim
-    \par\noindent
-    \hbox to \textwidth
+    \aaaat_split_region_page:
+    \par
+    \nointerlineskip
+    \vbox to \textheight
       {
-        \hbox to 0.28\textwidth
+        \bool_if:NT \l_aaaat_header_pending_bool
           {
-            \vtop to \l_aaaat_region_page_height_dim
-              {\box\l_aaaat_rail_page_box\vfil}
-            \hss
+            \box\l_aaaat_header_box
+            \nointerlineskip
           }
-        \hfil
-        {\vrule width 0.45pt height \l_aaaat_region_page_height_dim}
-        \hfil
-        \hbox to 0.66\textwidth
-          {
-            \vtop to \l_aaaat_region_page_height_dim
-              {\box\l_aaaat_main_page_box\vfil}
-            \hss
-          }
+        \aaaat_render_region_row:
       }
     \par
+    \bool_set_false:N \l_aaaat_header_pending_bool
     \ifvoid\l_aaaat_rail_body_box
       \ifvoid\l_aaaat_main_body_box
       \else
@@ -188,19 +209,22 @@
 
 \NewDocumentCommand{\AAAATFullWidthHeader}{m}
   {
-    \par\noindent
-    \begin{minipage}{\textwidth}
-      #1
-    \end{minipage}
-    \par\vspace{0.8em}
+    \setbox\l_aaaat_header_box=\vbox
+      {
+        \hsize=\textwidth
+        \parindent=0pt
+        #1
+        \par
+        \vspace{0.8em}
+      }
+    \bool_set_true:N \l_aaaat_header_pending_bool
   }
 
 \NewDocumentCommand{\AAAATTwoRegionBody}{mm}
   {
     \begingroup
-    \vbadness=10000
     \splittopskip=0pt
-    \splitmaxdepth=\maxdepth
+    \splitmaxdepth=0pt
     \aaaat_prepare_two_region_body:nn {#1} {#2}
     \aaaat_render_two_region_page:
     \endgroup
