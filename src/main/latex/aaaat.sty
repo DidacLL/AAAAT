@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-27}{0.3.0}{AAAAT portable document package}
+\ProvidesExplPackage{aaaat}{2026-09-27}{0.3.1}{AAAAT portable document package}
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
@@ -13,6 +13,11 @@
 \seq_new:N \g_aaaat_blocks_seq
 \int_new:N \l_aaaat_rail_block_count_int
 \int_new:N \l_aaaat_main_block_count_int
+\box_new:N \l_aaaat_rail_body_box
+\box_new:N \l_aaaat_main_body_box
+\box_new:N \l_aaaat_rail_page_box
+\box_new:N \l_aaaat_main_page_box
+\dim_new:N \l_aaaat_region_page_height_dim
 
 \NewDocumentCommand{\AAAATDocumentLanguage}{m}
   {
@@ -109,6 +114,75 @@
       {\seq_count:N \g_aaaat_blocks_seq - \l_aaaat_rail_block_count_int}
   }
 
+\cs_new_protected:Npn \aaaat_prepare_two_region_body:nn #1#2
+  {
+    \setbox\l_aaaat_rail_body_box=\vbox
+      {
+        \hsize=0.28\textwidth
+        \parindent=0pt
+        \small
+        #1
+        \par
+      }
+    \setbox\l_aaaat_main_body_box=\vbox
+      {
+        \hsize=0.66\textwidth
+        \parindent=0pt
+        #2
+        \par
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_set_region_page_height:
+  {
+    \dim_set:Nn \l_aaaat_region_page_height_dim
+      {\textheight - \pagetotal - 1em}
+    \dim_compare:nNnT {\l_aaaat_region_page_height_dim} < {0.35\textheight}
+      {
+        \newpage
+        \dim_set:Nn \l_aaaat_region_page_height_dim {\textheight - 1em}
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_render_two_region_page:
+  {
+    \aaaat_set_region_page_height:
+    \setbox\l_aaaat_rail_page_box=
+      \vsplit\l_aaaat_rail_body_box to \l_aaaat_region_page_height_dim
+    \setbox\l_aaaat_main_page_box=
+      \vsplit\l_aaaat_main_body_box to \l_aaaat_region_page_height_dim
+    \par\noindent
+    \hbox to \textwidth
+      {
+        \hbox to 0.28\textwidth
+          {
+            \vtop to \l_aaaat_region_page_height_dim
+              {\box\l_aaaat_rail_page_box\vfil}
+            \hss
+          }
+        \hfil
+        {\vrule width 0.45pt height \l_aaaat_region_page_height_dim}
+        \hfil
+        \hbox to 0.66\textwidth
+          {
+            \vtop to \l_aaaat_region_page_height_dim
+              {\box\l_aaaat_main_page_box\vfil}
+            \hss
+          }
+      }
+    \par
+    \ifvoid\l_aaaat_rail_body_box
+      \ifvoid\l_aaaat_main_body_box
+      \else
+        \newpage
+        \aaaat_render_two_region_page:
+      \fi
+    \else
+      \newpage
+      \aaaat_render_two_region_page:
+    \fi
+  }
+
 \NewDocumentCommand{\AAAATRenderDocumentTitle}{}
   {\aaaat_document_title_render:}
 
@@ -123,20 +197,13 @@
 
 \NewDocumentCommand{\AAAATTwoRegionBody}{mm}
   {
-    \par\noindent
-    \begin{minipage}[t][0.78\textheight][s]{0.28\textwidth}
-      \vspace{0pt}
-      \small
-      #1
-    \end{minipage}
-    \hfill
-    {\vrule width 0.45pt height 0.78\textheight}
-    \hfill
-    \begin{minipage}[t][0.78\textheight][s]{0.66\textwidth}
-      \vspace{0pt}
-      #2
-    \end{minipage}
-    \par
+    \begingroup
+    \vbadness=10000
+    \splittopskip=0pt
+    \splitmaxdepth=\maxdepth
+    \aaaat_prepare_two_region_body:nn {#1} {#2}
+    \aaaat_render_two_region_page:
+    \endgroup
   }
 
 \NewDocumentCommand{\AAAATRenderRailBlocks}{}
@@ -148,7 +215,7 @@
           {
             ##2
             \int_compare:nNnT {##1} < {\seq_count:N \g_aaaat_blocks_seq}
-              {\par\vfill}
+              {\par\medskip}
           }
       }
   }
@@ -162,7 +229,7 @@
           {
             ##2
             \int_compare:nNnT {##1} < {\l_aaaat_main_block_count_int}
-              {\par\vfill}
+              {\par\medskip}
           }
       }
   }
