@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
 import type {
+  CandidatureAiTaskTemplate,
   CandidatureOpportunityResearchAccess,
   CandidatureOpportunityResearchTaskContext,
 } from "../shared/candidature-opportunity-research-access-contracts";
 import type { CandidatureRuntimeValue } from "../shared/contracts";
 
-const taskTemplates = [
+const shippedTaskTemplates = [
   {
     id: "opportunity-research",
     label: "Opportunity research",
@@ -21,7 +22,15 @@ const taskTemplates = [
   },
 ] as const;
 
-type BusyAction = "open" | "close" | "copy" | "export" | "retain" | "import";
+type BusyAction =
+  | "open"
+  | "close"
+  | "save-template"
+  | "delete-template"
+  | "copy"
+  | "export"
+  | "retain"
+  | "import";
 
 function displayValue(value: CandidatureRuntimeValue): string {
   if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
@@ -39,8 +48,11 @@ export function CandidatureOpportunityResearchAccessPanel({
   const [access, setAccess] = useState<CandidatureOpportunityResearchAccess | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [taskContext, setTaskContext] = useState<CandidatureOpportunityResearchTaskContext | null>(null);
-  const [templateId, setTemplateId] = useState<string>(taskTemplates[0].id);
-  const [instruction, setInstruction] = useState<string>(taskTemplates[0].instruction);
+  const [userTemplates, setUserTemplates] = useState<CandidatureAiTaskTemplate[]>([]);
+  const [templateId, setTemplateId] = useState<string>(shippedTaskTemplates[0].id);
+  const [selectedUserTemplateId, setSelectedUserTemplateId] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [instruction, setInstruction] = useState<string>(shippedTaskTemplates[0].instruction);
   const [resultText, setResultText] = useState("");
   const [busy, setBusy] = useState<BusyAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -50,11 +62,11 @@ export function CandidatureOpportunityResearchAccessPanel({
     const api = window.aaaat.candidatureOpportunityResearchAccess;
     if (!api) return;
     let active = true;
-    void api
-      .current(candidatureId)
-      .then(async (current) => {
+    void Promise.all([api.current(candidatureId), api.taskTemplates()])
+      .then(async ([current, templates]) => {
         if (!active) return;
         setAccess(current);
+        setUserTemplates(templates);
         if (!current.allowed || contextDirty) return;
         const context = await api.taskContext();
         if (!active) return;
@@ -99,10 +111,14 @@ export function CandidatureOpportunityResearchAccessPanel({
     setMessage(null);
     setError(null);
     try {
-      const saved = await api.update({ candidatureId, allowed: true });
-      const context = await api.taskContext();
+      const [saved, context, templates] = await Promise.all([
+        api.update({ candidatureId, allowed: true }),
+        api.taskContext(),
+        api.taskTemplates(),
+      ]);
       setAccess(saved);
       setTaskContext(context);
+      setUserTemplates(templates);
       setEditorOpen(true);
     } catch {
       setError("AAAAT could not prepare this application for external AI.");
@@ -130,12 +146,73 @@ export function CandidatureOpportunityResearchAccessPanel({
   };
 
   const chooseTemplate = (nextId: string) => {
-    const template = taskTemplates.find((candidate) => candidate.id === nextId);
-    if (!template) return;
-    setTemplateId(template.id);
-    setInstruction(template.instruction);
+    const shipped = shippedTaskTemplates.find((candidate) => candidate.id === nextId);
+    if (shipped) {
+      setTemplateId(shipped.id);
+      setSelectedUserTemplateId(null);
+      setTemplateName("");
+      setInstruction(shipped.instruction);
+      setMessage(null);
+      setError(null);
+      return;
+    }
+    const id = nextId.startsWith("user:") ? nextId.slice(5) : "";
+    const saved = userTemplates.find((candidate) => candidate.id === id);
+    if (!saved) return;
+    setTemplateId(`user:${saved.id}`);
+    setSelectedUserTemplateId(saved.id);
+    setTemplateName(saved.name);
+    setInstruction(saved.instruction);
     setMessage(null);
     setError(null);
+  };
+
+  const saveTemplate = async () => {
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api || !templateName.trim() || !instruction.trim()) return;
+    setBusy("save-template");
+    setMessage(null);
+    setError(null);
+    try {
+      const saved = await api.saveTaskTemplate({
+        id: selectedUserTemplateId ?? undefined,
+        name: templateName,
+        instruction,
+      });
+      const templates = await api.taskTemplates();
+      setUserTemplates(templates);
+      setTemplateId(`user:${saved.id}`);
+      setSelectedUserTemplateId(saved.id);
+      setTemplateName(saved.name);
+      setInstruction(saved.instruction);
+      setMessage(selectedUserTemplateId ? "Saved task updated." : "Reusable task saved.");
+    } catch {
+      setError("AAAAT could not save the reusable task.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteTemplate = async () => {
+    const api = window.aaaat.candidatureOpportunityResearchAccess;
+    if (!api || !selectedUserTemplateId) return;
+    setBusy("delete-template");
+    setMessage(null);
+    setError(null);
+    try {
+      await api.deleteTaskTemplate(selectedUserTemplateId);
+      const templates = await api.taskTemplates();
+      setUserTemplates(templates);
+      setTemplateId(shippedTaskTemplates[0].id);
+      setSelectedUserTemplateId(null);
+      setTemplateName("");
+      setInstruction(shippedTaskTemplates[0].instruction);
+      setMessage("Saved task deleted.");
+    } catch {
+      setError("AAAAT could not delete the reusable task.");
+    } finally {
+      setBusy(null);
+    }
   };
 
   const copyTask = async () => {
@@ -235,9 +312,18 @@ export function CandidatureOpportunityResearchAccessPanel({
             disabled={disabled}
             onChange={(event) => chooseTemplate(event.currentTarget.value)}
           >
-            {taskTemplates.map((template) => (
-              <option key={template.id} value={template.id}>{template.label}</option>
-            ))}
+            <optgroup label="AAAAT tasks">
+              {shippedTaskTemplates.map((template) => (
+                <option key={template.id} value={template.id}>{template.label}</option>
+              ))}
+            </optgroup>
+            {userTemplates.length > 0 ? (
+              <optgroup label="My tasks">
+                {userTemplates.map((template) => (
+                  <option key={template.id} value={`user:${template.id}`}>{template.name}</option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
 
           <label htmlFor={`ai-task-instruction-${candidatureId}`}>Instructions</label>
@@ -249,6 +335,40 @@ export function CandidatureOpportunityResearchAccessPanel({
             disabled={disabled}
             onChange={(event) => setInstruction(event.currentTarget.value)}
           />
+
+          <label htmlFor={`ai-task-name-${candidatureId}`}>Reusable task name</label>
+          <input
+            id={`ai-task-name-${candidatureId}`}
+            aria-label="Reusable task name"
+            value={templateName}
+            disabled={disabled}
+            placeholder="My application review"
+            onChange={(event) => setTemplateName(event.currentTarget.value)}
+          />
+          <div className="button-row">
+            <button
+              type="button"
+              className="compact-secondary"
+              disabled={disabled || !templateName.trim() || !instruction.trim()}
+              onClick={() => void saveTemplate()}
+            >
+              {busy === "save-template"
+                ? "Saving…"
+                : selectedUserTemplateId
+                  ? "Update saved task"
+                  : "Save as reusable task"}
+            </button>
+            {selectedUserTemplateId ? (
+              <button
+                type="button"
+                className="compact-secondary"
+                disabled={disabled}
+                onClick={() => void deleteTemplate()}
+              >
+                {busy === "delete-template" ? "Deleting…" : "Delete saved task"}
+              </button>
+            ) : null}
+          </div>
 
           <section aria-label="Context sent with task">
             <h4>Context</h4>
