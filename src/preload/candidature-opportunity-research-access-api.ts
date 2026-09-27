@@ -2,6 +2,8 @@ import {
   candidatureOpportunityResearchAccessChannels,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
+  candidatureOpportunityResearchResultImportResultSchema,
+  candidatureOpportunityResearchTaskExportResultSchema,
   type CandidatureOpportunityResearchAccessDesktopApi,
 } from "../shared/candidature-opportunity-research-access-contracts";
 
@@ -29,6 +31,14 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
             candidatureOpportunityResearchAccessChannels.update,
             candidatureOpportunityResearchAccessUpdateSchema.parse(input),
           ),
+        ),
+      exportTask: async () =>
+        candidatureOpportunityResearchTaskExportResultSchema.parse(
+          await invoke(candidatureOpportunityResearchAccessChannels.exportTask),
+        ),
+      importResult: async () =>
+        candidatureOpportunityResearchResultImportResultSchema.parse(
+          await invoke(candidatureOpportunityResearchAccessChannels.importResult),
         ),
     }),
   });
