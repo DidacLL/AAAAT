@@ -168,6 +168,8 @@ Saved variations may express reusable alternate emphasis. Document-specific diff
 
 Every reusable professional-information item has one ordinary AI visibility choice: **AI may use this information**. The same meaning applies to candidature fields. When enabled, an empty candidature field may be requested during Source extraction and a populated value may be disclosed as bounded context; when disabled, it is neither requested nor disclosed. Internal implementation may separate mechanics only where a demonstrated product behavior requires it; ordinary UI and durable product meaning remain one user choice.
 
+AI-use defaults are **initialization choices only**. When an information item has an initial content kind, AAAAT should choose a sensible starting value from that initial kind; shipped candidature fields may likewise have explicit starting choices. This does not make kind, label, system key, value format, or any other editable definition into privacy semantics. Users may rename or repurpose information freely. Once created, the stored `AI may use this information` choice is independent of mutable content meaning and must not be recomputed because a kind, label, field definition, value type, or content value changes. It changes only when the user deliberately changes that choice.
+
 ## CV templates, working CVs and rendered artifacts
 
 Document concepts are intentionally distinct:
@@ -228,6 +230,8 @@ Manual/no-AI use remains complete. Accepted AI output becomes ordinary editable 
 The user may already be working in ChatGPT, Claude, a local model application, an IDE assistant or another external environment. That environment may itself be doing broader work, including research or job discovery.
 
 AAAAT may expose bounded domain capabilities through suitable integrations so the external tool can retain or use AAAAT information without manual re-entry.
+
+`Send to my AI` is a contextual action on the meaningful information or document the user is currently working with, not a durable global “selected object for AI” mode. A task payload binds its bounded context explicitly. Clipboard, files, MCP or another integration may carry that task, but transport convenience must not create persisted exclusive selection state whose only purpose is to let a later transport infer which candidature/document/item was meant. Useful task-editor, reusable-instruction, copy/export and returned-result mechanics may be shared across contexts without becoming a generic agent platform.
 
 Transport does not define product meaning. MCP, plugins, skills, commands, local APIs or other demonstrated bridges are mechanisms only.
 
