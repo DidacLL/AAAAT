@@ -17,9 +17,13 @@ interface InitialSelection {
 }
 
 export function CandidaturesAiWorkspace({
+  initialCandidatureId,
+  onInitialCandidatureCleared,
   onDirtyChange,
   onTagGlossaryChange,
 }: {
+  readonly initialCandidatureId?: string;
+  readonly onInitialCandidatureCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
 }) {
@@ -27,7 +31,9 @@ export function CandidaturesAiWorkspace({
   const [newIntent, setNewIntent] = useState<NewApplicationIntent | null>(null);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
-  const [selection, setSelection] = useState<InitialSelection | null>(null);
+  const [selection, setSelection] = useState<InitialSelection | null>(() =>
+    initialCandidatureId ? { candidatureId: initialCandidatureId, rawRetained: false } : null,
+  );
   const [handoffBusy, setHandoffBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -95,6 +101,10 @@ export function CandidaturesAiWorkspace({
     }
   };
 
+  const clearInitialSelection = () => {
+    setSelection(null);
+    onInitialCandidatureCleared?.();
+  };
   const workspaceKey = `${revision}:${selection?.candidatureId ?? "corpus"}:${selection?.task ?? "review"}`;
 
   return (
@@ -200,7 +210,7 @@ export function CandidaturesAiWorkspace({
               candidatureId: selection.candidatureId,
               task: selection.task,
             } : undefined}
-            onInitialSelectionCleared={() => setSelection(null)}
+            onInitialSelectionCleared={clearInitialSelection}
             onDirtyChange={reportDirty}
             onTagGlossaryChange={onTagGlossaryChange}
           />
