@@ -1,141 +1,227 @@
 # AAAAT technical architecture
 
-This document derives technical architecture from the [Product Definition](../PRODUCT_DEFINITION.md). It does not create product meaning. Current explicit Product Owner instruction and the Product Definition prevail if this document, an ADR, an Issue, a test, or existing code appears to disagree.
+This document derives technical architecture from [PRODUCT_DEFINITION.md](../PRODUCT_DEFINITION.md). It does not create product meaning. Current explicit Product Owner instruction and the Product Definition prevail over this SPEC, ADRs, Issues, tests and implementation.
 
-Use [PRODUCT_CONTEXT.md](../PRODUCT_CONTEXT.md) for rationale, [OWNER_DEVELOPMENT_PRINCIPLES.md](../OWNER_DEVELOPMENT_PRINCIPLES.md) for development style, and [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) plus live GitHub state for active work.
+Use [PRODUCT_CONTEXT.md](../PRODUCT_CONTEXT.md) only for rationale, [OWNER_DEVELOPMENT_PRINCIPLES.md](../OWNER_DEVELOPMENT_PRINCIPLES.md) for development style, and [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) plus live GitHub state for active execution.
 
-## Architectural baseline
+## Architectural objective
 
-AAAAT is one local desktop application:
+AAAAT is an open-source, provider-agnostic agentic-human application-management/document tool implemented as one local desktop application.
+
+It supports three interaction directions over the same domain model:
+
+```text
+Human → AAAAT
+AAAAT → configured AI
+external AI/tool → bounded AAAAT capability
+```
+
+These directions share local domain/application services. They do not justify three separate products or a generic agent platform.
+
+## Baseline
 
 ```text
 Electron + React + strict TypeScript
         ↓
-typed, sandboxed preload boundary
+typed sandboxed preload boundary
         ↓
 application services
         ↓
-SQLite workspace and user-owned files
+SQLite workspace + user-owned files
 ```
 
-The renderer remains sandboxed, context-isolated and unprivileged. Durable mutations enter through normal application services whether their input originated in the UI, an import, direct optional AI, or a bounded external integration.
+The renderer remains sandboxed, context-isolated and unprivileged. Node integration and webviews stay off unless a concrete future requirement proves otherwise.
 
-Persisted domain objects do not define the desktop interaction architecture. Welcome is first; after a workspace is opened, one configurable Applications surface covers the candidature corpus and selected-candidature detail rather than exposing historical peer Focus / All data product areas. `New application` has the two direct Product Definition intentions: deliberate structured information entry, or raw-material retention. Raw retention is already complete work; after it succeeds, the same post-retention surface exposes explicit peer continuations to send the retained Source to configured AI or fill the candidature manually with Source and fields readily available together. Dedicated CVs and cover letters are linked to that application when deliberately requested. The CV area also supports standalone CV work; standalone letters remain independently available but secondary in the collection view.
+Durable mutations use normal application services whether input originated from the UI, an import, configured AI or an external integration.
 
-## Domain and information architecture
+Keep runtime dependencies small. Do not add an ORM, event bus, plugin framework, workflow engine, generic repository, policy system or state-management framework without demonstrated current value.
 
-Keep structurally meaningful domain objects explicit underneath the UI: application contexts, Sources, shared Tags, reusable professional information and item-level variants, CV templates, Working CVs, Rendered CVs, cover letters, Application packets, optional AI connections and bounded secondary configuration. Do not collapse them into generic records, arbitrary CRUD, a generic content repository or a workflow framework.
+Before a real-use compatibility baseline exists, correct wrong development schemas/contracts directly rather than preserving them through migration ceremony.
 
-Ordinary value entry must not force users to think in schemas, identifiers, field types, cardinality or database-like configuration. Flexible application information remains user-maintainable product data, but definition controls are progressively disclosed.
+## Domain boundaries
 
-Sources remain explicit retained records. Original material is not replaced by extraction/enrichment. Tags keep their narrow shared-glossary/retrieval role.
+Keep meaningful product objects explicit:
 
-AI-use permission is persisted independently from mutable information meaning. Creation may choose a starting value from the initial professional-information `kind` or explicit shipped-field defaults, but later changes to kind, label, `system_key`, value type, definition text or retained value never recompute that stored permission. Tests must protect that independence rather than a particular ontology heuristic.
+- candidatures/applications;
+- candidature Sources;
+- shared Tags;
+- reusable professional information and item variations;
+- CV templates;
+- Working CVs;
+- Rendered CVs;
+- cover letters;
+- Application packets;
+- optional AI connections/configuration;
+- bounded setup/recovery configuration.
 
-## Renderer and visible-UX architecture
+Do not collapse these into generic records/CRUD.
 
-The renderer is composed from user intentions, not service/table boundaries. Existing React components are implementation material, not interaction authority.
+### Candidature information
 
-For every visible-UI change, establish product meaning from Product Definition/current Product Owner instruction and then use `docs/UX_DEFINITION.md` plus `docs/UX_VISUAL_DIRECTION.md`. The visual-direction document is mandatory visible-UI guidance: machine/control framing should express AAAAT's friendly worn retrofuturist field-terminal/workshop character while content-heavy surfaces remain clear paper/dossier-like information. Generic SaaS card/form styling, generic developer dashboards, aggressive cyberpunk effects and decoration that reduces readability are not acceptable substitutes merely because behavior tests pass.
+The candidature root is sparse and structural. User-useful information belongs to the bounded flexible candidature-field/value model rather than fixed lifecycle columns.
 
-Historical paired dark/light logo, banner, background and loading assets under `docs/owner-source/` are visual research inputs and should be inspected directly when implementing shell/Home/onboarding/theme presentation. They do not mandate copying a historical mockup or creating a generalized design-system/theme framework.
+Field definitions are user-maintainable. Shipped definitions are defaults, not semantic identity. Field labels/system keys do not gain hidden product meaning merely because code uses them.
 
-At constrained desktop sizes the current intention owns the useful viewport. Prefer state transition, reflow and vertical reachability to clipping or permanent multi-pane compression. At expanded sizes, use space productively rather than centering narrow forms in unused canvas. Empty and sparse states require intentional composition and a useful next action, not merely an empty container.
+Favourite/order/presentation choices are local presentation state. They do not duplicate candidature values or create a second domain model.
 
-Loaded Home is a branded **landing console**. It combines AAAAT identity with concise useful operational shorthand. Once a workspace is loaded, Home is not a workspace-entry launcher: create/open/demo/switch controls do not occupy the landing body. Workspace switching/creation belongs in a compact shell/workspace interaction or Settings. Home also must not become a generic metrics-dashboard framework or merely duplicate persistent rail badges.
+Sources remain first-class retained material and are never replaced by extraction.
 
-PLAN[5] remains blocked until PLAN[4] is accepted. Merged renderer slices may be reused only where they satisfy the eventual coherent interaction/visual design. Issue #314's still-open owner-acceptance correction remains blocking where it agrees with current Product Definition.
+Tags remain shared glossary/retrieval objects rather than per-candidature copies or an ontology engine.
+
+## Desktop interaction architecture
+
+Persisted domain objects do not dictate screen composition.
+
+After a workspace is opened, Applications supports corpus retrieval, selected-application work, direct field entry and raw capture without imposing a lifecycle.
+
+Raw capture retains Source material first. Optional AI extraction and manual field filling are continuations over the same retained Source, not prerequisites to successful capture.
+
+Reusable professional information and document work are independently reachable. Document creation does not require a candidature or AI.
+
+Ordinary UI must not expose internal IDs, schemas, protocol vocabulary or filesystem paths merely because the implementation has them.
 
 ## Document architecture
 
-The document domain has explicit roles rather than one generic document/rule model:
+Document concepts remain explicit:
 
-- **My information** stores reusable professional facts and narrative items.
-- A **Profile variant** is alternate wording or emphasis for one reusable information item. It is not a whole-profile snapshot or aggregate difference set.
-- A **CV template** is a reusable ordered composition of sections and items. Template items may reference current My information, a saved item variant, a template-local override, or custom content. Each section also carries Blueprint-independent semantic presentation role `main` or `secondary`.
-- A **Working CV** is an editable CV composition derived from a template, an application context, My information, or a blank start. Editing a Working CV does not implicitly rewrite its reusable sources; explicit save-back actions own that choice. Section presentation roles are editable composition state and are not concrete layout geometry.
-- A **Rendered CV** retains the generated PDF together with an immutable content/composition snapshot. Editing resumes by creating or duplicating editable Working CV state rather than mutating the rendered snapshot.
-- A **cover letter** is a separate editable document, normally owned by an application, with standalone creation also supported.
-- An **Application packet** is generated application output combining the selected Rendered CV and application cover letter.
+- **My information** — reusable professional content;
+- **Profile variant** — alternate wording/emphasis for one reusable item;
+- **CV template** — reusable ordered composition;
+- **Working CV** — editable CV composition;
+- **Rendered CV** — immutable generated output plus the content/composition snapshot used;
+- **cover letter** — editable document, normally candidature-owned;
+- **Application packet** — generated application output combining a selected Rendered CV and letter where useful.
 
-When the user deliberately requests application documents, AAAAT saves authoritative application/Source information first and then creates the requested Working CV and/or application-owned cover letter through normal services. Document creation by itself is deterministic and local. Optional AI parsing/preparation is a separate bounded action and never makes local retention contingent on inference. AI-generated candidature values or document edits remain proposals/draft state until the user deliberately accepts or saves them; the legacy New-application background preparation path that directly persists extraction values, CV ordering or letter content is not part of the accepted model. AI failure never invalidates retained application or editable local work.
+Editing a Working CV does not implicitly rewrite reusable information/template state. Explicit save-back actions own those decisions.
 
-LaTeX is an internal rendering implementation, not the ordinary document-domain model. The current PLAN[4] candidate boundary is:
+### LaTeX boundary
+
+The durable Product Owner technical decision is:
 
 ```text
 typed Working CV / cover-letter state
 → TypeScript-generated data.tex
-→ user-owned shared aaaat.sty (LaTeX2e public API / expl3 internals)
-→ selected user-owned/shipped Blueprint presentation source
-→ self-contained retained project
-→ direct pdflatex
-→ retained PDF and immutable generated artifact
+→ shared aaaat.sty LaTeX2e public API / expl3 internals
+→ selected Blueprint presentation source
+→ self-contained staged project
+→ bounded asynchronous pdfTeX/pdfLaTeX execution
+→ retained PDF + immutable project/snapshot
 ```
 
-`src/main/document-latex.ts` owns document-text encoding and generated `data.tex`. It feeds document kind, language, title/content and CV section semantic roles through the public facade in `aaaat.sty`. TypeScript does not decide main/secondary geometry.
+TypeScript owns document data encoding and `data.tex`; LaTeX owns presentation/layout.
 
-A Blueprint is a complete compatible pdfLaTeX presentation program. AAAAT ships `src/main/latex/default-blueprint.tex` as the current first design decision. The current implementation discovers advanced-user compatible `.tex` Blueprints from Electron `userData/blueprints`, but that existing location is implementation evidence rather than accepted ownership scope. Blueprint selection is an explicit render-time input and is not persisted as ownership on CV Templates, Working CVs or cover letters.
+The public package boundary is LaTeX2e with expl3 internals. pdfTeX through pdfLaTeX is the current engine boundary. The product does not require an alternate-engine matrix.
 
-The shipped Blueprint covers both CV and cover-letter presentation. For CVs it maps `secondary` sections to its narrow region and `main` sections to its wide region while preserving source order inside each role. Another compatible Blueprint may interpret `secondary` differently without changing the CV composition. The previous count/order-based automatic rail split is not part of the contract.
+The current production implementation invokes `pdflatex` directly after PR #377. Earlier accepted implementation used `latexmk -pdf`. Invocation/wrapper choice is technical implementation, not Product Owner meaning, provided the real architecture remains bounded, asynchronous, noninteractive, timed out safely and produces the required portable artifact.
 
-ADR 0015 also requires **modified package sources to remain user-owned**. Export-only editability is not sufficient to erase that requirement. The final PLAN[4] model therefore requires one reusable user-owned editable shared package source, seeded from the shipped default when first established and not silently overwritten once the user owns it. There is still one shared package/library rather than package ownership per Blueprint. The configuration/ownership scope of reusable Blueprint/package sources is intentionally unresolved: application-level configuration, workspace ownership or another portable scope must not be chosen from the current `userData` implementation without Product Owner authority. The renderer must not receive arbitrary filesystem authority.
+### Blueprints and shared package
 
-Every retained document project must contain a generic `main.tex`, the exact selected `blueprint.tex`, generated `data.tex`, the exact shared `aaaat.sty` source actually consumed by that render, and resulting build/PDF output. Application packets retain the selected Rendered CV project unchanged and render their cover letter with the exact Blueprint **and exact package source** retained by that Rendered CV, rather than rediscovering current presentation sources or persisting presentation ownership on editable documents.
+A Blueprint is compatible presentation source, not CV/template ownership.
 
-Document language remains document data. The current supported rendering boundary is pdfLaTeX + Babel for the bounded Latin-script set English, Catalan, German, Spanish, French, Italian and Portuguese. Supported natural names, primary language codes and region variants resolve to the corresponding Babel language; an unspecified language keeps the English baseline. Unsupported/non-Latin language values fail clearly rather than silently rendering as English. Fonts remain Blueprint-owned; there is no separate font/theme abstraction or LuaLaTeX/XeLaTeX engine matrix.
+Product Owner correction preserved by PR #350 / Issue #351 establishes:
 
-ADR 0015 remains accepted technical authority for the LaTeX2e/expl3/pdfLaTeX boundary and user source ownership. Issues #344, #351 and #355 implemented substantial portions of that boundary, but their closure is slice history rather than proof that PLAN[4] is complete. Issue #373 owns the remaining coherent package-source completion and final full-boundary revalidation; its implementation must use direct `pdflatex` and must not hard-code the unresolved reusable-source storage scope.
+- advanced-user Blueprint files live in AAAAT application-level configuration under Electron `userData`;
+- AAAAT ships an initial Blueprint and may ship more;
+- Blueprint choice is explicit render-time input;
+- Blueprint selection/default/last-used state is not persisted on CV Templates, Working CVs or cover letters merely for rendering;
+- there is one shared AAAAT package/library rather than package-per-Blueprint ownership;
+- one Blueprint contract covers CV and cover-letter presentation.
 
-A Rendered CV stores its immutable Working CV composition snapshot, including semantic section roles. A rendered cover letter stores an immutable cover-letter snapshot without introducing a generic rendered-document abstraction. Application packets retain the cover-letter snapshot used for the packet and the selected Rendered CV. Rendering is staged and a database artifact record is created only after successful compilation.
+ADR 0015 also preserves user ownership of editable Blueprints and modified package sources. Issue #344 explicitly deferred persistent reuse/selection of modified Blueprint/package sources as later PLAN[4] work. The current source model must therefore be judged against that requirement without reopening the already-settled application-level configuration decision.
 
-Every managed or exported source project contains the package/Blueprint/data files it needs and uses only project-relative references. Export copies the complete retained project to a user-selected location without moving or mutating the managed original. The renderer receives typed artifact records and privileged open/export/configuration intentions, never arbitrary internal source paths.
+Every retained/exported project contains the exact Blueprint and exact `aaaat.sty` source actually consumed, generated `data.tex`, entrypoint and build/PDF output using project-relative references.
 
-Generated portable project/output remains user-owned and exportable. Ordinary document editing does not expose raw source paths, generic render-provider concepts, Blueprint geometry, or generic external-disclosure controls. Advanced source ownership is explicit but stays outside the normal content editor; AAAAT does not provide an in-app LaTeX editor.
+Application-packet letter generation must use the presentation sources retained by its selected Rendered CV when exact presentation reproducibility requires that coupling; it must not silently rediscover different current presentation sources.
 
-## Optional intelligence and external assistants
+Renderer/preload contracts expose typed IDs/intentions, not arbitrary internal source paths. Advanced source ownership/configuration stays outside ordinary content editing; AAAAT is not an in-app LaTeX IDE.
 
-AI is optional bounded processing. AAAAT owns local domain structures, validation, mutation rules, capabilities and process/renderer boundaries; it does not own a provider's reasoning or internal policy.
+### CV section roles and language
 
-Use this operation shape:
+CV Template/Working CV composition may carry Blueprint-independent semantic section roles such as `main` / `secondary`. A Blueprint interprets those roles; TypeScript does not encode rail/column geometry.
+
+Document language is document data. The current shipped implementation uses Babel through pdfLaTeX for its bounded supported Latin-script languages and fails unsupported values clearly. Fonts remain Blueprint-owned unless later Product Owner direction changes that boundary.
+
+## Configured AI inside AAAAT
+
+AAAAT owns local domain state, context construction, validation and mutations; it owns no inference model.
+
+Use a bounded operation shape:
 
 ```text
-named purpose
-→ deliberate bounded context
-→ typed validated result
-→ operation-specific mutation/conflict rule
+user/domain intention
+→ permitted local context
+→ configured provider/runtime route
+→ compact provider request
+→ validated/partially salvageable result
+→ user/domain acceptance semantics
 → normal application service
 ```
 
-External assistants use meaningful bounded AAAAT capabilities. The carrier/host is not product meaning.
+Keep provider-facing contracts simple enough for constrained/local models where practical. Validate deterministically inside AAAAT rather than relying on provider-specific structured-output features when not necessary.
 
-`Send to my AI` is contextual. The local action binds the specific candidature, Source, information item, document or other meaningful current object into the task/context being produced. Clipboard, file and external-tool transports may carry the same bounded task. Do not persist an exclusive global selected candidature/document/item merely so a later transport can infer context. The live `opportunity_research_selected` candidature state and selector-free `opportunity_research_context_read` / `candidature_source_add` coupling are superseded implementation mechanisms; reusable task editing/copy/export/import behavior may survive after being detached from that selection model.
+AI output does not gain durable authority merely because a provider returned it. The relevant product interaction decides whether a proposal becomes retained candidature/professional/document state.
 
-The packaged MCP stdio surface and portable handoff/file carriers are implementation mechanisms, not product authority. Product acceptance depends on the concrete bounded journey and retained result rather than the carrier itself.
+AI-use/disclosure preferences are stored product state where the product requires them. Do not infer permanent privacy meaning from mutable labels, kinds or system keys unless direct Product Owner authority explicitly defines that behavior.
 
-The capability contract must not expose generic corpus browsing, arbitrary durable IDs as mutation handles, database queries, filesystem access, shell/process execution, package-manager authority, scraping or broad local write access. A host's wider OS authority remains the user's separate trust choice.
+## External AI/tool integration
 
-Meaningful parity is expressed as typed high-level product intentions, not generic CRUD. A real external-AI-first journey may return analysed/proposed candidature information, retained research Sources, document contributions, selection/tailoring intent or another bounded useful result already produced by that external AI. The contract should carry the minimum useful result for the chosen journey without exposing hidden local IDs or broad workspace authority.
+External AI is a legitimate entrance to AAAAT.
 
-The packaged app may expose a bounded local tool entry point for hosts that can start local tools. Whether MCP, host-native configuration, browser/desktop assistance, a user-owned rendezvous mechanism or another carrier is appropriate is decided from a representative real environment and journey, not from the carrier already implemented. This does not authorize a generic plugin/provider framework.
+Use meaningful bounded operations and carriers rather than exposing generic entities/CRUD:
 
-The older versioned **application handoff** remains a limited mechanism distinct from the accepted `Send to my AI` interaction. Preserve useful safety properties without treating the historical payload shape as product authority.
+```text
+meaningful task
+→ AAAAT-owned bounded context/capability
+→ suitable carrier/host
+→ useful external processing
+→ bounded returned result/action
+→ normal AAAAT mutation
+```
 
-## Setup, recovery and local ownership
+Carriers may include MCP, commands, APIs, skills/plugins, browser/desktop automation, files, clipboard or other demonstrated mechanisms. The carrier does not create product meaning.
 
-The local workspace owns data, configuration, generated document projects and retained artifacts. Backup/recovery and configuration import/export remain normal product capabilities. Reusable document-source ownership is the one current configuration-scope question intentionally left unresolved; do not infer it from this general workspace statement.
+`Send to my AI` is the ordinary user-facing task interaction established by Issue #333: editable instruction, visible bounded context, reusable task text where useful, Copy/Paste and file/connected alternatives.
 
-Setup uses one shared environment model. Rendering readiness is based on the actual production engine: direct `pdflatex`. `latexmk` may exist on a machine but is not a required AAAAT rendering prerequisite. The rendering self-test must exercise the same direct-`pdflatex` premise. The current implementation that requires both `latexmk` and `pdflatex` is stale. The current `configurator.ai` implementation projects optional AI configuration and validated operation coverage and can perform typed connection save/operation validation/validated default selection. Rejecting copy/paste prompts as the primary setup UX remains valid, but these current typed/status surfaces are only partial setup implementation until representative user environments demonstrate product-level detection/guidance/connection where justified.
+An internal selected-object state used by a particular carrier is not automatically a product defect and is not automatically product authority. Judge it by whether it preserves the user-visible task context, privacy, local ownership and bounded mutation authority. Transport-only state should remain internal and narrow rather than becoming a required workflow.
 
-Setup status is privacy-minimal and always readable. External mutation authority is separate and denied by default. The current workspace may explicitly allow installer and configurator actions independently; this grants only the documented typed AAAAT operations. No setup capability exposes arbitrary shell commands, package-manager input, filesystem selectors, generic database access, credentials, provider-specific arbitrary options or validation bypasses. Raw executable arguments or protocol vocabulary are implementation detail and are not sufficient ordinary-user setup by themselves.
+External integrations do not gain generic corpus browsing, arbitrary durable IDs as mutation handles, database queries, filesystem access or shell/process authority from AAAAT. A host's separate OS/screen/filesystem authority is the user's external trust decision.
+
+## Setup, recovery and configuration
+
+First run establishes a usable local workspace. TeX, AI and external-host integration are configured when relevant rather than blocking basic application/document use.
+
+Setup is product infrastructure. Ordinary UI describes practical outcomes rather than MCP/IPC/port/schema internals.
+
+The same underlying setup knowledge may support normal UI and optional AI-assisted configuration; do not build a general installer/orchestration platform before a concrete need exists.
+
+Workspace backup/recovery and portable AI/integration configuration are distinct boundaries. Keep secrets/local-machine concerns separate from user-owned workspace data where required.
+
+## Local ownership and privileged operations
+
+Main process owns privileged filesystem/process/dialog actions. Renderer asks through typed intentions.
+
+Generated source/output remains user-owned and exportable. Export copies retained artifacts/projects without mutating the managed original.
+
+Staged rendering records durable artifacts only after successful generation. Failures leave editable local state intact and do not install half-complete retained projects.
 
 ## Verification
 
-Tests should cover durable user journeys, domain invariants, privacy/security boundaries, data integrity and portable artifacts. They must not freeze rejected navigation labels, clipboard-prompt semantics, host-specific product meaning or other incidental implementation structure.
+Tests protect user-visible behavior, domain invariants, privacy/local ownership, security boundaries, retained data and portable artifacts—not incidental implementation syntax.
 
-Evidence is scoped to the boundary actually exercised: AAAAT's own MCP SDK client proves its MCP server, not a third-party-host journey; mocked OpenAI-compatible HTTP proves provider-contract handling, not useful behavior from an actual constrained model. Real direct-`pdflatex` compilation proves rendering/portability mechanics; it does not by itself prove the complete PLAN[4] source-ownership/design boundary. PRs #348/#353/#358 provide strong reusable evidence for unaffected TeX, Blueprint, section-role, language and packaged-runtime premises, while Issue #373 must prove the final user-owned shared package source is actually consumed and exactly retained before the PLAN gate can be judged.
+Evidence is scoped to the premise actually exercised:
 
-Outcome tests for the raw-offer journey must prove useful persisted Source state, the Product Definition's explicit post-retention manual/AI choices, and that AI suggestions are not silently made durable. Packaged-runtime verification must still prove the no-AI path remains complete.
+- unit/integration tests do not prove a real third-party AI host;
+- mocked compatible HTTP does not prove useful constrained-model behavior;
+- AAAAT's own MCP client does not substitute for an external-host journey;
+- real pdfLaTeX proves rendering/portability mechanics, not the full product/document-ownership design;
+- component tests do not alone prove coherent desktop UX.
 
-Visible UX/UI acceptance additionally requires real rendered application evidence, not component tests alone. At the eventual PLAN[5] boundary, inspect representative packaged views across first run, loaded Home/shell, Applications including both creation approaches, My information, Documents, Tags and Settings; constrained and expanded sizes; empty/sparse states; and the final supported light/dark visual presentation. The master orchestrator performs that audit; Product Owner manual screenshot QA is not a substitute.
+Reuse strong evidence until a later change materially changes the premise it demonstrated.
 
-Verification remains impact-selected through `.github/workflows/verify.yml`. Current execution state and evidence gaps belong in [CURRENT_MISSION.md](../.agentic/CURRENT_MISSION.md) and the live PR.
+## Architecture discipline
+
+Prefer the smallest coherent solution that advances the product.
+
+Do not add heavy dependencies, generic frameworks, registries, policy layers, workflow engines, migration programmes or provider abstractions without demonstrated need.
+
+When implementation and product authority conflict, correct the implementation/derived documentation rather than redefining the product to fit sunk code.

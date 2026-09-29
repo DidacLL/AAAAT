@@ -4,199 +4,176 @@ Status: **canonical product authority below current explicit Product Owner instr
 
 Historical requirements, Issues, PRs, ADRs, tests and implementations are evidence only. They do not override this document merely because they are newer, more formal or already implemented.
 
-## Purpose
+## Northstar
 
-AAAAT is a private, local workspace for candidature information, reusable professional information, and application documents/artifacts. Its purpose is convenience: reduce typing, repeated organization, searching, tool switching and friction around job applications and CV/cover-letter work.
+AAAAT is an **open-source, provider-agnostic agentic-human tool for managing job applications and producing the text/document artifacts needed for them**.
 
-AAAAT is not a job-discovery engine, applicant-tracking CRM, lifecycle/workflow manager, reminder product, generic database, knowledge-management system, AI platform, chatbot or agent orchestrator.
+The software is local-first and the user's career/application data remains user-owned. The product is not defined by one AI provider, model, host, protocol or transport. It supports human operation, AI assistance initiated from AAAAT, and bounded AAAAT operations initiated from external AI/tools as peer ways to work with the same product.
 
-The user may find opportunities manually, through websites, recruiters, another AI system, or another tool. AAAAT does not own that preceding process. It can nevertheless be entered from any of those contexts when useful material or a bounded operation reaches it.
+AAAAT exists to reduce friction around applications: less typing, repeated organization, searching, context switching and reconstruction of CV/cover-letter/application material.
+
+It must stay understandable to ordinary users and maintainable by one developer. Product quality comes from coherent workflows, clear ownership and small explicit architecture—not from enterprise ceremony, generic frameworks or a large integration platform.
+
+## Three interaction directions
+
+AAAAT supports three equally legitimate directions.
+
+### Human → AAAAT
+
+Every essential capability is usable through a coherent graphical interface without JSON, shell commands, protocol knowledge or mandatory AI.
+
+Sparse information is normal. The UI should avoid forcing large empty forms or making incomplete records feel broken. Progressive disclosure and sensible defaults should keep ordinary work direct.
+
+### AAAAT → AI
+
+When the user asks for AI assistance inside AAAAT, AAAAT owns the local product experience: it chooses/configures the intended route, prepares only the allowed context, invokes the configured intelligence, validates the result and presents it for useful review/editing.
+
+AI is optional. Manual/no-AI operation remains complete.
+
+### AI → AAAAT
+
+An external AI/tool may initiate supported AAAAT operations through an appropriate integration when that produces a useful, reliable experience.
+
+MCP, APIs, skills/plugins, commands, browser/desktop bridges, controlled files and copy/paste are possible carriers. They are not product identity and they do not justify a generic plugin/orchestration framework.
+
+External capabilities remain bounded to meaningful AAAAT intentions. They do not gain arbitrary database, filesystem, shell or generic CRUD authority merely because an AI is involved.
+
+## Product boundary
+
+AAAAT's application is a private local career/application workspace containing candidature information, reusable professional information, Sources, Tags and application documents/artifacts.
+
+AAAAT is not:
+
+- a job-discovery engine;
+- an applicant-tracking CRM or lifecycle manager;
+- a status/priority/next-action workflow product;
+- a reminder/task-management system;
+- a generic database or knowledge-management system;
+- an AI/chat destination;
+- an AI provider marketplace;
+- an agent orchestration platform.
+
+The user may discover opportunities manually, through websites, recruiters, another AI or another tool. AAAAT begins wherever useful application material or a bounded operation reaches it.
 
 ## No canonical journey
 
-AAAAT supports several direct intentions. None is the mandatory entrance to the others:
+These are peer intentions, not stages of one required workflow:
 
-- find and recall a candidature quickly;
-- create a candidature by filling useful fields directly;
-- capture new/raw candidature material with minimal effort;
-- fully inspect or edit a candidature;
-- create/edit/render CVs or cover letters without a candidature;
-- create/edit/render CVs or cover letters in candidature context;
+- find and recall an application quickly;
+- create an application by filling useful information directly;
+- retain raw application material with minimal friction;
+- fully inspect or edit an application;
 - maintain reusable professional information;
-- use optional configured AI for a bounded contextual operation;
-- receive bounded operations from an external AI/tool;
-- configure, protect, back up or integrate the local workspace.
+- create/edit/render CVs or cover letters independently;
+- create/edit/render application documents in candidature context;
+- use configured AI for a bounded operation;
+- use AAAAT from an external AI/tool;
+- configure, protect, back up and integrate the local workspace.
 
-Navigation and architecture must not force these intentions into one lifecycle or wizard.
+Navigation and architecture must not force these intentions into a wizard or lifecycle.
 
-## Candidatures
+## Applications / candidatures
 
-A candidature is the user-owned container for whatever information is useful about one opportunity/application context.
+A candidature is the user-owned container for useful information about one opportunity/application context.
 
-A candidature may contain only raw text, only a URL, one note, one field, several Sources, many fields, Tags, documents or retained application artifacts. Sparse data is normal and valid. Missing structure is not debt, incompleteness or a workflow error.
+It may contain only raw text, a URL, one note, one field, several Sources, many fields, Tags, documents or retained application artifacts. Sparse records are valid. Missing structure is not debt or workflow failure.
 
-AAAAT must never require the user to maintain status, priority, next action, stage, completeness or another lifecycle concept for a candidature to remain useful.
+AAAAT does not require status, priority, stage, next action or completeness maintenance.
 
-## Creating a candidature without forcing one style of work
+### Creating a candidature
 
-`New candidature` must support two direct approaches because both are normal:
+`New candidature` supports two direct approaches because both are normal:
 
-1. **Fill fields directly** — for users who already know the useful information and prefer a conventional field-by-field entry surface.
-2. **Paste raw material** — for users who want to retain an offer, recruiter message, copied page, URL-containing text, notes or fragments first and structure it afterward.
+1. **Fill fields directly** — conventional information entry when the user already knows what they want to retain.
+2. **Paste raw material** — retain an offer, recruiter message, copied page, URL-containing text, notes or fragments first.
 
-Neither approach is more authoritative than the other.
+Neither is the canonical route.
 
-The raw-material path can be as small as:
+The raw path can be as small as:
 
 ```text
-Paste raw material
-→ retain it as a Source
+paste raw material
+→ retain Source
 ```
 
-After that paste/retention step, the same view must make two continuations explicit at the same time:
+After retention, the product should make both continuations clear:
 
-- **send the retained material to a configured AI** to propose values for the currently defined candidature fields; and
-- **fill the candidature manually**, opening the retained raw Source beside the candidature fields so the user can copy/enter information with minimal switching.
+- use configured AI to propose information from that Source; and
+- fill/edit the candidature manually while keeping the retained Source readily visible.
 
-There is no intermediate generic “structure this candidature” step hiding those choices. The user should be able to see that one action uses AI and the other is manual.
-
-If no AI is configured, the manual side-by-side path remains complete. Future deterministic or embedded extraction of obvious values such as company, role or salary may further reduce effort, but that is an optional enhancement rather than a prerequisite or a reason to remove the manual path.
-
-Raw offer text, recruiter text, copied web content, a URL embedded in text, form material, conversation material or fragments are all valid input. The user should not need to classify the material before retaining it.
-
-Retaining the raw material is already a successful operation even if the user does nothing else.
+Retaining the Source is already successful work even if the user does nothing else.
 
 ## Sources
 
 Original retained material is first-class and remains independently useful.
 
-A Source can contain job postings, recruiter messages, URLs, application forms, conversation text, copied website material, user research, notes or other retained inputs.
+A Source may contain job postings, recruiter messages, URLs, application forms, conversation material, copied website content, user research, notes or fragments.
 
-Extraction or summarization never replaces the Source. Sources remain searchable, readable and candidature-owned.
+Extraction, summarization or AI assistance never replaces the Source.
 
-## Flexible information, shipped defaults
+## Flexible information
 
-AAAAT must retain useful information that was not predicted by the developer. Different opportunities and professions require different information.
+AAAAT must retain useful information the developer did not predict.
 
-AAAAT may ship common field definitions and labels such as company, role, salary, location, recruiter or similar values. These are useful defaults, not a permanent closed ontology.
-
-The candidature field system is **user-maintainable product data**. The user must be able to add and edit field definitions rather than being restricted to developer-shipped fields or a text-only escape hatch. Field-definition controls can be progressively disclosed so ordinary value editing stays simple, but the capability itself is not optional product direction.
-
-This matters because useful fields can differ radically by profession or search. A pilot may care about flight hours, aircraft type, licences or domestic/international operation; a software engineer may care about stack, remote policy or architecture; a script writer may care about format, genre, production context or rights. AAAAT must not encode one profession's ontology as universal.
-
-Configured AI extraction also works against the user's current field set. Therefore users must be able to shape that field set: changing which fields exist changes what information AAAAT can sensibly ask an AI to extract or help populate.
+Common fields such as organisation, role, compensation, location or recruiter are defaults, not a closed ontology. The candidature field system is user-maintainable product data: users can add and edit field definitions while ordinary value editing stays simple.
 
 The ordinary mental model is:
 
 > I want to keep this information.
 
-Not:
+not:
 
 > I want to administer a schema.
 
-Database-style field IDs, cardinality, schema concepts and type machinery must remain secondary/advanced implementation detail even though the user can manage the resulting information definitions.
+Different professions and searches need different fields. Code/schema changes must not be required merely because the user has legitimate information outside the shipped defaults.
 
-## Rapid candidature retrieval and progressive detail
+Configured AI extraction works against the user's current field set rather than a hidden developer-controlled ontology.
 
-The user should not need to learn a separate “Focus” product mode in order to understand candidature information.
+## Retrieval and presentation
 
-The Applications surface presents each candidature as one configurable information object. The same user-maintainable candidature fields drive compact corpus recognition and the richer selected-candidature view.
+Applications should be easy to recognize and recover under time pressure.
 
-A field can be marked as a **favourite** presentation field. Favourite fields appear first, in user-controlled order, and may use a user-controlled presentation prominence.
+The same user-maintainable information drives compact corpus recognition and richer selected-application detail. Users can choose favourite/primary information, order and presentation prominence without creating a second candidature model.
 
-AAAAT does not decide which candidature fields are important. Shipped field definitions such as Role, Organisation, Location or Compensation are conveniences only; they receive no identity or semantic priority because of their names or system keys. Neutral first use must still be immediately legible: enabled fields begin included equally in the primary presentation with ordinary presentation size, rather than leaving candidature cards blank until the user configures favourites. The user then demotes/unfavourites, reorders and resizes fields according to their own workflow.
+AAAAT does not assign semantic identity to fields because of their label or system key. A candidature's durable identity is its internal record identity; human-readable presentation is composed transiently from useful retained information.
 
-A candidature has no semantic identity assembled from its fields. Its durable identity is its internal record ID only. There is no `identityOrder` product concept and no derived domain label made from Role, Organisation, Source title or any other retained value.
-
-When the local UI needs a compact human reference, it composes a transient presentation from the primary/favourite fields. That presentation is not stored as candidature data, is not searchable as an extra hidden value, and must never cross an AI/privacy/external boundary as a substitute for the underlying explicitly permitted fields. A neutral fallback is only for genuinely sparse records with no retained displayable values; retained candidature information must not be hidden behind an unexplained “Saved application” placeholder.
-
-Corpus presentation must stay compact, recognisable and information-efficient. It should be an actual configurable information grid, not a generic list of label/value text lines. Presentation size belongs to this corpus/summary presentation: compact, normal and wide fields must visibly change their span/emphasis there. Editing surfaces remain content-driven and must not become larger merely because a field is wide in the corpus. Values carry the visual emphasis; labels and update metadata are secondary. One long value must not make unrelated candidature cards unnecessarily large. Search may show a bounded Source or Tag excerpt when it explains an active match, but that evidence is temporary and is not an implicit normal field.
-
-Selecting a candidature expands the same information surface instead of switching to a second near-duplicate screen. Favourite fields remain immediately visible. A compact **More** / advanced disclosure reveals the remaining enabled fields and deeper candidature-owned material when needed.
-
-The ordinary control for this is direct and local: a star/favourite affordance on a field moves it immediately into or out of the primary set. Deeper ordering or presentation controls may be progressively disclosed, but the user should not have to open a separate “Choose Focus information” configuration screen to understand the model.
-
-Displayed editable fields keep low-friction edit affordances. During a call the user must be able to correct a value or add useful information without navigating to another conceptual mode.
-
-## Complete candidature work
-
-Complete candidature work is the expanded state of the same selected-candidature surface, not a duplicate peer view.
-
-It exposes the rest of the candidature-owned information progressively: all enabled fields, Sources/raw material, Tags, linked application material, retained artifacts, relevant privacy/presentation controls, and secondary notes/reminders or provenance where useful.
-
-The user can still open a candidature directly for deliberate maintenance. Populated information is primarily readable; editing/addition happens close to the value; field-definition management and deeper machinery remain progressively disclosed.
+Selecting an application should expose progressively richer information rather than forcing the user through duplicate near-identical product modes. Displayed information keeps low-friction editing so corrections can be made during a call without leaving the current task.
 
 ## Tags
 
-## Tags
+Use **Tags** as the product/domain term.
 
-Use **Tags** consistently as the product/domain term.
+A Tag may have a canonical term, aliases, definition and user notes. Tags are reusable across applications and act as a lightweight shared glossary plus retrieval aid.
 
-A Tag can have a canonical term, aliases, definition and user notes. Tags are reusable across candidatures and act as a lightweight shared glossary/wiki plus retrieval aid.
+Applications associate with shared Tags; they do not own independent copies of Tag definitions.
 
-Example: if a candidature uses `Spring Boot`, its selected application surface can expose the stored Spring Boot definition without forcing the user into a separate knowledge-management workspace.
+Tag interaction must scale without dumping the full glossary into ordinary application work. Search/autocomplete, attach/create and contextual definition display are appropriate; ontology/knowledge-graph architecture is not.
 
-A competing `Concepts` product vocabulary is not justified. Historical `Concept` code/schema names are implementation evidence to reconcile, not product meaning.
-
-Applications contain associations to shared Tags. They never own independent copies of Tag definitions. Attaching a Tag therefore changes only the candidature-to-Tag association; editing the Tag changes the one shared canonical name/aliases/definition/notes seen wherever it is attached.
-
-Tag interaction must scale to a large glossary. Ordinary candidature work shows only attached Tags plus compact search/autocomplete for attaching an existing Tag and a create-new path when no match exists. It must never render the complete glossary as a permanent checkbox/button selection list.
-
-Optional AI extraction may use the existing Tag glossary as bounded context. It may match existing Tags or propose new candidates, but every new candidate needs a proposed definition and remains reviewable before it becomes shared workspace data.
+Optional AI may match existing Tags or propose new ones, but new shared Tag data remains reviewable before becoming durable workspace state.
 
 ## Notes and lightweight reminders
 
 Small candidature-attached notes or checkable reminders may be useful secondary information.
 
-They are not a product pillar and do not justify task management, scheduling, recurrence, lifecycle state, automatic next actions, AI planning, global reminder navigation, or primary-presentation prominence by default.
+They are not a product pillar and do not justify global task management, scheduling, recurrence, lifecycle state, automatic next actions or AI planning.
 
-The user can ignore them completely without losing the core AAAAT experience.
+## Reusable professional information
 
-## Professional information
+AAAAT maintains reusable professional information: identity/contact material, experience, education, projects, skills, certifications, languages, links, summaries and other useful career material.
 
-AAAAT maintains reusable professional information about the user: identity/contact material, experience, education, projects, skills, certifications, languages, links, summaries and any other useful career material.
+Common groups are defaults, not a closed taxonomy.
 
-Common categories are defaults, not a closed taxonomy.
+Saved variations may express reusable alternate wording/emphasis. Document-specific differences may intentionally diverge from reusable information. Neither should create cloned competing identities or force users to understand patch/rule machinery.
 
-The ordinary product concept is:
+Reusable professional-information items and candidature information may expose one understandable choice such as **AI may use this information**. Local storage, local presentation and external AI disclosure remain separate concerns.
 
-> my reusable professional information
+This definition does not infer privacy semantics from field labels, kinds, system keys or other mutable implementation metadata. Default choices are implementation/product-detail decisions only when separately supported by Product Owner authority.
 
-not internal profile architecture.
+## VCVGenerator / application artifacts
 
-Saved variations may express reusable alternate emphasis. Document-specific differences may intentionally diverge from the reusable information. Neither should create cloned competing identities or force the user to understand patch/rule machinery for normal use.
+VCVGenerator/document work is independently core, not an extension of candidature tracking.
 
-Every reusable professional-information item has one ordinary AI visibility choice: **AI may use this information**. The same meaning applies to candidature fields. When enabled, an empty candidature field may be requested during Source extraction and a populated value may be disclosed as bounded context; when disabled, it is neither requested nor disclosed. Internal implementation may separate mechanics only where a demonstrated product behavior requires it; ordinary UI and durable product meaning remain one user choice.
-
-AI-use defaults are **initialization choices only**. When an information item has an initial content kind, AAAAT should choose a sensible starting value from that initial kind; shipped candidature fields may likewise have explicit starting choices. This does not make kind, label, system key, value format, or any other editable definition into privacy semantics. Users may rename or repurpose information freely. Once created, the stored `AI may use this information` choice is independent of mutable content meaning and must not be recomputed because a kind, label, field definition, value type, or content value changes. It changes only when the user deliberately changes that choice.
-
-## CV templates, working CVs and rendered artifacts
-
-Document concepts are intentionally distinct:
-
-- **My information** is the reusable career record.
-- **Profile variant** is saved alternative wording/emphasis for reusable career information.
-- **CV template** is a reusable ordered composition of sections and selected information.
-- **Working CV** is one editable CV derived from a template, a candidature, My information, or a blank start.
-- **Rendered CV** is a generated PDF plus the content/composition snapshot that produced it.
-- **Cover letter** is normally owned by one candidature.
-- **Application packet** is a generated CV plus cover letter combination.
-
-A CV template is not a rendered CV and a PDF is not a template section. A template owns ordered sections; section names/order; selected/reordered reusable profile items; optional custom content; and, per item, a source mode of current My information, a saved profile variant, or a template-specific override. Common structures such as Profile, Experience, Projects/Selected work, Education, Skills, Languages and Links are useful section defaults, not a closed template ontology.
-
-Excluding an item from a template never removes it from My information. A profile-loaded template item follows the current reusable value. A template-specific override never mutates My information automatically. A working-document override never mutates the template or My information automatically. Where an edited value creates a real ownership decision, explicit contextual actions may save it to the template, save a new template, save a profile variant, or update My information.
-
-Rendering is an action on current working composition. It creates a separate artifact record containing the generated output and enough content/composition snapshot to inspect, duplicate, or reproduce that rendered CV. A rendered artifact may reference the template it came from but does not require a saved template relationship; unsaved document-specific changes can be rendered without silently changing reusable state.
-
-Letters remain discoverable in the document collection, but a letter created from a candidature is candidature-owned and must surface there immediately. The existing combined CV+letter behavior is an Application packet when its semantics match this meaning; AAAAT does not need a second packet engine.
-
-## VCVGenerator / CVs and letters
-
-CV/cover-letter work is independently core.
-
-A cover letter normally belongs to one candidature and should be created, found and edited from that candidature. Reusable CVs have a direct collection because one CV may serve several candidatures. Standalone cover-letter work remains possible, but it is a secondary exception rather than a peer global collection.
-
-A valid AAAAT session is simply:
+A valid session can simply be:
 
 ```text
 open AAAAT
@@ -207,41 +184,51 @@ open AAAAT
 
 No candidature and no AI are required.
 
-The same document system can also be entered in candidature context. A candidature can expose the working CVs/letters and exact retained application artifacts that belong to it without creating a separate candidature-only document engine.
+The same document system also works in candidature context so application-specific material is easy to create, find and reuse.
 
-Users own editable document content, generated source, rendered output and portable document projects. LaTeX is an implementation technology; user ownership is the durable requirement.
+Document concepts remain distinct:
+
+- **My information** — reusable professional information;
+- **Profile variant** — saved alternate wording/emphasis for reusable information;
+- **CV template** — reusable ordered content/composition;
+- **Working CV** — one editable CV composition;
+- **Rendered CV** — generated output plus the content/composition snapshot that produced it;
+- **Cover letter** — normally candidature-owned, with standalone use still possible;
+- **Application packet** — combined application output where useful.
+
+A CV template is content/composition, not a rendered PDF and not presentation-engine ownership. A Working CV can intentionally diverge from reusable information without silently rewriting it.
+
+Users own editable document content, generated source, rendered output and portable document projects. LaTeX is an implementation technology; user ownership and reproducibility are the durable product requirements.
+
+Multilingual document content is part of the intended document capability. Presentation/layout implementation belongs below this product definition.
 
 ## AI inside AAAAT
 
 AAAAT owns no model and no inference. AI is optional intelligence supplied through configured connections.
 
-AAAAT's primary direct-AI target is affordable, resource-constrained inference that users can run or obtain without depending on premium hosted tiers. Local/lightweight models are central to that target, but AAAAT remains provider- and runtime-agnostic: no provider, protocol, runtime, model family or vendor is product authority. The current OpenAI-compatible adapter is an implementation path, not the product baseline. Larger hosted models may work better, but product correctness, extraction usefulness, prompt design and response contracts must not depend on capabilities that effectively require them.
+AAAAT is provider- and runtime-agnostic. No provider, protocol, runtime, model family or vendor is product authority. Affordable/local/lightweight inference is an important target, so product correctness should not require premium hosted-model capabilities.
 
-The AI path should therefore minimize model burden: compact context, compact instructions, simple provider-facing response shapes, tolerant recovery, and local validation after inference. A partially correct local-model response is useful when its valid facts can be retained safely. One invalid or missing proposal must not discard unrelated valid proposals. Provider-side JSON-Schema constraints are used only when they are broadly compatible with the supported local runtime; validation that AAAAT can perform deterministically belongs in AAAAT rather than in model decoding.
+AI belongs beside the domain action it assists: extract information from this Source, help populate this field, explain/translate/rewrite text, tailor this CV, draft this letter, analyse application material, or perform another bounded useful task.
 
-AI belongs beside the domain action it assists: extract information from this Source into the currently defined candidature fields, help populate this field, explain/translate/rewrite this text, tailor this CV, draft this letter, perform genuine research when the chosen connection supports it, or similar bounded work.
+The AI path should minimize unnecessary model burden through compact context/instructions, simple response shapes, local validation and useful partial-result salvage.
 
-AAAAT must not create an AI destination/chat product, opportunity-ranking system, adviser workflow, provider marketplace, policy framework or generic orchestration layer.
+AI output becomes ordinary editable AAAAT information or document content through the relevant domain interaction. AAAAT should not silently turn model output into unrelated durable state merely because a route is configured.
 
-Manual/no-AI use remains complete. Accepted AI output becomes ordinary editable AAAAT information or document content.
+## External AI as an entrance
 
-## External AI is a legitimate entrance
+The user may already be working in ChatGPT, Claude, a local model app, an IDE assistant or another environment. That environment may be doing broader work such as research or job discovery before AAAAT is involved.
 
-The user may already be working in ChatGPT, Claude, a local model application, an IDE assistant or another external environment. That environment may itself be doing broader work, including research or job discovery.
+AAAAT may expose bounded capabilities so the external tool can use or retain AAAAT information without needless re-entry.
 
-AAAAT may expose bounded domain capabilities through suitable integrations so the external tool can retain or use AAAAT information without manual re-entry.
+`Send to my AI` is the ordinary product interaction for constructing/sending a bounded task from meaningful current context. Task editing, reusable instructions, copy/export, connected routes and returned-result retention may be shared across contexts.
 
-`Send to my AI` is a contextual action on the meaningful information or document the user is currently working with, not a durable global “selected object for AI” mode. A task payload binds its bounded context explicitly. Clipboard, files, MCP or another integration may carry that task, but transport convenience must not create persisted exclusive selection state whose only purpose is to let a later transport infer which candidature/document/item was meant. Useful task-editor, reusable-instruction, copy/export and returned-result mechanics may be shared across contexts without becoming a generic agent platform.
-
-Transport does not define product meaning. MCP, plugins, skills, commands, local APIs or other demonstrated bridges are mechanisms only.
-
-External capabilities are task-scoped. AAAAT must not grant arbitrary database, filesystem, shell or generic CRUD authority merely because an AI integration exists.
+The precise internal transport mechanism—including whether a carrier temporarily or durably records a selected local object—is an implementation detail unless it changes user-visible ownership, privacy or capability authority. Product correctness is the bounded, understandable task/result journey, not a prohibition or requirement for one internal selection mechanism.
 
 ## Privacy and local ownership
 
-AAAAT is local-first. The authoritative candidature data, professional information, Tags, Sources, documents, generated source, rendered output and relevant configuration belong to the user.
+AAAAT is local-first. Authoritative candidature data, professional information, Tags, Sources, documents, generated source, rendered output and relevant configuration belong to the user.
 
-These are separate concerns:
+These remain distinct:
 
 ```text
 stored locally
@@ -249,47 +236,49 @@ shown prominently in the local UI
 allowed to a particular AI operation
 ```
 
-Removing something from primary presentation does not remove it. Hiding something from AI does not hide it locally. External disclosure is evaluated per bounded operation and should expose only justified information in the least identifying useful form.
+Removing information from primary presentation does not remove it. Hiding information from AI does not hide it locally.
 
-Privacy controls must be understandable but must not dominate ordinary work.
+Privacy filtering happens before bounded context leaves AAAAT where AAAAT controls that boundary. An external agent with unrestricted filesystem or screen access is a separate trust decision and cannot be made safe by pretending the provider boundary is stronger than it is.
+
+Privacy controls must be understandable without dominating ordinary work.
 
 ## Setup, recovery and integrations
 
+Installation/configuration is product infrastructure, not something ordinary users must solve manually.
+
 First run primarily establishes a usable local workspace. Create/open are normal; restore/recovery is secondary and discoverable.
 
-TeX, AI connections and external-host integration are configured when relevant, not as prerequisites to basic candidature/document use.
+TeX, AI connections and external-host integration are configured when relevant rather than blocking basic application/document use.
 
-Setup should answer practical user questions rather than expose MCP, ports, schemas, provider internals or other implementation vocabulary.
+Setup should answer practical user questions instead of exposing MCP, ports, schemas or provider internals. The same underlying setup knowledge may support both guided UI and AI-assisted setup where useful.
 
 Configuration portability and full workspace backup are distinct concerns.
 
 ## Product character
 
-AAAAT should feel direct, fast, calm, local, legible, stable, information-efficient, professional and flexible.
+AAAAT should feel direct, fast, calm, local, legible, information-efficient, professional and flexible.
 
-At constrained desktop sizes, give the current intention most of the available space instead of compressing several persistent panes. Scrolling/transition is preferable to clipping or unreadable multi-column density.
+At constrained desktop sizes, give the current intention most of the useful space instead of compressing several permanent panes. Scrolling/transition is preferable to clipping or unreadable density.
 
-The visual direction may be distinctive, but decoration must never reduce readability or information clarity.
+The visual direction may be distinctive, but decoration must not reduce readability.
 
-## Explicit non-goals
+## Engineering shape
 
-Do not derive product work from familiar industry patterns. In particular, AAAAT does not require:
+AAAAT is an open-source personal project maintained by one developer with AI assistance.
 
-- job discovery as a native core workflow;
-- candidature lifecycle/stage management;
-- status/priority/next-action maintenance;
-- completeness scoring;
-- opportunity ranking or automatic advice;
-- reminder/task-management architecture;
-- a general AI/chat workspace;
-- a generic document warehouse;
-- a generic knowledge-management workspace;
-- a dashboard/widget framework;
-- production/enterprise compatibility ceremony before a real baseline exists;
-- generic provider, permission, policy or orchestration frameworks.
+Architecture should prefer:
+
+- clean explicit boundaries;
+- small abstractions;
+- minimal runtime dependencies;
+- direct vertical slices that leave useful behavior;
+- typed validation and narrow privileged boundaries;
+- no speculative framework, registry, plugin system, workflow engine or compatibility programme.
+
+Implementation history is not product authority. Before a real-use compatibility baseline exists, wrong development representations should be corrected directly rather than preserved through migration ceremony.
 
 ## Historical interpretation rule
 
-Old Smart View, Detailed View, User View, `Concepts`, reminder-heavy Focus, migration-era architecture and other implemented/generated designs may contain evidence of underlying needs but are not reusable solutions by default.
+Preserved owner-source material explains provenance and intent. Old implementations, generated Issues/ADRs/tests and prior PLAN states are evidence, not automatic requirements.
 
-When history conflicts, recover the user intention and preserve only what remains independently justified by this product definition and current explicit Product Owner instruction.
+When history conflicts, recover the Product Owner intention first. Preserve proven implementation only where it remains independently justified by that intention.
