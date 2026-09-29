@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,10 +75,19 @@ vi.mock("../src/renderer/AiTaskStatus", () => ({ AiTaskStatus: () => null }));
 vi.mock("../src/renderer/WorkspaceRailStatus", () => ({ WorkspaceRailStatus: () => null }));
 vi.mock("../src/renderer/WorkspaceRecoveryPanel", () => ({ WorkspaceRecoveryPanel: () => null }));
 vi.mock("../src/renderer/SettingsWorkspace", () => ({ SettingsWorkspace: () => <section>Settings</section> }));
+vi.mock("../src/renderer/TagVisor", () => ({ TagVisor: () => null }));
 
 import { App } from "../src/renderer/App";
 
 const workspace = { rootPath: "/tmp/aaaat-mutation-safety" };
+const emptyCollections = {
+  templates: [],
+  workingCvs: [],
+  renderedCvs: [],
+  letters: [],
+  renderedLetters: [],
+  applicationPackets: [],
+};
 
 beforeEach(() => {
   Object.defineProperty(window, "aaaat", {
@@ -88,6 +97,13 @@ beforeEach(() => {
         current: async () => workspace,
         recent: async () => workspace.rootPath,
         status: async () => ({ demo: false }),
+      },
+      candidatures: {
+        list: async () => [],
+        listFields: async () => [],
+      },
+      documentDomain: {
+        collections: async () => emptyCollections,
       },
     },
   });
@@ -104,8 +120,8 @@ describe("renderer mutation safety", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App />);
 
-    const home = await screen.findByRole("region", { name: "Home" });
-    await user.click(within(home).getByRole("button", { name: "Open CVs" }));
+    await screen.findByRole("region", { name: "Home" });
+    await user.click(screen.getByRole("button", { name: "CVs" }));
 
     const draft = screen.getByRole("textbox", { name: "Draft CV title" });
     await user.type(draft, "Unsaved CV");
@@ -124,8 +140,8 @@ describe("renderer mutation safety", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<App />);
 
-    const home = await screen.findByRole("region", { name: "Home" });
-    await user.click(within(home).getByRole("button", { name: "Open CVs" }));
+    await screen.findByRole("region", { name: "Home" });
+    await user.click(screen.getByRole("button", { name: "CVs" }));
     await user.click(screen.getByRole("button", { name: "Open Saved CV" }));
     await user.click(screen.getByRole("button", { name: "Open My information" }));
 
