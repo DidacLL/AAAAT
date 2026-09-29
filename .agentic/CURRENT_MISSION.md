@@ -3,6 +3,7 @@
 Current explicit Product Owner instruction is highest authority.
 
 Current main at recovery start: `3873e3e164874a79c7690490fcd892b901917c53`.
+Recovery coordination: PR #378.
 
 The September 28 authority audits became over-scoped. They mixed legitimate implementation review with new product interpretations, changed derived PLAN state from those interpretations, and in PR #375 promoted some audit conclusions into `PRODUCT_DEFINITION.md` itself. Do not continue implementation from that audit state.
 
