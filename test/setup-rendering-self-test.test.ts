@@ -45,6 +45,25 @@ describe("rendering self-test", () => {
     expect(existsSync(projectPath)).toBe(false);
   });
 
+  it("rejects a runner result that does not produce build/main.pdf", async () => {
+    environmentSnapshotMock.mockResolvedValue({
+      tex: { documentRenderingReady: true },
+    });
+
+    let projectPath = "";
+    runPdfLatexMock.mockImplementation(async (candidatePath: string) => {
+      projectPath = candidatePath;
+      expect(existsSync(path.join(candidatePath, "main.tex"))).toBe(true);
+    });
+
+    await expect(runRenderingSelfTest("/workspace")).rejects.toThrow(
+      /without producing a PDF/i,
+    );
+    expect(runPdfLatexMock).toHaveBeenCalledTimes(1);
+    expect(projectPath).not.toBe("");
+    expect(existsSync(projectPath)).toBe(false);
+  });
+
   it("does not claim a self-test passed when pdflatex is unavailable", async () => {
     environmentSnapshotMock.mockResolvedValue({
       tex: { documentRenderingReady: false },
