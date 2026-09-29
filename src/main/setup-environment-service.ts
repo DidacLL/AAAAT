@@ -16,7 +16,6 @@ import {
 } from "./ai-connection-service";
 
 const probeArguments: Readonly<Record<SetupTexCommand, readonly string[]>> = Object.freeze({
-  latexmk: Object.freeze(["-v"]),
   pdflatex: Object.freeze(["--version"]),
 });
 
@@ -130,13 +129,13 @@ export async function getSetupEnvironmentSnapshot(
   probe: TexProbe = probeSetupTexCommand,
 ): Promise<SetupEnvironmentSnapshot> {
   const ready = workspaceReady(rootPath);
-  const [latexmk, pdflatex] = await Promise.all([probe("latexmk"), probe("pdflatex")]);
+  const pdflatex = await probe("pdflatex");
 
   return setupEnvironmentSnapshotSchema.parse({
     workspaceReady: ready,
     tex: {
-      commands: [latexmk, pdflatex],
-      documentRenderingReady: latexmk.available && pdflatex.available,
+      commands: [pdflatex],
+      documentRenderingReady: pdflatex.available,
     },
     ai: aiProjection(rootPath, ready),
   });
