@@ -902,7 +902,7 @@ export function CandidaturesWorkspace({
         ) : null}
       </section>
 
-      <details className="candidature-more" defaultOpen={initialTask !== undefined}>
+      <details className="candidature-more">
         <summary>More</summary>
         <div className="candidature-more-content">
           <section className="section-surface candidature-information-surface" aria-label="More application information">
