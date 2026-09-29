@@ -42,7 +42,7 @@ async function reservePort(): Promise<number> {
         reject(new Error("Could not reserve a packaged document port"));
         return;
       }
-      server.close((error) => (error ? reject(error) : resolve(address.port)));
+      server.close((error) => (error ? reject(error) : resolve(address.port));
     });
   });
 }
@@ -71,7 +71,7 @@ async function waitForDebugger(
   throw new Error(`Packaged AAAAT did not expose its test endpoint: ${processError()}`);
 }
 
-function installFakeLatexmk(root: string): string {
+function installFakePdfLatex(root: string): string {
   const tools = path.join(root, "tools");
   mkdirSync(tools);
   const script = path.join(tools, "fake-latex.js");
@@ -84,12 +84,12 @@ fs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), "%PDF-1.4\\n% pa
 `,
     "utf8",
   );
-  const executable = path.join(tools, "latexmk");
+  const executable = path.join(tools, "pdflatex");
   writeFileSync(executable, `#!/usr/bin/env node
 require(${JSON.stringify(script)});
 `, "utf8");
   chmodSync(executable, 0o755);
-  writeFileSync(path.join(tools, "latexmk.cmd"), `@node "${script}" %*\r\n`, "utf8");
+  writeFileSync(path.join(tools, "pdflatex.cmd"), `@node "${script}" %*\r\n`, "utf8");
   return tools;
 }
 
@@ -223,7 +223,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
   mkdirSync(workspace);
   mkdirSync(userData);
   initializeWorkspaceFixture(workspace);
-  const toolsPath = installFakeLatexmk(root);
+  const toolsPath = installFakePdfLatex(root);
   const appData = prepareAppData(userData, workspace);
   let running: RunningApp | undefined;
 
