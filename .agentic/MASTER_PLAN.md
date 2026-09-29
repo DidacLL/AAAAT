@@ -1,242 +1,173 @@
 # AAAAT master plan
 
-This is the durable sequencing and owner-requirements record for the path to alpha. Current explicit Product Owner instruction remains higher authority; repository authority is resolved through `AGENTS.md`.
+This is the durable sequencing record for the path to alpha. Current explicit Product Owner instruction and `PRODUCT_DEFINITION.md` are higher authority. `CURRENT_MISSION.md` owns the active run.
 
-`CURRENT_MISSION.md` describes the active run. This file preserves later PLANs and owner findings so they are not lost when missions, issues, PRs, or agents change.
+Do not treat historical PLAN completion flags as product authority. A PLAN is a development/acceptance grouping beneath the AAAAT northstar.
 
-## Current execution checkpoint — 2026-09-28 full authority audit
+## Northstar
 
-Audit target main: `1f68eb5dfdc1e4c78d8d179e993d63798738ebca` (PR #374 recovery merge).
+AAAAT is an **open-source, provider-agnostic agentic-human tool for managing job applications and producing the text/document artifacts needed for them**.
 
-The audit found additional drift after the first PLAN[4]/PLAN[5] recovery. This checkpoint supersedes older status statements below where they describe a PLAN as accepted or preserve implementation assumptions contradicted by current Product Owner authority.
+The product supports Human → AAAAT, AAAAT → AI and AI → AAAAT as peer interaction directions. Manual/no-AI use remains complete. Provider/model/host/protocol/carrier choices are implementation mechanisms. Local authoritative data and generated artifacts belong to the user.
 
-- **PLAN[0] — useful integrated baseline retained, acceptance qualification reopened.** Flexible candidature data, no semantic field-derived identity, explicit field-level AI proposal review, partial-result salvage, local/manual completeness and no lifecycle requirement remain sound. The current New application composition and legacy background `application-document-preparation.ts` are not accepted: they combine the two creation intentions and directly persist AI-generated candidature/document changes without the deliberate acceptance used elsewhere.
-- **PLAN[1] — retained.** Real-behavior test-basis cleanup remains compatible with current authority. Tests that encode superseded product meaning must still be rewritten or deleted.
-- **PLAN[2] — real-host evidence retained; current interaction contract incomplete.** The demonstrated local-computer and no-local third-party-host journeys remain real evidence for those carrier/boundary premises. The current Product Owner model makes `Send to my AI` contextual; the live durable `opportunity_research_selected` candidature state and selector-free context/source round trip are superseded transport scaffolding, not current product state. A correction that materially changes the external context/return boundary requires representative revalidation; ordinary UI wording does not.
-- **PLAN[3] — retained.** Main-process composition, sandboxed renderer and dependency-health findings remain sound.
-- **PLAN[4] — ACTIVE / NOT ACCEPTED.** Existing document infrastructure is substantial, but three live gaps are confirmed: production/setup incorrectly require `latexmk` instead of direct `pdflatex`; reusable modified shared `aaaat.sty` is not consumed by later renders; packet-letter generation does not yet prove reuse of the exact package source retained by the selected Rendered CV. Issue #373 owns the remaining package/source boundary after a direct-`pdflatex` correction.
-- **PLAN[5] — BLOCKED / NOT ACCEPTED.** Merged UX slices #360/#362/#365/#369 are salvageable implementation material only. Coherent visual/interaction acceptance still requires the full current Product Definition, Issue #314 owner-acceptance correction where consistent, and mandatory visual direction.
+VCVGenerator/document work is independently core. AAAAT is not an ATS lifecycle product, job-discovery engine, AI/chat platform or generic agent/plugin framework.
 
-## Durable audit corrections
+Architecture stays small, explicit and maintainable by one developer.
 
-### AI visibility is persisted state, not inferred semantics
+## Recovery checkpoint — 2026-09-29
 
-Every reusable professional-information item and candidature field has one ordinary `AI may use this information` choice.
+The September 28 audits were over-scoped. They identified some real implementation questions but also introduced new product interpretations and used those interpretations to reopen PLANs. PR #375 then wrote some of those conclusions into `PRODUCT_DEFINITION.md`, creating a circular authority problem.
 
-A starting value may be chosen sensibly from an item's **initial** content kind, and shipped candidature fields may have explicit starting choices. These are initialization decisions only. Kind, label, `system_key`, value format, description and retained content are mutable user data; none is durable privacy meaning. Once created, ordinary edits must leave the stored AI-use choice unchanged until the user explicitly changes it.
+The canonical Product Definition is being repaired before PLAN status is reclassified.
 
-Current blanket database defaults of `ai_use_allowed = 1` for new profile items and user-created candidature fields therefore need correction. Do not replace them with a permanent closed taxonomy or a rule that continuously infers privacy from kind.
+During this recovery:
 
-### `Send to my AI` is contextual
+- preserve real implementation/evidence;
+- do not preserve an audit conclusion merely because it was merged;
+- do not restore an older PLAN flag mechanically;
+- separate product meaning, PLAN acceptance and implementation debt;
+- distinguish a user-visible capability boundary from an internal transport/mechanism choice.
 
-The action belongs beside meaningful current work: a candidature, Source, information item, document or another bounded object. The generated task explicitly carries the permitted context for that action.
+## PLAN[0] — integrated candidature/domain baseline
 
-Clipboard, files, MCP or another bridge may carry the task. Carrier convenience must not create a durable exclusive “selected candidature/document/item for AI” state merely so a later transport can infer context.
+Purpose: establish the local application/candidature domain and a useful human-operable baseline.
 
-Preserve the useful candidature task-editor mechanics already demonstrated where they fit the corrected model: editable task instruction, shipped/user reusable tasks, visible bounded context, copy/export, paste/import returned result and retention as ordinary AAAAT data. Detach those mechanics from `opportunity_research_selected` and selector-free transport coupling.
+Durable product foundations demonstrated by the PLAN[0] lineage include:
 
-Independently bounded capabilities such as `candidature_create`, `application_documents_create`, and privacy-filtered `career_context_read` are not invalidated merely because the selected-candidature research mechanism is superseded.
-
-### AI output becomes durable deliberately
-
-The current field-level candidature AI path is the model to preserve: suggestions remain transient until the user chooses `Use this value`, accepts a corrected value, creates/uses a proposed field, or accepts a Tag. Direct document AI likewise updates editable in-memory draft state and requires Save.
-
-The legacy New application background helper is the exception: it writes extracted candidature values, CV ordering and cover-letter content directly after save. Replace/remove that path; do not normalize it through tests or wording.
-
-### Document engine is direct `pdflatex`
-
-ADR 0015 fixes pdfTeX through pdfLaTeX. `latexmk` is not a product prerequisite.
-
-Production rendering, environment readiness, rendering self-test and ordinary user guidance must exercise the same direct-`pdflatex` premise. Preserve bounded noninteractive invocation, timeout/process-tree safety and staged artifact creation.
-
-### Reusable document-source storage scope is unresolved
-
-ADR 0015 requires user-owned editable Blueprints and modified package sources. It does **not** settle whether the reusable editable source area is application-level configuration, workspace-owned or another portable scope.
-
-The existing Electron `userData/blueprints` location and the earlier Issue #373 application-level proposal are implementation/design hypotheses, not authority. Do not hard-code final source placement until the Product Owner settles this consequential ownership/portability choice.
-
-Whichever scope is chosen, there remains one shared package source rather than package-per-Blueprint ownership; TypeScript owns generated `data.tex`; editable CV/template/letter records do not own package or Blueprint selection; each render retains the exact package + Blueprint actually consumed.
-
-## Recovery debts that must not be lost
-
-- setup UX remains partial and too technical; raw MCP/executable/setup-harness vocabulary is not an accepted ordinary-user journey;
-- optional AI connection setup/routing has useful implementation and real production-path evidence, but provider/protocol details remain implementation rather than product authority;
-- current rendering prerequisite detection/self-test are stale because they require `latexmk`; document editing remains valid without TeX while PDF rendering naturally requires a working direct `pdflatex`;
-- `installer.ai` and `configurator.ai` remain bounded optional mechanisms, not product pillars; ordinary-user usefulness/presentation stays partial;
-- PR #319 removed prior VS Code setup and external CV description/content/render capabilities; restore nothing merely because it once existed;
-- the older JSON `applicationHandoff` is separate mechanism history, not the current `Send to my AI` product model;
-- OpenAI-compatible remains an adapter, not provider/runtime authority;
-- README/User Guide and several ADRs/tests still describe stale Focus, `Parse with AI`, `Concepts`, selected-candidature research or old setup assumptions; update them with the implementation corrections rather than documenting unimplemented target behavior as current fact;
-- the Product Owner is not routine QA/transport; manual real-environment checks are scarce boundary evidence and are rerun only when a changed premise requires them;
-- substantial implementation belongs to a bounded specialist followed by independent orchestrator review; small deterministic corrections may be direct.
-
-## Proven technical foundations to preserve
-
-Unless a directly affected correction demonstrates otherwise:
-
-- one local authoritative workspace and direct current-schema correction before any real-use compatibility baseline;
-- sandboxed/context-isolated renderer, Node integration off, webviews off and no arbitrary BrowserWindow minimum;
-- typed/domain validation and normal application-service durable mutations;
-- flexible candidature field definitions without semantic identity from label or system key;
-- favourite/order/presentation preferences as local presentation state;
-- no required status/priority/stage/next-action/completeness lifecycle;
-- first-class Sources, bounded shared Tags and reusable professional information;
-- read-first/profile-variant/document composition mechanics where they fit final UX;
-- minimal runtime dependency set and no ORM/design-system/state-framework requirement;
-- robust workspace backup/recovery integrity model and separate AI configuration portability;
-- LaTeX2e public API + expl3 internals, TypeScript `data.tex`, semantic `main`/`secondary` roles, bounded Babel languages, immutable render snapshots, duplicate/resume and portable retained project model where unaffected.
-
-## Sequence to alpha
-
-### PLAN[0] — integrated candidature/domain baseline, qualified recovery
-
-Retain:
-
-- one configurable Applications information model;
-- no field-derived candidature identity;
-- user-controlled favourite/order/presentation;
-- sparse candidature validity;
+- sparse candidatures;
+- flexible user-maintainable candidature information;
 - Sources retained independently from extraction;
-- local/manual/no-AI completeness;
-- explicit review before ordinary AI proposals become durable;
-- current-schema direct correction and proportional verification.
+- no required lifecycle/status/priority/next-action model;
+- user-controlled primary/favourite presentation;
+- manual/no-AI operation;
+- bounded AI assistance with local validation/partial-result handling;
+- narrow typed renderer/main-process mutation boundaries.
 
-PR #326 remains real evidence that one target-scoped constrained-model extraction using `qwen2.5:0.5b-instruct` via Ollama produced a useful result while partial-result validation retained valid facts. The broader four-field request timed out at the intended 15-minute ceiling, so do not generalize that evidence.
+Later UX/product refinement does not automatically invalidate this baseline. Conversely, a PLAN[0] completion flag does not exempt later behavior from the current Product Definition.
 
-Current recovery still required:
+Current classification: **re-evaluate after authority recovery; do not use PR #375's automatic reopening as authority.**
 
-- replace the one-screen New application + pre-save `Parse with AI` composition with the Product Definition's two direct creation approaches;
-- after raw Source retention, expose peer `Send to AI` and `Fill manually` continuations;
-- remove the legacy background path that directly persists AI extraction/document changes;
-- correct AI-use initialization so initial defaults are sensible but never become mutable-kind semantics.
+## PLAN[1] — real test basis
 
-### PLAN[1] — real test basis
+Purpose: keep verification around real user/domain behavior rather than development-era generated guardrails.
 
-Retain the smaller basis around actual user/domain behavior. Rewrite or delete tests that freeze superseded development representations, including selected-candidature external research, blanket AI-use defaults, `latexmk` prerequisites and obsolete New application behavior.
+Tests are evidence only for the premise they encode. A green test does not preserve a poisoned product assumption.
 
-A green test run proves only the contract represented by the current tests; poisoned tests do not create authority.
+Current classification: **retained unless a directly affected authority correction proves otherwise.**
 
-### PLAN[2] — external-AI-originated journeys, evidence retained / interaction correction required
+## PLAN[2] — external-AI-originated journeys
 
-Prior evidence remains valuable:
+Purpose: demonstrate useful AAAAT work originating in external AI environments without turning one carrier into product architecture.
 
-- a real local-computer/tool-capable host journey through llama.cpp Web UI + Granite 4.1 3B;
-- a real no-local-computer path using portable task context/result return;
+Important evidence already exists:
+
+- real local-computer/tool-capable external-host journey through llama.cpp Web UI + Granite;
+- real no-local-computer journey using a portable bounded task/result carrier;
 - useful returned work retained visibly in AAAAT;
-- a candidature task editor with editable task text, reusable tasks, bounded visible context, Copy/Paste and file alternatives;
-- reusable external-host guidance separate from individual task payloads.
+- candidature-level `Send to my AI` interaction with editable task text, shipped/user reusable tasks, visible bounded context, Copy/Paste and file alternatives;
+- reusable host guidance separated from individual task payloads.
 
-The current Product Owner contract supersedes the durable “selected candidature for external opportunity research” state. Correct the product interaction so `Send to my AI` binds its context directly rather than setting `opportunity_research_selected`. The selector-free `opportunity_research_context_read` / `candidature_source_add` pair and candidature-specific saved research-template service are implementation history unless a capability survives independently in the corrected contextual model.
+Issue #333 is the key Product Owner correction for the accepted user-facing interaction. It requires a useful `Send to my AI` task experience and bounded context/return authority; it does **not** establish a product rule forbidding every internal local-selection mechanism used by a carrier.
 
-Clipboard, files, MCP, browser/desktop automation, synchronized rendezvous or another carrier may support a concrete host. None defines product meaning. Do not build a generic provider/plugin/orchestration framework.
+Provider/host/carrier choices remain evidence fixtures.
 
-When the corrected external context/return boundary is implemented, rerun only the representative evidence materially affected by that change; do not repeat unrelated historical demonstrations.
+Current classification: **re-evaluate from Issue #333 + real-host evidence; PR #375's transport-state reopening is not authority.**
 
-### PLAN[3] — architecture and dependency health — retained
+## PLAN[3] — architecture and dependency health
 
-Keep the completed main-process composition/readability/dependency health work. Avoid architecture churn for its own sake.
+Purpose: keep the Electron/React/TypeScript/SQLite application understandable and explicit without architecture churn.
 
-### PLAN[4] — document/LaTeX package and AAAAT integration — ACTIVE / NOT ACCEPTED
+Retain where independently justified:
 
-Retain and revalidate useful existing work:
+- explicit main-process composition;
+- sandboxed/context-isolated renderer;
+- narrow typed preload/API boundaries;
+- small runtime dependency set;
+- direct application-service mutations;
+- no speculative ORM/event-bus/plugin/workflow framework.
 
-- typed editable CV/template/letter state;
-- LaTeX2e public commands with expl3 internals;
-- TypeScript-generated `data.tex` carrying document data and semantic section roles rather than geometry;
-- one shipped Blueprint covering CV and cover-letter presentation;
-- render-time Blueprint choice without Blueprint ownership on editable document records;
-- same Working CV renderable through different Blueprints;
-- CV Template / Working CV / Rendered CV ownership separation;
-- `main` / `secondary` semantic roles independent from concrete Blueprint geometry;
-- immutable Rendered CV/letter snapshots and duplicate/resume behavior;
-- bounded pdfLaTeX/Babel Latin-script language handling and Blueprint-owned fonts;
-- staged rendering, multipage/content-survival and portable retained projects.
+Current classification: **retained.**
 
-Corrected active boundary:
+## PLAN[4] — document/LaTeX package and AAAAT integration
 
-1. Replace production `latexmk` invocation with direct `pdflatex` and align setup readiness/self-test/user guidance.
-2. Establish one reusable user-owned editable shared `aaaat.sty` source, seeded from the shipped default when first established and never silently overwritten once owned.
-3. Preserve user-owned compatible Blueprint choice, but do not assume the current `userData/blueprints` scope is final authority.
-4. Every render retains the exact package source + exact selected Blueprint source it actually consumed.
-5. Application-packet letter generation uses the exact retained package **and** Blueprint from the selected Rendered CV.
-6. Editable CV/template/letter persistence continues to own neither package nor Blueprint selection.
-7. No migration framework, package registry, marketplace, package-per-Blueprint model, layout DSL, drag/drop designer, font/theme/image system or alternate engine is justified.
+Purpose: deliver the real VCVGenerator/document source/rendering model and integrate it with AAAAT.
 
-Issue #373 owns this final package/source outcome. The reusable source placement/portability scope is one unresolved Product Owner decision. Direct-`pdflatex` correction proceeds independently while that decision is obtained.
+Strong implemented/evidenced foundations include:
 
-Closing #373 never automatically closes PLAN[4]. The orchestrator independently compares the final implementation and real evidence to ADR 0015, Product Definition and direct owner decisions.
+- typed CV/template/letter state;
+- LaTeX2e public package API with expl3 internals;
+- pdfTeX through pdfLaTeX;
+- TypeScript-generated `data.tex`;
+- one Blueprint contract for CV and cover-letter presentation;
+- render-time Blueprint choice without Blueprint ownership on editable CV records;
+- semantic `main` / `secondary` CV section roles independent from concrete layout geometry;
+- immutable rendered snapshots and portable retained/exported source projects;
+- bounded Latin-script Babel behavior and Blueprint-owned fonts;
+- real multipage/content-survival and packaged-runtime evidence.
 
-### PLAN[5] — coherent UX/UI refinement — BLOCKED / NOT ACCEPTED
+Owner decisions preserved in PR #350 / Issue #351 establish application-level advanced-user Blueprint configuration under Electron `userData`, one shared AAAAT package/library, and render-time Blueprint selection rather than per-CV presentation ownership.
 
-PLAN[5] starts only after genuine PLAN[4] acceptance and after earlier domain/AI contradictions that would poison the final interaction are corrected.
+One real deferred question must be judged carefully: ADR 0015 preserves user ownership of modified package sources, and Issue #344 explicitly recorded persistent reuse/selection of modified Blueprint/package sources as later PLAN[4] debt. The Blueprint side was subsequently implemented; current rendering still sources the shipped package unless/until the shared-package model is completed.
 
-Issues #360/#362/#365/#369 remain implementation-slice history. Keep useful behavior only where it survives the coherent design.
+PR #377 changed production/setup/self-test to direct `pdflatex` and has strong real evidence. Preserve it if technically sound. Do **not** describe direct invocation as a Product Owner requirement: ADR 0015 requires pdfTeX through pdfLaTeX, not one wrapper/invocation command.
 
-#### Global interaction/visual acceptance boundary
+Issue #373 currently records the application-level shared-source model instead of asking the Product Owner to repeat that decision. Its necessity and exact acceptance boundary must be confirmed after the canonical/technical authority repair.
 
-The final visible candidate must coherently cover:
+Current classification: **under recovery; substantial implementation/evidence retained, final acceptance to be re-evaluated against the recovered document ownership requirement.**
 
-- first-run workspace entry with Create/Open primary and recovery secondary;
-- loaded shell that gives one principal task the useful viewport at constrained sizes;
-- branded loaded Home as concise landing console, not workspace-entry launcher or metrics framework;
-- Applications retrieval/capture as primary composition, configuration deeper;
-- two direct New application approaches: structured direct entry and raw-material capture;
-- raw Source retention as complete work followed by peer `Send to AI` and `Fill manually` continuations;
-- selected application as one coherent information surface with schema machinery progressive;
-- read-first My information and CV/Documents work;
-- contextual AI-use controls that read as properties/actions of information;
-- Tags as bounded shared glossary/retrieval aid without permanent glossary administration crowding the shell;
-- intentional sparse/empty states;
-- clean Settings information architecture and contextual capability handoffs;
-- dirty-state/navigation safety where already correct.
+## PLAN[5] — coherent product UX/UI
 
-`docs/UX_VISUAL_DIRECTION.md` is mandatory for every visible UI run. The target is friendly worn retrofuturism with professional clarity: repaired field-terminal/workshop machine framing, paper/dossier information surfaces, restrained mid-century industrial cues and warm weathered materials. Reject generic SaaS minimalism, developer dashboards, aggressive cyberpunk and decoration that harms readability.
+Purpose: turn the implemented product capabilities into the intended low-friction AAAAT experience rather than a set of technically correct forms/panels.
 
-Historical research assets under `docs/owner-source/`—`AAAATART.png`, paired dark/light logos, banners, backgrounds and loading art—must be inspected directly during coherent shell/Home/onboarding/theme work. They are research inputs, not a requirement to reproduce an old mockup or build a heavy theme framework.
+The final experience must be judged against the whole Product Definition, not isolated component headings.
 
-#### Loaded Home
+Important requirements/evidence include:
 
-Loaded Home is a **landing console** combining AAAAT identity with concise useful operational shorthand.
+- first-run Create/Open with recovery secondary;
+- loaded Home as a useful branded landing surface rather than another workspace-entry launcher;
+- fast Applications retrieval and coherent selected-application work;
+- direct structured entry and raw-material capture as peer creation paths;
+- retained raw Source followed by clear AI-assisted and manual continuations;
+- user-maintainable information without schema-first language;
+- read-first My information and document work;
+- contextual AI/disclosure controls;
+- Tags as bounded shared glossary/retrieval aid;
+- practical Settings language;
+- meaningful sparse/empty states;
+- genuinely adaptive constrained/expanded desktop layouts;
+- AAAAT's owner-approved visual direction rather than generic SaaS/dashboard styling.
 
-Once a workspace is loaded, the landing body must not contain `New workspace`, `Open existing workspace`, `Open demo` or equivalent workspace-entry actions. Workspace switching/creation belongs in compact shell/workspace interaction or Settings. Home may surface meaningful state/continuations, but it must not duplicate every rail badge or become a dashboard framework.
+Issue #314 and later Product Definition corrections are important product evidence, but historical wording such as separate Focus modes must be interpreted against the current canonical interaction model rather than copied mechanically.
 
-#### Candidature information
+Issues #360/#362/#365/#369 contain useful renderer work and should be retained where it fits the final coherent UX.
 
-The structural model remains one configurable field surface with favourite/primary presentation and progressive disclosure. Editing, AI use and presentation controls are contextual actions on the same information object; glyph/button mechanics that fragment one field into several unrelated-looking controls are not accepted merely because they are accessible.
+Current classification: **pending recovery of preceding PLAN boundaries and then coherent integrated acceptance; do not fragment into cosmetic micro-patches.**
 
-#### Tags
+## Evidence policy
 
-Tags remain reusable workspace vocabulary/glossary and retrieval aids. Compact attach/search/create and a shared visor are useful only where they fit the final constrained shell. No ontology/knowledge graph.
+Evidence proves only the premise exercised.
 
-#### My information
+- mocked providers do not prove useful constrained-model behavior;
+- AAAAT's own client does not prove a third-party-host journey;
+- real external-host evidence remains reusable until the relevant context/carrier/mutation premise materially changes;
+- real pdfLaTeX compilation proves rendering mechanics/portability, not by itself the complete document ownership/product model;
+- component tests do not by themselves prove coherent UX.
 
-Reusable professional information is readable content first. Variants and career preferences are contextual parts of the same model. AI visibility remains understandable and secondary. Initial AI-use defaults may be content-kind-informed, but kind remains open/custom and later edits never infer privacy state.
-
-#### AI settings and guidance
-
-User-editable reusable AI guidance belongs clearly in AI Settings. Action surfaces execute contextual operations rather than competing prompt-configuration systems. Current `installer.ai` / `configurator.ai` / setup-harness vocabulary is implementation evidence, not ordinary-user language.
-
-#### CV/Documents
-
-Document work is read-first and composition-shaped. Preserve final PLAN[4] ownership/render semantics. In the collection, reusable CV work is primary; candidature-owned letters/artifacts surface from their candidature, while standalone cover-letter creation remains a secondary exception rather than peer global prominence.
-
-## Verification policy
-
-Use focused verification during development and stronger runtime/package evidence at meaningful boundaries.
-
-A green run proves only the premise it exercised. Synthetic providers do not prove actual constrained-model usefulness; AAAAT's own MCP client does not prove a third-party-host journey; direct `pdflatex` proves rendering mechanics but not the whole package/source design.
-
-Reuse previous real evidence where the changed code cannot affect its premise. A change from selected-candidature external state to explicitly contextual tasks **does** materially alter the external context/return premise and requires representative revalidation. A change from `latexmk` to direct `pdflatex` **does** materially alter the rendering/setup premise and requires real direct-pdfLaTeX evidence.
-
-PLAN[5] cannot be accepted from component tests/CSS reachability. Final acceptance needs actual packaged/rendered desktop evidence across first run, loaded Home/shell, Applications including both creation routes, My information, Documents, Tags and Settings; constrained and expanded sizes; intentional empty/sparse states; and the final supported light/dark presentation. The orchestrator inspects that evidence directly.
+Do not make the Product Owner repeat real-environment demonstrations after unrelated changes.
 
 ## Execution contract
 
-The master orchestrator owns sequence, scope, continuity and acceptance.
+The orchestrator owns authority recovery, sequence, scope, independent diff/evidence review and PLAN classification.
 
-- Fix small deterministic corrections directly.
-- Do not use the Product Owner as transport, audit substitute or routine QA.
-- Use one bounded specialist for substantial autonomous work and independently inspect its actual diff/evidence.
-- A specialist does not edit higher authority to normalize its implementation, advance PLAN sequencing or declare PLAN completion.
-- For UX/UI, do not decompose the experience into mechanical patches that each pass tests while leaving the whole incoherent.
-- Evidence environments, models, carriers and historical assets are fixtures/references, not project architecture.
+- Small deterministic corrections may be done directly.
+- Substantial implementation belongs to one bounded specialist after product meaning is clear.
+- Specialists do not edit higher authority to normalize their work and do not declare PLAN completion.
+- Prefer coherent vertical work over artificial issue proliferation.
+- No heavy dependencies or speculative frameworks.
+
+## Next
+
+1. Finish canonical/derived authority repair after the over-scoped audit.
+2. Re-evaluate PLAN[0]–PLAN[5] from the recovered Product Definition and actual evidence.
+3. Correct live Issues only where their boundary still carries audit drift.
+4. Select exactly one next coherent implementation outcome.
