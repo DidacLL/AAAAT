@@ -128,12 +128,12 @@ describe("loaded Home shell behavior", () => {
     expect(within(home).queryByRole("button", { name: "Open demo" })).not.toBeInTheDocument();
     expect(within(home).queryByRole("region", { name: "Workspace recovery" })).not.toBeInTheDocument();
 
-    await user.click(within(home).getByRole("button", { name: /Aurora systems/ }));
+    await user.click(await within(home).findByRole("button", { name: /Aurora systems/ }));
     expect(await screen.findByText(`Selected ${candidatureId}`)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Home" }));
     const returnedHome = await screen.findByRole("region", { name: "Home" });
-    await user.click(within(returnedHome).getByRole("button", { name: /Aurora Working CV/ }));
+    await user.click(await within(returnedHome).findByRole("button", { name: /Aurora Working CV/ }));
     expect(await screen.findByText(`Selected document ${documentId}`)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Home" }));
