@@ -155,7 +155,7 @@ function prepareAppData(userData: string, workspacePath: string): string {
   return appData;
 }
 
-test("packaged no-AI raw capture and manual completion uses the real renderer process", async () => {
+test("packaged no-AI raw capture continues manually in the same saved application", async () => {
   const isolatedUserData = mkdtempSync(path.join(tmpdir(), "aaaat-capture-user-"));
   const ownedWorkspace = mkdtempSync(path.join(tmpdir(), "aaaat-capture-workspace-"));
   initializeWorkspaceFixture(ownedWorkspace);
@@ -170,35 +170,48 @@ test("packaged no-AI raw capture and manual completion uses the real renderer pr
     await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 
     await running.page.getByRole("button", { name: "New application" }).click();
-    const manual = running.page.getByRole("region", { name: "New application" });
-    await manual.getByLabel("Application notes or offer").fill(rawMaterial);
+    const start = running.page.getByRole("region", { name: "New application" });
+    await expect(start.getByRole("button", { name: /Enter information directly/ })).toBeVisible();
+    await expect(start.getByRole("button", { name: /Retain raw material/ })).toBeVisible();
+    await start.getByRole("button", { name: /Retain raw material/ }).click();
+
+    const rawCapture = running.page.getByRole("region", { name: "Retain raw material" });
+    await rawCapture.getByLabel("Application raw material").fill(rawMaterial);
     expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
+    await rawCapture.getByRole("button", { name: "Retain raw material" }).click();
 
-    const fields = manual.getByRole("form", { name: "Application information" });
-    await fields.getByLabel("Role", { exact: true }).fill("Captain");
-    await expect(fields.getByRole("checkbox", { name: "Parse with AI" })).not.toBeChecked();
-    await fields.getByRole("button", { name: "Save application" }).click();
-
-    const corpus = running.page.getByLabel("Application corpus");
-    await expect(corpus).toBeVisible();
-    const candidatureEntries = corpus.getByRole("button", { name: "Open saved application" });
-    await expect(candidatureEntries).toHaveCount(1);
-    await candidatureEntries.first().click();
+    const continuation = running.page.getByRole("region", { name: "Raw material continuation" });
+    await expect(continuation.getByRole("button", { name: "Use AI to suggest information" })).toBeVisible();
+    await expect(continuation.getByRole("button", { name: "Fill information manually" })).toBeVisible();
+    await continuation.getByRole("button", { name: "Fill information manually" }).click();
 
     const selectedApplication = running.page.getByRole("region", { name: "Application information" });
-    await selectedApplication.getByText("More", { exact: true }).click();
-
     const sources = selectedApplication.getByRole("region", { name: "Sources" });
     await expect(sources).toContainText(rawMaterial);
     await sources.getByRole("button", { name: "Read source" }).click();
     await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
 
     const roleBlock = selectedApplication.getByRole("article", { name: "Role information" });
-    await expect(roleBlock).toContainText("Captain");
     await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
-    await roleBlock.getByLabel("Value").fill("Senior Captain");
+    await roleBlock.getByLabel("Value").fill("Captain");
     await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(roleBlock).toContainText("Senior Captain");
+    await expect(roleBlock).toContainText("Captain");
+    await expect(sources).toContainText(rawMaterial);
+
+    await selectedApplication.getByRole("button", { name: "← Applications" }).click();
+    const corpus = running.page.getByLabel("Application corpus");
+    const candidatureEntries = corpus.getByRole("button", { name: "Open saved application" });
+    await expect(candidatureEntries).toHaveCount(1);
+    await candidatureEntries.first().click();
+
+    const reopened = running.page.getByRole("region", { name: "Application information" });
+    const reopenedRole = reopened.getByRole("article", { name: "Role information" });
+    await expect(reopenedRole).toContainText("Captain");
+    await reopened.getByText("More", { exact: true }).click();
+    const reopenedSources = reopened.getByRole("region", { name: "Sources" });
+    await expect(reopenedSources).toContainText(rawMaterial);
+    await reopenedSources.getByRole("button", { name: "Read source" }).click();
+    await expect(reopenedSources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {
