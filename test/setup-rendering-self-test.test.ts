@@ -5,9 +5,9 @@ import path from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { environmentSnapshotMock, runLatexmkMock } = vi.hoisted(() => ({
+const { environmentSnapshotMock, runPdfLatexMock } = vi.hoisted(() => ({
   environmentSnapshotMock: vi.fn(),
-  runLatexmkMock: vi.fn(),
+  runPdfLatexMock: vi.fn(),
 }));
 
 vi.mock("../src/main/setup-environment-service", () => ({
@@ -15,7 +15,7 @@ vi.mock("../src/main/setup-environment-service", () => ({
 }));
 
 vi.mock("../src/main/latex-runner", () => ({
-  runLatexmk: runLatexmkMock,
+  runPdfLatex: runPdfLatexMock,
 }));
 
 import { runRenderingSelfTest } from "../src/main/setup-assistant-service";
@@ -25,13 +25,13 @@ describe("rendering self-test", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a temporary TeX project, renders a PDF, and removes the project", async () => {
+  it("creates a temporary TeX project, delegates to the direct pdflatex runner, verifies the PDF, and removes the project", async () => {
     environmentSnapshotMock.mockResolvedValue({
       tex: { documentRenderingReady: true },
     });
 
     let projectPath = "";
-    runLatexmkMock.mockImplementation(async (candidatePath: string) => {
+    runPdfLatexMock.mockImplementation(async (candidatePath: string) => {
       projectPath = candidatePath;
       expect(existsSync(path.join(candidatePath, "main.tex"))).toBe(true);
       mkdirSync(path.join(candidatePath, "build"), { recursive: true });
@@ -40,19 +40,19 @@ describe("rendering self-test", () => {
 
     await expect(runRenderingSelfTest("/workspace")).resolves.toEqual({ passed: true });
 
-    expect(runLatexmkMock).toHaveBeenCalledTimes(1);
+    expect(runPdfLatexMock).toHaveBeenCalledTimes(1);
     expect(projectPath).not.toBe("");
     expect(existsSync(projectPath)).toBe(false);
   });
 
-  it("does not claim a self-test passed when rendering tools are unavailable", async () => {
+  it("does not claim a self-test passed when pdflatex is unavailable", async () => {
     environmentSnapshotMock.mockResolvedValue({
       tex: { documentRenderingReady: false },
     });
 
     await expect(runRenderingSelfTest("/workspace")).rejects.toThrow(
-      /latexmk and pdflatex are available/i,
+      /pdflatex is available/i,
     );
-    expect(runLatexmkMock).not.toHaveBeenCalled();
+    expect(runPdfLatexMock).not.toHaveBeenCalled();
   });
 });
