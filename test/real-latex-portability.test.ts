@@ -20,7 +20,7 @@ import {
   renderWorkingCv,
 } from "../src/main/document-domain-service";
 import { writeCvLatexProject } from "../src/main/document-latex";
-import { runLatexmk } from "../src/main/latex-runner";
+import { runPdfLatex } from "../src/main/latex-runner";
 import { addProfileItem } from "../src/main/profile-service";
 import { createOrOpenWorkspace } from "../src/main/workspace";
 import type { WorkingCvRecord } from "../src/shared/document-domain-contracts";
@@ -237,7 +237,7 @@ describe("real pdfLaTeX portability boundary", () => {
           exportedPacket,
         ]) {
           rmSync(path.join(project, "build"), { recursive: true, force: true });
-          await runLatexmk(project, 60_000);
+          await runPdfLatex(project, 60_000);
           expect(existsSync(path.join(project, "build", "main.pdf"))).toBe(true);
         }
 
@@ -266,7 +266,7 @@ describe("real pdfLaTeX portability boundary", () => {
         expect(working.sections.filter((section) => section.presentationRole === "secondary")).toHaveLength(2);
         writeCvLatexProject(project, working, BUILTIN_BLUEPRINT_SOURCE);
 
-        await runLatexmk(project, 60_000);
+        await runPdfLatex(project, 60_000);
 
         const log = readFileSync(path.join(project, "build", "main.log"), "utf8");
         expect(log).not.toMatch(/Overfull \\vbox/u);
