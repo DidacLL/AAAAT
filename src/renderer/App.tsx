@@ -14,6 +14,7 @@ import {
 import { DocumentsStartWorkspace } from "./DocumentsStartWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import "./intent-recovery.css";
+import { LoadedHome } from "./LoadedHome";
 import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
@@ -54,15 +55,21 @@ function ProfileArea({
 }
 
 function CandidaturesArea({
+  initialCandidatureId,
+  onInitialCandidatureCleared,
   onDirtyChange,
   onTagGlossaryChange,
 }: {
+  readonly initialCandidatureId?: string;
+  readonly onInitialCandidatureCleared: () => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onTagGlossaryChange: () => void;
 }) {
   return (
     <div className="destination-area">
       <CandidaturesAiWorkspace
+        initialCandidatureId={initialCandidatureId}
+        onInitialCandidatureCleared={onInitialCandidatureCleared}
         onDirtyChange={onDirtyChange}
         onTagGlossaryChange={onTagGlossaryChange}
       />
@@ -101,6 +108,7 @@ export function App() {
   const [professionalInformationHandoff, setProfessionalInformationHandoff] =
     useState<ProfessionalInformationHandoff | null>(null);
   const [settingsHandoff, setSettingsHandoff] = useState<SettingsHandoff | null>(null);
+  const [homeCandidatureId, setHomeCandidatureId] = useState<string | null>(null);
 
   const refreshRailStatus = useCallback(() => {
     setRailStatusRevision((current) => current + 1);
@@ -157,6 +165,7 @@ export function App() {
     setDocumentHandoff(null);
     setProfessionalInformationHandoff(null);
     setSettingsHandoff(null);
+    setHomeCandidatureId(null);
   };
 
   const resetDirty = () => {
@@ -218,11 +227,9 @@ export function App() {
     if (anyDirty && !window.confirm("Discard unsaved edits and return home?")) return;
     if (anyDirty) {
       resetDirty();
-      resetHandoffs();
       setWorkspaceContentRevision((current) => current + 1);
-    } else {
-      setSettingsHandoff(null);
     }
+    resetHandoffs();
     setSettingsOpen(false);
     setWelcomeOpen(true);
   };
@@ -305,9 +312,16 @@ export function App() {
 
   const selectProductView = (next: ProductView) => {
     if (welcomeOpen) {
+      resetHandoffs();
+      if (next === "candidatures") {
+        setCandidatureWorkspaceRevision((current) => current + 1);
+      } else if (next === "documents") {
+        setDocumentWorkspaceRevision((current) => current + 1);
+      }
       setWelcomeOpen(false);
       setSettingsOpen(false);
-      setSettingsHandoff(null);
+      setProductView(next);
+      return;
     }
     if (next === productView && !settingsOpen) {
       if (next === "documents" && documentHandoff) {
@@ -328,10 +342,21 @@ export function App() {
     setProductView(next);
   };
 
+  const openCandidatureFromHome = (candidatureId: string) => {
+    resetHandoffs();
+    setHomeCandidatureId(candidatureId);
+    setCandidatureWorkspaceRevision((current) => current + 1);
+    setSettingsOpen(false);
+    setWelcomeOpen(false);
+    setProductView("candidatures");
+  };
+
   const openStandaloneDocument = (documentId: string) => {
+    setWelcomeOpen(false);
     setSettingsOpen(false);
     setSettingsHandoff(null);
     setProfessionalInformationHandoff(null);
+    setHomeCandidatureId(null);
     setDocumentDirty(false);
     setDocumentHandoff({ documentId });
     setDocumentWorkspaceRevision((current) => current + 1);
@@ -354,6 +379,7 @@ export function App() {
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
+        setHomeCandidatureId(null);
         setDocumentHandoff({ candidatureId, ...(documentId ? { documentId } : {}) });
         setProductView("documents");
       },
@@ -457,26 +483,14 @@ export function App() {
   );
 
   const loadedHomeContent = workspace ? (
-    <section className="loaded-workspace-home empty-state" aria-label="Home">
-      <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
-      <p className="tagline">Your application work, on your computer.</p>
-      <h1>Welcome back</h1>
-      <p>
-        Working in <strong title={workspace.rootPath}>{folderName(workspace.rootPath)}</strong>
-        {demoWorkspace ? " · Demo workspace" : " · Local workspace"}
-      </p>
-      <div className="workspace-actions with-loaded-workspace">
-        <button className="primary-action" type="button" onClick={() => selectProductView("candidatures")}>
-          Open applications
-          <small>Continue your application work</small>
-        </button>
-        <button className="welcome-option" type="button" onClick={() => selectProductView("documents")}>Open CVs</button>
-        <button className="welcome-option" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>New workspace</button>
-        <button className="welcome-option" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open existing workspace</button>
-        <button className="welcome-option" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
-      </div>
-      <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
-    </section>
+    <LoadedHome
+      workspaceName={folderName(workspace.rootPath)}
+      demoWorkspace={demoWorkspace}
+      onOpenApplication={openCandidatureFromHome}
+      onOpenDocument={openStandaloneDocument}
+      onOpenApplications={() => selectProductView("candidatures")}
+      onOpenDocuments={() => selectProductView("documents")}
+    />
   ) : null;
 
   return (
@@ -550,6 +564,8 @@ export function App() {
                   <div hidden={welcomeOpen || settingsOpen || productView !== "candidatures"}>
                     <CandidaturesArea
                       key={`candidatures-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(candidatureWorkspaceRevision)}`}
+                      initialCandidatureId={homeCandidatureId ?? undefined}
+                      onInitialCandidatureCleared={() => setHomeCandidatureId(null)}
                       onDirtyChange={setCandidatureDirty}
                       onTagGlossaryChange={refreshTagGlossary}
                     />
