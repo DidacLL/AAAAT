@@ -56,11 +56,11 @@ export function LoadedHome({
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
+    void (async () => Promise.all([
       window.aaaat.candidatures.list(),
       window.aaaat.candidatures.listFields(),
       window.aaaat.documentDomain.collections(),
-    ])
+    ]))()
       .then(([candidatures, fields, documents]) => {
         if (!active) return;
         setData({ candidatures, fields, documents });
