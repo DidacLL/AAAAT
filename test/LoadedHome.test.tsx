@@ -131,7 +131,7 @@ describe("LoadedHome", () => {
     );
 
     const applications = await screen.findByRole("region", { name: "Recent applications" });
-    expect(within(applications).getByText("Mission signal")).toBeInTheDocument();
+    expect(within(applications).getAllByText("Mission signal")).toHaveLength(2);
     expect(within(applications).getByText("Orbital logistics")).toBeInTheDocument();
     expect(within(applications).getByText("Retained source")).toBeInTheDocument();
     expect(within(applications).getByText(/Recruiter note about an unusual operations position/)).toBeInTheDocument();
