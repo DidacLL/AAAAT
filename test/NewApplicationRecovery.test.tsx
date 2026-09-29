@@ -110,6 +110,8 @@ function installApi() {
     records = [updated];
     return updated;
   });
+  const createWorkingCv = vi.fn();
+  const updateCoverLetter = vi.fn();
 
   Object.defineProperty(window, "aaaat", {
     configurable: true,
@@ -133,7 +135,8 @@ function installApi() {
       candidatureSearch: { search: vi.fn(async () => []) },
       documentDomain: {
         collections: vi.fn(async () => emptyCollections),
-        createWorkingCv: vi.fn(),
+        createWorkingCv,
+        updateCoverLetter,
         createPacket: vi.fn(),
         openRenderedCv: vi.fn(),
         openRenderedLetter: vi.fn(),
@@ -145,7 +148,7 @@ function installApi() {
     },
   });
 
-  return { create, setFieldValue };
+  return { create, setFieldValue, createWorkingCv, updateCoverLetter };
 }
 
 afterEach(() => {
@@ -192,6 +195,9 @@ describe("new application recovery", () => {
       values: [],
       source: { kind: "other", title: "", url: "", sourceText: raw },
     }));
+    expect(api.setFieldValue).not.toHaveBeenCalled();
+    expect(api.createWorkingCv).not.toHaveBeenCalled();
+    expect(api.updateCoverLetter).not.toHaveBeenCalled();
     const continuation = await screen.findByRole("region", { name: "Raw material continuation" });
     expect(within(continuation).getByRole("button", { name: "Use AI to suggest information" })).toBeVisible();
     expect(within(continuation).getByRole("button", { name: "Fill information manually" })).toBeVisible();
