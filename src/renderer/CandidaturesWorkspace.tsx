@@ -33,6 +33,11 @@ import "./owner-feedback-recovery.css";
 import "./tag-glossary.css";
 
 type CandidatureMode = "corpus" | "selected";
+type InitialCandidatureTask = "manual" | "ai";
+interface InitialCandidatureSelection {
+  readonly candidatureId: string;
+  readonly task?: InitialCandidatureTask;
+}
 const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 const emptyCollections: DocumentCollections = {
   templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [],
@@ -47,9 +52,13 @@ function tagDraft(tag: TagRecord): TagInput {
 function normalizedTagText(value: string): string { return value.trim().toLocaleLowerCase(); }
 
 export function CandidaturesWorkspace({
+  initialSelection,
+  onInitialSelectionCleared,
   onDirtyChange,
   onTagGlossaryChange,
 }: {
+  readonly initialSelection?: InitialCandidatureSelection;
+  readonly onInitialSelectionCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
 }) {
@@ -85,6 +94,8 @@ export function CandidaturesWorkspace({
   const [activityOpen, setActivityOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const initialSelectionId = initialSelection?.candidatureId;
+  const initialTask = initialSelection?.task;
   const selected = records.find((record) => record.id === selectedId) ?? null;
   const persistedTag = editingTagId ? tags.find((tag) => tag.id === editingTagId) ?? null : null;
   const tagEditorDirty = tagEditorOpen
@@ -128,9 +139,17 @@ export function CandidaturesWorkspace({
     ]).then(([nextRecords, nextFields, nextTags, nextCollections]) => {
       if (!active) return;
       setRecords(nextRecords); setFields(nextFields); setTags(nextTags); setCollections(nextCollections);
+      const requested = initialSelectionId
+        ? nextRecords.find((record) => record.id === initialSelectionId)
+        : undefined;
+      if (requested) {
+        hydrate(requested);
+        setBulkInferenceOpen(initialTask === "ai");
+        setMode("selected");
+      }
     }).catch(() => { if (active) setError("AAAAT could not load applications."); });
     return () => { active = false; };
-  }, []);
+  }, [hydrate, initialSelectionId, initialTask]);
 
   useEffect(() => {
     if (documentHandoff !== null) return;
@@ -178,6 +197,7 @@ export function CandidaturesWorkspace({
   const returnToCorpus = () => {
     if (!confirmDiscard()) return;
     setMode("corpus"); setSelectedId(null); resetEditorDrafts();
+    onInitialSelectionCleared?.();
   };
 
   const setEditorDirty = (fieldId: string, dirty: boolean) => setValueEditorDirty((current) => {
@@ -680,11 +700,19 @@ export function CandidaturesWorkspace({
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      <CandidatureOpportunityResearchAccessPanel
-        key={`external-research-${selected.id}`}
-        candidatureId={selected.id}
-        contextDirty={taskContextDirty}
-      />
+      {initialTask ? (
+        <CandidatureSourcesPanel
+          candidatureId={selected.id}
+          onSourcesChanged={() => void handleSourcesChanged()}
+          onDirtyChange={setSourceDirty}
+        />
+      ) : (
+        <CandidatureOpportunityResearchAccessPanel
+          key={`external-research-${selected.id}`}
+          candidatureId={selected.id}
+          contextDirty={taskContextDirty}
+        />
+      )}
 
       <section
         className="section-surface candidature-primary-information"
@@ -912,11 +940,13 @@ export function CandidaturesWorkspace({
           </section>
 
           <CandidatureOfferPanel candidatureId={selected.id} />
-          <CandidatureSourcesPanel
-            candidatureId={selected.id}
-            onSourcesChanged={() => void handleSourcesChanged()}
-            onDirtyChange={setSourceDirty}
-          />
+          {initialTask ? null : (
+            <CandidatureSourcesPanel
+              candidatureId={selected.id}
+              onSourcesChanged={() => void handleSourcesChanged()}
+              onDirtyChange={setSourceDirty}
+            />
+          )}
 
           <section className="section-surface" aria-label="Application documents">
             <div className="candidature-editor-heading">

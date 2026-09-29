@@ -1,9 +1,20 @@
 import { useState } from "react";
 
-import { CandidatureManualEntryPanel } from "./CandidatureManualEntryPanel";
+import {
+  CandidatureManualEntryPanel,
+  CandidatureRawCapturePanel,
+} from "./CandidatureManualEntryPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
-import { useContextualHandoffs } from "./contextual-handoffs";
 import "./candidature-capture.css";
+
+type NewApplicationIntent = "direct" | "raw";
+type ContinuationTask = "manual" | "ai";
+
+interface InitialSelection {
+  readonly candidatureId: string;
+  readonly rawRetained: boolean;
+  readonly task?: ContinuationTask;
+}
 
 export function CandidaturesAiWorkspace({
   onDirtyChange,
@@ -13,14 +24,13 @@ export function CandidaturesAiWorkspace({
   readonly onTagGlossaryChange?: () => void;
 }) {
   const [view, setView] = useState<"applications" | "new">("applications");
+  const [newIntent, setNewIntent] = useState<NewApplicationIntent | null>(null);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
-  const [prepared, setPrepared] = useState<{
-    candidatureId: string;
-    documents: readonly { id: string; kind: "cv" | "cover_letter" }[];
-  } | null>(null);
+  const [selection, setSelection] = useState<InitialSelection | null>(null);
+  const [handoffBusy, setHandoffBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const { openDocumentFromCandidature } = useContextualHandoffs();
 
   const reportDirty = (next: boolean) => {
     setDirty(next);
@@ -31,12 +41,61 @@ export function CandidaturesAiWorkspace({
     if (next === view) return;
     if (dirty && !window.confirm("Discard unsaved application edits?")) return;
     reportDirty(false);
+    setError(null);
     if (next === "new") {
-      setPrepared(null);
+      setSelection(null);
       setNotice(null);
+      setNewIntent(null);
+    } else {
+      setNewIntent(null);
     }
     setView(next);
   };
+
+  const createdDirectly = (candidatureId: string) => {
+    reportDirty(false);
+    setRevision((current) => current + 1);
+    setSelection({ candidatureId, rawRetained: false });
+    setNotice("Application saved. Add or change information whenever you need.");
+    setNewIntent(null);
+    setView("applications");
+  };
+
+  const retainedRaw = (candidatureId: string) => {
+    reportDirty(false);
+    setRevision((current) => current + 1);
+    setSelection({ candidatureId, rawRetained: true });
+    setNotice("Raw material retained as a Source.");
+    setNewIntent(null);
+    setView("applications");
+  };
+
+  const chooseContinuation = (task: ContinuationTask) => {
+    if (!selection?.rawRetained) return;
+    if (dirty && !window.confirm("Discard unsaved application edits?")) return;
+    reportDirty(false);
+    setSelection({ ...selection, task });
+  };
+
+  const importExternalHandoff = async () => {
+    if (handoffBusy) return;
+    setHandoffBusy(true);
+    setError(null);
+    try {
+      const imported = await window.aaaat.applicationHandoff.importFile();
+      if (imported.status === "cancelled") return;
+      setRevision((current) => current + 1);
+      setSelection(null);
+      setNotice("External AI handoff imported. The application and requested documents are saved locally.");
+      setView("applications");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not import this handoff.");
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
+  const workspaceKey = `${revision}:${selection?.candidatureId ?? "corpus"}:${selection?.task ?? "review"}`;
 
   return (
     <div className="candidature-capture-owner">
@@ -62,46 +121,86 @@ export function CandidaturesAiWorkspace({
           </button>
         </div>
       </nav>
+
       {view === "new" ? (
-        <CandidatureManualEntryPanel
-          title="New application"
-          onDone={() => {
-            reportDirty(false);
-            setView("applications");
-          }}
-          onChanged={() => setRevision((current) => current + 1)}
-          onPrepared={(candidatureId, documents) => setPrepared({ candidatureId, documents })}
-          onOptionalStatus={setNotice}
-          onDirtyChange={reportDirty}
-        />
-      ) : (
-        <>
-          {notice ? <p className="application-save-notice" role="status">{notice}</p> : null}
-          {prepared ? (
-            <div className="application-documents-ready" role="status">
-              <span>Application saved · documents ready</span>
-              {prepared.documents.map((document) => (
-                <button
-                  key={document.id}
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => openDocumentFromCandidature(prepared.candidatureId, document.id)}
-                >
-                  Open {document.kind === "cv" ? "CV" : "cover letter"}
-                </button>
-              ))}
+        newIntent === "direct" ? (
+          <CandidatureManualEntryPanel
+            title="Enter information directly"
+            onCancel={() => setNewIntent(null)}
+            onCreated={createdDirectly}
+            onDirtyChange={reportDirty}
+          />
+        ) : newIntent === "raw" ? (
+          <CandidatureRawCapturePanel
+            title="Retain raw material"
+            onCancel={() => setNewIntent(null)}
+            onCreated={retainedRaw}
+            onDirtyChange={reportDirty}
+          />
+        ) : (
+          <section className="new-application-start" aria-label="New application">
+            <div>
+              <p className="eyebrow">New application</p>
+              <h2>How do you want to start?</h2>
+              <p className="compact-help">Both paths create the same application. Start with what you already have.</p>
+            </div>
+            {error ? <p className="error-message" role="alert">{error}</p> : null}
+            <div className="new-application-intention-grid">
+              <button type="button" onClick={() => setNewIntent("direct")}>
+                <strong>Enter information directly</strong>
+                <span>Use your current application information fields. No Source or AI is required.</span>
+              </button>
+              <button type="button" onClick={() => setNewIntent("raw")}>
+                <strong>Retain raw material</strong>
+                <span>Keep an offer, message, form copy, conversation, or notes first.</span>
+              </button>
+            </div>
+            <div className="new-application-secondary-entry">
               <button
                 type="button"
                 className="compact-secondary"
-                aria-label="Dismiss document links"
-                onClick={() => setPrepared(null)}
+                disabled={handoffBusy}
+                onClick={() => void importExternalHandoff()}
               >
-                ×
+                {handoffBusy ? "Importing…" : "Import external AI handoff…"}
               </button>
             </div>
+          </section>
+        )
+      ) : (
+        <>
+          {notice ? <p className="application-save-notice" role="status">{notice}</p> : null}
+          {selection?.rawRetained ? (
+            <section className="new-application-continuation" aria-label="Raw material continuation">
+              <div>
+                <p className="eyebrow">Source retained</p>
+                <strong>Continue with the same application</strong>
+              </div>
+              <div className="new-application-continuation-actions">
+                <button
+                  type="button"
+                  className={selection.task === "ai" ? "active" : ""}
+                  onClick={() => chooseContinuation("ai")}
+                >
+                  Use AI to suggest information
+                </button>
+                <button
+                  type="button"
+                  className={selection.task === "manual" ? "active" : ""}
+                  onClick={() => chooseContinuation("manual")}
+                >
+                  Fill information manually
+                </button>
+              </div>
+            </section>
           ) : null}
           <CandidaturesWorkspace
-            key={revision}
+            key={workspaceKey}
+            initialSelection={selection ? {
+              candidatureId: selection.candidatureId,
+              task: selection.task,
+            } : undefined}
+            onInitialSelectionCleared={() => setSelection(null)}
             onDirtyChange={reportDirty}
             onTagGlossaryChange={onTagGlossaryChange}
           />

@@ -1,13 +1,44 @@
 .candidature-capture-owner { display: grid; min-width: 0; gap: 9px; }
 .candidature-focus-action { display: flex; justify-content: flex-end; }
 .candidature-focus-action button { min-height: 34px; padding: 6px 12px; font-size: 13px; }
-
-.application-documents-ready {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 7px;
-  padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px;
-  background: var(--paper); font-size: 12px;
-}
 .application-save-notice { margin: 0; color: var(--rust); font-size: 12px; }
+
+.new-application-start {
+  display: grid; gap: 14px; padding: 14px;
+  border: 1px solid var(--line); border-left: 4px solid var(--rust);
+  background: var(--paper); box-shadow: var(--paper-shadow);
+}
+.new-application-start h2 { margin: 0; font-size: 1.2rem; }
+.new-application-start > div:first-child { display: grid; gap: 4px; }
+.new-application-intention-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+}
+.new-application-intention-grid > button {
+  display: grid; gap: 6px; min-height: 112px; padding: 14px;
+  border: 1px solid #777b6c; border-radius: 2px;
+  color: var(--ink); background: var(--paper-strong); text-align: left;
+}
+.new-application-intention-grid > button:hover,
+.new-application-intention-grid > button:focus-visible {
+  border-color: var(--rust); box-shadow: inset 4px 0 0 var(--rust);
+}
+.new-application-intention-grid strong { font-size: 1rem; }
+.new-application-intention-grid span { color: var(--muted-ink); font-size: 12px; line-height: 1.45; }
+.new-application-secondary-entry { display: flex; justify-content: flex-end; padding-top: 2px; border-top: 1px solid var(--line-soft); }
+.new-application-continuation {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  padding: 9px 11px; border: 1px solid #777b6c; border-left: 4px solid var(--rust);
+  background: #eee4d5;
+}
+.new-application-continuation > div:first-child { display: grid; gap: 2px; }
+.new-application-continuation-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.new-application-continuation-actions button {
+  min-height: 32px; padding: 6px 10px; border: 1px solid #777b6c; border-radius: 2px;
+  color: var(--ink); background: var(--paper-strong); font-weight: 700;
+}
+.new-application-continuation-actions button.active {
+  border-color: var(--rust); box-shadow: inset 0 -2px 0 var(--rust);
+}
 
 .candidature-manual-entry {
   display: grid; min-width: 0; gap: 10px; padding: 14px;
@@ -20,6 +51,7 @@
 .manual-source-pane, .manual-fields-pane { display: grid; min-width: 0; gap: 10px; }
 .manual-source-pane { position: sticky; top: 0; }
 .manual-source-pane h3, .manual-fields-pane h3 { margin: 0; font-size: 1rem; }
+.manual-source-pane > label { display: grid; gap: 6px; font-weight: 700; }
 .manual-source-pane textarea {
   width: 100%; min-height: 40vh; padding: 12px; border: 1px solid #b7a58d;
   border-radius: 4px; color: var(--ink); background: #fffdf7;
@@ -42,8 +74,6 @@
   border-top: 1px solid var(--line); background: var(--paper);
 }
 .manual-entry-actions > button { min-width: 130px; padding: 8px 12px; border: 1px solid #8d3f22; border-radius: 5px; color: #fffaf2; background: var(--accent); font-weight: 750; }
-.application-save-options { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 14px; margin-right: auto; font-size: 12px; font-weight: 550; }
-.application-save-options label { display: inline-flex; align-items: center; gap: 5px; }
 .compact-choice-list { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 
 .field-definitions-content, .field-definition-form { display: grid; min-width: 0; gap: 12px; }
@@ -54,6 +84,7 @@
 .field-definition-form label, .field-definitions-content > .editor-card > label { display: grid; gap: 6px; }
 
 @media (max-width: 900px) {
+  .new-application-intention-grid { grid-template-columns: 1fr; }
   .manual-entry-layout.with-source { grid-template-columns: 1fr; }
   .manual-source-pane { position: static; }
   .manual-source-pane textarea { min-height: 20vh; }
@@ -64,6 +95,9 @@
   .manual-field-grid { grid-template-columns: 1fr; }
   .manual-fields-heading { align-items: flex-start; }
   .manual-entry-actions > button { width: 100%; }
+  .new-application-continuation { align-items: stretch; }
+  .new-application-continuation-actions { width: 100%; }
+  .new-application-continuation-actions button { flex: 1 1 100%; }
 }
 
 /* Application console navigation and dense capture */
