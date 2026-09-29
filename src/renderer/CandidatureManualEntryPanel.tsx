@@ -4,15 +4,11 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
-import { createApplicationDocuments } from "./create-application-documents";
-import { maybeStartApplicationDocumentPreparation } from "./application-document-preparation";
 
-interface Props {
+interface EntryProps {
   readonly title: string;
-  readonly onDone: () => void;
-  readonly onChanged: () => void;
-  readonly onPrepared?: (candidatureId: string, documents: readonly { id: string; kind: "cv" | "cover_letter" }[]) => void;
-  readonly onOptionalStatus?: (message: string) => void;
+  readonly onCancel: () => void;
+  readonly onCreated: (candidatureId: string) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -78,24 +74,16 @@ function enabledFieldsInDefinitionOrder(fields: readonly CandidatureFieldConfigu
 
 export function CandidatureManualEntryPanel({
   title,
-  onDone,
-  onChanged,
-  onPrepared,
-  onOptionalStatus,
+  onCancel,
+  onCreated,
   onDirtyChange,
-}: Props) {
+}: EntryProps) {
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [drafts, setDrafts] = useState<Record<string, FieldDraft>>({});
   const [baseline, setBaseline] = useState<Record<string, FieldDraft>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState("");
-  const [parseWithAi, setParseWithAi] = useState(false);
-  const [createCv, setCreateCv] = useState(false);
-  const [createCoverLetter, setCreateCoverLetter] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
   const [fieldsLoading, setFieldsLoading] = useState(true);
-  const [handoffBusy, setHandoffBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -112,7 +100,7 @@ export function CandidatureManualEntryPanel({
       .catch(() => {
         if (active) {
           setFieldsLoading(false);
-          setError("Application fields could not be loaded. Pasted material can still be saved.");
+          setError("Application information could not be loaded. You can retain raw material instead.");
         }
       });
     return () => {
@@ -120,7 +108,7 @@ export function CandidatureManualEntryPanel({
     };
   }, []);
 
-  const dirty = source.length > 0 || JSON.stringify(drafts) !== JSON.stringify(baseline);
+  const dirty = JSON.stringify(drafts) !== JSON.stringify(baseline);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -219,29 +207,6 @@ export function CandidatureManualEntryPanel({
     );
   };
 
-  const importExternalHandoff = async () => {
-    if (saving || handoffBusy) return;
-    if (dirty && !window.confirm("Discard unsaved application edits and import the external handoff?")) {
-      return;
-    }
-    setHandoffBusy(true);
-    setError(null);
-    try {
-      const imported = await window.aaaat.applicationHandoff.importFile();
-      if (imported.status === "cancelled") {
-        setHandoffBusy(false);
-        return;
-      }
-      onChanged();
-      onOptionalStatus?.("External AI handoff imported. The application and requested documents are saved locally.");
-      setHandoffBusy(false);
-      onDone();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not import this external AI handoff.");
-      setHandoffBusy(false);
-    }
-  };
-
   const save = async () => {
     const parsedValues: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
     try {
@@ -255,55 +220,20 @@ export function CandidatureManualEntryPanel({
         }
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Check the candidature information.");
+      setError(reason instanceof Error ? reason.message : "Check the application information.");
       return;
     }
 
-    if (parsedValues.length === 0 && !source.trim()) {
-      setError("Add a name, a note, or any information you want to keep.");
+    if (parsedValues.length === 0) {
+      setError("Enter any application information you want to keep.");
       return;
     }
 
     setSaving(true);
     setError(null);
     try {
-      const created = await window.aaaat.candidatures.create({
-          values: parsedValues,
-          ...(source.trim() ? { source: {
-            kind: "other" as const,
-            title: "",
-            url: "",
-            sourceText: source.trim(),
-          } } : {}),
-      });
-      onChanged();
-      onDone();
-      if (parseWithAi && !source.trim()) onOptionalStatus?.("Application saved. Add pasted material later to use AI parsing.");
-      if (createCv || createCoverLetter || (parseWithAi && source.trim())) {
-        void (async () => {
-          try {
-            const documents = createCv || createCoverLetter
-              ? await createApplicationDocuments({
-                  candidatureId: created.id,
-                  sourceText: source.trim(),
-                  cv: createCv,
-                  coverLetter: createCoverLetter,
-                })
-              : [];
-            if (documents.length > 0) onPrepared?.(created.id, documents);
-            const aiStarted = await maybeStartApplicationDocumentPreparation({
-              candidatureId: created.id,
-              sourceText: source.trim(),
-              documents,
-              extract: parseWithAi && Boolean(source.trim()),
-            });
-            if (parseWithAi && !aiStarted) onOptionalStatus?.("Application saved. AI could not run; check its connection in Settings.");
-            onChanged();
-          } catch {
-            onOptionalStatus?.("Application saved. Optional document or AI preparation needs attention.");
-          }
-        })();
-      }
+      const created = await window.aaaat.candidatures.create({ values: parsedValues });
+      onCreated(created.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save this application.");
     } finally {
@@ -313,87 +243,146 @@ export function CandidatureManualEntryPanel({
 
   const cancel = () => {
     if (dirty && !window.confirm("Discard unsaved candidature edits?")) return;
-    onDone();
+    onCancel();
   };
 
   return (
     <section className="candidature-manual-entry" aria-label={title}>
       <div className="candidature-editor-heading">
         <div>
+          <p className="eyebrow">New application</p>
           <h2>{title}</h2>
         </div>
-        <div className="button-row">
-          <button
-            type="button"
-            className="compact-secondary"
-            disabled={saving || handoffBusy}
-            onClick={() => void importExternalHandoff()}
-          >
-            {handoffBusy ? "Importing…" : "Import external AI handoff…"}
-          </button>
-          <button type="button" className="compact-secondary" disabled={saving || handoffBusy} onClick={cancel}>
-            Cancel
-          </button>
-        </div>
+        <button type="button" className="compact-secondary" disabled={saving} onClick={cancel}>
+          Back
+        </button>
       </div>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      <div className="manual-entry-layout with-source">
-        <section className="manual-source-pane" aria-label="Pasted application material">
-          <h3>Paste or write</h3>
+      <form
+        className="manual-fields-pane"
+        aria-label="Application information"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        {fieldsLoading ? (
+          <p className="manual-fields-loading">Loading information…</p>
+        ) : fields.length === 0 ? (
+          <p className="manual-fields-loading">No application information is configured yet. Retain raw material instead.</p>
+        ) : (
+          <div className="manual-field-grid manual-open">
+            {fields.map((field) => (
+              <label className="manual-field" key={field.definition.id}>
+                <span className="manual-field-label">{field.definition.label}</span>
+                {field.definition.description ? (
+                  <span className="field-hint">{field.definition.description}</span>
+                ) : null}
+                {renderInput(field)}
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="manual-entry-actions">
+          <p className="compact-help">Save only what you know. A Source and AI are not required.</p>
+          <button type="submit" disabled={saving || fieldsLoading || fields.length === 0}>
+            {saving ? "Saving…" : "Save application"}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+export function CandidatureRawCapturePanel({
+  title,
+  onCancel,
+  onCreated,
+  onDirtyChange,
+}: EntryProps) {
+  const [source, setSource] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const dirty = source.length > 0;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
+
+  const cancel = () => {
+    if (dirty && !window.confirm("Discard unsaved candidature edits?")) return;
+    onCancel();
+  };
+
+  const save = async () => {
+    if (!source.trim()) {
+      setError("Paste or write the material you want to retain.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await window.aaaat.candidatures.create({
+        values: [],
+        source: {
+          kind: "other",
+          title: "",
+          url: "",
+          sourceText: source,
+        },
+      });
+      onCreated(created.id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AAAAT could not retain this material.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="candidature-manual-entry candidature-raw-capture" aria-label={title}>
+      <div className="candidature-editor-heading">
+        <div>
+          <p className="eyebrow">New application</p>
+          <h2>{title}</h2>
+        </div>
+        <button type="button" className="compact-secondary" disabled={saving} onClick={cancel}>
+          Back
+        </button>
+      </div>
+      {error ? <p className="error-message" role="alert">{error}</p> : null}
+      <form
+        className="manual-source-pane"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <label>
+          Raw material
           <textarea
-            aria-label="Application notes or offer"
-            rows={8}
+            aria-label="Application raw material"
+            rows={12}
             maxLength={50000}
             value={source}
             disabled={saving}
-            onChange={(event) => setSource(event.target.value)}
-            placeholder="Offer, company details, recruiter message, or a note to yourself"
+            onChange={(event) => {
+              setSource(event.target.value);
+              setError(null);
+            }}
+            placeholder="Offer, recruiter message, application form text, conversation, or notes"
           />
-        </section>
-
-        <form
-          className="manual-fields-pane"
-          aria-label="Application information"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save();
-          }}
-        >
-          <div className="manual-fields-heading">
-            <h3>Application information</h3>
-            <button type="button" className="manual-fields-toggle compact-secondary" onClick={() => setManualOpen(!manualOpen)}>{manualOpen ? "Hide fields" : "Show fields"}</button>
-          </div>
-          {fieldsLoading ? (
-            <p className="manual-fields-loading">Loading fields…</p>
-          ) : fields.length === 0 ? (
-            <p className="manual-fields-loading">Paste or write anything on the left, then save.</p>
-          ) : (
-            <div className={manualOpen ? "manual-field-grid manual-open" : "manual-field-grid"}>
-              {fields.map((field) => (
-                <label className="manual-field" key={field.definition.id}>
-                  <span className="manual-field-label">{field.definition.label}</span>
-                  {field.definition.description ? (
-                    <span className="field-hint">{field.definition.description}</span>
-                  ) : null}
-                  {renderInput(field)}
-                </label>
-              ))}
-            </div>
-          )}
-          <div className="manual-entry-actions">
-            <div className="application-save-options" aria-label="Optional actions after saving">
-              <label><input type="checkbox" checked={parseWithAi} onChange={(event) => setParseWithAi(event.target.checked)} /> Parse with AI</label>
-              <label><input type="checkbox" checked={createCv} onChange={(event) => setCreateCv(event.target.checked)} /> Dedicated CV</label>
-              <label><input type="checkbox" checked={createCoverLetter} onChange={(event) => setCreateCoverLetter(event.target.checked)} /> Cover letter</label>
-            </div>
-            <button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save application"}
-            </button>
-          </div>
-        </form>
-      </div>
+        </label>
+        <div className="manual-entry-actions">
+          <p className="compact-help">AAAAT will retain this material as a Source. No AI is needed.</p>
+          <button type="submit" disabled={saving}>
+            {saving ? "Retaining…" : "Retain raw material"}
+          </button>
+        </div>
+      </form>
     </section>
   );
 }
