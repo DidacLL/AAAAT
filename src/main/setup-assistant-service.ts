@@ -10,7 +10,7 @@ import {
   type SetupAssistantAccessUpdate,
   type SetupRenderingSelfTestResult,
 } from "../shared/setup-assistant-contracts";
-import { runLatexmk } from "./latex-runner";
+import { runPdfLatex } from "./latex-runner";
 import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
 import { withWorkspaceDatabase } from "./workspace";
 
@@ -75,7 +75,7 @@ export function requireConfiguratorActionsAllowed(rootPath: string): void {
 export async function runRenderingSelfTest(rootPath: string): Promise<SetupRenderingSelfTestResult> {
   const snapshot = await getSetupEnvironmentSnapshot(rootPath);
   if (!snapshot.tex.documentRenderingReady) {
-    throw new Error("Rendering self-test cannot run until latexmk and pdflatex are available.");
+    throw new Error("Rendering self-test cannot run until pdflatex is available.");
   }
 
   const projectPath = mkdtempSync(path.join(tmpdir(), "aaaat-rendering-self-test-"));
@@ -91,7 +91,7 @@ export async function runRenderingSelfTest(rootPath: string): Promise<SetupRende
       ].join("\n"),
       "utf8",
     );
-    await runLatexmk(projectPath);
+    await runPdfLatex(projectPath);
     if (!existsSync(path.join(projectPath, "build", "main.pdf"))) {
       throw new Error("Rendering self-test completed without producing a PDF.");
     }
