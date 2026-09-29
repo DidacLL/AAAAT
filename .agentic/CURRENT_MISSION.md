@@ -1,89 +1,67 @@
-# Current mission — recover AAAAT northstar before further PLAN execution
+# Current mission — PLAN[5] coherent product UX
 
-Current explicit Product Owner instruction is highest authority.
+Current explicit Product Owner instruction remains highest authority.
 
-Current main at recovery start: `3873e3e164874a79c7690490fcd892b901917c53`.
-Recovery coordination: PR #378.
+Base main: `36f73f377db17f579868a8f32fbbc2adc291a0b2` (PR #378 northstar recovery).
 
-The September 28 authority audits became over-scoped. They mixed legitimate implementation review with new product interpretations, changed derived PLAN state from those interpretations, and in PR #375 promoted some audit conclusions into `PRODUCT_DEFINITION.md` itself. Do not continue implementation from that audit state.
+The September 28 audits are no longer execution authority. PR #378 repaired the canonical Product Definition, technical SPEC, Master Plan framing and repository entry point from the recovered AAAAT northstar.
 
-## AAAAT northstar
+## Recovered PLAN state
 
-AAAAT is an **open-source, provider-agnostic agentic-human tool for managing job applications and producing the text/document artifacts needed for them**.
+- **PLAN[0] — COMPLETE / RETAINED.** PR #319 merged the accepted integrated candidature/domain baseline. Later UX refinements and current Product Definition improvements do not retroactively invalidate that accepted foundation.
+- **PLAN[1] — COMPLETE / RETAINED.** The real-behavior test-basis cleanup remains valid; tests that contradict current product meaning still change with the product.
+- **PLAN[2] — COMPLETE.** Real local-computer and no-local external-AI journeys remain valid evidence. Issue #333 plus PRs #335/#336/#341/#342 established the accepted `Send to my AI` interaction. An internal selected-object mechanism used by a carrier is implementation detail, not a reason to reopen the PLAN by itself.
+- **PLAN[3] — COMPLETE / RETAINED.** Main-process composition, sandboxed renderer and dependency-health work remain sound.
+- **PLAN[4] — COMPLETE.** PRs #348/#353/#358 satisfy the Product Owner-corrected document model and PR #359 recorded completion. PR #350 explicitly replaced the earlier persistence/ownership interpretation with the settled model: one shared package/library, application-level user Blueprints under Electron `userData`, render-time Blueprint choice, no Blueprint ownership on editable CV records, and exact rendered source projects. The later audit incorrectly resurrected persistent reusable modified-package selection as a PLAN[4] gate.
+- **PLAN[5] — ACTIVE.** Coherent user interaction/visual acceptance is the current product work.
 
-The application is local-first and user-owned, but “local workspace” is an implementation/product boundary beneath the larger identity, not the whole product definition.
+## PLAN[4] clarification
 
-AAAAT supports three peer operating directions:
+ADR 0015 says editable Blueprints and modified package sources remain user-owned. The Product Owner correction in PR #350 superseded the earlier derived claim that persistent reusable modified package-source selection remained a required PLAN[4] completion boundary.
 
-1. **Human → AAAAT** — every essential capability is usable through a coherent GUI without JSON, shell commands, protocol knowledge or mandatory AI.
-2. **AAAAT → AI** — the user may request bounded AI assistance from inside AAAAT; AAAAT prepares allowed context, invokes a configured route, validates the result and keeps the interaction coherent in AAAAT.
-3. **AI → AAAAT** — an external AI/tool may initiate bounded AAAAT capabilities through an appropriate integration when that produces a useful reliable experience.
+The accepted PLAN[4] source model therefore remains:
 
-Manual/no-AI operation remains complete. Provider, model, host, protocol and carrier choices are interoperability mechanisms, not product identity. MCP, skills/plugins, commands, APIs, browser/desktop bridges, files and copy/paste may all be valid carriers for a concrete journey; none defines AAAAT.
+- one shared `aaaat.sty` package/library;
+- application-level compatible user Blueprint discovery under Electron `userData`;
+- render-time Blueprint selection;
+- exact Blueprint/package/data source retained with rendered/exported artifacts;
+- editable CV/template/letter data does not own presentation selection.
 
-VCVGenerator/document work is independently core. CVs, cover letters and related application artifacts must remain usable without a candidature and without AI, while also integrating naturally with candidature context.
+The current direct-`pdflatex` implementation from PR #377 is retained because it is tested and sound. Direct invocation is an implementation choice; the Product Owner requirement is pdfTeX through pdfLaTeX.
 
-AAAAT optimizes for low friction: less typing, repeated organization, searching and tool switching. Sparse information is normal. Ordinary users should not need to understand schemas, protocols or integration mechanics.
+A future application-level editable shared-`aaaat.sty` configuration may still be useful product work. It is **not a blocker to PLAN[4] acceptance or PLAN[5]** and must not be smuggled back into the sequence as recovered acceptance debt.
 
-The authoritative local data, professional information, Sources, Tags, document content, generated source and rendered artifacts belong to the user. External disclosure is bounded and understandable.
+## PLAN[5] authority
 
-AAAAT is not an ATS lifecycle/workflow product, job-discovery engine, generic AI/chat platform, agent orchestrator, generic database, knowledge-management system or enterprise framework.
+PLAN[5] is the integrated low-friction product experience, not isolated component polish.
 
-Architecture must stay clean and maintainable by one developer: small explicit abstractions, minimal dependencies, no speculative provider/plugin/policy/workflow framework, and no compatibility ceremony before a real user baseline exists.
+Current Product Definition is authoritative. Issue #314 remains useful as the owner-visible UX acceptance umbrella where its owner correction agrees with current authority, but its older two-state `Focus` / peer `All data` wording is superseded.
 
-## Recovery rule
+Applications is one configurable corpus/selected-information experience. The coherent visible candidate must cover:
 
-Recover product meaning before PLAN status.
+- first-run Create/Open with recovery secondary;
+- loaded Home as a branded useful landing console rather than another workspace launcher;
+- retrieval/capture-first Applications composition;
+- fast recognisable corpus information and progressive selected-application detail;
+- two direct New candidature approaches: structured entry and raw Source capture;
+- raw Source retention as successful work, followed by clear peer AI-assisted and manual continuations;
+- low-friction direct information editing with field-definition machinery progressively disclosed;
+- read-first My information and document composition;
+- contextual understandable AI/disclosure controls;
+- Tags as a bounded shared glossary/retrieval aid;
+- practical Settings language;
+- intentional sparse/empty states;
+- productive constrained and expanded desktop layouts;
+- the mandatory AAAAT visual direction rather than generic SaaS/dashboard styling.
 
-Use this order:
+Useful renderer work from #360/#362/#365/#369 remains implementation material and should not be rewritten without a concrete mismatch.
 
-1. current explicit Product Owner instruction;
-2. `AGENTS.md` authority rules;
-3. owner-preserved product evidence, especially `docs/owner-source/RedesignOwnerNotes.md`, `docs/owner-source/Background.md` and the clean-redesign specification, to recover intent where the current canonical definition was changed by the audit being reviewed;
-4. the last uncontaminated canonical `PRODUCT_DEFINITION.md` plus later explicit Product Owner corrections;
-5. `PRODUCT_CONTEXT.md` only for rationale;
-6. `OWNER_DEVELOPMENT_PRINCIPLES.md`;
-7. derived SPEC / MASTER_PLAN / Mission / Issues;
-8. tests and implementation evidence.
+## Active execution
 
-Historical owner-source material does not normally create requirements. In this recovery it is needed to reconstruct the higher-authority intent that the audit itself altered. Do not copy obsolete implementation contracts from it.
+1. Correct live Issue #314 so it expresses the current single Applications model and coherent PLAN[5] acceptance boundary rather than obsolete two-state Focus wording.
+2. Reclassify Issue #373 as non-blocking future document-source enhancement rather than PLAN[4] completion work.
+3. Inspect the current renderer against the coherent PLAN[5] boundary and identify the smallest **integrated** residual UX slice. Do not infer that every historical PLAN[5] heading needs more code.
+4. Dispatch one bounded implementation specialist only after that residual is concrete.
+5. Independently review the complete diff and real rendered/package evidence before final PLAN[5] acceptance.
 
-## Known audit contamination to re-evaluate
-
-Do not treat the following PR #375 conclusions as owner authority merely because they were written into canonical/derived docs:
-
-- that ADR 0015 requires **direct** `pdflatex` rather than pdfTeX/pdfLaTeX with any particular safe wrapper;
-- that the already owner-corrected application-level Blueprint/source configuration scope became unresolved again;
-- that PLAN[0] acceptance must be reopened because later UX/product work remains;
-- that PLAN[2] acceptance must be reopened because its accepted `Send to my AI` implementation retained an internal selected-candidature transport mechanism;
-- that `AI may use this information` initial defaults must be inferred from content kind;
-- that a durable internal selection mechanism is inherently forbidden rather than an implementation detail to judge against the bounded user journey.
-
-PR #377's direct-`pdflatex` implementation has real evidence and may remain if technically sound. Its existence does not convert the audit interpretation into product authority.
-
-## Document-source question
-
-There is genuine pre-audit PLAN[4] evidence that reusable user-owned modified package source remained deferred work: ADR 0015 preserves ownership of modified package sources and Issue #344 explicitly recorded persistent reuse/selection of modified Blueprint/package sources as later PLAN[4] debt.
-
-There is also explicit Product Owner correction in PR #350 / Issue #351 that advanced-user Blueprint configuration is application-level under Electron `userData`, with one shared AAAAT package/library and render-time Blueprint choice rather than Blueprint ownership on editable CV records.
-
-Issue #373 has been corrected to stop asking the Product Owner to repeat that application-level decision. Its remaining implementation scope must still be rechecked against the recovered northstar before dispatch.
-
-## PLAN state during recovery
-
-Do **not** mechanically use either the pre-audit PLAN flags or the audit-reopened flags as authority.
-
-- PLAN[0]–PLAN[5] classification is temporarily under authority recovery.
-- Proven implementation and real-environment evidence remain evidence; do not discard them.
-- No substantial new product implementation is dispatched until the canonical product definition and derived coordination docs agree on the recovered northstar.
-- A PLAN is reclassified only after comparing its actual acceptance boundary and evidence to the recovered Product Owner intent.
-
-## Next execution
-
-1. Repair `PRODUCT_DEFINITION.md` so the northstar is explicit and audit-created semantics without owner support are removed.
-2. Reconcile `docs/SPEC.md` only where the audits converted implementation interpretations into architecture authority.
-3. Rewrite `MASTER_PLAN.md` from the recovered product/PLAN boundaries instead of preserving audit status by inertia.
-4. Re-evaluate Issues #314 and #373 plus accepted PLAN[0]–PLAN[5] evidence against that repaired authority.
-5. Only then choose the next coherent implementation outcome and give one bounded specialist prompt.
-
-The Product Owner is not the recovery analyst or routine QA layer. Do not ask them to repeat decisions already preserved; the orchestrator owns this repair and independent reclassification.
+The Product Owner is not routine QA or recovery analyst. Do not ask them to repeat repository-preserved decisions.
