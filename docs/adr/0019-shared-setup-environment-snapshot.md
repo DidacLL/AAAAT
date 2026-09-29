@@ -13,7 +13,7 @@ At the same time, setup assistance must not create a package-manager framework, 
 Keep one small setup-environment snapshot derived from existing product services:
 
 - current workspace readiness;
-- availability of the known `latexmk` and `pdflatex` commands and document-rendering readiness;
+- availability of the known `pdflatex` command and document-rendering readiness;
 - optional AI configuration readability and connection count;
 - per-operation validated AI-route availability.
 
