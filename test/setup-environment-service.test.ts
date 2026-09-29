@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("setup environment service", () => {
-  it("projects fixed TeX readiness and configured AI routes without synthetic validation", async () => {
+  it("reports rendering ready from pdflatex alone and configured AI routes without synthetic validation", async () => {
     const root = workspace();
     saveNamedAiConnection(root, {
       name: "Local fit model",
@@ -37,13 +37,16 @@ describe("setup environment service", () => {
       return {
         command,
         available: true,
-        version: command === "latexmk" ? "Latexmk 4.86" : "pdfTeX 3.141592653",
+        version: "pdfTeX 3.141592653",
       };
     });
 
-    expect(probed).toEqual(["latexmk", "pdflatex"]);
+    expect(probed).toEqual(["pdflatex"]);
     expect(snapshot.workspaceReady).toBe(true);
-    expect(snapshot.tex).toMatchObject({ documentRenderingReady: true });
+    expect(snapshot.tex).toEqual({
+      commands: [{ command: "pdflatex", available: true, version: "pdfTeX 3.141592653" }],
+      documentRenderingReady: true,
+    });
     expect(snapshot.ai).toMatchObject({ configurationReadable: true, connectionCount: 1 });
     expect(snapshot.ai.operations).toContainEqual({
       operation: "opportunity_review",
@@ -57,7 +60,7 @@ describe("setup environment service", () => {
     });
   });
 
-  it("reports missing TeX and zero AI as valid manual configuration", async () => {
+  it("reports rendering unavailable when pdflatex is missing", async () => {
     const root = workspace();
     const snapshot = await getSetupEnvironmentSnapshot(root, async (command) => ({
       command,
@@ -68,7 +71,6 @@ describe("setup environment service", () => {
     expect(snapshot.workspaceReady).toBe(true);
     expect(snapshot.tex.documentRenderingReady).toBe(false);
     expect(snapshot.tex.commands).toEqual([
-      { command: "latexmk", available: false, version: null },
       { command: "pdflatex", available: false, version: null },
     ]);
     expect(snapshot.ai.configurationReadable).toBe(true);

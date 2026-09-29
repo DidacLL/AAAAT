@@ -43,7 +43,7 @@ function workspace(): string {
   return root;
 }
 
-function installFakeLatexmk(): void {
+function installFakePdfLatex(): void {
   const root = temporaryRoot("aaaat-fake-latex-");
   const script = path.join(root, "fake-latex.js");
   writeFileSync(
@@ -56,12 +56,12 @@ fs.writeFileSync(path.join(process.cwd(), "build", "main.pdf"), "%PDF-1.4\\n% AA
 `,
     "utf8",
   );
-  const executable = path.join(root, "latexmk");
+  const executable = path.join(root, "pdflatex");
   writeFileSync(executable, `#!/usr/bin/env node
 require(${JSON.stringify(script)});
 `, "utf8");
   chmodSync(executable, 0o755);
-  writeFileSync(path.join(root, "latexmk.cmd"), `@node "${script}" %*\r\n`, "utf8");
+  writeFileSync(path.join(root, "pdflatex.cmd"), `@node "${script}" %*\r\n`, "utf8");
   process.env.PATH = `${root}${path.delimiter}${originalPath ?? ""}`;
 }
 
@@ -163,7 +163,7 @@ describe("document production", () => {
   });
 
   it("renders the same saved CV through different Blueprints without mutating editable state", async () => {
-    installFakeLatexmk();
+    installFakePdfLatex();
     const root = workspace();
     const working = createWorkingCv(root, {
       title: "Saved editable CV",
@@ -204,7 +204,7 @@ describe("document production", () => {
   });
 
   it("renders immutable CV and cover-letter snapshots without leaking internal kinds or TeX commands", async () => {
-    installFakeLatexmk();
+    installFakePdfLatex();
     const root = workspace();
     const candidature = createCandidature(root, { values: [] });
     addProfileItem(root, {
@@ -294,7 +294,7 @@ describe("document production", () => {
   });
 
   it("retains direct cover-letter output and leaves editable state intact after a failed render", async () => {
-    installFakeLatexmk();
+    installFakePdfLatex();
     const root = workspace();
     const letter = createCoverLetter(root, {
       candidatureId: null,
@@ -315,7 +315,7 @@ describe("document production", () => {
   });
 
   it("uses the Rendered CV Blueprint for packet letters and exports exact retained projects", async () => {
-    installFakeLatexmk();
+    installFakePdfLatex();
     const root = workspace();
     const exportRoot = temporaryRoot("aaaat-portable-export-");
     const candidature = createCandidature(root, { values: [] });

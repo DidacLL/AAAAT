@@ -16,7 +16,6 @@ function snapshot(overrides: Partial<SetupEnvironmentSnapshot> = {}): SetupEnvir
     workspaceReady: true,
     tex: {
       commands: [
-        { command: "latexmk", available: true, version: "Sensitive Latexmk version" },
         { command: "pdflatex", available: true, version: "Sensitive pdfTeX version" },
       ],
       documentRenderingReady: true,
@@ -41,10 +40,8 @@ describe("shared setup harness projection", () => {
     });
     expect(installer.checks.map((check) => [check.label, check.ready])).toEqual([
       ["Workspace", true],
-      ["latexmk", true],
       ["pdflatex", true],
     ]);
-    expect(JSON.stringify(installer)).not.toContain("Sensitive Latexmk version");
     expect(JSON.stringify(installer)).not.toContain("Sensitive pdfTeX version");
     expect(installer.externalCapability).toMatch(/rendering self-test/i);
     expect(installer.externalCapability).toMatch(/no shell/i);
@@ -59,13 +56,12 @@ describe("shared setup harness projection", () => {
     expect(configurator.externalCapability).toMatch(/cannot bypass validation/i);
   });
 
-  it("reports missing prerequisites and validated AI coverage without private connection names", () => {
+  it("reports missing pdflatex and validated AI coverage without private connection names", () => {
     const [installer, configurator] = buildSetupGuidance(
       snapshot({
         tex: {
           commands: [
-            { command: "latexmk", available: false, version: null },
-            { command: "pdflatex", available: true, version: "Sensitive pdfTeX version" },
+            { command: "pdflatex", available: false, version: null },
           ],
           documentRenderingReady: false,
         },
@@ -82,7 +78,7 @@ describe("shared setup harness projection", () => {
     );
 
     expect(installer.state).toBe("attention");
-    expect(installer.checks.find((check) => check.label === "latexmk")?.ready).toBe(false);
+    expect(installer.checks.find((check) => check.label === "pdflatex")?.ready).toBe(false);
     expect(configurator.state).toBe("ready");
     expect(configurator.checks.find((check) => check.label === "Opportunity review")?.ready).toBe(true);
     expect(JSON.stringify(configurator)).not.toContain("Private connection name");

@@ -1,4 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import path from "node:path";
 
 export class LatexRunnerError extends Error {
   constructor(message: string) {
@@ -73,24 +75,23 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
   await exited;
 }
 
-export async function runLatexmk(
+export async function runPdfLatex(
   projectPath: string,
   timeoutMs = 30_000,
 ): Promise<void> {
-  const engineFlag = "-pdf";
-  const latexArgs = [
-    engineFlag,
+  mkdirSync(path.join(projectPath, "build"), { recursive: true });
+  const pdfLatexArgs = [
     "-interaction=nonstopmode",
     "-halt-on-error",
-    "-outdir=build",
+    "-output-directory=build",
     "main.tex",
   ];
   const command =
-    process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "latexmk";
+    process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "pdflatex";
   const args =
     process.platform === "win32"
-      ? ["/d", "/s", "/c", "latexmk", ...latexArgs]
-      : latexArgs;
+      ? ["/d", "/s", "/c", "pdflatex", ...pdfLatexArgs]
+      : pdfLatexArgs;
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
@@ -125,7 +126,7 @@ export async function runLatexmk(
       if (timingOut) return;
       finish(
         new LatexRunnerError(
-          `TeX rendering could not start. Install latexmk and pdflatex. ${error.message}`,
+          `TeX rendering could not start. Install pdflatex or a compatible TeX distribution. ${error.message}`,
         ),
       );
     });

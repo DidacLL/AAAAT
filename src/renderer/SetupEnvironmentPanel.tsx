@@ -178,7 +178,7 @@ export function SetupEnvironmentPanel({
             {snapshot ? (
               <div className="document-list">
                 <article className="document-card"><div><h3>Workspace</h3><p>{snapshot.workspaceReady ? "Configured workspace is available." : "Configured workspace is unavailable."}</p></div></article>
-                <article className="document-card"><div><h3>Document rendering</h3><p>{snapshot.tex.documentRenderingReady ? "Ready with the detected local TeX tools." : "Needs a compatible TeX installation providing latexmk and pdflatex."}</p><details><summary>Technical details</summary>{snapshot.tex.commands.map((command) => <p key={command.command}><code>{command.command}</code>: {command.available ? "available" : "not found"}{command.version ? ` · ${command.version}` : ""}</p>)}</details></div></article>
+                <article className="document-card"><div><h3>Document rendering</h3><p>{snapshot.tex.documentRenderingReady ? "Ready with the detected local TeX tools." : "Needs a compatible TeX installation providing pdflatex."}</p><details><summary>Technical details</summary>{snapshot.tex.commands.map((command) => <p key={command.command}><code>{command.command}</code>: {command.available ? "available" : "not found"}{command.version ? ` · ${command.version}` : ""}</p>)}</details></div></article>
               </div>
             ) : null}
           </div>
@@ -199,8 +199,8 @@ export function SetupEnvironmentPanel({
       <section className="profile-workspace" aria-label="Setup environment">
         <div className="profile-column">
           <div className="section-heading"><div><p className="eyebrow">PDF rendering</p><h2>{snapshot?.tex.documentRenderingReady ? "PDF Ready" : "PDF status"}</h2></div><button type="button" className="compact-secondary" disabled={loading} onClick={() => void load()}>{loading ? "Checking…" : "Refresh status"}</button></div>
-          <p>{snapshot ? snapshot.tex.documentRenderingReady ? "Local PDF rendering is ready on this computer." : "Document editing remains available, but PDF rendering needs both latexmk and pdflatex." : loading ? "Checking local rendering capability…" : "Rendering status is unavailable."}</p>
-          {snapshot && !snapshot.tex.documentRenderingReady ? <p className="compact-help">Install a TeX distribution that makes <code>latexmk</code> and <code>pdflatex</code> available on your system PATH, then refresh this status.</p> : null}
+          <p>{snapshot ? snapshot.tex.documentRenderingReady ? "Local PDF rendering is ready on this computer." : "Document editing remains available, but PDF rendering needs pdflatex." : loading ? "Checking local rendering capability…" : "Rendering status is unavailable."}</p>
+          {snapshot && !snapshot.tex.documentRenderingReady ? <p className="compact-help">Install a compatible TeX distribution that makes <code>pdflatex</code> available on your system PATH, then refresh this status.</p> : null}
           <div className="button-row"><button type="button" disabled={selfTesting} onClick={() => void runSelfTest()}>{selfTesting ? "Running self-test…" : "Run rendering self-test"}</button></div>
           {selfTestResult ? <p className="document-notice" role="status">{selfTestResult}</p> : null}
           {error ? <p className="error-message" role="alert">{error}</p> : null}

@@ -30,7 +30,7 @@ export type ExternalAssistantGuidance = z.infer<typeof externalAssistantGuidance
 export const externalAssistantGuidanceCopyResultSchema = z.literal("copied");
 export const externalAssistantGuidanceExportResultSchema = z.enum(["exported", "cancelled"]);
 
-export const setupTexCommandSchema = z.enum(["latexmk", "pdflatex"]);
+export const setupTexCommandSchema = z.enum(["pdflatex"]);
 export type SetupTexCommand = z.infer<typeof setupTexCommandSchema>;
 
 export const setupTexCommandStatusSchema = z

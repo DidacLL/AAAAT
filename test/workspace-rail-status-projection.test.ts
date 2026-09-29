@@ -17,7 +17,6 @@ function environment({
     workspaceReady: true,
     tex: {
       commands: [
-        { command: "latexmk", available: true, version: "Latexmk" },
         { command: "pdflatex", available: true, version: "pdfTeX" },
       ],
       documentRenderingReady: true,
