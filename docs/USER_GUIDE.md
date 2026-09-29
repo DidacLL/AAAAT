@@ -33,14 +33,14 @@ Settings has exactly four top-level tabs:
 
 - **Workspace** — current workspace identity, create/open another workspace, reset and deletion.
 - **AI** — AI connections, capability validation/routing, diagnostics, effective instructions, portable AI setup, and advanced bounded external-assistant connection/authorization controls.
-- **Documents** — local PDF readiness, `latexmk` / `pdflatex` status, setup guidance and the fixed rendering self-test.
+- **Documents** — local PDF readiness, `pdflatex` status, setup guidance and the fixed rendering self-test.
 - **Backup** — workspace backup and restore/recovery.
 
 There is no separate Settings overview or external-assistants destination.
 
 ## Local PDF rendering
 
-AAAAT owns document data and generated portable output. Local PDF rendering uses compatible `latexmk` and `pdflatex` commands already available on the computer.
+AAAAT owns document data and generated portable output. Local PDF rendering uses `pdflatex` from a compatible TeX distribution already available on the computer.
 
 Open **Settings → Documents** for live PDF status and AAAAT's rendering self-test. The self-test uses the fixed AAAAT rendering pipeline. Missing rendering tools do not prevent editing or local ownership. AAAAT does not silently install packages or expose arbitrary command execution.
 
