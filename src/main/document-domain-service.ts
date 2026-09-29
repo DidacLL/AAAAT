@@ -53,7 +53,7 @@ import {
   writeCoverLetterLatexProject,
   writeCvLatexProject,
 } from './document-latex';
-import {LatexRunnerError, runLatexmk} from './latex-runner';
+import {LatexRunnerError, runPdfLatex} from './latex-runner';
 import {getProfile, getProfileItem, updateProfileItem} from './profile-service';
 import {createProfileVariant, getProfileVariant, listProfileVariants} from './profile-variant-service';
 import {withWorkspaceDatabase} from './workspace';
@@ -715,11 +715,11 @@ export function saveWorkingCvAsTemplate(
 }
 async function compileProject(projectPath: string, timeoutMs: number): Promise<void> {
   try {
-    await runLatexmk(projectPath, timeoutMs);
+    await runPdfLatex(projectPath, timeoutMs);
   } catch (error) {
     if (error instanceof LatexRunnerError)
       throw new DocumentDomainServiceError(
-          `${error.message} Check that latexmk and pdflatex are installed and compatible.`);
+          `${error.message} Check that pdflatex is installed and compatible.`);
     throw error;
   }
   if (!existsSync(path.join(projectPath, 'build', 'main.pdf')))
