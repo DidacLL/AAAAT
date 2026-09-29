@@ -2,9 +2,6 @@ name: Real LaTeX portability
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "feat/issue-376-direct-pdflatex"
   pull_request:
     paths:
       - "src/main/document-domain-service.ts"
@@ -41,15 +38,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends poppler-utils texlive-latex-base texlive-latex-recommended texlive-fonts-recommended
       - run: npm ci
-      - name: Run Issue 376 focused tests
-        run: >-
-          npx vitest run
-          test/latex-runner.test.ts
-          test/setup-environment-service.test.ts
-          test/setup-rendering-self-test.test.ts
-          test/setup-guidance.test.ts
-          test/document-production.test.ts
-          test/direct-pdflatex-prerequisite.test.ts
       - name: Compile real portable document projects
         env:
           AAAAT_REAL_LATEX: "1"
