@@ -183,35 +183,38 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     const continuation = running.page.getByRole("region", { name: "Raw material continuation" });
     await expect(continuation.getByRole("button", { name: "Use AI to suggest information" })).toBeVisible();
     await expect(continuation.getByRole("button", { name: "Fill information manually" })).toBeVisible();
-    await continuation.getByRole("button", { name: "Fill information manually" }).click();
-
-    const selectedApplication = running.page.getByRole("region", { name: "Application information" });
-    const sources = selectedApplication.getByRole("region", { name: "Sources" });
-    await expect(sources).toContainText(rawMaterial);
-    await sources.getByRole("button", { name: "Read source" }).click();
-    await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
-
-    const roleBlock = selectedApplication.getByRole("article", { name: "Role information" });
-    await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
-    await roleBlock.getByLabel("Value").fill("Captain");
-    await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(roleBlock).toContainText("Captain");
-    await expect(sources).toContainText(rawMaterial);
-
-    await selectedApplication.getByRole("button", { name: "← Applications" }).click();
+    const retainedSelection = running.page.getByRole("region", { name: "Application information" });
+    await retainedSelection.getByRole("button", { name: "← Applications" }).click();
     const corpus = running.page.getByLabel("Application corpus");
     const candidatureEntries = corpus.getByRole("button", { name: "Open saved application" });
     await expect(candidatureEntries).toHaveCount(1);
-    await candidatureEntries.first().click();
+    const rawOnlyEntry = candidatureEntries.first();
+    await expect(rawOnlyEntry).toContainText("Retained source");
+    await expect(rawOnlyEntry).toContainText("Aster Aviation seeks a captain in Madrid");
+    await rawOnlyEntry.click();
 
     const reopened = running.page.getByRole("region", { name: "Application information" });
-    const reopenedRole = reopened.getByRole("article", { name: "Role information" });
-    await expect(reopenedRole).toContainText("Captain");
-    await reopened.getByText("More", { exact: true }).click();
-    const reopenedSources = reopened.getByRole("region", { name: "Sources" });
-    await expect(reopenedSources).toContainText(rawMaterial);
-    await reopenedSources.getByRole("button", { name: "Read source" }).click();
-    await expect(reopenedSources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
+    const sources = reopened.getByRole("region", { name: "Sources" });
+    await expect(sources).toContainText(rawMaterial);
+    await sources.getByRole("button", { name: "Read source" }).click();
+    await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
+    await sources.getByRole("button", { name: "Back to Sources" }).click();
+
+    const roleBlock = reopened.getByRole("article", { name: "Role information" });
+    await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
+    await roleBlock.getByLabel("Value").fill("Captain");
+    await expect(reopened.getByRole("button", { name: "Send to my AI" })).toBeDisabled();
+    await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(roleBlock).toContainText("Captain");
+    const primary = reopened.getByRole("region", { name: "Starred application information" });
+    const externalAi = reopened.getByRole("region", { name: "Send to my AI" });
+    await expect(externalAi.getByRole("button", { name: "Send to my AI" })).toBeVisible();
+    await expect(reopened.getByLabel("Task instructions")).toHaveCount(0);
+    const primaryBox = await primary.boundingBox();
+    const externalAiBox = await externalAi.boundingBox();
+    expect(primaryBox).not.toBeNull();
+    expect(externalAiBox).not.toBeNull();
+    expect(primaryBox!.y).toBeLessThan(externalAiBox!.y);
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
   } finally {

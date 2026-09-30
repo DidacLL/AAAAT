@@ -147,6 +147,31 @@ afterEach(() => {
 });
 
 describe("selected candidature Send to my AI", () => {
+  it("keeps retained task access collapsed behind application content until deliberately opened", async () => {
+    prepareAccessApi();
+    current.mockResolvedValue({ candidatureId, allowed: true });
+    const user = userEvent.setup();
+    const open = await openSelectedCandidature(user);
+
+    await waitFor(() => expect(current).toHaveBeenCalledWith(candidatureId));
+    const selected = screen.getByRole("region", { name: "Application information" });
+    const primary = screen.getByRole("region", { name: "Starred application information" });
+    const externalAi = screen.getByRole("region", { name: "Send to my AI" });
+    expect(selected).toContainElement(primary);
+    expect(selected).toContainElement(externalAi);
+    expect(primary.compareDocumentPosition(externalAi) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(primary).toHaveTextContent("Platform Engineer");
+    expect(screen.queryByLabelText("Task instructions")).not.toBeInTheDocument();
+    expect(taskContext).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+
+    await user.click(open);
+    expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
+    expect(taskContext).toHaveBeenCalledTimes(1);
+    expect(await screen.findByLabelText("Task instructions")).toBeVisible();
+    expect(screen.getByRole("region", { name: "Context sent with task" })).toHaveTextContent("Platform Engineer");
+  });
+
   it("is directly discoverable and revokes the selected context when retained context becomes dirty", async () => {
     prepareAccessApi();
     const user = userEvent.setup();

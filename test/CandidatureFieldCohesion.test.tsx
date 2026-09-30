@@ -290,8 +290,10 @@ describe("candidature field cohesion", () => {
     expect(within(roleCard).getByText("Field options")).toBeVisible();
     expect(within(roleCard).queryByLabelText("Value")).not.toBeInTheDocument();
 
+    expect(screen.getByRole("region", { name: "Tags" })).toBeVisible();
     await user.click(screen.getByText("More"));
     const more = screen.getByRole("region", { name: "More application information" });
+    expect(screen.getByRole("region", { name: "Application documents" })).toBeVisible();
     let locationCard = within(more).getByRole("article", { name: "Location information" });
     expect(within(locationCard).getByText("Not set")).toBeVisible();
     expect(within(locationCard).getByRole("button", { name: "Edit Location" })).toBeVisible();

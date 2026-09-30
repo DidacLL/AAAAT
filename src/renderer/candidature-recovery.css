@@ -178,6 +178,16 @@
   font-size: 0.96rem;
 }
 
+.candidature-retained-source-cue .candidature-cue-label {
+  display: block;
+  margin-bottom: 0.16rem;
+  color: var(--muted-ink);
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
 .candidature-search-match {
   display: grid;
   grid-template-columns: minmax(70px, max-content) minmax(0, 1fr);

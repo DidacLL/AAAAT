@@ -216,6 +216,30 @@ describe("new application recovery", () => {
     expect(screen.getByRole("region", { name: "Sources" })).toBeVisible();
   });
 
+  it("recognizes a saved raw-only application from retained Source and reopens it with Source immediately reachable", async () => {
+    installApi();
+    const user = userEvent.setup();
+    const raw = "  Aster Aviation seeks a captain.\nKeep this exact text.  ";
+    render(<CandidaturesAiWorkspace />);
+
+    await user.click(screen.getByRole("button", { name: "New application" }));
+    await user.click(screen.getByRole("button", { name: /Retain raw material/ }));
+    await user.type(screen.getByLabelText("Application raw material"), raw);
+    await user.click(screen.getByRole("button", { name: "Retain raw material" }));
+
+    await screen.findByRole("region", { name: "Raw material continuation" });
+    await user.click(screen.getByRole("button", { name: "← Applications" }));
+    const corpus = screen.getByLabelText("Application corpus");
+    const entry = within(corpus).getByRole("button", { name: "Open saved application" });
+    expect(within(entry).getByText("Retained source")).toBeVisible();
+    expect(entry).toHaveTextContent("Aster Aviation seeks a captain. Keep this exact text.");
+
+    await user.click(entry);
+    expect(await screen.findByRole("region", { name: "Sources" })).toBeVisible();
+    const role = screen.getByRole("article", { name: "Role information" });
+    expect(within(role).getByRole("button", { name: "Edit Role" })).toBeVisible();
+  });
+
   it("keeps the retained Source and manual continuation available when the AI continuation fails", async () => {
     installApi();
     const user = userEvent.setup();

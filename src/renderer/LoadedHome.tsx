@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CandidatureFieldConfiguration, CandidatureRecord } from "../shared/contracts";
 import type { DocumentCollections } from "../shared/document-domain-contracts";
 import logo from "./assets/aaaat-logo-light.png";
-import { candidatureRecognitionCues } from "./candidature-projections";
+import { candidatureRecognitionProjection } from "./candidature-projections";
 import "./loaded-home.css";
 
 const emptyCollections: DocumentCollections = {
@@ -34,12 +34,6 @@ function recentFirst<T extends { readonly updatedAt: string }>(items: readonly T
   return [...items]
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, limit);
-}
-
-function retainedSourceExcerpt(record: CandidatureRecord): string | null {
-  const compact = record.sourceSearchText.replace(/\s+/g, " ").trim();
-  if (!compact) return null;
-  return compact.length > 120 ? `${compact.slice(0, 117).trimEnd()}…` : compact;
 }
 
 export function LoadedHome({
@@ -133,8 +127,9 @@ export function LoadedHome({
           ) : null}
           <div className="loaded-home-recent-list">
             {recentApplications.map((record) => {
-              const cues = candidatureRecognitionCues(record, data.fields, 2);
-              const sourceExcerpt = cues.length === 0 ? retainedSourceExcerpt(record) : null;
+              const recognition = candidatureRecognitionProjection(record, data.fields, 2);
+              const cues = recognition.primaryCues;
+              const sourceCue = recognition.retainedSourceCue;
               return (
                 <button
                   key={record.id}
@@ -147,10 +142,10 @@ export function LoadedHome({
                       <small>{cue.label}</small>
                       <strong>{cue.value}</strong>
                     </span>
-                  )) : sourceExcerpt ? (
+                  )) : sourceCue ? (
                     <span className="loaded-home-cue loaded-home-cue-wide">
-                      <small>Retained source</small>
-                      <strong>{sourceExcerpt}</strong>
+                      <small>{sourceCue.label}</small>
+                      <strong>{sourceCue.value}</strong>
                     </span>
                   ) : (
                     <span className="loaded-home-cue loaded-home-cue-wide">

@@ -63,15 +63,12 @@ export function CandidatureOpportunityResearchAccessPanel({
     if (!api) return;
     let active = true;
     void Promise.all([api.current(candidatureId), api.taskTemplates()])
-      .then(async ([current, templates]) => {
+      .then(([current, templates]) => {
         if (!active) return;
         setAccess(current);
         setUserTemplates(templates);
-        if (!current.allowed || contextDirty) return;
-        const context = await api.taskContext();
-        if (!active) return;
-        setTaskContext(context);
-        setEditorOpen(true);
+        setTaskContext(null);
+        setEditorOpen(false);
       })
       .catch(() => {
         if (active) setError("AAAAT could not prepare Send to my AI for this application.");
@@ -290,7 +287,11 @@ export function CandidatureOpportunityResearchAccessPanel({
 
       {!editorOpen ? (
         <>
-          <p>Choose or write a task for this application and use it with your preferred AI.</p>
+          <p>
+            {access?.allowed
+              ? "Task access is ready. Open it when you want to review or send it."
+              : "Choose or write a task for this application and use it with your preferred AI."}
+          </p>
           {contextDirty ? (
             <p className="compact-help">Save or discard the application edits first.</p>
           ) : null}
