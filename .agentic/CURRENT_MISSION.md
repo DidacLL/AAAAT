@@ -1,9 +1,9 @@
-# Current mission — PLAN[5] loaded Home landing console
+# Current mission — PLAN[5] sparse/raw corpus recognition
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `c04f1696c4d05a4cf9ec698cebb3e296755079c9` (PR #382 accepted Issue #380).
-Active implementation Issue: #383.
+Base main: `7d900411cfbe734723d843100b92c50f4f720ba3` (PR #385 accepted Issue #383).
+Active implementation Issue: #386.
 Integrated PLAN[5] acceptance umbrella: #314.
 
 The September 28 audits are no longer execution authority. PR #378 recovered the AAAAT northstar; PR #379 restored PLAN[0]–PLAN[4] as complete/retained and PLAN[5] as active.
@@ -12,34 +12,49 @@ The September 28 audits are no longer execution authority. PR #378 recovered the
 
 - **PLAN[0] — COMPLETE / RETAINED.**
 - **PLAN[1] — COMPLETE / RETAINED.**
-- **PLAN[2] — COMPLETE.** Real local/no-local external-AI journeys and the accepted `Send to my AI` interaction remain valid.
+- **PLAN[2] — COMPLETE.**
 - **PLAN[3] — COMPLETE / RETAINED.**
-- **PLAN[4] — COMPLETE.** The Product Owner-corrected document model is settled; Issue #373 is a non-blocking future source enhancement.
-- **PLAN[5] — ACTIVE.** Current work is coherent user-facing desktop acceptance.
+- **PLAN[4] — COMPLETE.** Issue #373 remains a non-blocking future source enhancement.
+- **PLAN[5] — ACTIVE.** Current work is coherent user-facing desktop acceptance under #314.
 
-## Accepted PLAN[5] slice — Issue #380 / PR #382
+## Accepted PLAN[5] slices
 
-Issue #380 is complete. PR #382 merged as `c04f1696c4d05a4cf9ec698cebb3e296755079c9`.
+### Issue #380 / PR #382 — New application recovery
 
 Accepted behavior:
 
-- `New application` presents peer **Enter information directly** and **Retain raw material** intentions;
-- direct entry uses current dynamic candidature fields without requiring Source material or AI;
-- raw capture first retains the candidature + exact Source, then exposes peer AI/manual continuations;
-- manual continuation reuses the existing selected-candidature Source/information surface;
-- AI continuation reuses existing inference/proposal review;
-- `application-document-preparation.ts` and its background durable AI writes are removed;
-- external AI handoff import remains a secondary AI → AAAAT entrance.
+- peer direct-entry and raw-material intentions;
+- direct entry uses dynamic candidature fields without requiring Source/AI;
+- raw capture first retains candidature + exact Source, then exposes peer AI/manual continuations;
+- manual continuation reuses selected-candidature Source/information work;
+- AI continuation reuses current proposal/review semantics;
+- obsolete background durable-AI-write preparation path removed;
+- external AI handoff remains secondary.
 
-Exact candidate evidence on specialist SHA `51b3499868cea61a579591b93a52e24067ffeee6`:
+Exact candidate SHA `51b3499868cea61a579591b93a52e24067ffeee6`; Windows candidate run `36604242314` passed package build and all 5 packaged runtime journeys.
 
-- ordinary Verify run `36602562548` passed;
-- Windows candidate run `36604242314` passed exact checkout, Windows Verify, package build and all packaged runtime journeys;
-- packaged Playwright: 5/5 passed, including raw Source → manual continuation → leave/reopen persistence;
-- Windows candidate ZIP SHA-256: `9cc083669b700ed6ffc32dd5800291aa341062948c599fc5ac0fdb3bc9152dcd`;
-- uploaded artifact ID `11050612908`.
+### Issue #383 / PR #385 — loaded Home landing console
 
-Do not reopen #380 unless a later change directly regresses that boundary.
+Issue #383 is complete. PR #385 merged as `7d900411cfbe734723d843100b92c50f4f720ba3`.
+
+Accepted behavior:
+
+- loaded Home no longer duplicates workspace create/open/demo/recovery administration;
+- first-run Welcome keeps workspace-entry/recovery behavior;
+- Home shows compact active-workspace orientation, bounded recent applications and editable document work;
+- recent application recognition uses dynamic candidature data with raw/sparse fallback;
+- exact application/document continuations reuse existing selected-work handoffs;
+- Settings remains authoritative for workspace switching/creation and backup/recovery;
+- ordinary packaged journeys enter Applications/CVs through the persistent rail.
+
+Exact candidate SHA `a510893e91073668286099749077ff71ddabc154`:
+
+- orchestrator Verify run `36708230950` + verification gate passed;
+- Windows candidate run `36708230980` passed exact checkout, Windows Verify, package build and all 5 packaged runtime journeys;
+- Windows package SHA-256 `e20a5ca29806c52bca720d6774e2fb312b7aa5482965c6d0baa202c081e36a80`;
+- uploaded candidate artifact ID `11092419934`.
+
+Do not reopen #380 or #383 unless later work directly regresses their accepted boundaries.
 
 ## AAAAT product boundary
 
@@ -47,100 +62,73 @@ AAAAT is an open-source, provider-agnostic agentic-human tool for managing job a
 
 Human → AAAAT, AAAAT → configured AI and external AI/tool → bounded AAAAT capability are peer directions. Manual/no-AI use remains complete. VCVGenerator/document work is independently core. Provider/model/host/protocol/carrier choices remain mechanisms rather than product identity.
 
-## Current concrete residual — Issue #383
+## Current concrete residual — Issue #386
 
-Loaded Home still violates the recovered PLAN[5] interaction model.
+Applications corpus currently renders user-selected favourite/primary information correctly, but when no usable primary cue exists it falls back to `No displayable information yet` even if the candidature contains useful retained raw Source material.
 
-Current `App.tsx` loaded Home presents:
+This contradicts #314: sparse/raw-only candidatures are valid and must remain recognizable from useful retained material during ordinary corpus browsing.
 
-- `Open applications`;
-- `Open CVs`;
-- `New workspace`;
-- `Open existing workspace`;
-- `Open demo`;
-- workspace recovery.
-
-That makes Home a second workspace-entry launcher after a workspace is already active.
-
-Current `SettingsWorkspace` already owns the correct administration:
-
-- current workspace identity;
-- create/open another workspace;
-- reset/delete;
-- Backup/recovery.
-
-Current `docs/UX_DEFINITION.md` requires loaded Home to be a **branded useful landing console**, not a bare launcher or generic metrics dashboard. Workspace entry belongs to first-run Welcome; loaded workspace administration belongs in Settings/shell.
+Historical projection tests explicitly freeze the superseded rule that raw Source never appears as ordinary corpus recognition. Those tests must now follow current Product Owner authority rather than preserve the old behavior.
 
 ## Required outcome
 
-Implement Issue #383 exactly.
+Implement Issue #386 exactly.
 
-Loaded Home should provide:
+Recognition precedence is:
 
-1. **compact workspace orientation** — current workspace name and Local/Demo character;
-2. **recent applications** — a small bounded set using existing dynamic candidature recognition data, with exact-candidature continuation through the existing selected-application path;
-3. **recent editable document work** — a small bounded set of existing Working CV / editable cover-letter work using current document collections and handoffs;
-4. **intentional empty states** with ordinary continuations into Applications/CVs when no recent work exists.
+1. usable **favourite/primary field cues**;
+2. a compact bounded **Retained source** excerpt when there are no primary cues and Source text exists;
+3. a neutral compact saved-application fallback only when there is genuinely no useful recognition content.
 
-Remove loaded-Home workspace creation/open/demo/recovery controls. Keep those capabilities in Settings.
+Important constraints:
 
-Do not duplicate rail AI/PDF/task/Tag status as dashboard cards. Do not turn Home into analytics, an activity feed or a navigation grid.
+- do not promote non-favourite retained field values;
+- do not infer identity from Role/Organisation/labels/system keys or profession-specific semantics;
+- Source fallback is local retained material, not AI context/disclosure policy;
+- favourite cues replace the fallback once available;
+- search still independently explains matching fields/Sources/Tags;
+- archive filtering/order/click behavior remain unchanged.
 
-First-run Welcome remains unchanged in product meaning: create/open workspace are primary and recovery remains secondary/discoverable.
+Keep primary cues and fallback recognition as distinct projection concepts. A small helper in `candidature-projections.ts` is appropriate, and `LoadedHome` may reuse it so raw-only representation does not drift.
 
-## Existing implementation to reuse
+## Visual / architecture constraints
 
-- `window.aaaat.candidatures.list()` and `listFields()`;
-- existing candidature recognition projections;
-- the selected-candidature handoff introduced/reused by #380;
-- `window.aaaat.documentDomain.collections()`;
-- existing document handoff/open behavior;
-- persistent left-rail navigation;
-- Settings workspace/backup administration.
+Preserve the current compact paper/dossier corpus treatment and `docs/UX_VISUAL_DIRECTION.md`.
 
-A small loaded-Home component or small explicit prop/state extension is acceptable if it keeps `App.tsx` readable.
+Long Source material must be normalized and bounded so cards remain independently compact. Constrained widths continue to stack/reflow rather than clip.
 
-Do not add a router, global state library, generic recent-items framework, Home persistence table, event bus or new runtime dependency.
+Do not add schema/migrations, persistence, hard-coded identity fields, AI/provider/document-domain changes, search redesign, router/global state/event bus, generic card frameworks or runtime dependencies.
 
-## Visual direction
-
-Visible work follows `docs/UX_VISUAL_DIRECTION.md`.
-
-Use AAAAT's existing friendly worn retrofuturist vocabulary incrementally:
-
-- compact machine/panel framing for workspace orientation;
-- paper/dossier treatment for readable recent work where useful;
-- mascot/identity present without consuming the operational viewport;
-- professional information clarity.
-
-Do not start a design-system/theme project and do not produce generic SaaS KPI cards.
+Do not redesign selected candidature, New application, Home, My information, Documents, Tags, Settings or the rail.
 
 ## Acceptance evidence
 
-Issue #383 is the implementation contract. At minimum prove:
+Issue #386 is the implementation contract. At minimum prove:
 
-- loaded Home has no redundant workspace create/open/demo/recovery controls;
-- Settings retains workspace create/open and backup/recovery authority;
-- recent applications use dynamic recognition and can open the exact candidature;
-- sparse/raw-only applications remain coherent;
-- recent editable documents open through existing document handoffs;
-- Home empty states are intentional and useful;
-- dirty navigation protection remains intact;
-- first-run Welcome retains workspace entry/recovery semantics.
+- primary/favourite field cues retain precedence;
+- non-favourite fields are not promoted;
+- raw-only Source receives a bounded recognizable fallback;
+- long Source text is normalized/bounded;
+- content-empty candidature has a coherent neutral fallback;
+- primary cues displace Source fallback once present;
+- search field/Source/Tag matches and archive filtering remain intact;
+- raw-only corpus card opens the exact existing selected-candidature surface.
 
-Historical tests that enter work through loaded-Home launch buttons must move to persistent rail navigation unless specifically testing Home. This includes the packaged manual-candidature journey, packaged documents journey and renderer mutation-safety test.
+Run focused tests + full ordinary Verify.
 
-Run focused tests + full ordinary Verify. Final candidate evidence must include affected Windows packaged manual-candidature and document journeys because this changes the loaded shell and package-entry navigation. No real-LaTeX rerun is needed unless rendering code changes.
+Because this changes the primary Applications corpus, final candidate evidence must include a Windows packaged journey proving a retained raw-only candidature can be recognized and reopened from the corpus while preserving #380 raw-retention/manual-continuation behavior.
+
+No real-model or real-LaTeX rerun is required.
 
 ## Execution
 
-One bounded implementation specialist works Issue #383 from current `main` on one feature branch.
+One bounded implementation specialist works Issue #386 from current `main` on one feature branch.
 
 The specialist:
 
 - does not edit Product Definition, SPEC, Master Plan, Current Mission or Issue authority;
 - does not open a PR;
 - does not declare PLAN[5] complete;
-- returns branch/head, changed files, focused/full verification, packaged evidence if available without violating its boundary, and any concrete blocker.
+- returns branch/head, changed files, focused/full verification, packaged evidence if available within its boundary, and any concrete blocker.
 
-The orchestrator independently reviews the complete diff, triggers the explicit Windows candidate lane when needed, opens/merges the PR if accepted, and then inspects the complete #314 boundary for the next genuine residual rather than executing historical headings mechanically.
+The orchestrator independently reviews the complete diff/evidence, triggers the Windows candidate lane when needed, opens/merges the PR if accepted, then re-inspects the full #314 boundary rather than assuming PLAN[5] completion.
