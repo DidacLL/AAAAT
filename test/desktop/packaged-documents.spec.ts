@@ -229,7 +229,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
 
   try {
     running = await startPackagedApp(userData, appData, toolsPath);
-    await running.page.getByRole("button", { name: "Open CVs" }).click();
+    await running.page.getByRole("button", { name: "CVs", exact: true }).click();
     await expect(running.page.getByRole("region", { name: "CV and document work" })).toBeVisible();
 
     const result = await running.page.evaluate(async (applicationId) => {

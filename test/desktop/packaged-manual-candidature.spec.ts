@@ -166,7 +166,7 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
 
   try {
     running = await startPackagedApp(isolatedUserData, appData);
-    await running.page.getByRole("button", { name: "Open applications" }).click();
+    await running.page.getByRole("button", { name: "Applications", exact: true }).click();
     await expect(running.page.getByRole("region", { name: "Applications" })).toBeVisible();
 
     await running.page.getByRole("button", { name: "New application" }).click();
