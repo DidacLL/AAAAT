@@ -25,24 +25,18 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - name: Apply bounded implementation
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('.github/issue-386-transform.py')
-          text = path.read_text()
-          text = text.replace('CandidatureFieldPreferences["presentationSize"]', 'CandidaturePresentationSize')
-          path.write_text(text)
-          PY
-          python .github/issue-386-transform.py
+        run: python .github/issue-386-transform-v2.py
+      - name: Diff hygiene
+        run: git diff --check
       - name: Install dependencies
         run: npm ci
       - name: Focused Issue 386 tests
-        run: npx vitest run test/candidature-projections.test.ts test/CandidatureOpportunityResearchAccessWorkspace.test.tsx test/NewApplicationRecovery.test.tsx test/CandidatureFieldCohesion.test.tsx
+        run: npx vitest run test/candidature-projections.test.ts test/CandidatureOpportunityResearchAccessWorkspace.test.tsx test/NewApplicationRecovery.test.tsx test/CandidatureFieldCohesion.test.tsx test/CandidatureResponsiveLayout.test.ts
       - name: Ordinary Verify
         run: npm run verify
       - name: Commit verified implementation
         run: |
-          rm .github/issue-386.patch .github/issue-386-transform.py .github/workflows/issue-386-specialist.yml
+          rm .github/issue-386.patch .github/issue-386-transform.py .github/issue-386-transform-v2.py .github/workflows/issue-386-specialist.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src test .github
