@@ -25,7 +25,18 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - name: Apply bounded implementation
-        run: python .github/issue-386-transform-v2.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/issue-386-transform-v2.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'next_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)'
+          new = 'next_text, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)'
+          if old not in text:
+              raise SystemExit('regex helper patch target not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          python .github/issue-386-transform-v2.py
       - name: Diff hygiene
         run: git diff --check
       - name: Install dependencies
