@@ -25,7 +25,15 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - name: Apply bounded implementation
-        run: python .github/issue-386-transform.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/issue-386-transform.py')
+          text = path.read_text()
+          text = text.replace('CandidatureFieldPreferences["presentationSize"]', 'CandidaturePresentationSize')
+          path.write_text(text)
+          PY
+          python .github/issue-386-transform.py
       - name: Install dependencies
         run: npm ci
       - name: Focused Issue 386 tests
