@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   candidatureRecognitionCues,
+  candidatureRecognitionProjection,
+  candidatureRetainedSourceCue,
   candidatureSearchMatchCue,
   filterCandidatures,
 } from "../src/renderer/candidature-projections";
@@ -119,12 +121,15 @@ describe("candidature renderer projection", () => {
         favourite: true,
       }),
     ]);
+    expect(candidatureRecognitionProjection(candidate, [locationField, roleField], 3).retainedSourceCue)
+      .toBeNull();
   });
 
-  it("does not silently promote retained values when the user has no favourite fields", () => {
+  it("does not promote non-favourite values ahead of retained Source fallback", () => {
     const candidateId = "00000000-0000-4000-8000-000000000419";
     const candidate = {
       ...record(candidateId),
+      sourceSearchText: "Recruiter note for a retained opportunity.",
       values: [{
         candidatureId: candidateId,
         fieldId: locationField.definition.id,
@@ -135,15 +140,39 @@ describe("candidature renderer projection", () => {
     };
 
     expect(candidatureRecognitionCues(candidate, [locationField], 3)).toEqual([]);
+    expect(candidatureRecognitionProjection(candidate, [locationField], 3)).toMatchObject({
+      primaryCues: [],
+      retainedSourceCue: {
+        label: "Retained source",
+        value: "Recruiter note for a retained opportunity.",
+        favourite: false,
+      },
+    });
   });
 
-  it("does not use raw Source as an automatic ordinary corpus cue", () => {
+  it("normalizes and bounds retained Source as an explicit recognition fallback", () => {
     const sourceOnly = {
       ...record("00000000-0000-4000-8000-000000000413"),
-      sourceSearchText: "Nimbus Labs is hiring a platform engineer in Barcelona.",
+      sourceSearchText: `  Nimbus Labs   is hiring a platform engineer in Barcelona.\n${"Long detail ".repeat(20)}`,
     };
 
     expect(candidatureRecognitionCues(sourceOnly, [])).toEqual([]);
+    const cue = candidatureRetainedSourceCue(sourceOnly, 80);
+    expect(cue).toMatchObject({
+      fieldId: "retained-source",
+      label: "Retained source",
+      presentationSize: "wide",
+      favourite: false,
+    });
+    expect(cue?.value).toMatch(/^Nimbus Labs is hiring/);
+    expect(cue?.value).not.toMatch(/\s{2,}/);
+    expect(cue?.value.length).toBeLessThanOrEqual(80);
+    expect(cue?.value.endsWith("…")).toBe(true);
+  });
+
+  it("keeps a neutral projection only when neither primary information nor Source is useful", () => {
+    expect(candidatureRecognitionProjection(record("00000000-0000-4000-8000-000000000423"), []))
+      .toEqual({ primaryCues: [], retainedSourceCue: null });
   });
 
   it("changes corpus cue visibility and ordering when favourite preferences change", () => {

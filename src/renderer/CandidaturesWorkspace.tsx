@@ -22,7 +22,7 @@ import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { createApplicationDocuments } from "./create-application-documents";
 import {
-  candidatureRecognitionCues,
+  candidatureRecognitionProjection,
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
@@ -444,7 +444,8 @@ export function CandidaturesWorkspace({
         ) : (
           <div className="candidature-corpus-grid" aria-label="Application corpus">
             {visibleRecords.map((record) => {
-              const primaryCues = candidatureRecognitionCues(record, fields, 4);
+              const recognition = candidatureRecognitionProjection(record, fields, 4);
+              const primaryCues = recognition.primaryCues;
               const searchMatchCue =
                 normalizedQuery && textMatches?.has(record.id)
                   ? candidatureSearchMatchCue(record, fields, tags, normalizedQuery)
@@ -475,8 +476,21 @@ export function CandidaturesWorkspace({
                           </span>
                         ))}
                       </span>
+                    ) : recognition.retainedSourceCue ? (
+                      <span className="candidature-recognition-cues">
+                        <span
+                          className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue"
+                        >
+                          <span className="candidature-cue-label">
+                            {recognition.retainedSourceCue.label}
+                          </span>
+                          <span className="candidature-cue-value">
+                            {recognition.retainedSourceCue.value}
+                          </span>
+                        </span>
+                      </span>
                     ) : (
-                      <span className="candidature-neutral-reference">No displayable information yet</span>
+                      <span className="candidature-neutral-reference">Saved application</span>
                     )}
                     {distinctSearchCue ? (
                       <span className="candidature-search-match">
@@ -552,6 +566,9 @@ export function CandidaturesWorkspace({
   )
     ? packetLetterId
     : applicationLetters[0]?.id ?? "";
+  const selectedRecognition = candidatureRecognitionProjection(selected, fields, 1);
+  const sourceOwnsInitialContext =
+    initialTask !== undefined || selectedRecognition.retainedSourceCue !== null;
 
   const createPacket = async () => {
     if (!selectedPacketCvId || !selectedPacketLetterId || packetBusy) return;
@@ -700,19 +717,13 @@ export function CandidaturesWorkspace({
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
-      {initialTask ? (
+      {sourceOwnsInitialContext ? (
         <CandidatureSourcesPanel
           candidatureId={selected.id}
           onSourcesChanged={() => void handleSourcesChanged()}
           onDirtyChange={setSourceDirty}
         />
-      ) : (
-        <CandidatureOpportunityResearchAccessPanel
-          key={`external-research-${selected.id}`}
-          candidatureId={selected.id}
-          contextDirty={taskContextDirty}
-        />
-      )}
+      ) : null}
 
       <section
         className="section-surface candidature-primary-information"
@@ -736,6 +747,14 @@ export function CandidaturesWorkspace({
           </p>
         )}
       </section>
+
+      {initialTask ? null : (
+        <CandidatureOpportunityResearchAccessPanel
+          key={`external-research-${selected.id}`}
+          candidatureId={selected.id}
+          contextDirty={taskContextDirty}
+        />
+      )}
 
       <section className="section-surface candidature-tags-direct" aria-label="Tags">
         <div className="candidature-editor-heading">
@@ -940,7 +959,7 @@ export function CandidaturesWorkspace({
           </section>
 
           <CandidatureOfferPanel candidatureId={selected.id} />
-          {initialTask ? null : (
+          {sourceOwnsInitialContext ? null : (
             <CandidatureSourcesPanel
               candidatureId={selected.id}
               onSourcesChanged={() => void handleSourcesChanged()}

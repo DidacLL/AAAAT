@@ -16,6 +16,11 @@ export interface CandidatureRecognitionCue {
   readonly favourite: boolean;
 }
 
+export interface CandidatureRecognitionProjection {
+  readonly primaryCues: readonly CandidatureRecognitionCue[];
+  readonly retainedSourceCue: CandidatureRecognitionCue | null;
+}
+
 function scalarValue(
   field: CandidatureFieldConfiguration,
   value: string | number | boolean,
@@ -154,6 +159,38 @@ export function candidatureRecognitionCues(
       presentationSize: cue.presentationSize,
       favourite: cue.favourite,
     }));
+}
+
+export function candidatureRetainedSourceCue(
+  record: CandidatureRecord,
+  limit = 120,
+): CandidatureRecognitionCue | null {
+  const normalized = record.sourceSearchText.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  const boundedLimit = Math.max(2, limit);
+  const value = normalized.length > boundedLimit
+    ? `${normalized.slice(0, boundedLimit - 1).trimEnd()}…`
+    : normalized;
+  return {
+    fieldId: "retained-source",
+    label: "Retained source",
+    value,
+    presentationSize: "wide",
+    favourite: false,
+  };
+}
+
+export function candidatureRecognitionProjection(
+  record: CandidatureRecord,
+  fields: readonly CandidatureFieldConfiguration[],
+  limit = 4,
+): CandidatureRecognitionProjection {
+  const primaryCues = candidatureRecognitionCues(record, fields, limit);
+  return {
+    primaryCues,
+    retainedSourceCue:
+      primaryCues.length === 0 ? candidatureRetainedSourceCue(record) : null,
+  };
 }
 
 export function filterCandidatures(
