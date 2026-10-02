@@ -57,181 +57,59 @@ function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaa
   return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
 }
 
-function preferredCueRatio(
-  cue: CandidatureRecognitionCue,
-  containerWidth: number,
-  expanded: boolean,
-  textElement: HTMLElement,
-): number {
-  const styles = getComputedStyle(textElement);
-  const fontSize = Number.parseFloat(styles.fontSize) || 14;
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (context) context.font = styles.font || `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
-  const intrinsicWidth = context?.measureText(cue.value).width ?? cue.value.length * fontSize * 0.52;
-  const contentRatio = (intrinsicWidth + fontSize * 1.2) / Math.max(containerWidth, 1);
-  const capacityInEm = containerWidth / fontSize;
-
-  if (cue.presentationSize === "wide" && capacityInEm < 22) return 1;
-  if (cue.presentationSize === "normal" && capacityInEm < 15) return 1;
-
-  const [minimum, maximum, expansion] = cue.presentationSize === "wide"
-    ? [expanded ? 0.38 : 0.42, expanded ? 0.84 : 0.88, 1.12]
-    : cue.presentationSize === "normal"
-      ? [expanded ? 0.28 : 0.3, expanded ? 0.56 : 0.54, 1.08]
-      : [expanded ? 0.18 : 0.2, expanded ? 0.38 : 0.34, 1.04];
-
-  return Math.min(1, Math.max(minimum, Math.min(maximum, contentRatio * expansion)));
+function cueLengthClass(value: string): "short" | "medium" | "long" {
+  if (value.length <= 28) return "short";
+  if (value.length <= 96) return "medium";
+  return "long";
 }
 
-function CorpusRecognitionLayout({
-  cues,
+function CorpusRecognitionCue({
+  cue,
   expanded,
   sourceLabel = false,
 }: {
-  readonly cues: readonly CandidatureRecognitionCue[];
+  readonly cue: CandidatureRecognitionCue;
   readonly expanded: boolean;
   readonly sourceLabel?: boolean;
 }) {
-  const containerRef = useRef<HTMLSpanElement>(null);
+  const cueRef = useRef<HTMLSpanElement>(null);
+  const contentRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const cueElement = cueRef.current;
+    const contentElement = contentRef.current;
+    const grid = cueElement?.parentElement;
+    if (!cueElement || !contentElement || !grid) return;
 
-    const layout = () => {
-      const containerWidth = container.clientWidth;
-      const items = Array.from(container.querySelectorAll<HTMLElement>("[data-corpus-cue]"));
-      if (containerWidth < 160 || items.length === 0) {
-        container.classList.remove("is-packed");
-        container.style.height = "";
-        for (const item of items) {
-          item.style.width = "";
-          item.style.left = "";
-          item.style.top = "";
-        }
+    const updateSpan = () => {
+      const styles = getComputedStyle(grid);
+      const rowHeight = Number.parseFloat(styles.gridAutoRows);
+      const rowGap = Number.parseFloat(styles.rowGap) || 0;
+      if (!Number.isFinite(rowHeight) || rowHeight <= 0) {
+        cueElement.style.gridRowEnd = "";
         return;
       }
-
-      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      const gapX = rootFontSize * 0.32;
-      const gapY = rootFontSize * 0.18;
-      const gapRatio = gapX / containerWidth;
-      container.classList.add("is-packed");
-
-      const prepared = items.flatMap((item) => {
-        const cueIndex = Number(item.dataset.cueIndex ?? "0");
-        const cue = cues[cueIndex];
-        const textElement = item.querySelector<HTMLElement>(".candidature-cue-value");
-        if (!cue || !textElement) return [];
-        const ratio = preferredCueRatio(cue, containerWidth, expanded, textElement);
-        item.style.width = `${String(ratio * 100)}%`;
-        item.style.left = "0";
-        item.style.top = "0";
-        return [{ item, ratio }];
-      });
-
-      const placed: Array<{
-        readonly left: number;
-        readonly right: number;
-        readonly bottom: number;
-        readonly height: number;
-      }> = [];
-      let containerHeight = 0;
-
-      for (const { item, ratio } of prepared) {
-        const textElement = item.querySelector<HTMLElement>(".candidature-cue-value");
-        if (textElement) {
-          item.classList.toggle(
-            "has-clamped-value",
-            textElement.scrollHeight > textElement.clientHeight + 1,
-          );
-        }
-
-        const height = item.getBoundingClientRect().height;
-        const candidates = new Set<number>([
-          0,
-          Math.max(0, (1 - ratio) / 2),
-          Math.max(0, 1 - ratio),
-        ]);
-        for (const rectangle of placed) {
-          candidates.add(Math.min(1 - ratio, rectangle.right + gapRatio));
-          candidates.add(Math.max(0, rectangle.left - ratio - gapRatio));
-        }
-
-        let bestLeft = 0;
-        let bestTop = Number.POSITIVE_INFINITY;
-        let bestBalance = Number.POSITIVE_INFINITY;
-        for (const candidate of candidates) {
-          if (candidate < 0 || candidate + ratio > 1.0001) continue;
-          let top = 0;
-          for (const rectangle of placed) {
-            const overlapsHorizontally =
-              candidate < rectangle.right + gapRatio &&
-              candidate + ratio + gapRatio > rectangle.left;
-            if (overlapsHorizontally) top = Math.max(top, rectangle.bottom + gapY);
-          }
-
-          const existingArea = placed.reduce(
-            (sum, rectangle) => sum + (rectangle.right - rectangle.left) * rectangle.height,
-            0,
-          );
-          const existingMoment = placed.reduce(
-            (sum, rectangle) =>
-              sum +
-              (rectangle.right - rectangle.left) *
-                rectangle.height *
-                ((rectangle.left + rectangle.right) / 2),
-            0,
-          );
-          const candidateArea = ratio * height;
-          const centroid =
-            (existingMoment + candidateArea * (candidate + ratio / 2)) /
-            Math.max(existingArea + candidateArea, Number.EPSILON);
-          const balance = Math.abs(centroid - 0.5);
-
-          if (
-            top < bestTop - 0.5 ||
-            (Math.abs(top - bestTop) <= 0.5 && balance < bestBalance - 0.0001)
-          ) {
-            bestTop = top;
-            bestLeft = candidate;
-            bestBalance = balance;
-          }
-        }
-
-        item.style.left = `${String(bestLeft * 100)}%`;
-        item.style.top = `${String(bestTop)}px`;
-        const bottom = bestTop + height;
-        placed.push({ left: bestLeft, right: bestLeft + ratio, bottom, height });
-        containerHeight = Math.max(containerHeight, bottom);
-      }
-
-      container.style.height = `${String(containerHeight)}px`;
+      const height = contentElement.getBoundingClientRect().height;
+      cueElement.style.gridRowEnd =
+        `span ${String(Math.max(1, Math.ceil((height + rowGap) / (rowHeight + rowGap))))}`;
     };
 
-    layout();
+    updateSpan();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(layout);
-    observer.observe(container);
+    const observer = new ResizeObserver(updateSpan);
+    observer.observe(contentElement);
     return () => observer.disconnect();
-  }, [cues, expanded]);
+  }, [cue.value, cue.presentationSize, expanded]);
 
   return (
-    <span ref={containerRef} className="candidature-recognition-cues">
-      {cues.map((cue, index) => (
-        <span
-          className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
-          data-corpus-cue
-          data-cue-index={index}
-          key={cue.fieldId}
-        >
-          <span className="candidature-cue-content">
-            {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
-            <span className="candidature-cue-value">{cue.value}</span>
-          </span>
-        </span>
-      ))}
+    <span
+      ref={cueRef}
+      className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
+    >
+      <span ref={contentRef} className="candidature-cue-content">
+        {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
+        <span className="candidature-cue-value">{cue.value}</span>
+      </span>
     </span>
   );
 }
@@ -739,9 +617,15 @@ export function CandidaturesWorkspace({
                     onClick={() => inspectRecord(record)}
                   >
                     {primaryCues.length > 0 ? (
-                      <CorpusRecognitionLayout cues={primaryCues} expanded={preselected} />
+                      <span className="candidature-recognition-cues">
+                        {primaryCues.map((cue) => (
+                          <CorpusRecognitionCue cue={cue} expanded={preselected} key={cue.fieldId} />
+                        ))}
+                      </span>
                     ) : recognition.retainedSourceCue ? (
-                      <CorpusRecognitionLayout cues={[recognition.retainedSourceCue]} expanded={preselected} sourceLabel />
+                      <span className="candidature-recognition-cues">
+                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} expanded={preselected} sourceLabel />
+                      </span>
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
                     )}
