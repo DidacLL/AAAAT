@@ -206,6 +206,24 @@ const cardCueColumns: Readonly<Record<CandidaturePresentationSize, number>> = {
 };
 const collapsedCardColumnBudget = 24;
 
+const cardValueLimit: Readonly<Record<CandidaturePresentationSize, { readonly collapsed: number; readonly expanded: number }>> = {
+  compact: { collapsed: 52, expanded: 220 },
+  normal: { collapsed: 90, expanded: 520 },
+  wide: { collapsed: 140, expanded: 1000 },
+};
+
+function boundCardCueValue(
+  cue: CandidatureRecognitionCue,
+  expanded: boolean,
+): CandidatureRecognitionCue {
+  const limit = cardValueLimit[cue.presentationSize][expanded ? "expanded" : "collapsed"];
+  if (cue.value.length <= limit) return cue;
+  return {
+    ...cue,
+    value: `${cue.value.slice(0, limit - 1).trimEnd()}…`,
+  };
+}
+
 export function candidatureCueFootprint(
   cue: CandidatureRecognitionCue,
   expanded: boolean,
@@ -214,7 +232,7 @@ export function candidatureCueFootprint(
   const maxLines = expanded
     ? cue.presentationSize === "wide" ? 7 : cue.presentationSize === "normal" ? 5 : 3
     : cue.presentationSize === "wide" ? 4 : cue.presentationSize === "normal" ? 3 : 2;
-  const charactersPerColumn = expanded ? 6.2 : 3.4;
+  const charactersPerColumn = expanded ? 4.2 : 3.2;
   const estimatedLineCapacity = Math.max(8, Math.floor(columns * charactersPerColumn));
   const estimatedLines = Math.max(1, Math.ceil(cue.value.length / estimatedLineCapacity));
   const lines = Math.min(maxLines, estimatedLines);
@@ -230,8 +248,8 @@ export function candidatureCardRecognitionProjection(
     record,
     fields,
     Number.MAX_SAFE_INTEGER,
-    expanded ? 2000 : 180,
-  );
+    2000,
+  ).map((cue) => boundCardCueValue(cue, expanded));
   let primaryCues: readonly CandidatureRecognitionCue[] = allFavouriteCues;
   if (!expanded) {
     let usedColumns = 0;
@@ -247,7 +265,7 @@ export function candidatureCardRecognitionProjection(
   return {
     primaryCues,
     retainedSourceCue: primaryCues.length === 0
-      ? candidatureRetainedSourceCue(record, expanded ? 1200 : 180)
+      ? candidatureRetainedSourceCue(record, expanded ? 1000 : 140)
       : null,
   };
 }
