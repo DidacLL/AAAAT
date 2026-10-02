@@ -26,26 +26,27 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
       } | null) => void;
     }) => {
       const [draft, setDraft] = useState("");
-      const [revision, setRevision] = useState(0);
-      useEffect(() => {
+      const publish = (tags = state.tagSets[state.activeRoot] ?? []) => {
         onTagContextChange?.({
           candidatureId: "00000000-0000-4000-8000-000000003695",
-          tags: state.tagSets[state.activeRoot] ?? [],
+          tags,
         });
-        return () => onTagContextChange?.(null);
-      }, [onTagContextChange, revision]);
+      };
+      useEffect(() => () => onTagContextChange?.(null), [onTagContextChange]);
       return (
         <section aria-label="Applications mock">
           <input aria-label="Application draft" value={draft} onChange={(event) => setDraft(event.target.value)} />
+          <button type="button" onClick={() => publish()}>Select mock application</button>
           <button
             type="button"
             onClick={() => {
-              state.tagSets[state.activeRoot] = (state.tagSets[state.activeRoot] ?? []).map((tag) =>
+              const next = (state.tagSets[state.activeRoot] ?? []).map((tag) =>
                 tag.name === "Reliability engineering"
                   ? { ...tag, definition: "Updated shared reliability meaning" }
                   : tag,
               );
-              setRevision((current) => current + 1);
+              state.tagSets[state.activeRoot] = next;
+              publish(next);
             }}
           >
             Update shared Tag
@@ -53,7 +54,7 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
           <button
             type="button"
             onClick={() => {
-              state.tagSets[state.activeRoot] = [
+              const next = [
                 ...(state.tagSets[state.activeRoot] ?? []),
                 {
                   id: "00000000-0000-4000-8000-000000003699",
@@ -62,7 +63,8 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
                   definition: "Shared safety vocabulary",
                 },
               ];
-              setRevision((current) => current + 1);
+              state.tagSets[state.activeRoot] = next;
+              publish(next);
             }}
           >
             Create shared Tag
@@ -180,6 +182,8 @@ describe("contextual rail Tag monitor in App", () => {
     expect(within(rail).queryByRole("searchbox", { name: "Search Tags" })).not.toBeInTheDocument();
 
     await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(monitor).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     await waitFor(() => expect(monitor).toHaveTextContent("Reliability engineering"));
     expect(monitor).toHaveTextContent("Initial shared reliability meaning");
 
@@ -198,6 +202,7 @@ describe("contextual rail Tag monitor in App", () => {
 
     await screen.findByRole("region", { name: "Home" });
     await user.click(screen.getByRole("button", { name: "Applications" }));
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     const draft = screen.getByRole("textbox", { name: "Application draft" });
     await user.type(draft, "unsaved candidature work");
 
@@ -222,6 +227,7 @@ describe("contextual rail Tag monitor in App", () => {
     await screen.findByRole("region", { name: "Home" });
     const rail = screen.getByRole("complementary", { name: "Workspace controls" });
     await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Reliability engineering"));
 
     await user.click(within(rail).getByRole("button", { name: "Settings" }));
@@ -229,6 +235,8 @@ describe("contextual rail Tag monitor in App", () => {
     expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
 
     await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Workspace B vocabulary"));
 
     await user.click(within(rail).getByRole("button", { name: "Settings" }));
@@ -236,6 +244,8 @@ describe("contextual rail Tag monitor in App", () => {
     expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
 
     await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Reset vocabulary"));
 
     await user.click(within(rail).getByRole("button", { name: "Settings" }));
@@ -243,6 +253,8 @@ describe("contextual rail Tag monitor in App", () => {
     expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
 
     await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Workspace C vocabulary"));
   });
 });
