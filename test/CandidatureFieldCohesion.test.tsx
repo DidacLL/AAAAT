@@ -332,7 +332,7 @@ describe("candidature field cohesion", () => {
       aiUseAllowed: false,
     })));
     locationCard = within(remaining).getByRole("article", { name: "Location information" });
-    expect(within(locationCard).queryByRole("button", { name: "Ask AI to fill Location" })).not.toBeInTheDocument();
+    expect(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" })).toBeDisabled();
 
     await user.click(within(roleCard).getByRole("button", { name: "Edit Role" }));
     await user.clear(within(roleCard).getByLabelText("Value"));
