@@ -247,7 +247,6 @@ describe("candidature field cohesion", () => {
     const user = userEvent.setup();
     const save = vi.fn(async () => undefined);
     const clear = vi.fn(async () => undefined);
-    const updateField = vi.fn(async () => undefined);
     const dirty = vi.fn();
     render(
       <CandidatureFieldValueEditor
@@ -256,7 +255,6 @@ describe("candidature field cohesion", () => {
         onSave={save}
         onClear={clear}
         onDiscover={vi.fn()}
-        onUpdateField={updateField}
         onDirtyChange={dirty}
       />,
     );
@@ -269,14 +267,8 @@ describe("candidature field cohesion", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Role" }));
     expect(screen.getByLabelText("Value")).toHaveValue("Platform Engineer");
-    const detailsDisclosure = screen.getByText("Edit information details").closest("details");
-    expect(detailsDisclosure).not.toHaveAttribute("open");
+    expect(screen.queryByText("Edit information details")).not.toBeInTheDocument();
 
-    await user.click(screen.getByText("Edit information details"));
-    expect(detailsDisclosure).toHaveAttribute("open");
-    const name = screen.getByRole("textbox", { name: "Name" });
-    await user.clear(name);
-    await user.type(name, "Target role");
     const value = screen.getByLabelText("Value");
     await user.clear(value);
     await user.type(value, "Staff Engineer");
@@ -285,7 +277,6 @@ describe("candidature field cohesion", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("Platform Engineer")).toBeVisible();
     expect(save).not.toHaveBeenCalled();
-    expect(updateField).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Edit Role" }));
     await user.clear(screen.getByLabelText("Value"));
@@ -421,24 +412,29 @@ describe("candidature field cohesion", () => {
     expect(within(locationCard).queryByText("AI isn't configured for this action")).not.toBeInTheDocument();
   });
 
-  it("keeps existing-field label and description editing reachable without making it part of ordinary value edit", async () => {
+  it("keeps shared field-definition editing inside Field options, separate from application value edit", async () => {
     const api = installWorkspaceApi();
     const user = userEvent.setup();
     await openWorkspace(user);
 
     const card = screen.getByRole("article", { name: "Role information" });
     await user.click(within(card).getByRole("button", { name: "Edit Role" }));
-    const detailsDisclosure = within(card).getByText("Edit information details").closest("details");
-    expect(detailsDisclosure).not.toHaveAttribute("open");
-    await user.click(within(card).getByText("Edit information details"));
-    expect(detailsDisclosure).toHaveAttribute("open");
+    expect(within(card).getByLabelText("Value")).toHaveValue("Platform Engineer");
+    expect(within(card).queryByText("Edit information details")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: "Cancel" }));
+
+    await user.click(within(card).getByText("Field options"));
+    await user.click(within(card).getByText("Edit field definition"));
+    expect(within(card).getByText(/changes apply to every application/i)).toBeVisible();
+
     const name = within(card).getByRole("textbox", { name: "Name" });
-    const details = within(card).getByRole("textbox", { name: /Details/i });
+    const description = within(card).getByRole("textbox", { name: "Description" });
     await user.clear(name);
     await user.type(name, "Target role");
-    await user.clear(details);
-    await user.type(details, "Role being pursued");
-    await user.click(within(card).getByRole("button", { name: "Save" }));
+    await user.clear(description);
+    await user.type(description, "Role being pursued");
+    await user.click(within(card).getByRole("button", { name: "Save shared field" }));
 
     await waitFor(() => expect(api.updateField).toHaveBeenCalledWith(expect.objectContaining({
       id: roleId,
