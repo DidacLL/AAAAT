@@ -319,10 +319,10 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     const beta = tagged.filter({ hasText: "Fixture tagged Beta" });
     await expect(alpha).toContainText("Alpha Systems");
     await expect(alpha).toContainText("Reliability Engineer");
-    await expect(alpha).toContainText("Reliability");
+    await expect(alpha).not.toContainText("Reliability");
     await expect(beta).toContainText("Beta Inclusive");
     await expect(beta).toContainText("Accessibility Engineer");
-    await expect(beta).toContainText("Accessibility");
+    await expect(beta).not.toContainText("Accessibility");
     const wideBoxes = await Promise.all([alpha.boundingBox(), beta.boundingBox()]);
     expect(wideBoxes[0]).not.toBeNull();
     expect(wideBoxes[1]).not.toBeNull();
@@ -340,10 +340,9 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await alpha.click();
     await expect(running.page.getByRole("region", { name: "Application information" })).toHaveCount(0);
     await expect(corpusAfterEdit.getByLabel("Application inspection")).toHaveCount(1);
-    const expandedAlpha = corpusAfterEdit.getByRole("button", { name: "Open saved application" });
+    const expandedAlpha = corpusAfterEdit.getByRole("button", { name: "Collapse saved application" });
     await expect(expandedAlpha).toContainText("2020-01-01");
     await expect(expandedAlpha).toContainText("Own production reliability");
-    await expect(corpusAfterEdit.getByLabel("Tag meanings")).toContainText("Dependable production ownership");
     const railTags = running.page.getByRole("region", { name: "Tags glossary" });
     await expect(railTags).toContainText("Reliability");
     await expect(railTags).toContainText("Dependable production ownership");
@@ -351,11 +350,10 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
 
     await beta.click();
     await expect(corpusAfterEdit.getByLabel("Application inspection")).toHaveCount(1);
-    await expect(corpusAfterEdit.getByLabel("Tag meanings")).toContainText("Inclusive product and interface practice");
     await expect(railTags).toContainText("Accessibility");
     await expect(railTags).not.toContainText("Reliability");
 
-    await corpusAfterEdit.getByRole("button", { name: "Open saved application" }).click();
+    await corpusAfterEdit.getByRole("button", { name: "Open application" }).click();
     const selectedFixture = running.page.getByRole("region", { name: "Application information" });
     await expect(selectedFixture).toBeVisible();
     await selectedFixture.getByText("Sources, documents & history").click();
