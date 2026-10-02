@@ -7,6 +7,15 @@ import type {
 } from "../shared/contracts";
 
 export type ArchiveFilter = "active" | "archived" | "all";
+export type RecencyFilter = "all" | "24h" | "48h" | "72h" | "week" | "month";
+
+const recencyWindowMs: Readonly<Record<Exclude<RecencyFilter, "all">, number>> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "48h": 48 * 60 * 60 * 1000,
+  "72h": 72 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+};
 
 export interface CandidatureRecognitionCue {
   readonly fieldId: string;
@@ -198,12 +207,19 @@ export function filterCandidatures(
   archive: ArchiveFilter,
   fieldMatches: ReadonlySet<string> | null = null,
   textMatches: ReadonlySet<string> | null = null,
+  recency: RecencyFilter = "all",
+  nowMs = Date.now(),
 ): CandidatureRecord[] {
+  const windowMs = recency === "all" ? null : recencyWindowMs[recency];
   return records.filter((record) => {
     if (archive === "active" && record.archived) return false;
     if (archive === "archived" && !record.archived) return false;
     if (fieldMatches && !fieldMatches.has(record.id)) return false;
     if (textMatches && !textMatches.has(record.id)) return false;
+    if (windowMs !== null) {
+      const createdAt = Date.parse(record.createdAt);
+      if (!Number.isFinite(createdAt) || createdAt > nowMs || nowMs - createdAt > windowMs) return false;
+    }
     return true;
   });
 }
