@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  candidatureCardRecognitionProjection,
   candidatureRecognitionCues,
   candidatureRecognitionProjection,
   candidatureRetainedSourceCue,
@@ -155,6 +156,64 @@ describe("candidature renderer projection", () => {
     ]);
     expect(candidatureRecognitionProjection(candidate, [locationField, roleField], 3).retainedSourceCue)
       .toBeNull();
+  });
+
+  it("uses presentation-size capacity when collapsed and reveals all favourite information when expanded", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000440";
+    const makeField = (
+      id: string,
+      label: string,
+      presentationSize: CandidatureFieldConfiguration["preferences"]["presentationSize"],
+      favouriteOrder: number,
+    ): CandidatureFieldConfiguration => ({
+      ...roleField,
+      definition: { ...roleField.definition, id, label },
+      preferences: {
+        ...roleField.preferences,
+        fieldId: id,
+        presentationSize,
+        favouriteOrder,
+      },
+    });
+    const cardFields = [
+      makeField("00000000-0000-4000-8000-000000000441", "Wide one", "wide", 0),
+      makeField("00000000-0000-4000-8000-000000000442", "Wide two", "wide", 1),
+      makeField("00000000-0000-4000-8000-000000000443", "Compact", "compact", 2),
+      makeField("00000000-0000-4000-8000-000000000444", "Normal", "normal", 3),
+      makeField("00000000-0000-4000-8000-000000000445", "Expanded only", "normal", 4),
+    ];
+    const longExpandedValue = "Expanded detail ".repeat(12).trim();
+    const candidate: CandidatureRecord = {
+      ...record(candidateId),
+      values: cardFields.map((field, index) => ({
+        candidatureId: candidateId,
+        fieldId: field.definition.id,
+        value: index === 4 ? longExpandedValue : `Value ${index + 1}`,
+        createdAt: "2026-09-04T00:00:00.000Z",
+        updatedAt: "2026-09-04T00:00:00.000Z",
+      })),
+    };
+
+    const collapsed = candidatureCardRecognitionProjection(candidate, cardFields, false);
+    expect(collapsed.primaryCues.map((cue) => cue.label)).toEqual([
+      "Wide one",
+      "Wide two",
+      "Compact",
+      "Normal",
+    ]);
+    expect(collapsed.primaryCues.reduce((sum, cue) => (
+      sum + (cue.presentationSize === "wide" ? 3 : cue.presentationSize === "normal" ? 2 : 1)
+    ), 0)).toBe(9);
+
+    const expanded = candidatureCardRecognitionProjection(candidate, cardFields, true);
+    expect(expanded.primaryCues.map((cue) => cue.label)).toEqual([
+      "Wide one",
+      "Wide two",
+      "Compact",
+      "Normal",
+      "Expanded only",
+    ]);
+    expect(expanded.primaryCues.at(-1)?.value).toBe(longExpandedValue);
   });
 
   it("does not promote non-favourite values ahead of retained Source fallback", () => {
