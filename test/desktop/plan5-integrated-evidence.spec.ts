@@ -348,7 +348,7 @@ test("capture integrated PLAN5 rendered evidence without stopping at the first v
   try {
     running = await startPackagedApp(userData, appData);
     const page = running.page;
-    await expect(page.getByRole("region", { name: "Home" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Home", exact: true })).toBeVisible();
 
     const documentIds = await page.evaluate(async (applicationId) => {
       const working = await window.aaaat.documentDomain.createWorkingCv({
@@ -369,7 +369,7 @@ test("capture integrated PLAN5 rendered evidence without stopping at the first v
     writeFileSync(path.join(evidenceRoot, "document-ids.json"), JSON.stringify(documentIds, null, 2) + "\n", "utf8");
 
     await page.reload();
-    await expect(page.getByRole("region", { name: "Home" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Home", exact: true })).toBeVisible();
     await capturePair(page, "02-loaded-home");
 
     const tagVisor = page.getByRole("region", { name: "Tags glossary" });
@@ -378,7 +378,7 @@ test("capture integrated PLAN5 rendered evidence without stopping at the first v
     await capturePair(page, "03-tags-glossary");
 
     await page.getByRole("button", { name: "Applications", exact: true }).click();
-    const applications = page.getByRole("region", { name: "Applications" });
+    const applications = page.getByRole("region", { name: "Applications", exact: true });
     await expect(applications).toBeVisible();
     await expect(page.getByLabel("Application corpus")).toBeVisible();
     await capturePair(page, "04-applications-corpus");
@@ -392,19 +392,19 @@ test("capture integrated PLAN5 rendered evidence without stopping at the first v
 
     const richCard = page.locator(".candidature-corpus-card").filter({ hasText: "Northstar Labs" });
     await richCard.getByRole("button", { name: "Open saved application" }).click();
-    await expect(page.getByRole("region", { name: "Application information" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Application information", exact: true })).toBeVisible();
     await capturePair(page, "06-selected-application-rich");
 
     await page.getByRole("button", { name: "← Applications" }).click();
     const rawCard = page.locator(".candidature-corpus-card").filter({ hasText: "Retained source" }).first();
     await rawCard.getByRole("button", { name: "Open saved application" }).click();
-    await expect(page.getByRole("region", { name: "Application information" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Application information", exact: true })).toBeVisible();
     await capturePair(page, "07-selected-application-raw");
 
     await page.reload();
     await page.getByRole("button", { name: "Applications", exact: true }).click();
     await page.getByRole("button", { name: "New application" }).click();
-    await expect(page.getByRole("region", { name: "New application" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "New application", exact: true })).toBeVisible();
     await capturePair(page, "08-new-application-start");
 
     await page.getByRole("button", { name: /Enter information directly/ }).click();
@@ -415,40 +415,36 @@ test("capture integrated PLAN5 rendered evidence without stopping at the first v
     await page.getByRole("button", { name: "Applications", exact: true }).click();
     await page.getByRole("button", { name: "New application" }).click();
     await page.getByRole("button", { name: /Retain raw material/ }).click();
-    const rawCapture = page.getByRole("region", { name: "Retain raw material" });
+    const rawCapture = page.getByRole("region", { name: "Retain raw material", exact: true });
     await rawCapture.getByLabel("Application raw material").fill(
       "A small robotics company is hiring for systems integration work in Valencia. Recruiter asked for a concise CV and noted that remote days are possible.",
     );
     await rawCapture.getByRole("button", { name: "Retain raw material" }).click();
-    await expect(page.getByRole("region", { name: "Raw material continuation" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Raw material continuation", exact: true })).toBeVisible();
     await capturePair(page, "10-new-application-raw-continuation");
 
     await page.reload();
     await page.getByRole("button", { name: "My information", exact: true }).click();
-    await expect(page.getByRole("region", { name: "My information" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "My information", exact: true })).toBeVisible();
     await capturePair(page, "11-my-information");
 
     await page.getByRole("button", { name: "CVs", exact: true }).click();
-    await expect(page.getByRole("region", { name: "CV and document work" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "CV and document work", exact: true })).toBeVisible();
     await capturePair(page, "12-documents-start");
 
-    const continueCvs = page.getByRole("group", { name: "Continue editing CVs" });
-    if (await continueCvs.count()) {
-      await continueCvs.getByText("Continue editing").click();
-    } else {
-      const details = page.locator('details[aria-label="Continue editing CVs"]');
-      if (await details.count()) await details.locator("summary").click();
-    }
+    const continueCvs = page.locator('details[aria-label="Continue editing CVs"]');
+    await expect(continueCvs).toHaveCount(1);
+    await continueCvs.locator("summary").click();
     await page.getByRole("button", { name: /Evidence Working CV/ }).click();
-    await expect(page.getByRole("region", { name: "Working CV" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Working CV", exact: true })).toBeVisible();
     await capturePair(page, "13-working-cv");
 
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Settings", exact: true })).toBeVisible();
     await capturePair(page, "14-settings-workspace");
 
     await page.getByRole("button", { name: "AI", exact: true }).click();
-    await expect(page.getByRole("region", { name: "AI settings" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "AI settings", exact: true })).toBeVisible();
     await capturePair(page, "15-settings-ai");
 
     writeFileSync(
