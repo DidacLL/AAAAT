@@ -124,6 +124,56 @@ function initializeWorkspaceFixture(rootPath: string): void {
       database
         .prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
         .run("workspace.initialized_at", "2026-09-21T00:00:00.000Z");
+
+      const recent = new Date().toISOString();
+      const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+      const reliabilityTagId = "30000000-0000-4000-8000-000000000001";
+      const accessibilityTagId = "30000000-0000-4000-8000-000000000002";
+      const insertCandidature = database.prepare(
+        "INSERT INTO candidatures(id, archived, opportunity_research_selected, created_at, updated_at) VALUES (?, ?, 0, ?, ?)",
+      );
+      const insertSource = database.prepare(
+        "INSERT INTO candidature_sources(id, candidature_id, kind, title, url, source_text, created_at, updated_at) VALUES (?, ?, 'job_posting', ?, '', ?, ?, ?)",
+      );
+      const insertTag = database.prepare(
+        "INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at) VALUES (?, ?, ?, '', ?, ?, ?)",
+      );
+      const attachTag = database.prepare(
+        "INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)",
+      );
+      insertTag.run(
+        reliabilityTagId,
+        "Reliability",
+        "Dependable production ownership",
+        JSON.stringify(["SRE"]),
+        recent,
+        recent,
+      );
+      insertTag.run(
+        accessibilityTagId,
+        "Accessibility",
+        "Inclusive product and interface practice",
+        JSON.stringify(["A11y"]),
+        recent,
+        recent,
+      );
+      for (let index = 0; index < 105; index += 1) {
+        const suffix = String(index + 1).padStart(12, "0");
+        const candidatureId = `10000000-0000-4000-8000-${suffix}`;
+        const sourceId = `20000000-0000-4000-8000-${suffix}`;
+        const archived = index === 3 ? 1 : 0;
+        const createdAt = index === 2 ? old : recent;
+        const sourceText =
+          index === 0 ? "Fixture tagged Alpha — current and recent"
+            : index === 1 ? "Fixture tagged Beta — current and recent"
+              : index === 2 ? "Fixture tagged Old — current but older than one month"
+                : index === 3 ? "Fixture archived target — archived and recent"
+                  : `Fixture bulk retained application ${index + 1}`;
+        insertCandidature.run(candidatureId, archived, createdAt, recent);
+        insertSource.run(sourceId, candidatureId, "Seeded retained source", sourceText, createdAt, recent);
+        if (index === 0 || index === 2) attachTag.run(candidatureId, reliabilityTagId);
+        if (index === 1 || index === 3) attachTag.run(candidatureId, accessibilityTagId);
+      }
       database.exec("COMMIT");
     } catch (error) {
       database.exec("ROLLBACK");
@@ -217,6 +267,102 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     expect(primaryBox!.y).toBeLessThan(externalAiBox!.y);
 
     expect(existsSync(path.join(ownedWorkspace, "ai-connection.json"))).toBe(false);
+
+    await reopened.getByRole("button", { name: "← Applications" }).click();
+    const corpusAfterEdit = running.page.getByLabel("Application corpus");
+    const search = running.page.getByLabel("Search");
+    const archive = running.page.getByLabel("Show");
+    const from = running.page.getByLabel("From");
+    await expect(from).toHaveValue("all");
+
+    await running.page.setViewportSize({ width: 1440, height: 900 });
+    await search.fill("Fixture archived target");
+    await archive.selectOption("archived");
+    await from.selectOption("24h");
+    await expect(corpusAfterEdit.getByRole("button", { name: "Inspect saved application" })).toHaveCount(1);
+    await expect(corpusAfterEdit).toContainText("Fixture archived target");
+
+    await search.fill("Fixture tagged");
+    await archive.selectOption("active");
+    const tagged = corpusAfterEdit.getByRole("button", { name: "Inspect saved application" });
+    await expect(tagged).toHaveCount(2);
+    const alpha = tagged.filter({ hasText: "Fixture tagged Alpha" });
+    const beta = tagged.filter({ hasText: "Fixture tagged Beta" });
+    await expect(alpha).toContainText("Reliability");
+    await expect(beta).toContainText("Accessibility");
+    const wideBoxes = await Promise.all([alpha.boundingBox(), beta.boundingBox()]);
+    expect(wideBoxes[0]).not.toBeNull();
+    expect(wideBoxes[1]).not.toBeNull();
+    expect(wideBoxes[0]!.x).not.toBe(wideBoxes[1]!.x);
+
+    await running.page.setViewportSize({ width: 720, height: 600 });
+    await expect(search).toBeVisible();
+    await expect(archive).toBeVisible();
+    await expect(from).toBeVisible();
+    expect(await running.page.evaluate(() => (
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    ))).toBe(true);
+    await running.page.setViewportSize({ width: 1440, height: 900 });
+
+    await alpha.click();
+    await expect(running.page.getByRole("region", { name: "Application information" })).toHaveCount(0);
+    await expect(corpusAfterEdit.getByLabel("Application inspection")).toHaveCount(1);
+    await expect(corpusAfterEdit.getByLabel("Tag meanings")).toContainText("Dependable production ownership");
+    const railTags = running.page.getByRole("region", { name: "Tags glossary" });
+    await expect(railTags).toContainText("Reliability");
+    await expect(railTags).toContainText("Dependable production ownership");
+    await expect(railTags.getByRole("searchbox")).toHaveCount(0);
+
+    await beta.click();
+    await expect(corpusAfterEdit.getByLabel("Application inspection")).toHaveCount(1);
+    await expect(corpusAfterEdit.getByLabel("Tag meanings")).toContainText("Inclusive product and interface practice");
+    await expect(railTags).toContainText("Accessibility");
+    await expect(railTags).not.toContainText("Reliability");
+
+    await corpusAfterEdit.getByRole("button", { name: "Open saved application" }).click();
+    const selectedFixture = running.page.getByRole("region", { name: "Application information" });
+    await expect(selectedFixture).toBeVisible();
+    await expect(selectedFixture.getByRole("region", { name: "Sources" })).toContainText("Fixture tagged Beta");
+    await expect(selectedFixture.getByRole("region", { name: "Remaining application information" })).toBeVisible();
+    await expect(selectedFixture.getByText("More", { exact: true })).toHaveCount(0);
+    await expect(railTags).toContainText("Accessibility");
+
+    const selectedTags = selectedFixture.getByRole("region", { name: "Tags" });
+    await expect(selectedTags).toContainText("Inclusive product and interface practice");
+    await selectedTags.getByRole("button", { name: "Edit shared Tag" }).click();
+    await selectedTags.getByLabel("Definition").fill("Inclusive product practice, updated locally");
+    await selectedTags.getByRole("button", { name: "Save Tag" }).click();
+    await expect(selectedTags).toContainText("Inclusive product practice, updated locally");
+    await expect(railTags).toContainText("Inclusive product practice, updated locally");
+
+    const fixtureRole = selectedFixture.getByRole("article", { name: "Role information" });
+    await fixtureRole.getByRole("button", { name: "Edit Role", exact: true }).click();
+    await fixtureRole.getByLabel("Value").fill("Platform test lead");
+    await fixtureRole.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(fixtureRole).toContainText("Platform test lead");
+
+    await selectedFixture.getByText("Sources, documents & history").click();
+    const applicationDocuments = selectedFixture.getByRole("region", { name: "Application documents" });
+    await applicationDocuments.getByRole("button", { name: "New CV" }).click();
+    await expect(running.page.getByRole("heading", { name: "Application CV" })).toBeVisible();
+    const cvPaper = running.page.locator(".working-cv-composition");
+    await expect(cvPaper).toBeVisible();
+    const widePaper = await cvPaper.boundingBox();
+    expect(widePaper).not.toBeNull();
+    expect(widePaper!.width).toBeLessThanOrEqual(980);
+    await expect(running.page.getByText("Document details", { exact: false })).toBeVisible();
+
+    await running.page.getByText("＋ Add section").click();
+    await running.page.getByLabel("Section name").fill("Experience");
+    await running.page.getByRole("button", { name: "Add section", exact: true }).click();
+    await expect(running.page.getByRole("region", { name: "Experience section" })).toBeVisible();
+    await running.page.getByRole("button", { name: "Save", exact: true }).click();
+
+    await running.page.setViewportSize({ width: 720, height: 600 });
+    await expect(cvPaper).toBeVisible();
+    expect(await running.page.evaluate(() => (
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    ))).toBe(true);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
