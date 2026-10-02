@@ -188,7 +188,8 @@ function installWorkspaceApi() {
 
 async function openWorkspace(user: ReturnType<typeof userEvent.setup>) {
   render(<CandidaturesWorkspace />);
-  await user.click(await screen.findByRole("button", { name: "Open saved application" }));
+  await user.click(await screen.findByRole("button", { name: "Inspect saved application" }));
+  await user.click(screen.getByRole("button", { name: "Open application" }));
 }
 
 afterEach(() => {
@@ -276,7 +277,7 @@ describe("candidature field cohesion", () => {
     await waitFor(() => expect(clear).toHaveBeenCalledTimes(1));
   });
 
-  it("uses the same read-first field object in Primary and More and coordinates options, permission and one dirty editor", async () => {
+  it("uses the same read-first field object in Primary and remaining information and coordinates options, permission and one dirty editor", async () => {
     const api = installWorkspaceApi();
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
@@ -291,10 +292,12 @@ describe("candidature field cohesion", () => {
     expect(within(roleCard).queryByLabelText("Value")).not.toBeInTheDocument();
 
     expect(screen.getByRole("region", { name: "Tags" })).toBeVisible();
-    await user.click(screen.getByText("More"));
-    const more = screen.getByRole("region", { name: "More application information" });
+    const remaining = screen.getByRole("region", { name: "Remaining application information" });
+    expect(screen.queryByText("More", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Application documents" })).not.toBeInTheDocument();
+    await user.click(screen.getByText("Sources, documents & history"));
     expect(screen.getByRole("region", { name: "Application documents" })).toBeVisible();
-    let locationCard = within(more).getByRole("article", { name: "Location information" });
+    let locationCard = within(remaining).getByRole("article", { name: "Location information" });
     expect(within(locationCard).getByText("Not set")).toBeVisible();
     expect(within(locationCard).getByRole("button", { name: "Edit Location" })).toBeVisible();
     expect(screen.getAllByRole("button", { name: "AI may use this information" })).toHaveLength(3);
@@ -304,7 +307,7 @@ describe("candidature field cohesion", () => {
       fieldId: locationId,
       aiUseAllowed: false,
     })));
-    locationCard = within(more).getByRole("article", { name: "Location information" });
+    locationCard = within(remaining).getByRole("article", { name: "Location information" });
     expect(within(locationCard).queryByRole("button", { name: "Ask AI to fill Location" })).not.toBeInTheDocument();
 
     await user.click(within(roleCard).getByRole("button", { name: "Edit Role" }));
@@ -342,13 +345,13 @@ describe("candidature field cohesion", () => {
     await user.click(within(companyCardAfter).getByRole("button", { name: "Move Company earlier" }));
     await waitFor(() => expect(api.reorderFavouriteFields).toHaveBeenCalledWith([companyId, roleId]));
 
-    locationCard = within(more).getByRole("article", { name: "Location information" });
+    locationCard = within(remaining).getByRole("article", { name: "Location information" });
     await user.click(within(locationCard).getByText("Field options"));
     await user.click(within(locationCard).getByRole("button", { name: "Show in primary information" }));
     await waitFor(() => {
       expect(within(primary).getByRole("article", { name: "Location information" })).toBeVisible();
     });
-    expect(within(more).queryByRole("article", { name: "Location information" })).not.toBeInTheDocument();
+    expect(within(remaining).queryByRole("article", { name: "Location information" })).not.toBeInTheDocument();
   });
 
   it("keeps existing-field label and description editing reachable without making it part of ordinary value edit", async () => {
