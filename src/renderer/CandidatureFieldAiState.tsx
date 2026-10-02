@@ -156,7 +156,6 @@ export function CandidatureFieldAiState({
             field={field}
             value={proposedIssueValue.data}
             initialEditing
-            showFieldControls={false}
             saveLabel="Use corrected value"
             clearLabel="Dismiss"
             onSave={acceptIssueEdit}
@@ -193,7 +192,6 @@ export function CandidatureFieldAiState({
             field={field}
             value={proposal.value}
             initialEditing
-            showFieldControls={false}
             saveLabel="Use this value"
             clearLabel="Dismiss"
             onSave={accept}
