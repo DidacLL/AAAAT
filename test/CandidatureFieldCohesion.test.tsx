@@ -354,11 +354,15 @@ describe("candidature field cohesion", () => {
     await user.click(within(roleCard).getByText("Platform Engineer"));
     expect(roleOptions).not.toHaveAttribute("open");
     await user.click(within(roleCard).getByText("Field options"));
-    await user.selectOptions(within(roleCard).getByLabelText("Role card size"), "wide");
+    const editorFieldClassBeforeProminenceChange = roleCard.className;
+    await user.selectOptions(within(roleCard).getByLabelText("Role corpus card prominence"), "wide");
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: roleId,
       presentationSize: "wide",
     })));
+    roleCard = within(primary).getByRole("article", { name: "Role information" });
+    expect(roleCard.className).toBe(editorFieldClassBeforeProminenceChange);
+    expect(roleCard.className).not.toMatch(/candidature-unit-size-/);
 
     const companyCardAfter = within(primary).getByRole("article", { name: "Company information" });
     await user.click(within(companyCardAfter).getByText("Field options"));
