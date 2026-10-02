@@ -695,18 +695,20 @@ export function CandidaturesWorkspace({
                       </span>
                     ) : null}
                   </button>
-                  <div className="candidature-card-footer">
-                    {!preselected && recordTags.length > 0 ? (
-                      <span className="candidature-collapsed-tags" aria-label="Related Tags">
-                        {recordTags.map((tag) => (
-                          <span className="candidature-collapsed-tag" key={tag.id}>{tag.name}</span>
-                        ))}
-                      </span>
-                    ) : <span />}
-                    <time dateTime={record.createdAt}>
-                      {new Date(record.createdAt).toLocaleDateString()}
-                    </time>
-                  </div>
+                  {!preselected ? (
+                    <div className="candidature-card-footer">
+                      {recordTags.length > 0 ? (
+                        <span className="candidature-collapsed-tags" aria-label="Related Tags">
+                          {recordTags.map((tag) => (
+                            <span className="candidature-collapsed-tag" key={tag.id}>{tag.name}</span>
+                          ))}
+                        </span>
+                      ) : <span />}
+                      <time dateTime={record.createdAt}>
+                        {new Date(record.createdAt).toLocaleDateString()}
+                      </time>
+                    </div>
+                  ) : null}
                   {preselected ? (
                     <div className="candidature-corpus-inspection" aria-label="Application inspection">
                       <button
@@ -809,6 +811,18 @@ export function CandidaturesWorkspace({
 
   const renderInformationField = (field: CandidatureFieldConfiguration) => {
     const retained = selected.values.find((value) => value.fieldId === field.definition.id);
+    const retainedText = retained
+      ? Array.isArray(retained.value)
+        ? retained.value.map(String).join(", ")
+        : String(retained.value)
+      : "";
+    const longReading =
+      field.definition.valueType === "long_text" ||
+      retainedText.length > 180 ||
+      activeFieldEditorId === field.definition.id;
+    const mediumReading =
+      !longReading &&
+      (retainedText.length > 80 || field.definition.description.length > 140);
     const favouriteIndex = favouriteFields.findIndex(
       (candidate) => candidate.definition.id === field.definition.id,
     );
@@ -816,11 +830,11 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className="retained-information-card candidature-information-unit"
+        className={`retained-information-card candidature-information-unit${longReading ? " candidature-information-unit-long-content" : mediumReading ? " candidature-information-unit-medium-content" : ""}`}
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
-          <div>
+          <div className="candidature-information-unit-meta">
             <h4>{field.definition.label}</h4>
             {field.definition.description ? <p>{field.definition.description}</p> : null}
           </div>
