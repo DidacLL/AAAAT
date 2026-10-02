@@ -230,7 +230,7 @@ describe("new application recovery", () => {
     await screen.findByRole("region", { name: "Raw material continuation" });
     await user.click(screen.getByRole("button", { name: "← Applications" }));
     const corpus = screen.getByLabelText("Application corpus");
-    const entry = within(corpus).getByRole("button", { name: "Inspect saved application" });
+    const entry = within(corpus).getByRole("button", { name: /^Inspect saved application:/ });
     expect(within(entry).getByText("Retained source")).toBeVisible();
     expect(entry).toHaveTextContent("Aster Aviation seeks a captain. Keep this exact text.");
 
