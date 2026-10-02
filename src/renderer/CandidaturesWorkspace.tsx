@@ -697,7 +697,7 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className={`retained-information-card candidature-information-unit candidature-unit-size-${field.preferences.presentationSize}`}
+        className="retained-information-card candidature-information-unit"
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
@@ -781,7 +781,7 @@ export function CandidaturesWorkspace({
                         </button>
                       </div>
                       <label className="candidature-prominence-control">
-                        Card prominence
+                        Corpus card prominence
                         <select
                           aria-label={`${field.definition.label} card size`}
                           value={field.preferences.presentationSize}
