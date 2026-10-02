@@ -605,17 +605,19 @@ export function CandidaturesWorkspace({
                         <span>{distinctSearchCue.value}</span>
                       </span>
                     ) : null}
+                  </button>
+                  <div className="candidature-card-footer">
                     {!preselected && recordTags.length > 0 ? (
                       <span className="candidature-collapsed-tags" aria-label="Related Tags">
                         {recordTags.map((tag) => (
                           <span className="candidature-collapsed-tag" key={tag.id}>{tag.name}</span>
                         ))}
                       </span>
-                    ) : null}
+                    ) : <span />}
                     <time dateTime={record.createdAt}>
-                      Saved {new Date(record.createdAt).toLocaleDateString()}
+                      {new Date(record.createdAt).toLocaleDateString()}
                     </time>
-                  </button>
+                  </div>
                   {preselected ? (
                     <div className="candidature-corpus-inspection" aria-label="Application inspection">
                       <button
@@ -736,6 +738,16 @@ export function CandidaturesWorkspace({
           <div className="candidature-field-context-controls" role="group" aria-label={`${field.definition.label} field controls`}>
             <button
               type="button"
+              className="candidature-icon-button candidature-favourite-star"
+              aria-label={favourite ? `Remove ${field.definition.label} from favourites` : `Add ${field.definition.label} to favourites`}
+              aria-pressed={favourite}
+              title={favourite ? "Remove from favourite card information" : "Add to favourite card information"}
+              onClick={() => void setFavourite(field, !favourite)}
+            >
+              <span aria-hidden="true">{favourite ? "★" : "☆"}</span>
+            </button>
+            <button
+              type="button"
               className="candidature-icon-button candidature-ai-use-eye"
               aria-label="AI may use this information"
               aria-pressed={field.preferences.aiUseAllowed}
@@ -774,18 +786,13 @@ export function CandidaturesWorkspace({
                     current === field.definition.id ? null : field.definition.id
                   );
                 }}
+                aria-label={`Configure ${field.definition.label}`}
+                title={`Configure ${field.definition.label}`}
               >
-                Field options
+                <span aria-hidden="true">⚙</span>
               </summary>
               {openFieldOptionsId === field.definition.id ? (
                 <div className="candidature-field-options-panel">
-                  <button
-                    type="button"
-                    className="compact-secondary"
-                    onClick={() => void setFavourite(field, !favourite)}
-                  >
-                    {favourite ? "Remove from primary information" : "Show in primary information"}
-                  </button>
                   {favourite ? (
                     <>
                       <div className="candidature-field-order-actions">
@@ -934,7 +941,7 @@ export function CandidaturesWorkspace({
           <div>
             <p className="eyebrow">Primary information</p>
             <p className="compact-help">
-              Choose which information stays up front. Order and card size are available in Field options.
+              Choose which information stays up front. Order and corpus-card prominence are available under the gear control.
             </p>
           </div>
         </div>
