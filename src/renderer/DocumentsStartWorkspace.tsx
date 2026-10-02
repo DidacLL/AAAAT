@@ -228,12 +228,31 @@ export function DocumentsStartWorkspace({
       </details>
 
       {collections.workingCvs.length > 0 ? (
-        <details className="document-start-options" aria-label="Continue editing CVs">
-          <summary>Continue editing ({collections.workingCvs.length})</summary>
-          <div className="document-intent-list">
-            {collections.workingCvs.map((document) => <button type="button" key={document.id} onClick={() => onOpenDocument(document.id)}><span className="item-kind">Working CV</span><strong>{document.title}</strong><small>{document.candidatureId ? "Application-owned" : "Standalone"}</small></button>)}
+        <section className="working-cv-library" aria-label="Working CVs">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Continue your documents</p>
+              <h2>Working CVs</h2>
+            </div>
+            <span>{collections.workingCvs.length}</span>
           </div>
-        </details>
+          <div className="working-cv-document-grid">
+            {collections.workingCvs.map((document) => (
+              <button
+                type="button"
+                className="working-cv-document-card"
+                key={document.id}
+                onClick={() => onOpenDocument(document.id)}
+              >
+                <span className="item-kind">Working CV</span>
+                <strong>{document.title}</strong>
+                <small>
+                  {document.candidatureId ? "Application-owned" : "Standalone"} · {document.sections.length} {document.sections.length === 1 ? "section" : "sections"}
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
