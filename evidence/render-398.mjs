@@ -41,7 +41,7 @@ async function launchApp(userData, appData) {
   const port = await reservePort();
   const endpoint = `http://127.0.0.1:${port}`;
   const env = { ...process.env, GTK_USE_PORTAL: "0", HOME: appData, XDG_CONFIG_HOME: appData };
-  const child = spawn(packagedExecutable(), [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`], {
+  const child = spawn(packagedExecutable(), [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`, `--no-sandbox`], {
     env,
     stdio: ["ignore", "ignore", "pipe"],
   });
