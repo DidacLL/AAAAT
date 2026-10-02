@@ -1,109 +1,37 @@
-# Current mission — PLAN[5] AAAAT visual identity recovery
+# Current mission — v2 release readiness
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `3567959112625670bcfc31e9c3d35430f8f09518`.
-Integrated PLAN[5] acceptance umbrella: #314.
-Active implementation issue: #398.
+Base main: `b4a747832d10c309057d3fe5cfc4217733310bf5`.
 
-The September 28 audits are not execution authority. PLAN[0]–PLAN[4] remain complete/retained. PLAN[5] remains active until #398 and final visual acceptance are complete.
+## PLAN state
 
-## Accepted PLAN[5] work retained
+- PLAN[0] — COMPLETE / RETAINED
+- PLAN[1] — COMPLETE / RETAINED
+- PLAN[2] — COMPLETE
+- PLAN[3] — COMPLETE / RETAINED
+- PLAN[4] — COMPLETE
+- PLAN[5] — COMPLETE
 
-- #380 / PR #382: direct structured New application and raw Source retention with explicit manual/AI continuations.
-- #383 / PR #385: loaded Home as useful local landing console.
-- #386 / PR #390: sparse/raw corpus recognition and selected Source visibility.
-- #393 / PR #394: constrained shell keeps support surfaces subordinate to work.
-- #395 / PR #402: Applications recognize/filter/inspect/collapse/Open model, contextual Tags, all-field selected application editing, AI field actions/failure handling, document-first CV work, landscape composition and compact navigation.
+PLAN[5] completed through the integrated acceptance sequence under #314, ending with:
+- #395 / PR #402: Applications recognize/filter/inspect/collapse/Open flow, contextual Tags, continuous selected-application editing, AI field-action/failure handling, document-first CV work, wide-screen composition and compact navigation.
+- #398 / PR #405: AAAAT visual-identity recovery using retained logo/background/loading artwork, machine/chassis versus paper/dossier material hierarchy, and final rendered-product review.
 
-Do not reopen those interaction boundaries unless #398 exposes an actual regression.
+Final #398 implementation merged as `b4a747832d10c309057d3fe5cfc4217733310bf5`.
 
-## Active Product Owner correction — #398
+Rendered evidence for the final visual pass came from temporary evidence run `37059329405`, artifact `11249898139`, digest `sha256:d5ef8f45823c8f4ef53cf2734467cb74991b1e732fb5bc15955fdfad5ad61707`. The evidence branch is not product code and must not be merged.
 
-The current desktop is usable but still does not fully express AAAAT's required visual identity.
+## Current objective
 
-The target is a restrained 1950s/atomic-age retrofuturist desk-console / workshop instrument:
+Prepare/deploy v2 from current `main` without reopening completed PLAN work unless release inspection exposes a concrete product or packaging defect.
 
-- machine/chassis surfaces for shell, navigation, status and advanced controls;
-- clean paper/dossier surfaces for applications, My information, Sources and document composition;
-- retained AAAAT robot/artwork for orientation, loading and selected empty/onboarding moments;
-- strong identity without sacrificing readability or productive density.
+Keep the release path small:
+- no feature expansion;
+- no test-generation phase;
+- no architecture cleanup programme;
+- no compatibility/migration ceremony without a real obligation;
+- no reopening #373, which remains a non-blocking future document-source enhancement.
 
-### Historical artwork
+Required engineering hygiene remains static typecheck + lint. Product acceptance is already based on independent production-code review and real rendered-product inspection.
 
-Inspect and deliberately integrate the retained artwork under `docs/owner-source/`:
-
-- `AAAATlogo.png` / `AAAATlogolight.png`;
-- `AAAATbg.png` / `AAAATbglight.png`;
-- `AAAATloading.png` / `AAAATloadinglight.png`;
-- banner variants and `AAAATART.png` only where they genuinely improve the product.
-
-Current runtime incorrectly relies on one light-logo asset and a generic CSS background. Correct contextual light/dark asset pairing. Do not introduce a theme framework merely because paired assets exist.
-
-### Material and visual hierarchy
-
-Strengthen:
-- mid-century industrial/atomic-age proportions;
-- restrained machine labels/instrument metadata;
-- inset chassis framing, seams/fasteners/indicator cues only where useful;
-- warm cream paper, faded olive/sage, charcoal metal, oxidized copper/rust and desaturated teal;
-- clear distinction between machine framing and paper/document content.
-
-Avoid:
-- generic SaaS/dashboard appearance;
-- neon cyberpunk;
-- tactical/military severity;
-- scanlines/glitch overlays;
-- heavy dirt/noise behind readable information;
-- decorative gauges/screws everywhere;
-- novelty body fonts;
-- generic design-system rewrite.
-
-### Typography and density
-
-Preserve #395's compact navigation, landscape composition and reduced control weight.
-
-Machine/navigation labels may carry restrained industrial character. Paper/application/CV content must remain highly readable.
-
-Do not reintroduce implementation vocabulary or noisy schema labels into corpus cards.
-
-### Scope boundary
-
-This is a renderer/asset/style pass.
-
-Do not change:
-- schema/persistence/domain behavior;
-- AI/provider semantics;
-- #395 corpus interaction;
-- contextual Tag ownership;
-- document-domain ownership;
-- routing/state architecture;
-- dependencies unless strictly necessary for asset bundling;
-- product workflows.
-
-## Acceptance
-
-Do not create or expand automated tests for this run.
-
-Do not use literal wording, semantic-copy, DOM, CSS, class, snapshot or mocked tests as acceptance evidence. Tests never drive product development.
-
-Existing CI may run only as incidental branch-protection/build hygiene. Do not change valid product behavior merely to satisfy stale tests.
-
-Acceptance is:
-1. independent production-code audit;
-2. real rendered desktop inspection.
-
-The implementation specialist is GitHub-connector-only and does not launch Electron or capture screenshots. After the exact implementation head is returned, the orchestrator owns rendered inspection. If no local runtime is available, use a temporary Actions evidence branch/workflow against that exact head to run the real Electron app and capture direct screenshots. That evidence branch must not alter product code, must contain no visual assertions/tests, and must not be merged as product implementation. Use normal development/demo/local data sufficient to inspect the real surfaces.
-
-Rendered evidence must cover:
-- first-run Welcome;
-- startup/loading;
-- loaded Home;
-- Applications corpus and preselected card;
-- selected application;
-- My information;
-- Working CV/document composition;
-- Settings;
-- constrained and wide landscape sizes.
-
-The orchestrator owns the final audit/merge/classification. The Product Owner is not routine QA or a prompt courier.
+The Product Owner is not routine QA or a prompt courier.
