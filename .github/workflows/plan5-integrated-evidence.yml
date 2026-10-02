@@ -80,6 +80,7 @@ jobs:
         run: npx playwright test test/desktop/plan5-integrated-evidence.spec.ts --config playwright.config.ts
 
       - name: Add evidence metadata
+        if: always()
         shell: pwsh
         run: |
           Copy-Item -LiteralPath candidate-boundary.txt -Destination source/plan5-evidence/candidate-boundary.txt
@@ -90,6 +91,7 @@ jobs:
           }
 
       - name: Upload integrated evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: PLAN5-integrated-evidence-${{ env.CANDIDATE_SHA }}
