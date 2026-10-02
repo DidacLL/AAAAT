@@ -250,6 +250,7 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
     await sources.getByRole("button", { name: "Back to Sources" }).click();
 
+    await reopened.getByText("Sources, documents & history").click();
     const roleBlock = reopened.getByRole("article", { name: "Role information" });
     await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
     await roleBlock.getByLabel("Value").fill("Captain");
