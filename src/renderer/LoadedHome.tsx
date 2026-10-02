@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { CandidatureFieldConfiguration, CandidatureRecord } from "../shared/contracts";
 import type { DocumentCollections } from "../shared/document-domain-contracts";
-import logo from "./assets/aaaat-logo-light.png";
+import logoMachine from "./assets/aaaat-logo-dark.png";
 import { candidatureRecognitionProjection } from "./candidature-projections";
 import "./loaded-home.css";
 
@@ -91,7 +91,7 @@ export function LoadedHome({
   return (
     <section className="loaded-home" aria-label="Home">
       <header className="loaded-home-orientation">
-        <img className="loaded-home-robot" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
+        <img className="loaded-home-robot" src={logoMachine} alt="AAAAT explorer robot holding a magnifying glass" />
         <div className="loaded-home-intro">
           <p className="console-section-code">AAAAT / LOCAL CONSOLE</p>
           <h1>Welcome back</h1>
