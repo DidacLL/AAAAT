@@ -196,9 +196,9 @@ export function candidatureRetainedSourceCue(
 const cardCueWeight: Readonly<Record<CandidaturePresentationSize, number>> = {
   compact: 1,
   normal: 2,
-  wide: 3,
+  wide: 4,
 };
-const collapsedCardCapacity = 9;
+const collapsedCardCapacity = 12;
 
 export function candidatureCardRecognitionProjection(
   record: CandidatureRecord,
