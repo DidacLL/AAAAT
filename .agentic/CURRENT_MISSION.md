@@ -1,10 +1,10 @@
-# Current mission — PLAN[5] final integrated acceptance
+# Current mission — PLAN[5] application inspection and document coherence
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `73a37b13c63395314686d7bf655640220822bfd3` (PR #390 accepted Issue #386).
-Integrated PLAN[5] acceptance umbrella: #314.
-No separate PLAN[5] implementation issue is active.
+Base main: `8355889be18078451959dc8a1a19d45f74aaede7`.
+Integrated PLAN[5] acceptance umbrella: #314 (reopened after Product Owner real-use review).
+Active integrated implementation issue: #395.
 
 The September 28 audits are not execution authority. PR #378 recovered the AAAAT northstar; PR #379 restored PLAN[0]–PLAN[4] as complete/retained and PLAN[5] as active.
 
@@ -15,102 +15,116 @@ The September 28 audits are not execution authority. PR #378 recovered the AAAAT
 - **PLAN[2] — COMPLETE.**
 - **PLAN[3] — COMPLETE / RETAINED.**
 - **PLAN[4] — COMPLETE.** Issue #373 remains non-blocking future document-source work.
-- **PLAN[5] — ACTIVE, FINAL ACCEPTANCE.** No concrete implementation residual is currently identified. The remaining boundary is integrated rendered/packaged UX evidence under #314.
+- **PLAN[5] — ACTIVE.** Issue #395 is the current integrated residual. Do not close #314 until #395 and final packaged acceptance are complete.
 
-## Accepted PLAN[5] implementation
+## Accepted PLAN[5] work retained
 
-### Issue #380 / PR #382 — New application
+- #380 / PR #382: direct structured New application and raw Source retention with explicit manual/AI continuations.
+- #383 / PR #385: loaded Home as useful local landing console; workspace administration remains in first run/Settings.
+- #386 / PR #390: sparse/raw corpus recognition from retained Source, shared recognition projection, selected Source visibility, bounded external-AI task access.
+- #393 / PR #394: constrained shell keeps support surfaces subordinate to the active task.
 
-Accepted:
-- peer direct-entry and raw-material intentions;
-- sparse direct entry without Source/AI;
-- raw Source retention before AI/manual continuation;
-- existing proposal review before AI-derived durable writes;
-- no hidden background AI preparation writer;
-- external AI handoff remains secondary.
+Do not reopen these accepted boundaries unless #395 implementation directly exposes a regression.
 
-### Issue #383 / PR #385 — loaded Home
+## Current Product Owner correction — #395
 
-Accepted:
-- loaded Home is a useful local landing console rather than workspace administration;
-- first-run Welcome retains workspace entry/recovery authority;
-- recent applications/documents use existing handoffs;
-- Settings owns workspace switching/creation and backup/recovery;
-- ordinary packaged work uses persistent rail navigation.
+Real desktop use exposed one coherent UX-model problem, not a set of cosmetic micro-defects.
 
-### Issue #386 / PR #390 — Applications coherence
+### Applications corpus: recognize → inspect → edit
 
-Issue #386 is complete. PR #390 merged as `73a37b13c63395314686d7bf655640220822bfd3`.
+The current corpus jumps directly from a compact card to the full editor and visually decomposes applications into rigid field boxes.
 
-Accepted:
-- corpus recognition preserves user-selected favourite/primary information;
-- sparse/raw-only candidatures use a bounded retained-Source fallback without promoting non-favourite fields;
-- Home reuses the same recognition projection;
-- raw-only selected candidatures surface retained Source in the principal task context;
-- ordinary selected candidatures present Primary information before `Send to my AI`;
-- retained external-AI task access stays available but the large task editor no longer auto-expands;
-- deliberate `Send to my AI` expansion preserves existing PLAN[2] task/context/transport/result behavior;
-- search/archive/Tags/Documents/dirty-state behavior remains intact.
+Required model:
+1. compact card for recognition;
+2. first activation preselects/expands exactly one card in place for inspection;
+3. second activation or explicit Open/Edit enters the exact selected application editor.
 
-Exact #386 candidate SHA `c103cb0b8b16211aa103a1f3f7ba8d5a9a921915`:
-- specialist focused/full Verify run `36715042575` passed;
-- orchestrator exact-head Verify run `36940331765` + verification gate passed;
-- Windows candidate run `36940331801` passed exact checkout, Windows Verify, package build and all 5 packaged runtime journeys;
-- packaged manual candidature journey proved raw capture → corpus Source recognition → exact reopen → Source visibility → manual edit, while `Send to my AI` remained collapsed/discoverable;
-- Windows package SHA-256 `de73777a48bf2e3961b842a95b85e59f224fe011833b23db2b5db2b90f1a9397`;
-- uploaded candidate artifact ID `11199304815`.
+The preselected card should reveal more retained primary/favourite information and attached Tags while staying bounded. Raw-only applications retain the accepted Source fallback. Search/archive behavior remains unchanged.
 
-Do not reopen #380, #383 or #386 unless later evidence directly reveals a regression in their accepted boundaries.
+Corpus cards should read as application cards, not mini-form grids. Values remain primary. Attached Tags are visible without search. Compact/normal/wide presentation preferences must produce perceptible information hierarchy without chaotic masonry or unbounded card height.
 
-## Remaining outcome — #314 final evidence
+### Contextual Tags
 
-Do **not** manufacture another feature slice merely because PLAN[5] remains open.
+The rail Tag surface must stop being a duplicate global Tag search workflow.
 
-The remaining task is one integrated acceptance pass on the coherent current product. Evidence must be from the real rendered/packaged desktop, not only component tests.
+When Applications is active, the rail is a contextual monitor for the current preselected/selected application:
+- show attached Tags and concise definitions;
+- update when corpus preselection changes;
+- preserve context after opening the editor;
+- show a quiet neutral state when no application is selected.
 
-Cover at minimum:
-- first run: Create/Open primary, recovery secondary, useful constrained fit;
-- loaded Home/shell;
-- Applications corpus/search and meaningful sparse/raw recognition;
-- selected candidature, local editing, Sources, Tags and linked Documents;
-- structured New application entry;
-- raw Source retention → explicit AI/manual continuations;
-- My information read-first interaction;
-- Documents / Working CV composition;
-- Tags as bounded glossary/retrieval context;
-- Settings, including understandable AI/workspace configuration;
-- intentional empty/sparse states;
-- representative constrained and expanded window sizes.
+Application-local Tag interaction remains the mutation surface for add/search/create/remove/edit. Keep the state handoff small and explicit; no global store/event bus.
 
-Inspect:
-- visual hierarchy;
-- information density;
-- reachability;
-- responsive stacking/reflow;
-- productive expanded-space use;
-- mandatory `docs/UX_VISUAL_DIRECTION.md` character;
-- absence of generic SaaS/dashboard or developer/schema-first presentation.
+### Selected application
 
-Concrete screenshot dimensions are evidence samples, not product requirements.
+Primary/favourite information remains first, but all enabled application fields are visible in the same continuous information surface. Do not hide normal fields behind generic `More`.
 
-## Acceptance decision
+Long/free-text values are bounded in read state and fully available when editing. Field units should have calmer, more consistent rhythm. Field options remain secondary. Replace visible prose reorder actions such as “Move earlier/later” with compact directional controls while retaining descriptive accessibility labels.
 
-If rendered evidence exposes a concrete product defect, report the smallest integrated residual before implementation. Do not pre-emptively create a cosmetic issue.
+Sources, Documents, AI task access, Activity and field-definition machinery remain progressive/contextual.
 
-If the rendered evidence satisfies #314 and no concrete first-class defect remains, the orchestrator may:
-1. record exact evidence on #314;
-2. close #314 as completed;
-3. mark PLAN[5] complete in durable coordination;
-4. move to post-PLAN alpha/release work without reopening PLAN[0]–PLAN[4].
+### CVs / Working CV
 
-The Product Owner is not routine screenshot QA. Engineering/orchestration establishes the candidate and evidence first.
+Working CV must read immediately as a CV/document composition, using the successful read-first interaction language of My information as reference.
 
-## Execution
+- continuous paper/document composition first;
+- section headings and CV items read like content, not nested administration cards;
+- editing remains local/contextual;
+- reorder/remove/source controls are compact and secondary;
+- metadata, Blueprint and render controls do not dominate the document body;
+- CV collection/start view makes existing Working CVs recognizable as documents to continue.
 
-This is an acceptance/evidence run, not an implementation run.
+Preserve every settled PLAN[4] ownership/render distinction. This is not a WYSIWYG PDF editor and not a document-domain rewrite.
 
-- Start from exact current `main`.
-- Do not change product code merely to generate acceptance.
-- A temporary evidence harness is acceptable only if needed to capture real rendered views; it must not alter product semantics or be merged merely for bookkeeping.
-- No provider/model or real-LaTeX rerun is required unless evidence touches those boundaries.
-- Return exact candidate SHA, evidence locations, surfaces/sizes inspected, concrete defects if any, and whether #314 acceptance is supported by the evidence.
+### Horizontal space and menu density
+
+The desktop must stop behaving like a narrow form stretched across a wide landscape viewport.
+
+- use deliberate multi-column composition for related information on wide views where it improves scanning and reduces eye travel;
+- keep readable line lengths rather than pouring fields/descriptions into one oversized horizontal strip;
+- application information, descriptions/supporting metadata and document composition should align to calm predictable grids rather than many isolated boxes;
+- expanded corpus inspection may span multiple grid columns;
+- avoid full-width controls/text where they add no value;
+- keep constrained widths stackable and task-first.
+
+Primary navigation must feel like a menu:
+- smaller/lighter typography and tighter rows;
+- active state through restrained accent/contrast, not oversized bold treatment;
+- utility/reorder/edit/options controls visually subordinate to values and document content;
+- reduce unnecessary padding, border weight and oversized bold labels throughout affected surfaces.
+
+## Architecture and non-goals
+
+Keep this as one coherent bounded renderer interaction correction.
+
+Do not add:
+- schema/migration or new persistence;
+- fixed Role/Organisation identity semantics;
+- router/wizard/workflow engine;
+- global state/event bus;
+- generic card/design-system framework;
+- runtime dependency;
+- provider/AI contract redesign;
+- PLAN[4] document-domain rewrite;
+- Tag ontology/knowledge-management expansion;
+- unrelated Home/Settings redesign.
+
+## Acceptance
+
+Focused evidence must prove:
+- first corpus activation preselects/expands only;
+- second activation or explicit Open enters the exact application;
+- one preselected card at a time;
+- card and expanded inspection expose useful primary cues + attached Tags while bounding long/raw content;
+- rail Tag monitor follows preselected/selected application and contains no duplicate global search flow;
+- application-local Tag mutation remains functional;
+- selected application shows primary and remaining enabled fields without `More`;
+- compact accessible reorder controls preserve favourite ordering;
+- Working CV reads as document-first and edits contextually;
+- dirty state, search/archive, Sources, Documents and AI handoffs remain intact.
+
+Run full `npm run verify`.
+
+Final Windows packaged evidence should exercise the corrected journey as one integrated flow: large corpus → preselect → inspect Tags/primary information → open exact application → see/edit all fields → return → open a Working CV and confirm recognizable read-first document composition at constrained and expanded representative sizes.
+
+The Product Owner is not routine QA or a prompt courier. The orchestrator owns independent diff review, exact-head verification, packaged evidence, PR/merge and final PLAN classification.
