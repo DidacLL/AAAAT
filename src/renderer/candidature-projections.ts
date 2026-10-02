@@ -44,11 +44,13 @@ function scalarValue(
 function displayValue(
   field: CandidatureFieldConfiguration,
   value: CandidatureRuntimeValue,
+  limit = 96,
 ): string {
   const displayed = Array.isArray(value)
     ? value.map((item) => scalarValue(field, item)).join(", ")
     : scalarValue(field, value);
-  return displayed.length > 96 ? `${displayed.slice(0, 93).trimEnd()}…` : displayed;
+  const bounded = Math.max(2, limit);
+  return displayed.length > bounded ? `${displayed.slice(0, bounded - 1).trimEnd()}…` : displayed;
 }
 
 function matchingExcerpt(text: string, query: string, limit = 112): string | null {
@@ -129,6 +131,7 @@ export function candidatureRecognitionCues(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
   limit = 4,
+  valueLimit = 96,
 ): CandidatureRecognitionCue[] {
   if (limit <= 0) return [];
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
@@ -136,7 +139,7 @@ export function candidatureRecognitionCues(
   const displayable = record.values.flatMap((retained) => {
     const field = fieldById.get(retained.fieldId);
     if (!field?.definition.enabled) return [];
-    const value = displayValue(field, retained.value).trim();
+    const value = displayValue(field, retained.value, valueLimit).trim();
     if (!value) return [];
     return [{
       field,
@@ -186,6 +189,45 @@ export function candidatureRetainedSourceCue(
     value,
     presentationSize: "wide",
     favourite: false,
+  };
+}
+
+
+const cardCueWeight: Readonly<Record<CandidaturePresentationSize, number>> = {
+  compact: 1,
+  normal: 2,
+  wide: 3,
+};
+const collapsedCardCapacity = 9;
+
+export function candidatureCardRecognitionProjection(
+  record: CandidatureRecord,
+  fields: readonly CandidatureFieldConfiguration[],
+  expanded: boolean,
+): CandidatureRecognitionProjection {
+  const allFavouriteCues = candidatureRecognitionCues(
+    record,
+    fields,
+    Number.MAX_SAFE_INTEGER,
+    expanded ? 420 : 96,
+  );
+  let primaryCues: readonly CandidatureRecognitionCue[] = allFavouriteCues;
+  if (!expanded) {
+    let used = 0;
+    const visible: CandidatureRecognitionCue[] = [];
+    for (const cue of allFavouriteCues) {
+      const weight = cardCueWeight[cue.presentationSize];
+      if (used + weight > collapsedCardCapacity) break;
+      visible.push(cue);
+      used += weight;
+    }
+    primaryCues = visible;
+  }
+  return {
+    primaryCues,
+    retainedSourceCue: primaryCues.length === 0
+      ? candidatureRetainedSourceCue(record, expanded ? 420 : 120)
+      : null,
   };
 }
 
