@@ -102,7 +102,7 @@ PR #377 changed production/setup/self-test from `latexmk -pdf` to direct `pdflat
 
 A reusable application-level editable shared `aaaat.sty` may still be a useful future enhancement. It is not a PLAN[4] completion blocker and does not block PLAN[5]. Do not use the superseded September audit to manufacture acceptance debt around it.
 
-## PLAN[5] — coherent UX/UI refinement — ACTIVE
+## PLAN[5] — coherent UX/UI refinement — COMPLETE
 
 PLAN[5] owns integrated user-facing coherence after the domain, external-AI, architecture and document foundations are settled.
 
@@ -181,9 +181,18 @@ The orchestrator owns sequence, scope, independent diff/evidence review and PLAN
 - Prefer coherent vertical work over issue proliferation.
 - Keep dependencies and architecture small.
 
-## Next
+## PLAN[5] completion
 
-1. Correct Issue #314 to current PLAN[5] authority.
-2. Reclassify Issue #373 as non-blocking future source-customization work.
-3. Inspect current renderer against the complete PLAN[5] boundary and identify the smallest integrated residual.
-4. Dispatch one bounded specialist for that residual, then independently review real rendered/package evidence.
+PLAN[5] completed through the integrated UX acceptance umbrella #314.
+
+Accepted final sequence:
+- #380 / PR #382 — direct structured and raw-material New application entry;
+- #383 / PR #385 — loaded Home as useful local landing console;
+- #386 / PR #390 — sparse/raw corpus recognition and Source-aware selected application behavior;
+- #393 / PR #394 — constrained shell support surfaces;
+- #395 / PR #402 — corpus inspect/collapse/Open model, contextual Tags, selected-application coherence, AI field-action feedback, document-first CV work, wide-screen composition and compact navigation;
+- #398 / PR #405 — retained AAAAT visual identity, context-correct artwork, machine/paper material hierarchy and final rendered-product inspection.
+
+Final accepted main: `b4a747832d10c309057d3fe5cfc4217733310bf5`.
+
+The next repository objective is v2 release/deployment readiness, not another PLAN[5] refinement cycle. Reopen completed work only for a concrete release-discovered defect.
