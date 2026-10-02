@@ -1,159 +1,107 @@
-# Current mission — PLAN[5] application inspection and document coherence
+# Current mission — PLAN[5] AAAAT visual identity recovery
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `8355889be18078451959dc8a1a19d45f74aaede7`.
-Integrated PLAN[5] acceptance umbrella: #314 (reopened after Product Owner real-use review).
-Active integrated implementation issue: #395.
+Base main: `3567959112625670bcfc31e9c3d35430f8f09518`.
+Integrated PLAN[5] acceptance umbrella: #314.
+Active implementation issue: #398.
 
-The September 28 audits are not execution authority. PR #378 recovered the AAAAT northstar; PR #379 restored PLAN[0]–PLAN[4] as complete/retained and PLAN[5] as active.
-
-## PLAN state
-
-- **PLAN[0] — COMPLETE / RETAINED.**
-- **PLAN[1] — COMPLETE / RETAINED.**
-- **PLAN[2] — COMPLETE.**
-- **PLAN[3] — COMPLETE / RETAINED.**
-- **PLAN[4] — COMPLETE.** Issue #373 remains non-blocking future document-source work.
-- **PLAN[5] — ACTIVE.** Issue #395 is the current integrated residual. Do not close #314 until #395 and final packaged acceptance are complete.
+The September 28 audits are not execution authority. PLAN[0]–PLAN[4] remain complete/retained. PLAN[5] remains active until #398 and final visual acceptance are complete.
 
 ## Accepted PLAN[5] work retained
 
 - #380 / PR #382: direct structured New application and raw Source retention with explicit manual/AI continuations.
-- #383 / PR #385: loaded Home as useful local landing console; workspace administration remains in first run/Settings.
-- #386 / PR #390: sparse/raw corpus recognition from retained Source, shared recognition projection, selected Source visibility, bounded external-AI task access.
-- #393 / PR #394: constrained shell keeps support surfaces subordinate to the active task.
+- #383 / PR #385: loaded Home as useful local landing console.
+- #386 / PR #390: sparse/raw corpus recognition and selected Source visibility.
+- #393 / PR #394: constrained shell keeps support surfaces subordinate to work.
+- #395 / PR #402: Applications recognize/filter/inspect/collapse/Open model, contextual Tags, all-field selected application editing, AI field actions/failure handling, document-first CV work, landscape composition and compact navigation.
 
-Do not reopen these accepted boundaries unless #395 implementation directly exposes a regression.
+Do not reopen those interaction boundaries unless #398 exposes an actual regression.
 
-## Current Product Owner correction — #395
+## Active Product Owner correction — #398
 
-Real desktop use exposed one coherent UX-model problem, not a set of cosmetic micro-defects.
+The current desktop is usable but still does not fully express AAAAT's required visual identity.
 
-### Applications corpus: recognize → filter → inspect → edit
+The target is a restrained 1950s/atomic-age retrofuturist desk-console / workshop instrument:
 
-The current corpus jumps directly from a compact card to the full editor and visually decomposes applications into rigid field boxes.
+- machine/chassis surfaces for shell, navigation, status and advanced controls;
+- clean paper/dossier surfaces for applications, My information, Sources and document composition;
+- retained AAAAT robot/artwork for orientation, loading and selected empty/onboarding moments;
+- strong identity without sacrificing readability or productive density.
 
-Retrieval also needs a compact recency control: add a `From` selector beside Search/archive with Last 24h / 48h / 72h / week / month / All. All is default. Filter on candidature `createdAt` using rolling 24/48/72-hour, 7-day and 30-day windows; intersect with Search and archive filtering. Do not use `updatedAt`, a configurable application-date field, a date picker, schema changes or persistence.
+### Historical artwork
 
-Required model:
-1. compact card for recognition;
-2. first activation preselects/expands exactly one card in place for inspection;
-3. activating the same expanded card again collapses it;
-4. only the dedicated compact Open/Edit action enters the exact application editor.
+Inspect and deliberately integrate the retained artwork under `docs/owner-source/`:
 
-The preselected card should reveal more retained primary/favourite information while staying bounded. Raw-only applications retain the accepted Source fallback. Search/archive behavior remains unchanged.
+- `AAAATlogo.png` / `AAAATlogolight.png`;
+- `AAAATbg.png` / `AAAATbglight.png`;
+- `AAAATloading.png` / `AAAATloadinglight.png`;
+- banner variants and `AAAATART.png` only where they genuinely improve the product.
 
-Corpus cards should read as application cards, not mini-form grids. Values remain primary. Compact non-selected cards may show lightweight attached Tag names for scanning. When a card is preselected, that lightweight card Tag row gets out of the way and the rail becomes the detailed contextual Tag readout with definitions. Compact/normal/wide presentation preferences must produce perceptible information hierarchy without chaotic masonry or unbounded card height.
+Current runtime incorrectly relies on one light-logo asset and a generic CSS background. Correct contextual light/dark asset pairing. Do not introduce a theme framework merely because paired assets exist.
 
-### Contextual Tags
+### Material and visual hierarchy
 
-The rail Tag surface must stop being a duplicate global Tag search workflow.
+Strengthen:
+- mid-century industrial/atomic-age proportions;
+- restrained machine labels/instrument metadata;
+- inset chassis framing, seams/fasteners/indicator cues only where useful;
+- warm cream paper, faded olive/sage, charcoal metal, oxidized copper/rust and desaturated teal;
+- clear distinction between machine framing and paper/document content.
 
-When Applications is active, the rail is a contextual monitor for the current preselected/selected application:
-- show attached Tags and concise definitions;
-- update when corpus preselection changes;
-- preserve context after opening the editor;
-- show a quiet neutral state when no application is selected.
+Avoid:
+- generic SaaS/dashboard appearance;
+- neon cyberpunk;
+- tactical/military severity;
+- scanlines/glitch overlays;
+- heavy dirt/noise behind readable information;
+- decorative gauges/screws everywhere;
+- novelty body fonts;
+- generic design-system rewrite.
 
-Application-local Tag interaction remains the mutation surface for add/search/create/remove/edit. Keep the state handoff small and explicit; no global store/event bus.
+### Typography and density
 
-### Selected application
+Preserve #395's compact navigation, landscape composition and reduced control weight.
 
-Primary/favourite information remains first, but all enabled application fields are visible in the same continuous information surface. Do not hide normal fields behind generic `More`.
+Machine/navigation labels may carry restrained industrial character. Paper/application/CV content must remain highly readable.
 
-Long/free-text values are bounded in read state and fully available when editing. Field units should have calmer, more consistent rhythm. Field options remain secondary. Replace visible prose reorder actions such as “Move earlier/later” with compact directional controls while retaining descriptive accessibility labels.
+Do not reintroduce implementation vocabulary or noisy schema labels into corpus cards.
 
-Sources, Documents, AI task access, Activity and field-definition machinery remain progressive/contextual.
+### Scope boundary
 
-### CVs / Working CV
+This is a renderer/asset/style pass.
 
-Working CV must read immediately as a CV/document composition, using the successful read-first interaction language of My information as reference.
-
-- continuous paper/document composition first;
-- section headings and CV items read like content, not nested administration cards;
-- editing remains local/contextual;
-- reorder/remove/source controls are compact and secondary;
-- metadata, Blueprint and render controls do not dominate the document body;
-- CV collection/start view makes existing Working CVs recognizable as documents to continue.
-
-Preserve every settled PLAN[4] ownership/render distinction. This is not a WYSIWYG PDF editor and not a document-domain rewrite.
-
-### Horizontal space and menu density
-
-The desktop must stop behaving like a narrow form stretched across a wide landscape viewport.
-
-- use deliberate multi-column composition for related information on wide views where it improves scanning and reduces eye travel;
-- keep readable line lengths rather than pouring fields/descriptions into one oversized horizontal strip;
-- application information, descriptions/supporting metadata and document composition should align to calm predictable grids rather than many isolated boxes;
-- expanded corpus inspection may span multiple grid columns;
-- avoid full-width controls/text where they add no value;
-- keep constrained widths stackable and task-first.
-
-Primary navigation must feel like a menu:
-- smaller/lighter typography and tighter rows;
-- active state through restrained accent/contrast, not oversized bold treatment;
-- utility/reorder/edit/options controls visually subordinate to values and document content;
-- reduce unnecessary padding, border weight and oversized bold labels throughout affected surfaces.
-
-## Architecture and non-goals
-
-Keep this as one coherent bounded renderer interaction correction.
-
-Do not add:
-- schema/migration or new persistence;
-- fixed Role/Organisation identity semantics;
-- router/wizard/workflow engine;
-- global state/event bus;
-- generic card/design-system framework;
-- runtime dependency;
-- provider/AI contract redesign;
-- PLAN[4] document-domain rewrite;
-- Tag ontology/knowledge-management expansion;
-- unrelated Home/Settings redesign.
+Do not change:
+- schema/persistence/domain behavior;
+- AI/provider semantics;
+- #395 corpus interaction;
+- contextual Tag ownership;
+- document-domain ownership;
+- routing/state architecture;
+- dependencies unless strictly necessary for asset bundling;
+- product workflows.
 
 ## Acceptance
 
-Focused evidence must prove:
-- From defaults to All and creation-time windows intersect correctly with Search and Current/Archived/All;
-- first corpus activation preselects/expands only;
-- activating the same expanded card collapses it;
-- only explicit Open/Edit enters the exact application;
-- one preselected card at a time;
-- compact cards may expose lightweight Tag names for scanning, while the preselected/selected application's detailed Tag definitions move to the rail without redundant duplicate detail;
-- rail Tag monitor follows preselected/selected application and contains no duplicate global search flow;
-- application-local Tag mutation remains functional;
-- selected application shows primary and remaining enabled fields without `More`;
-- compact accessible reorder controls preserve favourite ordering;
-- Working CV reads as document-first and edits contextually;
-- dirty state, search/archive, Sources, Documents and AI handoffs remain intact.
+Do not create or expand automated tests for this run.
 
-Run full `npm run verify`.
+Do not use literal wording, semantic-copy, DOM, CSS, class, snapshot or mocked tests as acceptance evidence. Tests never drive product development.
 
-Final Windows packaged evidence should exercise the corrected journey as one integrated flow: large corpus → preselect → inspect Tags/primary information → open exact application → see/edit all fields → return → open a Working CV and confirm recognizable read-first document composition at constrained and expanded representative sizes.
+Existing CI may run only as incidental branch-protection/build hygiene. Do not change valid product behavior merely to satisfy stale tests.
 
-The Product Owner is not routine QA or a prompt courier. The orchestrator owns independent diff review, exact-head verification, packaged evidence, PR/merge and final PLAN classification.
+Acceptance is:
+1. independent production-code audit;
+2. real rendered desktop inspection.
 
+Rendered evidence must cover:
+- first-run Welcome;
+- startup/loading;
+- loaded Home;
+- Applications corpus and preselected card;
+- selected application;
+- My information;
+- Working CV/document composition;
+- Settings;
+- constrained and wide landscape sizes.
 
-## Current Product Owner testing correction
-
-For #395 and all following work, automated tests must protect real product behavior or durable technical boundaries. Do not add mocked/structural reassurance tests merely because implementation changed.
-
-In particular:
-- do not assert CSS rules, class names, DOM grouping, card geometry, typography weight, spacing, or component structure as a substitute for UX acceptance;
-- do not freeze an arbitrary implementation mechanism just to make a focused test pass;
-- use behavior tests for meaningful actions, state transitions, persistence/domain invariants, accessibility semantics and failure handling;
-- use real rendered/packaged evidence for visual hierarchy, readability, density, responsive composition and visual identity;
-- if a visual requirement has no meaningful automation boundary, do not fabricate one;
-- remove or rewrite tests that encode a wrong product premise instead of preserving them for green CI.
-
-Focused-test counts are not acceptance evidence. The orchestrator must review whether each test premise is valid before using it as evidence.
-
-
-## Test authority clarification
-
-Tests never drive product development. They are subordinate verification artifacts.
-
-Before changing product code because a test failed, validate the test premise against current Product Owner/Product Definition authority. If the premise is not independently required, delete or rewrite the test. Do not alter valid product behavior to satisfy stale fixtures, selectors, counts, DOM structure, CSS/class assumptions, mocked call sequences, or historical workflows.
-
-Green CI is useful only after the test premises are known to be valid. A passing test suite cannot establish product correctness by itself.
+The orchestrator owns the final audit/merge/classification. The Product Owner is not routine QA or a prompt courier.
