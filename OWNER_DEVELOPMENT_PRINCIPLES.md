@@ -123,6 +123,19 @@ Development order is not user workflow, but development should visibly converge 
 Do not estimate completion primarily from issue count, milestone count or internal architectural consistency. Integrated owner-visible product behavior and fidelity to product intent are the meaningful measures.
 
 
+## Tests never drive product development
+
+Tests are subordinate verification artifacts. Product Definition and current explicit Product Owner intent drive development.
+
+Never change product behavior, interaction, UX, visual composition, architecture, persistence, compatibility policy, or fixtures merely to make an existing or newly written test pass.
+
+When a test fails:
+1. validate the premise against current product authority;
+2. if the premise is valid, fix the product defect;
+3. if the premise is obsolete, arbitrary, implementation-shaped, fixture-specific, or contradicted by current intent, delete or rewrite the test.
+
+A green suite can show that checked behavior still holds. It cannot establish that the checked behavior was the right requirement.
+
 ## No reassurance tests or implementation-lock tests
 
 Automated tests exist to detect meaningful regressions in product behavior and durable technical boundaries. They are not a ritual that must accompany every code change, and they must not be manufactured to make an implementation appear safer than it is.
