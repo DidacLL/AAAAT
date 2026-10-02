@@ -1,6 +1,5 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { TagVisor } from "../src/renderer/TagVisor";
 import type { TagRecord } from "../src/shared/contracts";
@@ -19,75 +18,56 @@ const operations: TagRecord = {
   definition: "Operational ownership of the platform",
 };
 
-function installListTags(listTags: ReturnType<typeof vi.fn>) {
-  Object.defineProperty(window, "aaaat", {
-    configurable: true,
-    value: { candidatures: { listTags } },
-  });
-}
-
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
 });
 
-describe("Tag visor", () => {
-  it("keeps an empty query compact, finds canonical names and aliases, and reads shared meaning", async () => {
-    installListTags(vi.fn(async () => [reliability, operations]));
-    const user = userEvent.setup();
-    render(<TagVisor workspaceKey="workspace-a" refreshRevision={0} />);
+describe("contextual Tag visor", () => {
+  it("shows a quiet neutral state and no generic Tag search workflow", () => {
+    render(<TagVisor applicationContext={null} />);
 
-    expect(await screen.findByText("Search names or aliases.")).toBeVisible();
-    expect(screen.queryByRole("list", { name: "Tag search results" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: reliability.name })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: operations.name })).not.toBeInTheDocument();
-
-    const search = screen.getByRole("searchbox", { name: "Search Tags" });
-    await user.type(search, "  reliability  ");
-    expect(screen.getByRole("button", { name: reliability.name })).toBeVisible();
-
-    await user.clear(search);
-    await user.type(search, "sRe");
-    await user.click(screen.getByRole("button", { name: reliability.name }));
-
-    const selected = screen.getByRole("article", { name: "Selected Tag" });
-    expect(selected).toHaveTextContent("Reliability engineering");
-    expect(selected).toHaveTextContent("SRE, Site reliability");
-    expect(selected).toHaveTextContent("Operating dependable production systems");
-    expect(selected).toHaveTextContent("Ask about incident ownership");
+    expect(screen.getByRole("region", { name: "Tags glossary" })).toHaveTextContent(
+      "Select an application to inspect its Tags",
+    );
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("shows compact empty and failure states without exposing a permanent glossary", async () => {
-    installListTags(vi.fn(async () => []));
-    const { unmount } = render(<TagVisor workspaceKey="empty" refreshRevision={0} />);
-    expect(await screen.findByText("No Tags in this workspace yet.")).toBeVisible();
-    expect(screen.queryByRole("list", { name: "Tag search results" })).not.toBeInTheDocument();
-    unmount();
+  it("reads the selected application's attached Tags and shared definitions automatically", () => {
+    render(
+      <TagVisor applicationContext={{
+        candidatureId: "00000000-0000-4000-8000-000000003699",
+        tags: [reliability, operations],
+      }} />,
+    );
 
-    installListTags(vi.fn(async () => { throw new Error("unavailable"); }));
-    render(<TagVisor workspaceKey="failed" refreshRevision={0} />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Tags are unavailable.");
-    expect(screen.getByRole("searchbox", { name: "Search Tags" })).toBeVisible();
+    const monitor = screen.getByRole("region", { name: "Tags glossary" });
+    expect(monitor).toHaveTextContent(reliability.name);
+    expect(monitor).toHaveTextContent(reliability.definition);
+    expect(monitor).toHaveTextContent("SRE, Site reliability");
+    expect(monitor).toHaveTextContent(operations.name);
+    expect(monitor).toHaveTextContent(operations.definition);
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
   });
 
-  it("refreshes an already selected Tag in place when the glossary revision changes", async () => {
-    let current = [reliability];
-    const listTags = vi.fn(async () => current);
-    installListTags(listTags);
-    const user = userEvent.setup();
-    const { rerender } = render(<TagVisor workspaceKey="workspace-a" refreshRevision={0} />);
+  it("follows application context changes without becoming a mutation surface", () => {
+    const { rerender } = render(
+      <TagVisor applicationContext={{
+        candidatureId: "00000000-0000-4000-8000-000000003699",
+        tags: [reliability],
+      }} />,
+    );
+    expect(screen.getByRole("region", { name: "Tags glossary" })).toHaveTextContent(reliability.name);
 
-    await user.type(screen.getByRole("searchbox", { name: "Search Tags" }), "SRE");
-    await user.click(await screen.findByRole("button", { name: reliability.name }));
-    expect(screen.getByRole("article", { name: "Selected Tag" })).toHaveTextContent(reliability.definition);
-
-    current = [{ ...reliability, definition: "Dependable services with explicit operational ownership" }];
-    rerender(<TagVisor workspaceKey="workspace-a" refreshRevision={1} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("article", { name: "Selected Tag" }))
-        .toHaveTextContent("Dependable services with explicit operational ownership");
-    });
-    expect(listTags).toHaveBeenCalledTimes(2);
+    rerender(
+      <TagVisor applicationContext={{
+        candidatureId: "00000000-0000-4000-8000-000000003700",
+        tags: [operations],
+      }} />,
+    );
+    const monitor = screen.getByRole("region", { name: "Tags glossary" });
+    expect(monitor).not.toHaveTextContent(reliability.name);
+    expect(monitor).toHaveTextContent(operations.name);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
