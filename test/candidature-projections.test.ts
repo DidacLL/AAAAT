@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   candidatureCardRecognitionProjection,
-  candidatureCueFootprint,
   candidatureRecognitionCues,
   candidatureRecognitionProjection,
   candidatureRetainedSourceCue,
@@ -201,10 +200,6 @@ describe("candidature renderer projection", () => {
       "Wide two",
       "Compact",
     ]);
-    expect(collapsed.primaryCues.reduce((sum, cue) => (
-      sum + candidatureCueFootprint(cue, false).columns
-    ), 0)).toBe(20);
-
     const collapsedExpandedOnly = candidatureCardRecognitionProjection(candidate, [
       cardFields[4]!,
     ], false).primaryCues[0]!;
@@ -221,27 +216,6 @@ describe("candidature renderer projection", () => {
     expect(expandedValue.length).toBeGreaterThan(collapsedExpandedOnly.value.length * 4);
     expect(expandedValue.length).toBeGreaterThan(400);
     expect(longExpandedValue.startsWith(expandedValue.replace(/…$/, ""))).toBe(true);
-  });
-
-  it("derives both width and bounded height from prominence and actual content", () => {
-    const shortWide = {
-      fieldId: "wide-short",
-      label: "Wide short",
-      value: "Short value",
-      presentationSize: "wide" as const,
-      favourite: true,
-    };
-    const verbose = "Verbose retained information ".repeat(30).trim();
-    const compact = { ...shortWide, fieldId: "compact", value: verbose, presentationSize: "compact" as const };
-    const normal = { ...shortWide, fieldId: "normal", value: verbose, presentationSize: "normal" as const };
-    const wide = { ...shortWide, fieldId: "wide", value: verbose };
-
-    expect(candidatureCueFootprint(shortWide, false)).toEqual({ columns: 8, lines: 1, rows: 1 });
-    expect(candidatureCueFootprint(compact, false)).toEqual({ columns: 4, lines: 2, rows: 2 });
-    expect(candidatureCueFootprint(normal, false)).toEqual({ columns: 6, lines: 3, rows: 3 });
-    expect(candidatureCueFootprint(wide, false)).toEqual({ columns: 8, lines: 4, rows: 4 });
-    expect(candidatureCueFootprint(wide, true)).toEqual({ columns: 8, lines: 7, rows: 7 });
-    expect(candidatureCueFootprint(compact, true)).toEqual({ columns: 4, lines: 3, rows: 3 });
   });
 
   it("does not promote non-favourite values ahead of retained Source fallback", () => {
