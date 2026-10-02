@@ -294,7 +294,7 @@ describe("candidature field cohesion", () => {
     expect(screen.getByRole("region", { name: "Tags" })).toBeVisible();
     const remaining = screen.getByRole("region", { name: "Remaining application information" });
     expect(screen.queryByText("More", { exact: true })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Application documents" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Application documents" })).not.toBeVisible();
     await user.click(screen.getByText("Sources, documents & history"));
     expect(screen.getByRole("region", { name: "Application documents" })).toBeVisible();
     let locationCard = within(remaining).getByRole("article", { name: "Location information" });
