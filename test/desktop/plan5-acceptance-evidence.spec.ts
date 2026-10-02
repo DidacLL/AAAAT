@@ -13,7 +13,7 @@ test.skip(process.platform !== "win32", "Final acceptance evidence uses the pack
 const evidenceRoot = path.resolve("plan5-evidence");
 
 function packagedExecutable(): string {
-  return path.resolve("out", \`AAAAT-\${process.platform}-\${process.arch}\`, "aaaat.exe");
+  return path.resolve("out", `AAAAT-${process.platform}-${process.arch}`, "aaaat.exe");
 }
 
 async function reservePort(): Promise<number> {
@@ -45,21 +45,21 @@ async function waitForDebugger(
   processError: () => string,
 ): Promise<void> {
   for (let attempt = 0; attempt < 120; attempt += 1) {
-    if (processExit() !== null) throw new Error(\`Packaged AAAAT exited: \${processError()}\`);
+    if (processExit() !== null) throw new Error(`Packaged AAAAT exited: ${processError()}`);
     try {
-      const response = await fetch(\`\${endpoint}/json/version\`);
+      const response = await fetch(`${endpoint}/json/version`);
       if (response.ok) return;
     } catch {
       // Chromium is still starting.
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(\`Packaged AAAAT did not expose its debugger endpoint: \${processError()}\`);
+  throw new Error(`Packaged AAAAT did not expose its debugger endpoint: ${processError()}`);
 }
 
 async function startPackagedApp(userData: string, appData: string): Promise<RunningApp> {
   const port = await reservePort();
-  const endpoint = \`http://127.0.0.1:\${port}\`;
+  const endpoint = `http://127.0.0.1:${port}`;
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     APPDATA: appData,
@@ -68,7 +68,7 @@ async function startPackagedApp(userData: string, appData: string): Promise<Runn
   };
   const child = spawn(
     packagedExecutable(),
-    [\`--user-data-dir=\${userData}\`, \`--remote-debugging-port=\${port}\`],
+    [`--user-data-dir=${userData}`, `--remote-debugging-port=${port}`],
     { env: environment, stdio: ["ignore", "ignore", "pipe"] },
   );
   let processError = "";
@@ -125,12 +125,12 @@ async function capture(page: Page, label: string, width: number, height: number)
     visibleText: document.body.innerText.slice(0, 20000),
   }));
   writeFileSync(
-    path.join(evidenceRoot, \`\${label}-\${width}x\${height}.json\`),
+    path.join(evidenceRoot, `${label}-${width}x${height}.json`),
     JSON.stringify({ requestedOuter: { width, height }, ...metrics }, null, 2) + "\n",
     "utf8",
   );
   await page.screenshot({
-    path: path.join(evidenceRoot, \`\${label}-\${width}x\${height}.png\`),
+    path: path.join(evidenceRoot, `${label}-${width}x${height}.png`),
     fullPage: false,
   });
 }
