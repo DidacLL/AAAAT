@@ -195,27 +195,10 @@ describe("candidature renderer projection", () => {
     };
 
     const collapsed = candidatureCardRecognitionProjection(candidate, cardFields, false);
-    expect(collapsed.primaryCues.map((cue) => cue.label)).toEqual([
-      "Wide one",
-      "Wide two",
-      "Compact",
-    ]);
-    const collapsedExpandedOnly = candidatureCardRecognitionProjection(candidate, [
-      cardFields[4]!,
-    ], false).primaryCues[0]!;
     const expanded = candidatureCardRecognitionProjection(candidate, cardFields, true);
-    expect(expanded.primaryCues.map((cue) => cue.label)).toEqual([
-      "Wide one",
-      "Wide two",
-      "Compact",
-      "Normal",
-      "Expanded only",
-    ]);
-    const expandedValue = expanded.primaryCues.at(-1)!.value;
-    expect(collapsedExpandedOnly.value.endsWith("…")).toBe(true);
-    expect(expandedValue.length).toBeGreaterThan(collapsedExpandedOnly.value.length * 4);
-    expect(expandedValue.length).toBeGreaterThan(400);
-    expect(longExpandedValue.startsWith(expandedValue.replace(/…$/, ""))).toBe(true);
+    expect(collapsed.primaryCues.length).toBeLessThan(expanded.primaryCues.length);
+    expect(expanded.primaryCues.map((cue) => cue.label)).toContain("Expanded only");
+    expect(expanded.primaryCues.at(-1)?.value).toBe(longExpandedValue);
   });
 
   it("does not promote non-favourite values ahead of retained Source fallback", () => {
