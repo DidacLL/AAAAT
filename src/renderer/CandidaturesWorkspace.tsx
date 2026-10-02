@@ -57,47 +57,140 @@ function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaa
   return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
 }
 
-function CorpusRecognitionCue({
-  cue,
+function preferredCueWidth(
+  cue: CandidatureRecognitionCue,
+  containerWidth: number,
+  expanded: boolean,
+  textElement: HTMLElement,
+): number {
+  const styles = getComputedStyle(textElement);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (context) context.font = styles.font || `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
+  const measured = context?.measureText(cue.value).width ?? cue.value.length * 7;
+  const narrow = containerWidth < 340;
+
+  if (cue.presentationSize === "wide") {
+    if (narrow) return containerWidth;
+    const minimum = containerWidth * (expanded ? 0.5 : 0.58);
+    const maximum = containerWidth * (expanded ? 0.82 : 0.78);
+    return Math.min(maximum, Math.max(minimum, measured * 1.9 + 24));
+  }
+  if (cue.presentationSize === "normal") {
+    const minimum = Math.min(containerWidth, Math.max(126, containerWidth * 0.34));
+    const maximum = containerWidth * (expanded ? 0.58 : 0.52);
+    return Math.min(maximum, Math.max(minimum, measured * 1.25 + 18));
+  }
+  const minimum = Math.min(containerWidth, Math.max(88, containerWidth * 0.23));
+  const maximum = containerWidth * (expanded ? 0.4 : 0.34);
+  return Math.min(maximum, Math.max(minimum, measured + 14));
+}
+
+function CorpusRecognitionLayout({
+  cues,
+  expanded,
   sourceLabel = false,
 }: {
-  readonly cue: CandidatureRecognitionCue;
+  readonly cues: readonly CandidatureRecognitionCue[];
+  readonly expanded: boolean;
   readonly sourceLabel?: boolean;
 }) {
-  const cueRef = useRef<HTMLSpanElement>(null);
-  const contentRef = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
-    const cueElement = cueRef.current;
-    const contentElement = contentRef.current;
-    const grid = cueElement?.parentElement;
-    if (!cueElement || !contentElement || !grid) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const updateSpan = () => {
-      const styles = getComputedStyle(grid);
-      const rowHeight = Number.parseFloat(styles.gridAutoRows) || 1;
-      const rowGap = Number.parseFloat(styles.rowGap) || 0;
-      const contentHeight = contentElement.getBoundingClientRect().height;
-      const span = Math.max(1, Math.ceil((contentHeight + rowGap) / (rowHeight + rowGap)));
-      cueElement.style.gridRowEnd = `span ${span}`;
+    const layout = () => {
+      const containerWidth = container.clientWidth;
+      const items = Array.from(container.querySelectorAll<HTMLElement>("[data-corpus-cue]"));
+      if (containerWidth < 160 || items.length === 0) {
+        container.classList.remove("is-packed");
+        container.style.height = "";
+        for (const item of items) {
+          item.style.width = "";
+          item.style.left = "";
+          item.style.top = "";
+        }
+        return;
+      }
+
+      const gap = 5;
+      const unit = 5;
+      const columnCount = Math.max(1, Math.floor((containerWidth + gap) / unit));
+      const skyline = Array<number>(columnCount).fill(0);
+      container.classList.add("is-packed");
+
+      for (const item of items) {
+        const cueIndex = Number(item.dataset.cueIndex ?? "0");
+        const cue = cues[cueIndex];
+        const textElement = item.querySelector<HTMLElement>(".candidature-cue-value");
+        if (!cue || !textElement) continue;
+
+        const width = Math.min(
+          containerWidth,
+          Math.max(unit * 8, preferredCueWidth(cue, containerWidth, expanded, textElement)),
+        );
+        item.style.width = `${String(width)}px`;
+        item.style.left = "0px";
+        item.style.top = "0px";
+      }
+
+      for (const item of items) {
+        const width = item.getBoundingClientRect().width;
+        const height = item.getBoundingClientRect().height;
+        const occupiedColumns = Math.min(
+          columnCount,
+          Math.max(1, Math.ceil((width + gap) / unit)),
+        );
+
+        let bestColumn = 0;
+        let bestTop = Number.POSITIVE_INFINITY;
+        for (let column = 0; column <= columnCount - occupiedColumns; column += 1) {
+          let candidateTop = 0;
+          for (let offset = 0; offset < occupiedColumns; offset += 1) {
+            candidateTop = Math.max(candidateTop, skyline[column + offset] ?? 0);
+          }
+          if (candidateTop < bestTop) {
+            bestTop = candidateTop;
+            bestColumn = column;
+          }
+        }
+
+        const left = bestColumn * unit;
+        item.style.left = `${String(left)}px`;
+        item.style.top = `${String(bestTop)}px`;
+        const nextHeight = bestTop + height + gap;
+        for (let offset = 0; offset < occupiedColumns; offset += 1) {
+          skyline[bestColumn + offset] = nextHeight;
+        }
+      }
+
+      container.style.height = `${String(Math.max(0, ...skyline) - gap)}px`;
     };
 
-    updateSpan();
+    layout();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(updateSpan);
-    observer.observe(contentElement);
+    const observer = new ResizeObserver(layout);
+    observer.observe(container);
     return () => observer.disconnect();
-  }, [cue.value, cue.presentationSize]);
+  }, [cues, expanded]);
 
   return (
-    <span
-      ref={cueRef}
-      className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
-    >
-      <span ref={contentRef} className="candidature-cue-content">
-        {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
-        <span className="candidature-cue-value">{cue.value}</span>
-      </span>
+    <span ref={containerRef} className="candidature-recognition-cues">
+      {cues.map((cue, index) => (
+        <span
+          className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
+          data-corpus-cue
+          data-cue-index={index}
+          key={cue.fieldId}
+        >
+          <span className="candidature-cue-content">
+            {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
+            <span className="candidature-cue-value">{cue.value}</span>
+          </span>
+        </span>
+      ))}
     </span>
   );
 }
@@ -605,15 +698,9 @@ export function CandidaturesWorkspace({
                     onClick={() => inspectRecord(record)}
                   >
                     {primaryCues.length > 0 ? (
-                      <span className="candidature-recognition-cues">
-                        {primaryCues.map((cue) => (
-                          <CorpusRecognitionCue cue={cue} key={cue.fieldId} />
-                        ))}
-                      </span>
+                      <CorpusRecognitionLayout cues={primaryCues} expanded={preselected} />
                     ) : recognition.retainedSourceCue ? (
-                      <span className="candidature-recognition-cues">
-                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} sourceLabel />
-                      </span>
+                      <CorpusRecognitionLayout cues={[recognition.retainedSourceCue]} expanded={preselected} sourceLabel />
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
                     )}
