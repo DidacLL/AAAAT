@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   candidatureCardRecognitionProjection,
+  candidatureCueFootprint,
   candidatureRecognitionCues,
   candidatureRecognitionProjection,
   candidatureRetainedSourceCue,
@@ -182,7 +183,7 @@ describe("candidature renderer projection", () => {
       makeField("00000000-0000-4000-8000-000000000444", "Normal", "normal", 3),
       makeField("00000000-0000-4000-8000-000000000445", "Expanded only", "normal", 4),
     ];
-    const longExpandedValue = "Expanded detail ".repeat(12).trim();
+    const longExpandedValue = "Expanded detail ".repeat(40).trim();
     const candidate: CandidatureRecord = {
       ...record(candidateId),
       values: cardFields.map((field, index) => ({
@@ -199,11 +200,10 @@ describe("candidature renderer projection", () => {
       "Wide one",
       "Wide two",
       "Compact",
-      "Normal",
     ]);
     expect(collapsed.primaryCues.reduce((sum, cue) => (
-      sum + (cue.presentationSize === "wide" ? 3 : cue.presentationSize === "normal" ? 2 : 1)
-    ), 0)).toBe(9);
+      sum + candidatureCueFootprint(cue, false).columns
+    ), 0)).toBe(20);
 
     const expanded = candidatureCardRecognitionProjection(candidate, cardFields, true);
     expect(expanded.primaryCues.map((cue) => cue.label)).toEqual([
@@ -214,6 +214,28 @@ describe("candidature renderer projection", () => {
       "Expanded only",
     ]);
     expect(expanded.primaryCues.at(-1)?.value).toBe(longExpandedValue);
+    expect(expanded.primaryCues.at(-1)?.value.length).toBeGreaterThan(180);
+  });
+
+  it("derives both width and bounded height from prominence and actual content", () => {
+    const shortWide = {
+      fieldId: "wide-short",
+      label: "Wide short",
+      value: "Short value",
+      presentationSize: "wide" as const,
+      favourite: true,
+    };
+    const verbose = "Verbose retained information ".repeat(30).trim();
+    const compact = { ...shortWide, fieldId: "compact", value: verbose, presentationSize: "compact" as const };
+    const normal = { ...shortWide, fieldId: "normal", value: verbose, presentationSize: "normal" as const };
+    const wide = { ...shortWide, fieldId: "wide", value: verbose };
+
+    expect(candidatureCueFootprint(shortWide, false)).toEqual({ columns: 8, lines: 1, rows: 1 });
+    expect(candidatureCueFootprint(compact, false)).toEqual({ columns: 4, lines: 2, rows: 2 });
+    expect(candidatureCueFootprint(normal, false)).toEqual({ columns: 6, lines: 3, rows: 3 });
+    expect(candidatureCueFootprint(wide, false)).toEqual({ columns: 8, lines: 4, rows: 4 });
+    expect(candidatureCueFootprint(wide, true)).toEqual({ columns: 8, lines: 7, rows: 7 });
+    expect(candidatureCueFootprint(compact, true)).toEqual({ columns: 4, lines: 3, rows: 3 });
   });
 
   it("does not promote non-favourite values ahead of retained Source fallback", () => {
