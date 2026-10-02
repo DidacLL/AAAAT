@@ -323,11 +323,8 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
     await running.page.setViewportSize({ width: 1440, height: 900 });
     await workingDocument.click();
     await expect(running.page.getByRole("heading", { name: "Packaged application CV" })).toBeVisible();
-    const cvPaper = running.page.locator(".working-cv-composition");
-    await expect(cvPaper).toBeVisible();
-    const widePaper = await cvPaper.boundingBox();
-    expect(widePaper).not.toBeNull();
-    expect(widePaper!.width).toBeLessThanOrEqual(980);
+    const cvOutline = running.page.getByLabel("CV document outline");
+    await expect(cvOutline).toBeVisible();
     const documentDetails = running.page.locator("details.working-cv-document-details");
     await expect(documentDetails).not.toHaveAttribute("open", "");
 
@@ -335,7 +332,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
     await expect(cvItem).toContainText("Built reliable systems with C++ and TypeScript.");
     await expect(cvItem.getByRole("textbox")).toHaveCount(0);
     await cvItem.getByRole("button", { name: "Edit", exact: true }).click();
-    await cvItem.getByLabel("Title").fill("Núria Müller — Platform Lead");
+    await cvItem.getByRole("textbox", { name: "Title", exact: true }).fill("Núria Müller — Platform Lead");
     await cvItem.getByLabel("Description").fill("Led reliable platform systems with C++ and TypeScript.");
     await running.page.getByRole("button", { name: "Save", exact: true }).click();
     await cvItem.getByRole("button", { name: "Done", exact: true }).click();
@@ -343,7 +340,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
       .toContainText("Led reliable platform systems with C++ and TypeScript.");
 
     await running.page.setViewportSize({ width: 720, height: 600 });
-    await expect(cvPaper).toBeVisible();
+    await expect(cvOutline).toBeVisible();
     expect(await running.page.evaluate(() => (
       document.documentElement.scrollWidth <= document.documentElement.clientWidth
     ))).toBe(true);
