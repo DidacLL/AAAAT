@@ -951,7 +951,7 @@ export function CandidaturesWorkspace({
           </div>
         ) : (
           <p className="compact-empty">
-            No primary information yet. Use Field options below to promote useful information here.
+            No primary information yet. Use the star beside a field to keep it in the card summary.
           </p>
         )}
       </section>
