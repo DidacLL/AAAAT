@@ -302,7 +302,9 @@ describe("candidature field cohesion", () => {
     expect(within(roleControls).getByRole("button", { name: "Edit Role" })).toBeVisible();
     expect(within(roleControls).getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
     expect(within(roleControls).getByRole("button", { name: "Ask AI to fill Role" })).toHaveTextContent("✨");
-    expect(within(roleControls).getByText("Field options")).toBeVisible();
+    expect(within(roleControls).getByRole("button", { name: "Remove Role from favourites" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(roleControls).getByLabelText("Configure Role")).toHaveTextContent("⚙");
+    expect(within(roleControls).queryByText("Field options")).not.toBeInTheDocument();
     expect(within(roleCard).queryByLabelText("Value")).not.toBeInTheDocument();
 
     expect(screen.getByRole("region", { name: "Tags" })).toBeVisible();
@@ -348,12 +350,13 @@ describe("candidature field cohesion", () => {
     await user.click(within(companyCard).getByRole("button", { name: "Cancel" }));
 
     roleCard = within(primary).getByRole("article", { name: "Role information" });
-    await user.click(within(roleCard).getByText("Field options"));
-    const roleOptions = within(roleCard).getByText("Field options").closest("details");
+    await user.click(within(roleCard).getByLabelText("Configure Role"));
+    const roleOptions = within(roleCard).getByLabelText("Configure Role").closest("details");
     expect(roleOptions).toHaveAttribute("open");
+    expect(within(roleOptions!).queryByText(/Remove from primary information|Show in primary information/)).not.toBeInTheDocument();
     await user.click(within(roleCard).getByText("Platform Engineer"));
     expect(roleOptions).not.toHaveAttribute("open");
-    await user.click(within(roleCard).getByText("Field options"));
+    await user.click(within(roleCard).getByLabelText("Configure Role"));
     const editorFieldClassBeforeProminenceChange = roleCard.className;
     await user.selectOptions(within(roleCard).getByLabelText("Role corpus card prominence"), "wide");
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
@@ -365,13 +368,14 @@ describe("candidature field cohesion", () => {
     expect(roleCard.className).not.toMatch(/candidature-unit-size-/);
 
     const companyCardAfter = within(primary).getByRole("article", { name: "Company information" });
-    await user.click(within(companyCardAfter).getByText("Field options"));
+    await user.click(within(companyCardAfter).getByLabelText("Configure Company"));
     await user.click(within(companyCardAfter).getByRole("button", { name: "Move Company earlier" }));
     await waitFor(() => expect(api.reorderFavouriteFields).toHaveBeenCalledWith([companyId, roleId]));
 
     locationCard = within(remaining).getByRole("article", { name: "Location information" });
-    await user.click(within(locationCard).getByText("Field options"));
-    await user.click(within(locationCard).getByRole("button", { name: "Show in primary information" }));
+    const addLocationFavourite = within(locationCard).getByRole("button", { name: "Add Location to favourites" });
+    expect(addLocationFavourite).toHaveAttribute("aria-pressed", "false");
+    await user.click(addLocationFavourite);
     await waitFor(() => {
       expect(within(primary).getByRole("article", { name: "Location information" })).toBeVisible();
     });
@@ -428,7 +432,7 @@ describe("candidature field cohesion", () => {
     expect(within(card).queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
     await user.click(within(card).getByRole("button", { name: "Cancel" }));
 
-    await user.click(within(card).getByText("Field options"));
+    await user.click(within(card).getByLabelText("Configure Role"));
     await user.click(within(card).getByText("Edit field definition"));
     expect(within(card).getByText(/changes apply to every application/i)).toBeVisible();
 
