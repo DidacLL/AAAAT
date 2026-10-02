@@ -1,12 +1,11 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import { chromium, expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 
-import { createDemoWorkspace } from "../../src/main/demo-workspace";
-import { createOrOpenWorkspace } from "../../src/main/workspace";
 
 test.skip(process.platform !== "win32", "Final acceptance evidence uses the packaged Windows desktop lane.");
 
@@ -161,6 +160,121 @@ function prepareAppData(userData: string, workspacePath: string): string {
   return appData;
 }
 
+function initializeWorkspaceFixture(rootPath: string, seeded: boolean): void {
+  const database = new DatabaseSync(path.join(rootPath, "workspace.sqlite"));
+  const schemaSql = readFileSync(path.resolve("src/main/schema.sql"), "utf8");
+  const now = "2026-10-02T00:00:00.000Z";
+  try {
+    database.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE");
+    database.exec(schemaSql);
+    database.prepare("INSERT INTO workspace_metadata(key, value) VALUES (?, ?)")
+      .run("workspace.initialized_at", now);
+    if (seeded) {
+      const orgField = "00000000-0000-4000-8000-000000000101";
+      const roleField = "00000000-0000-4000-8000-000000000102";
+      const locationField = "00000000-0000-4000-8000-000000000103";
+      const compensationField = "00000000-0000-4000-8000-000000000104";
+      const notesField = "00000000-0000-4000-8000-000000000106";
+      const first = "00000000-0000-4000-8000-000000009001";
+      const second = "00000000-0000-4000-8000-000000009002";
+      const rawOnly = "00000000-0000-4000-8000-000000009003";
+      const insertCandidature = database.prepare(
+        "INSERT INTO candidatures(id, archived, opportunity_research_selected, created_at, updated_at) VALUES (?, 0, 0, ?, ?)",
+      );
+      insertCandidature.run(first, now, now);
+      insertCandidature.run(second, "2026-10-01T22:00:00.000Z", "2026-10-01T22:00:00.000Z");
+      insertCandidature.run(rawOnly, "2026-10-01T20:00:00.000Z", "2026-10-01T20:00:00.000Z");
+      const value = database.prepare(
+        "INSERT INTO candidature_field_values(candidature_id, field_id, value_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      );
+      for (const [fieldId, item] of [
+        [orgField, "Northstar Labs"],
+        [roleField, "Platform Engineer"],
+        [locationField, "Spain · Remote"],
+        [compensationField, "€55k–€70k"],
+        [notesField, "Recruiter screen expected next week."],
+      ] as const) value.run(first, fieldId, JSON.stringify(item), now, now);
+      for (const [fieldId, item] of [
+        [orgField, "Lumen Health"],
+        [roleField, "ML Product Engineer"],
+        [locationField, "Barcelona · Hybrid"],
+      ] as const) value.run(second, fieldId, JSON.stringify(item), now, now);
+
+      const source = database.prepare(
+        "INSERT INTO candidature_sources(id, candidature_id, kind, title, url, source_text, created_at, updated_at) VALUES (?, ?, 'job_posting', ?, ?, ?, ?, ?)",
+      );
+      source.run(
+        "00000000-0000-4000-8000-000000009101",
+        first,
+        "Platform Engineer — Northstar Labs",
+        "https://example.test/northstar-platform",
+        "Northstar Labs builds developer infrastructure for distributed teams. TypeScript, APIs, PostgreSQL and production observability. Remote within Spain.",
+        now,
+        now,
+      );
+      source.run(
+        "00000000-0000-4000-8000-000000009102",
+        second,
+        "ML Product Engineer — Lumen Health",
+        "https://example.test/lumen-ml",
+        "Build user-facing ML workflows with Python and TypeScript. Hybrid in Barcelona.",
+        "2026-10-01T22:00:00.000Z",
+        "2026-10-01T22:00:00.000Z",
+      );
+      source.run(
+        "00000000-0000-4000-8000-000000009103",
+        rawOnly,
+        "Recruiter note",
+        "",
+        "Recruiter note about an unusual operations position. Remote within Spain; details still sparse.",
+        "2026-10-01T20:00:00.000Z",
+        "2026-10-01T20:00:00.000Z",
+      );
+
+      const tags = [
+        ["00000000-0000-4000-8000-000000009201", "Remote", "Remote-friendly opportunity."],
+        ["00000000-0000-4000-8000-000000009202", "Backend", "Backend/platform engineering work."],
+        ["00000000-0000-4000-8000-000000009203", "ML", "Machine-learning product work."],
+      ] as const;
+      for (const [id, name, definition] of tags) {
+        database.prepare(
+          "INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at) VALUES (?, ?, ?, '', '[]', ?, ?)",
+        ).run(id, name, definition, now, now);
+      }
+      database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(first, tags[0][0]);
+      database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(first, tags[1][0]);
+      database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(second, tags[2][0]);
+
+      const profile = database.prepare(
+        "INSERT INTO profile_items(id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_use_allowed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 1, ?, ?)",
+      );
+      profile.run("00000000-0000-4000-8000-000000009301", "identity", "Alex Morgan", "Software engineer", "Backend systems, developer tooling and practical ML products.", 0, now, now);
+      profile.run("00000000-0000-4000-8000-000000009302", "contact", "alex.morgan@example.test", "Email", "Madrid, Spain", 1, now, now);
+      profile.run("00000000-0000-4000-8000-000000009303", "experience", "Software Engineer", "Example Cooperative", "Built TypeScript services, PostgreSQL data flows and internal automation used by distributed teams.", 2, now, now);
+      profile.run("00000000-0000-4000-8000-000000009304", "skill", "Backend engineering", null, "TypeScript, Python, SQL, API design, testing and observability.", 3, now, now);
+      profile.run("00000000-0000-4000-8000-000000009305", "language", "English", "Professional working proficiency", null, 4, now, now);
+      database.prepare(
+        "UPDATE career_context SET career_direction = ?, objectives = ?, constraints_text = ?, target_roles = ?, target_markets_locations = ?, work_preferences = ?, application_writing_preferences = ?, updated_at = ? WHERE id = 1",
+      ).run(
+        "Backend/platform or ML product engineering.",
+        "Find a product team with strong engineering ownership.",
+        "Prefer Spain or remote EU roles.",
+        "Backend Engineer; Platform Engineer; ML Product Engineer",
+        "Spain; Remote EU",
+        "Small-to-medium product teams; pragmatic engineering culture.",
+        "Concise, concrete, avoid inflated claims.",
+        now,
+      );
+    }
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
 function primaryNav(page: Page): Locator {
   return page.getByRole("navigation", { name: "Primary work areas" });
 }
@@ -194,7 +308,7 @@ test("capture coherent demo workspace surfaces", async () => {
   const userData = path.join(root, "user-data");
   mkdirSync(workspacePath);
   mkdirSync(userData);
-  createDemoWorkspace(workspacePath);
+  initializeWorkspaceFixture(workspacePath, true);
   const appData = prepareAppData(userData, workspacePath);
   let running: RunningApp | undefined;
 
@@ -268,8 +382,7 @@ test("capture coherent demo workspace surfaces", async () => {
     const documents = page.getByRole("region", { name: "CV and document work" });
     await expect(documents).toBeVisible();
     await capturePair(page, "documents-collection");
-    await documents.getByText(/Continue editing/).click();
-    await documents.getByRole("button", { name: /Demo application CV/ }).click();
+    await documents.getByRole("button", { name: "＋ New CV" }).click();
     await expect(page.getByRole("region", { name: "Working CV" })).toBeVisible();
     await capturePair(page, "working-cv");
 
@@ -298,7 +411,7 @@ test("capture meaningful empty workspace states", async () => {
   const userData = path.join(root, "user-data");
   mkdirSync(workspacePath);
   mkdirSync(userData);
-  createOrOpenWorkspace(workspacePath);
+  initializeWorkspaceFixture(workspacePath, false);
   const appData = prepareAppData(userData, workspacePath);
   let running: RunningApp | undefined;
 
