@@ -1011,3 +1011,98 @@
     width: 100%;
   }
 }
+
+
+/* Working CV collection: documents to continue, not generic CRUD rows. */
+.working-cv-library {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--line-soft);
+}
+
+.working-cv-library .section-heading {
+  margin: 0;
+}
+
+.working-cv-document-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 0.6rem;
+}
+
+.working-cv-document-card {
+  position: relative;
+  display: grid;
+  min-height: 9rem;
+  align-content: start;
+  gap: 0.35rem;
+  padding: 1rem 0.9rem 0.85rem;
+  border: 1px solid #b9a486;
+  border-left: 4px solid var(--rust);
+  border-radius: 2px;
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 40%), transparent 28%),
+    #fbf2e3;
+  box-shadow: 0 2px 5px rgb(70 52 33 / 9%);
+  text-align: left;
+}
+
+.working-cv-document-card::after {
+  content: "";
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  width: 1.4rem;
+  border-bottom: 1px solid #c8b79f;
+}
+
+.working-cv-document-card:hover,
+.working-cv-document-card:focus-visible {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent), 0 2px 6px rgb(70 52 33 / 12%);
+}
+
+.working-cv-document-card strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+}
+
+.working-cv-document-card small {
+  color: var(--muted-ink);
+  line-height: 1.35;
+}
+
+@media (min-width: 1180px) {
+  .working-cv-editor {
+    max-width: 1180px;
+  }
+
+  .working-cv-composition {
+    width: min(100%, 900px);
+    padding: 22px 28px 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .working-cv-console-heading {
+    flex-direction: column;
+  }
+
+  .working-cv-primary-actions {
+    justify-content: flex-start;
+  }
+
+  .document-metadata-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .working-cv-composition {
+    padding: 12px;
+  }
+
+  .working-cv-items {
+    padding-left: 0;
+  }
+}
