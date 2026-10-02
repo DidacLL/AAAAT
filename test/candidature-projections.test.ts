@@ -205,6 +205,9 @@ describe("candidature renderer projection", () => {
       sum + candidatureCueFootprint(cue, false).columns
     ), 0)).toBe(20);
 
+    const collapsedExpandedOnly = candidatureCardRecognitionProjection(candidate, [
+      cardFields[4]!,
+    ], false).primaryCues[0]!;
     const expanded = candidatureCardRecognitionProjection(candidate, cardFields, true);
     expect(expanded.primaryCues.map((cue) => cue.label)).toEqual([
       "Wide one",
@@ -213,8 +216,11 @@ describe("candidature renderer projection", () => {
       "Normal",
       "Expanded only",
     ]);
-    expect(expanded.primaryCues.at(-1)?.value).toBe(longExpandedValue);
-    expect(expanded.primaryCues.at(-1)?.value.length).toBeGreaterThan(180);
+    const expandedValue = expanded.primaryCues.at(-1)!.value;
+    expect(collapsedExpandedOnly.value.endsWith("…")).toBe(true);
+    expect(expandedValue.length).toBeGreaterThan(collapsedExpandedOnly.value.length * 4);
+    expect(expandedValue.length).toBeGreaterThan(400);
+    expect(longExpandedValue.startsWith(expandedValue.replace(/…$/, ""))).toBe(true);
   });
 
   it("derives both width and bounded height from prominence and actual content", () => {
