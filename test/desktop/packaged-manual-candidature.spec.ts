@@ -348,7 +348,7 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await expect(railTags).not.toContainText("Reliability");
 
     await corpusAfterEdit.getByRole("button", { name: "Open application" }).click();
-    const selectedFixture = running.page.getByRole("region", { name: "Application information" });
+    const selectedFixture = running.page.getByRole("region", { name: "Application information", exact: true });
     await expect(selectedFixture).toBeVisible();
     await selectedFixture.getByText("Sources, documents & history").click();
     await expect(selectedFixture.getByRole("region", { name: "Sources" })).toContainText("Fixture tagged Beta");
