@@ -2,10 +2,13 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const openSettingsFor = vi.hoisted(() => vi.fn());
+
 vi.mock("../src/renderer/contextual-handoffs", () => ({
   useContextualHandoffs: () => ({
     documentHandoff: null,
     openDocumentFromCandidature: vi.fn(),
+    openSettingsFor,
   }),
 }));
 vi.mock("../src/renderer/CandidatureBulkAiReview", () => ({ CandidatureBulkAiReview: () => null }));
@@ -19,6 +22,7 @@ vi.mock("../src/renderer/CandidatureOpportunityResearchAccessPanel", () => ({
 import { CandidatureFieldDefinitionsPanel } from "../src/renderer/CandidatureFieldDefinitionsPanel";
 import { CandidatureFieldValueEditor } from "../src/renderer/CandidatureFieldValueEditor";
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
+import { clearAllAiTasks, getAiTask } from "../src/renderer/ai-task-store";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
@@ -158,6 +162,16 @@ function installWorkspaceApi() {
     };
     return stored;
   });
+  const listAiConnections = vi.fn(async (): Promise<Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>> => []);
+  const extractJob = vi.fn(async () => ({
+    proposals: [{ fieldId: locationId, value: "Remote" }],
+    newFields: [],
+    existingTags: [],
+    newTags: [],
+    issues: [],
+  }));
+  const cancelJobExtraction = vi.fn(async () => undefined);
+
   const clearFieldValue = vi.fn(async ({ fieldId }: { fieldId: string }) => {
     stored = { ...stored, values: stored.values.filter((candidate) => candidate.fieldId !== fieldId) };
     return stored;
@@ -179,11 +193,13 @@ function installWorkspaceApi() {
         createField: vi.fn(),
       },
       candidatureSearch: { search: vi.fn(async () => []) },
+      aiConnections: { list: listAiConnections },
+      aiTasks: { extractJob, cancelJobExtraction },
       documentDomain: { collections: vi.fn(async () => emptyCollections) },
     },
   });
 
-  return { updateFieldPreferences, reorderFavouriteFields, updateField, setFieldValue, clearFieldValue };
+  return { updateFieldPreferences, reorderFavouriteFields, updateField, setFieldValue, clearFieldValue, listAiConnections, extractJob };
 }
 
 async function openWorkspace(user: ReturnType<typeof userEvent.setup>) {
@@ -194,6 +210,8 @@ async function openWorkspace(user: ReturnType<typeof userEvent.setup>) {
 
 afterEach(() => {
   cleanup();
+  clearAllAiTasks();
+  openSettingsFor.mockReset();
   vi.restoreAllMocks();
 });
 
@@ -244,7 +262,10 @@ describe("candidature field cohesion", () => {
     );
 
     expect(screen.queryByRole("button", { name: "AI may use this information" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ask AI to fill Role" })).toBeVisible();
+    const aiAction = screen.getByRole("button", { name: "Ask AI to fill Role" });
+    expect(aiAction).toBeVisible();
+    expect(aiAction).toHaveTextContent("✨");
+    expect(screen.queryByText("Ask AI", { exact: true })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Edit Role" }));
     expect(screen.getByLabelText("Value")).toHaveValue("Platform Engineer");
@@ -286,9 +307,11 @@ describe("candidature field cohesion", () => {
     const primary = screen.getByRole("region", { name: "Starred application information" });
     let roleCard = within(primary).getByRole("article", { name: "Role information" });
     expect(within(roleCard).getByText("Platform Engineer")).toBeVisible();
-    expect(within(roleCard).getByRole("button", { name: "Edit Role" })).toBeVisible();
-    expect(within(roleCard).getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(roleCard).getByText("Field options")).toBeVisible();
+    const roleControls = within(roleCard).getByRole("group", { name: "Role field controls" });
+    expect(within(roleControls).getByRole("button", { name: "Edit Role" })).toBeVisible();
+    expect(within(roleControls).getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(roleControls).getByRole("button", { name: "Ask AI to fill Role" })).toHaveTextContent("✨");
+    expect(within(roleControls).getByText("Field options")).toBeVisible();
     expect(within(roleCard).queryByLabelText("Value")).not.toBeInTheDocument();
 
     expect(screen.getByRole("region", { name: "Tags" })).toBeVisible();
@@ -301,6 +324,7 @@ describe("candidature field cohesion", () => {
     expect(within(locationCard).getByText("Not set")).toBeVisible();
     expect(within(locationCard).getByRole("button", { name: "Edit Location" })).toBeVisible();
     expect(screen.getAllByRole("button", { name: "AI may use this information" })).toHaveLength(3);
+    expect(screen.queryByText("Ask AI", { exact: true })).not.toBeInTheDocument();
 
     await user.click(within(locationCard).getByRole("button", { name: "AI may use this information" }));
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
@@ -334,6 +358,11 @@ describe("candidature field cohesion", () => {
 
     roleCard = within(primary).getByRole("article", { name: "Role information" });
     await user.click(within(roleCard).getByText("Field options"));
+    const roleOptions = within(roleCard).getByText("Field options").closest("details");
+    expect(roleOptions).toHaveAttribute("open");
+    await user.click(within(roleCard).getByText("Platform Engineer"));
+    expect(roleOptions).not.toHaveAttribute("open");
+    await user.click(within(roleCard).getByText("Field options"));
     await user.selectOptions(within(roleCard).getByLabelText("Role card size"), "wide");
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: roleId,
@@ -352,6 +381,44 @@ describe("candidature field cohesion", () => {
       expect(within(primary).getByRole("article", { name: "Location information" })).toBeVisible();
     });
     expect(within(remaining).queryByRole("article", { name: "Location information" })).not.toBeInTheDocument();
+  });
+
+  it("reports missing AI configuration in the clicked field without starting a task", async () => {
+    installWorkspaceApi();
+    const user = userEvent.setup();
+    await openWorkspace(user);
+
+    const roleCard = screen.getByRole("article", { name: "Role information" });
+    await user.click(within(roleCard).getByRole("button", { name: "Ask AI to fill Role" }));
+
+    const feedback = await within(roleCard).findByRole("alert");
+    expect(feedback).toHaveTextContent("AI isn't configured for this action");
+    expect(getAiTask(`candidature-inference:${candidatureId}:${roleId}`)).toBeNull();
+    await user.click(within(feedback).getByRole("button", { name: "Open AI settings" }));
+    expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
+  });
+
+  it("uses the shared AI task store when a configured field inference actually starts", async () => {
+    const api = installWorkspaceApi();
+    api.listAiConnections.mockResolvedValue([{
+      id: "00000000-0000-4000-8000-000000003659",
+      name: "Configured test AI",
+      endpoint: "https://example.test/v1",
+      model: "test-model",
+      isDefault: false,
+      validatedOperations: ["job_extraction"],
+      defaultForOperations: ["job_extraction"],
+    }]);
+    const user = userEvent.setup();
+    await openWorkspace(user);
+
+    const locationCard = screen.getByRole("article", { name: "Location information" });
+    await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
+
+    const key = `candidature-inference:${candidatureId}:${locationId}`;
+    await waitFor(() => expect(getAiTask(key)?.status).toBe("completed"));
+    expect(api.extractJob).toHaveBeenCalledTimes(1);
+    expect(within(locationCard).queryByText("AI isn't configured for this action")).not.toBeInTheDocument();
   });
 
   it("keeps existing-field label and description editing reachable without making it part of ordinary value edit", async () => {
