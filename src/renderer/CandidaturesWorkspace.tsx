@@ -1039,9 +1039,9 @@ export function CandidaturesWorkspace({
                         </button>
                       </div>
                       <label className="candidature-prominence-control">
-                        Corpus card prominence
+                        Card size
                         <select
-                          aria-label={`${field.definition.label} corpus card prominence`}
+                          aria-label={`${field.definition.label} card size`}
                           value={field.preferences.presentationSize}
                           onChange={(event) =>
                             void updateFieldPreference(field, {
@@ -1220,7 +1220,7 @@ export function CandidaturesWorkspace({
           <div>
             <p className="eyebrow">Primary information</p>
             <p className="compact-help">
-              Choose which information stays up front. Order and corpus-card prominence are available under the gear control.
+              Choose which information stays up front. Order and card size are available under the gear control.
             </p>
           </div>
         </div>
