@@ -131,3 +131,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+.candidature-field-context-controls {
+  align-self: flex-start;
+}
+
+.candidature-field-context-controls .candidature-edit-field,
+.candidature-field-context-controls .candidature-ai-sparkle,
+.candidature-field-context-controls .candidature-ai-use-eye {
+  border-color: transparent;
+  background: transparent;
+}
+
+.candidature-field-context-controls .candidature-edit-field:hover,
+.candidature-field-context-controls .candidature-edit-field:focus-visible,
+.candidature-field-context-controls .candidature-ai-sparkle:hover,
+.candidature-field-context-controls .candidature-ai-sparkle:focus-visible {
+  border-color: var(--line);
+  background: #f3e7d5;
+}
+
+.candidature-field-options > summary {
+  min-height: 1.75rem;
+  padding: 0.27rem 0.38rem;
+  font-weight: 650;
+}
+
+.candidature-field-options-panel {
+  gap: 0.32rem;
+  padding: 0.45rem;
+}
+
+.candidature-value-reader {
+  gap: 0.25rem;
+}
+
+.candidature-value-reader > p {
+  margin-block: 0.28rem 0;
+}
