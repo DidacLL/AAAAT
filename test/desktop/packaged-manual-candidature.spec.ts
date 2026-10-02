@@ -263,12 +263,13 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     const retainedSelection = running.page.getByRole("region", { name: "Application information" });
     await retainedSelection.getByRole("button", { name: "← Applications" }).click();
     const corpus = running.page.getByLabel("Application corpus");
-    const candidatureEntries = corpus.getByRole("button", { name: "Open saved application" });
+    const candidatureEntries = corpus.getByRole("button", { name: "Inspect saved application" });
     await expect(candidatureEntries).toHaveCount(1);
     const rawOnlyEntry = candidatureEntries.first();
     await expect(rawOnlyEntry).toContainText("Retained source");
     await expect(rawOnlyEntry).toContainText("Aster Aviation seeks a captain in Madrid");
     await rawOnlyEntry.click();
+    await corpus.getByRole("button", { name: "Open application" }).click();
 
     const reopened = running.page.getByRole("region", { name: "Application information" });
     await reopened.getByText("Sources, documents & history").click();
@@ -319,10 +320,10 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     const beta = tagged.filter({ hasText: "Fixture tagged Beta" });
     await expect(alpha).toContainText("Alpha Systems");
     await expect(alpha).toContainText("Reliability Engineer");
-    await expect(alpha).not.toContainText("Reliability");
+    await expect(alpha).toContainText("Reliability");
     await expect(beta).toContainText("Beta Inclusive");
     await expect(beta).toContainText("Accessibility Engineer");
-    await expect(beta).not.toContainText("Accessibility");
+    await expect(beta).toContainText("Accessibility");
     const wideBoxes = await Promise.all([alpha.boundingBox(), beta.boundingBox()]);
     expect(wideBoxes[0]).not.toBeNull();
     expect(wideBoxes[1]).not.toBeNull();
@@ -337,12 +338,15 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     ))).toBe(true);
     await running.page.setViewportSize({ width: 1440, height: 900 });
 
+    const collapsedAlphaText = (await alpha.textContent()) ?? "";
     await alpha.click();
     await expect(running.page.getByRole("region", { name: "Application information" })).toHaveCount(0);
     await expect(corpusAfterEdit.getByLabel("Application inspection")).toHaveCount(1);
     const expandedAlpha = corpusAfterEdit.getByRole("button", { name: "Collapse saved application" });
     await expect(expandedAlpha).toContainText("2020-01-01");
     await expect(expandedAlpha).toContainText("Own production reliability");
+    const expandedAlphaText = (await expandedAlpha.textContent()) ?? "";
+    expect(expandedAlphaText.length).toBeGreaterThan(collapsedAlphaText.length);
     const railTags = running.page.getByRole("region", { name: "Tags glossary" });
     await expect(railTags).toContainText("Reliability");
     await expect(railTags).toContainText("Dependable production ownership");
