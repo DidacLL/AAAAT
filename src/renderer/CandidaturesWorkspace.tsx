@@ -188,7 +188,7 @@ export function CandidaturesWorkspace({
   );
   const contextualRecord = mode === "selected"
     ? selected
-    : records.find((record) => record.id === preselectedId) ?? null;
+    : visibleRecords.find((record) => record.id === preselectedId) ?? null;
   const tagContext = useMemo<ApplicationTagContext | null>(
     () => contextualRecord
       ? {
