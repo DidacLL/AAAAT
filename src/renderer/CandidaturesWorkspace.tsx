@@ -76,6 +76,10 @@ function preferredCueRatio(
   ) * fontSize;
   const readableRatio = readableMeasure / Math.max(containerWidth, 1);
   const contentRatio = (intrinsicWidth + fontSize * 1.2) / Math.max(containerWidth, 1);
+  const capacityInEm = containerWidth / fontSize;
+
+  if (cue.presentationSize === "wide" && capacityInEm < 22) return 1;
+  if (cue.presentationSize === "normal" && capacityInEm < 15) return 1;
 
   const [minimum, maximum] = cue.presentationSize === "wide"
     ? [expanded ? 0.48 : 0.56, expanded ? 0.86 : 0.9]
