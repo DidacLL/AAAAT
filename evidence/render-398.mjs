@@ -186,7 +186,7 @@ async function captureWorkspace() {
     await new Promise((r) => setTimeout(r, 350));
     await snap(page, "21-application-preselected-wide.png");
 
-    await page.getByRole("button", { name: "Open / Edit", exact: true }).click();
+    await page.getByRole("button", { name: "Open application", exact: true }).click();
     await new Promise((r) => setTimeout(r, 350));
     await snap(page, "22-application-selected-wide.png");
 
