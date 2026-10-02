@@ -262,6 +262,7 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
       const collections = await window.aaaat.documentDomain.collections();
       return {
         availableBlueprints,
+        working,
         renderedCv,
         renderedStandalone,
         renderedApplication,
@@ -309,6 +310,43 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
         ),
       ),
     ).toBe(true);
+
+    await running.page.getByRole("button", { name: "Applications", exact: true }).click();
+    await running.page.getByRole("button", { name: "CVs", exact: true }).click();
+    const workingLibrary = running.page.getByRole("region", { name: "Working CVs" });
+    await expect(workingLibrary).toBeVisible();
+    const workingDocument = workingLibrary.getByRole("button", { name: /Packaged application CV/ });
+    await expect(workingDocument).toContainText("Working CV");
+    await expect(workingDocument).toContainText("Application-owned");
+    await expect(running.page.getByText(/Continue editing \(/)).toHaveCount(0);
+
+    await running.page.setViewportSize({ width: 1440, height: 900 });
+    await workingDocument.click();
+    await expect(running.page.getByRole("heading", { name: "Packaged application CV" })).toBeVisible();
+    const cvPaper = running.page.locator(".working-cv-composition");
+    await expect(cvPaper).toBeVisible();
+    const widePaper = await cvPaper.boundingBox();
+    expect(widePaper).not.toBeNull();
+    expect(widePaper!.width).toBeLessThanOrEqual(980);
+    const documentDetails = running.page.locator("details.working-cv-document-details");
+    await expect(documentDetails).not.toHaveAttribute("open", "");
+
+    const cvItem = running.page.getByRole("article", { name: "Núria Müller & R&D CV item" });
+    await expect(cvItem).toContainText("Built reliable systems with C++ and TypeScript.");
+    await expect(cvItem.getByRole("textbox")).toHaveCount(0);
+    await cvItem.getByRole("button", { name: "Edit", exact: true }).click();
+    await cvItem.getByLabel("Title").fill("Núria Müller — Platform Lead");
+    await cvItem.getByLabel("Description").fill("Led reliable platform systems with C++ and TypeScript.");
+    await running.page.getByRole("button", { name: "Save", exact: true }).click();
+    await cvItem.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(running.page.getByRole("article", { name: "Núria Müller — Platform Lead CV item" }))
+      .toContainText("Led reliable platform systems with C++ and TypeScript.");
+
+    await running.page.setViewportSize({ width: 720, height: 600 });
+    await expect(cvPaper).toBeVisible();
+    expect(await running.page.evaluate(() => (
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    ))).toBe(true);
   } finally {
     if (running) await stopPackagedApp(running);
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
