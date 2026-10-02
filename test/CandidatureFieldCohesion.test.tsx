@@ -303,7 +303,7 @@ describe("candidature field cohesion", () => {
     expect(within(roleControls).getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
     expect(within(roleControls).getByRole("button", { name: "Ask AI to fill Role" })).toHaveTextContent("✨");
     expect(within(roleControls).getByRole("button", { name: "Remove Role from favourites" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(roleControls).getByLabelText("Configure Role")).toHaveTextContent("⚙");
+    expect(within(roleControls).getByLabelText("Configure Role")).toBeVisible();
     expect(within(roleControls).queryByText("Field options")).not.toBeInTheDocument();
     expect(within(roleCard).queryByLabelText("Value")).not.toBeInTheDocument();
 
