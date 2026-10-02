@@ -30,6 +30,12 @@ export interface CandidatureRecognitionProjection {
   readonly retainedSourceCue: CandidatureRecognitionCue | null;
 }
 
+export interface CandidatureCueFootprint {
+  readonly columns: number;
+  readonly lines: number;
+  readonly rows: number;
+}
+
 function scalarValue(
   field: CandidatureFieldConfiguration,
   value: string | number | boolean,
@@ -193,12 +199,27 @@ export function candidatureRetainedSourceCue(
 }
 
 
-const cardCueWeight: Readonly<Record<CandidaturePresentationSize, number>> = {
-  compact: 1,
-  normal: 2,
-  wide: 3,
+const cardCueColumns: Readonly<Record<CandidaturePresentationSize, number>> = {
+  compact: 4,
+  normal: 6,
+  wide: 8,
 };
-const collapsedCardCapacity = 9;
+const collapsedCardColumnBudget = 24;
+
+export function candidatureCueFootprint(
+  cue: CandidatureRecognitionCue,
+  expanded: boolean,
+): CandidatureCueFootprint {
+  const columns = cardCueColumns[cue.presentationSize];
+  const maxLines = expanded
+    ? cue.presentationSize === "wide" ? 7 : cue.presentationSize === "normal" ? 5 : 3
+    : cue.presentationSize === "wide" ? 4 : cue.presentationSize === "normal" ? 3 : 2;
+  const charactersPerColumn = expanded ? 6.2 : 3.4;
+  const estimatedLineCapacity = Math.max(8, Math.floor(columns * charactersPerColumn));
+  const estimatedLines = Math.max(1, Math.ceil(cue.value.length / estimatedLineCapacity));
+  const lines = Math.min(maxLines, estimatedLines);
+  return { columns, lines, rows: lines };
+}
 
 export function candidatureCardRecognitionProjection(
   record: CandidatureRecord,
@@ -209,24 +230,24 @@ export function candidatureCardRecognitionProjection(
     record,
     fields,
     Number.MAX_SAFE_INTEGER,
-    expanded ? 420 : 96,
+    expanded ? 2000 : 180,
   );
   let primaryCues: readonly CandidatureRecognitionCue[] = allFavouriteCues;
   if (!expanded) {
-    let used = 0;
+    let usedColumns = 0;
     const visible: CandidatureRecognitionCue[] = [];
     for (const cue of allFavouriteCues) {
-      const weight = cardCueWeight[cue.presentationSize];
-      if (used + weight > collapsedCardCapacity) break;
+      const footprint = candidatureCueFootprint(cue, false);
+      if (usedColumns + footprint.columns > collapsedCardColumnBudget) break;
       visible.push(cue);
-      used += weight;
+      usedColumns += footprint.columns;
     }
     primaryCues = visible;
   }
   return {
     primaryCues,
     retainedSourceCue: primaryCues.length === 0
-      ? candidatureRetainedSourceCue(record, expanded ? 420 : 120)
+      ? candidatureRetainedSourceCue(record, expanded ? 1200 : 180)
       : null,
   };
 }
