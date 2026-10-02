@@ -562,3 +562,30 @@
     gap: 0.08rem;
   }
 }
+
+
+/* Compact cards are one application object; cues use hierarchy, not nested field boxes. */
+.candidature-corpus-card .candidature-recognition-cue {
+  min-height: 0;
+  padding: 0.12rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.candidature-corpus-card .candidature-cue-size-wide {
+  padding-block: 0.18rem;
+}
+
+.candidature-corpus-card .candidature-cue-label {
+  opacity: 0.78;
+}
+
+.candidature-corpus-card .candidature-cue-value {
+  font-weight: 680;
+}
+
+.candidature-corpus-card .candidature-cue-size-wide .candidature-cue-value {
+  font-weight: 760;
+}
