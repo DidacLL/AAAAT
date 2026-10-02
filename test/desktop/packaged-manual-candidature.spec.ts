@@ -141,6 +141,9 @@ function initializeWorkspaceFixture(rootPath: string): void {
       const attachTag = database.prepare(
         "INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)",
       );
+      const insertFieldValue = database.prepare(
+        "INSERT INTO candidature_field_values(candidature_id, field_id, value_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      );
       insertTag.run(
         reliabilityTagId,
         "Reliability",
@@ -173,6 +176,28 @@ function initializeWorkspaceFixture(rootPath: string): void {
         insertSource.run(sourceId, candidatureId, "Seeded retained source", sourceText, createdAt, recent);
         if (index === 0 || index === 2) attachTag.run(candidatureId, reliabilityTagId);
         if (index === 1 || index === 3) attachTag.run(candidatureId, accessibilityTagId);
+        if (index === 0 || index === 1) {
+          const values = index === 0
+            ? [
+                ["00000000-0000-4000-8000-000000000101", "Alpha Systems"],
+                ["00000000-0000-4000-8000-000000000102", "Reliability Engineer"],
+                ["00000000-0000-4000-8000-000000000103", "Barcelona"],
+                ["00000000-0000-4000-8000-000000000104", "EUR 70k"],
+                ["00000000-0000-4000-8000-000000000105", "2020-01-01"],
+                ["00000000-0000-4000-8000-000000000106", "Own production reliability, incident learning, service health and cross-team operational improvements. ".repeat(10)],
+              ]
+            : [
+                ["00000000-0000-4000-8000-000000000101", "Beta Inclusive"],
+                ["00000000-0000-4000-8000-000000000102", "Accessibility Engineer"],
+                ["00000000-0000-4000-8000-000000000103", "Remote"],
+                ["00000000-0000-4000-8000-000000000104", "EUR 72k"],
+                ["00000000-0000-4000-8000-000000000105", "2020-01-01"],
+                ["00000000-0000-4000-8000-000000000106", "Drive inclusive product practice, accessible interaction design and durable accessibility guidance. ".repeat(10)],
+              ];
+          for (const [fieldId, value] of values) {
+            insertFieldValue.run(candidatureId, fieldId, JSON.stringify(value), createdAt, recent);
+          }
+        }
       }
       database.exec("COMMIT");
     } catch (error) {
@@ -292,7 +317,11 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await expect(tagged).toHaveCount(2);
     const alpha = tagged.filter({ hasText: "Fixture tagged Alpha" });
     const beta = tagged.filter({ hasText: "Fixture tagged Beta" });
+    await expect(alpha).toContainText("Alpha Systems");
+    await expect(alpha).toContainText("Reliability Engineer");
     await expect(alpha).toContainText("Reliability");
+    await expect(beta).toContainText("Beta Inclusive");
+    await expect(beta).toContainText("Accessibility Engineer");
     await expect(beta).toContainText("Accessibility");
     const wideBoxes = await Promise.all([alpha.boundingBox(), beta.boundingBox()]);
     expect(wideBoxes[0]).not.toBeNull();
@@ -311,6 +340,9 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await alpha.click();
     await expect(running.page.getByRole("region", { name: "Application information" })).toHaveCount(0);
     await expect(corpusAfterEdit.getByLabel("Application inspection")).toHaveCount(1);
+    const expandedAlpha = corpusAfterEdit.getByRole("button", { name: "Open saved application" });
+    await expect(expandedAlpha).toContainText("2020-01-01");
+    await expect(expandedAlpha).toContainText("Own production reliability");
     await expect(corpusAfterEdit.getByLabel("Tag meanings")).toContainText("Dependable production ownership");
     const railTags = running.page.getByRole("region", { name: "Tags glossary" });
     await expect(railTags).toContainText("Reliability");
@@ -330,6 +362,10 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await expect(selectedFixture.getByRole("region", { name: "Sources" })).toContainText("Fixture tagged Beta");
     await expect(selectedFixture.getByRole("region", { name: "Remaining application information" })).toBeVisible();
     await expect(selectedFixture.getByText("More", { exact: true })).toHaveCount(0);
+    const notesReadout = selectedFixture.getByRole("article", { name: "Notes information" })
+      .locator(".candidature-value-reader > p");
+    await expect(notesReadout).toContainText("Drive inclusive product practice");
+    expect(await notesReadout.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
     await expect(railTags).toContainText("Accessibility");
 
     const selectedTags = selectedFixture.getByRole("region", { name: "Tags" });
