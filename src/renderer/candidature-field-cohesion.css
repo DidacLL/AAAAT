@@ -51,7 +51,7 @@
   inset-inline-end: 0;
   top: calc(100% + 0.25rem);
   display: grid;
-  width: min(16.5rem, calc(100vw - 3rem));
+  width: min(20rem, calc(100vw - 3rem));
   gap: 0.42rem;
   padding: 0.55rem;
   border: 1px solid #9f8a6e;
@@ -168,4 +168,50 @@
 
 .candidature-value-reader > p {
   margin-block: 0.28rem 0;
+}
+
+.candidature-shared-field-definition {
+  padding-top: 0.32rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.candidature-shared-field-definition > summary {
+  width: fit-content;
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 620;
+}
+
+.candidature-shared-field-form {
+  display: grid;
+  gap: 0.38rem;
+  margin-top: 0.38rem;
+}
+
+.candidature-shared-field-form > p {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.candidature-shared-field-form label {
+  display: grid;
+  gap: 0.16rem;
+  color: var(--muted-ink);
+  font-size: 0.69rem;
+  font-weight: 600;
+}
+
+.candidature-shared-field-form input,
+.candidature-shared-field-form textarea {
+  width: 100%;
+  padding: 0.34rem 0.42rem;
+}
+
+.candidature-shared-field-form .compact-secondary {
+  width: fit-content;
+  min-height: 1.7rem;
+  padding-block: 0.2rem;
 }
