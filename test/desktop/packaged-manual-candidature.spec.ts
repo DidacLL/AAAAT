@@ -227,8 +227,10 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
 
     const rawCapture = running.page.getByRole("region", { name: "Retain raw material" });
     await rawCapture.getByLabel("Application raw material").fill(rawMaterial);
-    expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(0);
+    const retainedBeforeCapture = await running.page.evaluate(() => window.aaaat.candidatures.list());
+    expect(retainedBeforeCapture).toHaveLength(105);
     await rawCapture.getByRole("button", { name: "Retain raw material" }).click();
+    expect(await running.page.evaluate(() => window.aaaat.candidatures.list())).toHaveLength(106);
 
     const continuation = running.page.getByRole("region", { name: "Raw material continuation" });
     await expect(continuation.getByRole("button", { name: "Use AI to suggest information" })).toBeVisible();
@@ -244,12 +246,6 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await rawOnlyEntry.click();
 
     const reopened = running.page.getByRole("region", { name: "Application information" });
-    const sources = reopened.getByRole("region", { name: "Sources" });
-    await expect(sources).toContainText(rawMaterial);
-    await sources.getByRole("button", { name: "Read source" }).click();
-    await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
-    await sources.getByRole("button", { name: "Back to Sources" }).click();
-
     await reopened.getByText("Sources, documents & history").click();
     const roleBlock = reopened.getByRole("article", { name: "Role information" });
     await roleBlock.getByRole("button", { name: "Edit Role", exact: true }).click();
@@ -257,6 +253,13 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await expect(reopened.getByRole("button", { name: "Send to my AI" })).toBeDisabled();
     await roleBlock.getByRole("button", { name: "Save", exact: true }).click();
     await expect(roleBlock).toContainText("Captain");
+
+    const sources = reopened.getByRole("region", { name: "Sources" });
+    await expect(sources).toContainText(rawMaterial);
+    await sources.getByRole("button", { name: "Read source" }).click();
+    await expect(sources.getByRole("article", { name: "Source content" })).toContainText(rawMaterial);
+    await sources.getByRole("button", { name: "Back to Sources" }).click();
+
     const primary = reopened.getByRole("region", { name: "Starred application information" });
     const externalAi = reopened.getByRole("region", { name: "Send to my AI" });
     await expect(externalAi.getByRole("button", { name: "Send to my AI" })).toBeVisible();
@@ -323,6 +326,7 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await corpusAfterEdit.getByRole("button", { name: "Open saved application" }).click();
     const selectedFixture = running.page.getByRole("region", { name: "Application information" });
     await expect(selectedFixture).toBeVisible();
+    await selectedFixture.getByText("Sources, documents & history").click();
     await expect(selectedFixture.getByRole("region", { name: "Sources" })).toContainText("Fixture tagged Beta");
     await expect(selectedFixture.getByRole("region", { name: "Remaining application information" })).toBeVisible();
     await expect(selectedFixture.getByText("More", { exact: true })).toHaveCount(0);
@@ -342,7 +346,6 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     await fixtureRole.getByRole("button", { name: "Save", exact: true }).click();
     await expect(fixtureRole).toContainText("Platform test lead");
 
-    await selectedFixture.getByText("Sources, documents & history").click();
     const applicationDocuments = selectedFixture.getByRole("region", { name: "Application documents" });
     await applicationDocuments.getByRole("button", { name: "New CV" }).click();
     await expect(running.page.getByRole("heading", { name: "Application CV" })).toBeVisible();
