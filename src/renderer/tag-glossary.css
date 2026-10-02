@@ -219,6 +219,12 @@
   }
 
   .tag-visor-monitor-list {
-    display: none;
+    display: grid;
+    max-height: 6.5rem;
+    overflow-y: auto;
+  }
+
+  .tag-visor-monitor-list .tag-visor-readout {
+    display: grid;
   }
 }
