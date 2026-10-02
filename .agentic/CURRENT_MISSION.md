@@ -93,6 +93,8 @@ Acceptance is:
 1. independent production-code audit;
 2. real rendered desktop inspection.
 
+For rendered inspection, run the actual Electron application and capture direct screenshots from the real renderer. Do not build a Playwright/screenshot test harness and do not create test-only product fixtures merely to manufacture evidence. Use normal development/demo/local data sufficient to inspect the real surfaces.
+
 Rendered evidence must cover:
 - first-run Welcome;
 - startup/loading;
