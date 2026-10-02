@@ -95,6 +95,8 @@ Until the Product Owner explicitly changes this rule:
 
 Current required GitHub verification is limited to static engineering hygiene (typecheck/lint). Product acceptance comes from code review and the real running/rendered product.
 
+GitHub-connector implementation specialists do not have a local desktop/runtime checkout and must not be asked to launch Electron or capture screenshots. When rendered inspection is required and no local runtime is available, the orchestrator owns that evidence after implementation by using a temporary Actions evidence branch/workflow against the exact implementation head. That evidence path must not modify product code, must not contain product assertions/tests, and must not be merged as product implementation.
+
 ## Execution and evidence
 
 Use the GitHub-capable agent for normal bounded implementation, documentation, Issue/PR coordination, CI inspection, and independent review. Use scarce local/Codex work only when actual shell, Electron, package, browser/visual, TeX/PDF, rendering, filesystem/process, or environment evidence is necessary. The Product Owner is an intentional transport and product reviewer, not routine QA.
