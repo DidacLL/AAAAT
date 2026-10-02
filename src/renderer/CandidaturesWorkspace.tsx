@@ -22,7 +22,7 @@ import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { createApplicationDocuments } from "./create-application-documents";
 import {
-  candidatureRecognitionProjection,
+  candidatureCardRecognitionProjection,
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
@@ -532,7 +532,7 @@ export function CandidaturesWorkspace({
           <div className="candidature-corpus-grid" aria-label="Application corpus">
             {visibleRecords.map((record) => {
               const preselected = preselectedId === record.id;
-              const recognition = candidatureRecognitionProjection(record, fields, preselected ? 8 : 4);
+              const recognition = candidatureCardRecognitionProjection(record, fields, preselected);
               const primaryCues = recognition.primaryCues;
               const searchMatchCue =
                 normalizedQuery && textMatches?.has(record.id)
@@ -741,56 +741,92 @@ export function CandidaturesWorkspace({
               onToggle={(event) => setOpenFieldOptionsId(event.currentTarget.open ? field.definition.id : null)}
             >
               <summary>Field options</summary>
-              <div className="candidature-field-options-panel">
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => void setFavourite(field, !favourite)}
-                >
-                  {favourite ? "Remove from primary information" : "Show in primary information"}
-                </button>
-                {favourite ? (
-                  <>
-                    <div className="candidature-field-order-actions">
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        aria-label={`Move ${field.definition.label} earlier`}
-                        disabled={favouriteIndex === 0}
-                        onClick={() => void moveFavourite(field, -1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        aria-label={`Move ${field.definition.label} later`}
-                        disabled={favouriteIndex === favouriteFields.length - 1}
-                        onClick={() => void moveFavourite(field, 1)}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                    <label className="candidature-prominence-control">
-                      Card size
-                      <select
-                        aria-label={`${field.definition.label} card size`}
-                        value={field.preferences.presentationSize}
-                        onChange={(event) =>
-                          void updateFieldPreference(field, {
-                            presentationSize: event.target.value as
-                              CandidatureFieldConfiguration["preferences"]["presentationSize"],
-                          })
-                        }
-                      >
-                        <option value="compact">Compact</option>
-                        <option value="normal">Normal</option>
-                        <option value="wide">Wide</option>
-                      </select>
-                    </label>
-                  </>
-                ) : null}
-              </div>
+              {openFieldOptionsId === field.definition.id ? (
+                <div className="candidature-field-options-panel">
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() => void setFavourite(field, !favourite)}
+                  >
+                    {favourite ? "Remove from primary information" : "Show in primary information"}
+                  </button>
+                  {favourite ? (
+                    <>
+                      <div className="candidature-field-order-actions">
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          aria-label={`Move ${field.definition.label} earlier`}
+                          disabled={favouriteIndex === 0}
+                          onClick={() => void moveFavourite(field, -1)}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          aria-label={`Move ${field.definition.label} later`}
+                          disabled={favouriteIndex === favouriteFields.length - 1}
+                          onClick={() => void moveFavourite(field, 1)}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                      <label className="candidature-prominence-control">
+                        Card prominence
+                        <select
+                          aria-label={`${field.definition.label} card size`}
+                          value={field.preferences.presentationSize}
+                          onChange={(event) =>
+                            void updateFieldPreference(field, {
+                              presentationSize: event.target.value as
+                                CandidatureFieldConfiguration["preferences"]["presentationSize"],
+                            })
+                          }
+                        >
+                          <option value="compact">Compact</option>
+                          <option value="normal">Normal</option>
+                          <option value="wide">Wide</option>
+                        </select>
+                      </label>
+                    </>
+                  ) : null}
+                  <details className="candidature-shared-field-definition">
+                    <summary>Edit field definition</summary>
+                    <form
+                      key={`${field.definition.id}:${field.definition.label}:${field.definition.description}`}
+                      className="candidature-shared-field-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const data = new FormData(event.currentTarget);
+                        const label = String(data.get("label") ?? "").trim();
+                        const description = String(data.get("description") ?? "");
+                        if (!label) return;
+                        void updateFieldDefinition({
+                          id: field.definition.id,
+                          label,
+                          description,
+                          valueType: field.definition.valueType,
+                          cardinality: field.definition.cardinality,
+                          choices: field.definition.choices,
+                          enabled: field.definition.enabled,
+                        }).then(() => setOpenFieldOptionsId(null));
+                      }}
+                    >
+                      <p>Shared field definition · changes apply to every application.</p>
+                      <label>
+                        Name
+                        <input name="label" defaultValue={field.definition.label} maxLength={120} required />
+                      </label>
+                      <label>
+                        Description
+                        <textarea name="description" defaultValue={field.definition.description} maxLength={2000} rows={3} />
+                      </label>
+                      <button type="submit" className="compact-secondary">Save shared field</button>
+                    </form>
+                  </details>
+                </div>
+              ) : null}
             </details>
           </div>
         </div>
@@ -799,14 +835,12 @@ export function CandidaturesWorkspace({
           value={retained?.value}
           onSave={(value) => setValue(field.definition.id, value)}
           onClear={() => clearValue(field.definition.id)}
-          onUpdateField={updateFieldDefinition}
           onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
           editing={activeFieldEditorId === field.definition.id}
           onEditingChange={(editing) => {
             if (editing) requestFieldEditor(field.definition.id);
             else closeFieldEditor(field.definition.id);
           }}
-          showFieldControls
           showEditAction={false}
         />
         {fieldAiUnavailableId === field.definition.id ? (
