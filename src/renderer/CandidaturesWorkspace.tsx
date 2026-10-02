@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -23,10 +23,10 @@ import { useContextualHandoffs } from "./contextual-handoffs";
 import { createApplicationDocuments } from "./create-application-documents";
 import {
   candidatureCardRecognitionProjection,
-  candidatureCueFootprint,
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
+  type CandidatureRecognitionCue,
   type RecencyFilter,
 } from "./candidature-projections";
 import type { ApplicationTagContext } from "./TagVisor";
@@ -55,6 +55,50 @@ function tagDraft(tag: TagRecord): TagInput {
 function normalizedTagText(value: string): string { return value.trim().toLocaleLowerCase(); }
 function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>): boolean {
   return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
+}
+
+function CorpusRecognitionCue({
+  cue,
+  sourceLabel = false,
+}: {
+  readonly cue: CandidatureRecognitionCue;
+  readonly sourceLabel?: boolean;
+}) {
+  const cueRef = useRef<HTMLSpanElement>(null);
+  const contentRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const cueElement = cueRef.current;
+    const contentElement = contentRef.current;
+    const grid = cueElement?.parentElement;
+    if (!cueElement || !contentElement || !grid) return;
+
+    const updateSpan = () => {
+      const styles = getComputedStyle(grid);
+      const rowHeight = Number.parseFloat(styles.gridAutoRows) || 1;
+      const rowGap = Number.parseFloat(styles.rowGap) || 0;
+      const contentHeight = contentElement.getBoundingClientRect().height;
+      const span = Math.max(1, Math.ceil((contentHeight + rowGap) / (rowHeight + rowGap)));
+      cueElement.style.gridRowEnd = `span ${span}`;
+    };
+
+    updateSpan();
+    const observer = new ResizeObserver(updateSpan);
+    observer.observe(contentElement);
+    return () => observer.disconnect();
+  }, [cue.value, cue.presentationSize]);
+
+  return (
+    <span
+      ref={cueRef}
+      className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
+    >
+      <span ref={contentRef} className="candidature-cue-content">
+        {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
+        <span className="candidature-cue-value">{cue.value}</span>
+      </span>
+    </span>
+  );
 }
 
 export function CandidaturesWorkspace({
@@ -561,40 +605,13 @@ export function CandidaturesWorkspace({
                   >
                     {primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
-                        {primaryCues.map((cue) => {
-                          const footprint = candidatureCueFootprint(cue, preselected);
-                          const style = {
-                            "--cue-columns": footprint.columns,
-                            "--cue-rows": footprint.rows,
-                            "--cue-lines": footprint.lines,
-                          } as CSSProperties;
-                          return (
-                            <span
-                              className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
-                              key={cue.fieldId}
-                              style={style}
-                            >
-                              <span className="candidature-cue-value">{cue.value}</span>
-                            </span>
-                          );
-                        })}
+                        {primaryCues.map((cue) => (
+                          <CorpusRecognitionCue cue={cue} key={cue.fieldId} />
+                        ))}
                       </span>
                     ) : recognition.retainedSourceCue ? (
                       <span className="candidature-recognition-cues">
-                        <span
-                          className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue"
-                          style={(() => {
-                            const footprint = candidatureCueFootprint(recognition.retainedSourceCue, preselected);
-                            return {
-                              "--cue-columns": footprint.columns,
-                              "--cue-rows": footprint.rows + 1,
-                              "--cue-lines": footprint.lines,
-                            } as CSSProperties;
-                          })()}
-                        >
-                          <span className="candidature-cue-label">{recognition.retainedSourceCue.label}</span>
-                          <span className="candidature-cue-value">{recognition.retainedSourceCue.value}</span>
-                        </span>
+                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} sourceLabel />
                       </span>
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
