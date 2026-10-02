@@ -549,3 +549,19 @@
     align-items: flex-start;
   }
 }
+
+
+/* Read mode stays bounded; Edit still exposes the full input value. */
+.candidature-value-reader > p:not(.candidature-missing-value) {
+  display: -webkit-box;
+  max-height: 7.3em;
+  overflow: hidden;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.candidature-unit-size-wide .candidature-value-reader > p:not(.candidature-missing-value) {
+  max-height: 10.2em;
+  -webkit-line-clamp: 7;
+}
