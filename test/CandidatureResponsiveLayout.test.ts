@@ -23,6 +23,14 @@ describe("Applications responsive layout", () => {
     expect(workspace).toContain('"--cue-lines": footprint.lines');
   });
 
+  it("keeps metadata in one narrow footer and Open / Edit as a thin accent line", () => {
+    expect(css).toMatch(/\.candidature-corpus-card:not\(\.candidature-corpus-card-preselected\) \.candidature-corpus-entry\s*\{[^}]*max-height:\s*7\.35rem;[^}]*overflow:\s*hidden;/s);
+    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-corpus-entry\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/s);
+    expect(css).toMatch(/\.candidature-card-footer\s*\{[^}]*display:\s*flex;[^}]*min-height:\s*1\.05rem;/s);
+    expect(css).toMatch(/\.candidature-collapsed-tags\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*overflow:\s*hidden;/s);
+    expect(css).toMatch(/\.candidature-corpus-open-strip\s*\{[^}]*min-height:\s*1\.08rem;[^}]*border-top:\s*1px solid var\(--accent\);[^}]*background:\s*transparent;[^}]*font-size:\s*0\.57rem;/s);
+  });
+
   it("gives expanded cards more physical room and a larger content-derived reading budget", () => {
     expect(css).toMatch(/\.candidature-corpus-card-preselected\s*\{[^}]*flex:\s*2 1 600px;[^}]*max-width:\s*min\(100%, 780px\);/s);
     expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-recognition-cues\s*\{[^}]*grid-auto-rows:\s*1\.12rem;/s);
