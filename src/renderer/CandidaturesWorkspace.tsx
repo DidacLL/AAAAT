@@ -738,9 +738,17 @@ export function CandidaturesWorkspace({
             <details
               className="candidature-field-options"
               open={openFieldOptionsId === field.definition.id}
-              onToggle={(event) => setOpenFieldOptionsId(event.currentTarget.open ? field.definition.id : null)}
             >
-              <summary>Field options</summary>
+              <summary
+                onClick={(event) => {
+                  event.preventDefault();
+                  setOpenFieldOptionsId((current) =>
+                    current === field.definition.id ? null : field.definition.id
+                  );
+                }}
+              >
+                Field options
+              </summary>
               {openFieldOptionsId === field.definition.id ? (
                 <div className="candidature-field-options-panel">
                   <button
