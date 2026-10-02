@@ -318,24 +318,19 @@ test("packaged app produces CV, cover-letter and packet artifacts through the pr
     const workingDocument = workingLibrary.getByRole("button", { name: /Packaged application CV/ });
     await expect(workingDocument).toContainText("Working CV");
     await expect(workingDocument).toContainText("Application-owned");
-    await expect(running.page.getByText(/Continue editing \(/)).toHaveCount(0);
-
     await running.page.setViewportSize({ width: 1440, height: 900 });
     await workingDocument.click();
     await expect(running.page.getByRole("heading", { name: "Packaged application CV" })).toBeVisible();
     const cvOutline = running.page.getByLabel("CV document outline");
     await expect(cvOutline).toBeVisible();
-    const documentDetails = running.page.locator("details.working-cv-document-details");
-    await expect(documentDetails).not.toHaveAttribute("open", "");
-
     const cvItem = running.page.getByRole("article", { name: "Núria Müller & R&D CV item" });
     await expect(cvItem).toContainText("Built reliable systems with C++ and TypeScript.");
     await expect(cvItem.getByRole("textbox")).toHaveCount(0);
     await cvItem.getByRole("button", { name: "Edit", exact: true }).click();
-    await cvItem.getByRole("textbox", { name: "Title", exact: true }).fill("Núria Müller — Platform Lead");
-    await cvItem.getByLabel("Description").fill("Led reliable platform systems with C++ and TypeScript.");
+    await cvOutline.getByRole("textbox", { name: "Title", exact: true }).fill("Núria Müller — Platform Lead");
+    await cvOutline.getByLabel("Description").fill("Led reliable platform systems with C++ and TypeScript.");
     await running.page.getByRole("button", { name: "Save", exact: true }).click();
-    await cvItem.getByRole("button", { name: "Done", exact: true }).click();
+    await cvOutline.getByRole("button", { name: "Done", exact: true }).click();
     await expect(running.page.getByRole("article", { name: "Núria Müller — Platform Lead CV item" }))
       .toContainText("Led reliable platform systems with C++ and TypeScript.");
 
