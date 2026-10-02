@@ -30,12 +30,6 @@ export interface CandidatureRecognitionProjection {
   readonly retainedSourceCue: CandidatureRecognitionCue | null;
 }
 
-export interface CandidatureCueFootprint {
-  readonly columns: number;
-  readonly lines: number;
-  readonly rows: number;
-}
-
 function scalarValue(
   field: CandidatureFieldConfiguration,
   value: string | number | boolean,
@@ -199,45 +193,12 @@ export function candidatureRetainedSourceCue(
 }
 
 
-const cardCueColumns: Readonly<Record<CandidaturePresentationSize, number>> = {
-  compact: 4,
-  normal: 6,
-  wide: 8,
+const cardCueWeight: Readonly<Record<CandidaturePresentationSize, number>> = {
+  compact: 1,
+  normal: 2,
+  wide: 3,
 };
-const collapsedCardColumnBudget = 24;
-
-const cardValueLimit: Readonly<Record<CandidaturePresentationSize, { readonly collapsed: number; readonly expanded: number }>> = {
-  compact: { collapsed: 52, expanded: 220 },
-  normal: { collapsed: 90, expanded: 520 },
-  wide: { collapsed: 140, expanded: 1000 },
-};
-
-function boundCardCueValue(
-  cue: CandidatureRecognitionCue,
-  expanded: boolean,
-): CandidatureRecognitionCue {
-  const limit = cardValueLimit[cue.presentationSize][expanded ? "expanded" : "collapsed"];
-  if (cue.value.length <= limit) return cue;
-  return {
-    ...cue,
-    value: `${cue.value.slice(0, limit - 1).trimEnd()}…`,
-  };
-}
-
-export function candidatureCueFootprint(
-  cue: CandidatureRecognitionCue,
-  expanded: boolean,
-): CandidatureCueFootprint {
-  const columns = cardCueColumns[cue.presentationSize];
-  const maxLines = expanded
-    ? cue.presentationSize === "wide" ? 7 : cue.presentationSize === "normal" ? 5 : 3
-    : cue.presentationSize === "wide" ? 4 : cue.presentationSize === "normal" ? 3 : 2;
-  const charactersPerColumn = expanded ? 4.2 : 3.2;
-  const estimatedLineCapacity = Math.max(8, Math.floor(columns * charactersPerColumn));
-  const estimatedLines = Math.max(1, Math.ceil(cue.value.length / estimatedLineCapacity));
-  const lines = Math.min(maxLines, estimatedLines);
-  return { columns, lines, rows: lines };
-}
+const collapsedCardCapacity = 9;
 
 export function candidatureCardRecognitionProjection(
   record: CandidatureRecord,
@@ -249,16 +210,16 @@ export function candidatureCardRecognitionProjection(
     fields,
     Number.MAX_SAFE_INTEGER,
     2000,
-  ).map((cue) => boundCardCueValue(cue, expanded));
+  );
   let primaryCues: readonly CandidatureRecognitionCue[] = allFavouriteCues;
   if (!expanded) {
-    let usedColumns = 0;
+    let used = 0;
     const visible: CandidatureRecognitionCue[] = [];
     for (const cue of allFavouriteCues) {
-      const footprint = candidatureCueFootprint(cue, false);
-      if (usedColumns + footprint.columns > collapsedCardColumnBudget) break;
+      const weight = cardCueWeight[cue.presentationSize];
+      if (used + weight > collapsedCardCapacity) break;
       visible.push(cue);
-      usedColumns += footprint.columns;
+      used += weight;
     }
     primaryCues = visible;
   }
