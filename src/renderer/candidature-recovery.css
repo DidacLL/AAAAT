@@ -438,9 +438,13 @@
 }
 
 .candidature-recognition-cues {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 0.38rem 0.55rem;
 }
+
+.candidature-cue-size-compact { grid-column: span 4; }
+.candidature-cue-size-normal { grid-column: span 6; }
+.candidature-cue-size-wide { grid-column: 1 / -1; }
 
 .candidature-recognition-cue {
   display: grid;
@@ -555,6 +559,12 @@
 
   .candidature-recognition-cues {
     grid-template-columns: 1fr;
+  }
+
+  .candidature-cue-size-compact,
+  .candidature-cue-size-normal,
+  .candidature-cue-size-wide {
+    grid-column: 1 / -1;
   }
 
   .candidature-inspection-tags p {
