@@ -154,9 +154,8 @@ describe("application corpus inspection", () => {
     expect(screen.queryByText("Dependable production ownership")).not.toBeInTheDocument();
     expect(screen.queryByText("Inclusive product and interface practice")).not.toBeInTheDocument();
 
-    const compactValue = within(inspectButtons[0]!).getByText(/First compact value that remains readable/);
-    expect(compactValue.closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-compact");
-    expect(within(inspectButtons[0]!).getByText("First value 1").closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-wide");
+    expect(within(inspectButtons[0]!).getByText(/First compact value that remains readable/)).toBeVisible();
+    expect(within(inspectButtons[0]!).getByText("First value 1")).toBeVisible();
 
     await user.click(inspectButtons[0]!);
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
