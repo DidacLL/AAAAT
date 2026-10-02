@@ -123,6 +123,22 @@ Development order is not user workflow, but development should visibly converge 
 Do not estimate completion primarily from issue count, milestone count or internal architectural consistency. Integrated owner-visible product behavior and fidelity to product intent are the meaningful measures.
 
 
+## Current product-shaping phase: do not generate tests
+
+AAAAT is still being actively shaped at the product, interaction and visual-architecture level. Agents must not create or retrofit tests after implementation merely to justify, freeze or certify that implementation.
+
+Until the Product Owner explicitly authorizes a test-design phase:
+
+- implementation specialists do not add, rewrite or expand tests unless explicitly asked;
+- existing tests do not create requirements and do not drive product changes;
+- failing stale tests are not implementation blockers by themselves;
+- green tests are not acceptance evidence;
+- test maintenance must not consume product-development runs;
+- visual/UX work is evaluated from production code and the real running/rendered application;
+- TDD is reserved for deliberately pre-specified stable contracts, not for current evolving UX work.
+
+The repository merge gate should enforce static engineering hygiene only. Broader testing strategy can be designed later, once architecture and product behavior are intentionally stable.
+
 ## Tests never drive product development
 
 Tests are subordinate verification artifacts. Product Definition and current explicit Product Owner intent drive development.

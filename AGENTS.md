@@ -78,6 +78,23 @@ Keep proven technical boundaries where they remain useful: a local authoritative
 
 AAAAT has no established real-use v2 compatibility baseline. Development databases, fixtures, and development-era schema are disposable and must be corrected directly when current product meaning requires it. A dormant audit record is not a request to establish a baseline.
 
+## Current product-shaping test policy
+
+AAAAT is still in active product/UX shaping. The architecture and interaction model are not stable enough for agents to manufacture after-the-fact tests as design constraints.
+
+Until the Product Owner explicitly changes this rule:
+
+- do **not** add, rewrite, or expand automated tests as part of implementation work unless the Product Owner explicitly requests that test work;
+- do **not** derive requirements from existing tests;
+- do **not** change product code to satisfy a test failure;
+- do **not** spend a specialist run repairing stale selectors, wording expectations, fixture counts, mocks, DOM assumptions, screenshots, class names, CSS structure, or historical workflows;
+- do **not** cite passing tests as product evidence or acceptance;
+- existing tests may remain in the repository as historical/incidental tooling, but they are not implementation authority and are not part of the normal development loop;
+- TDD is appropriate only when tests/specification intentionally precede implementation for a stable contract. That is not the current UX/product-shaping mode;
+- once the architecture and product behavior are intentionally stabilized, the Product Owner may authorize a separate test-design pass.
+
+Current required GitHub verification is limited to static engineering hygiene (typecheck/lint). Product acceptance comes from code review and the real running/rendered product.
+
 ## Execution and evidence
 
 Use the GitHub-capable agent for normal bounded implementation, documentation, Issue/PR coordination, CI inspection, and independent review. Use scarce local/Codex work only when actual shell, Electron, package, browser/visual, TeX/PDF, rendering, filesystem/process, or environment evidence is necessary. The Product Owner is an intentional transport and product reviewer, not routine QA.

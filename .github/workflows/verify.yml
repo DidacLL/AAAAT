@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Ordinary verification
+    name: Static verification
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -34,7 +34,8 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - run: npm run verify
+      - run: npm run typecheck
+      - run: npm run lint
 
   gate:
     name: Verification gate
@@ -43,12 +44,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require ordinary verification
+      - name: Require static verification
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
         run: |
           if [[ "$VERIFY_RESULT" != "success" ]]; then
-            echo "Ordinary verification finished as $VERIFY_RESULT" >&2
+            echo "Static verification finished as $VERIFY_RESULT" >&2
             exit 1
           fi
-          echo "Ordinary development verification passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Static typecheck and lint verification passed." >> "$GITHUB_STEP_SUMMARY"
