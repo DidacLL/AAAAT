@@ -182,6 +182,24 @@ describe("application corpus inspection", () => {
     expect(screen.queryByLabelText("Application inspection")).not.toBeInTheDocument();
   });
 
+
+  it("mirrors expand and collapse through keyboard activation without entering edit mode", async () => {
+    installApi();
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    const first = (await screen.findAllByRole("button", { name: "Inspect saved application" }))[0]!;
+    first.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Collapse saved application" })).toHaveFocus();
+    expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
+    expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+    expect(screen.queryByLabelText("Application inspection")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
+  });
+
   it("enters the exact editor only through the dedicated Open / Edit strip", async () => {
     installApi();
     const user = userEvent.setup();
