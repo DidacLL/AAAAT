@@ -392,8 +392,13 @@ test("packaged no-AI raw capture continues manually in the same saved applicatio
     ))).toBe(true);
   } finally {
     if (running) await stopPackagedApp(running);
-    rmSync(isolatedUserData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(ownedWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-    rmSync(appData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    for (const temporaryPath of [isolatedUserData, ownedWorkspace, appData]) {
+      try {
+        rmSync(temporaryPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {
+        // Runner-owned temporary directories are disposable; a late Windows file lock must not
+        // turn a completed product journey into a product failure.
+      }
+    }
   }
 });
