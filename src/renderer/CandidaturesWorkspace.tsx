@@ -640,9 +640,7 @@ export function CandidaturesWorkspace({
   )
     ? packetLetterId
     : applicationLetters[0]?.id ?? "";
-  const selectedRecognition = candidatureRecognitionProjection(selected, fields, 1);
-  const sourceOwnsInitialContext =
-    initialTask !== undefined || selectedRecognition.retainedSourceCue !== null;
+  const sourceOwnsInitialContext = initialTask !== undefined;
 
   const createPacket = async () => {
     if (!selectedPacketCvId || !selectedPacketLetterId || packetBusy) return;
