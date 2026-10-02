@@ -131,3 +131,18 @@ Run full `npm run verify`.
 Final Windows packaged evidence should exercise the corrected journey as one integrated flow: large corpus → preselect → inspect Tags/primary information → open exact application → see/edit all fields → return → open a Working CV and confirm recognizable read-first document composition at constrained and expanded representative sizes.
 
 The Product Owner is not routine QA or a prompt courier. The orchestrator owns independent diff review, exact-head verification, packaged evidence, PR/merge and final PLAN classification.
+
+
+## Current Product Owner testing correction
+
+For #395 and all following work, automated tests must protect real product behavior or durable technical boundaries. Do not add mocked/structural reassurance tests merely because implementation changed.
+
+In particular:
+- do not assert CSS rules, class names, DOM grouping, card geometry, typography weight, spacing, or component structure as a substitute for UX acceptance;
+- do not freeze an arbitrary implementation mechanism just to make a focused test pass;
+- use behavior tests for meaningful actions, state transitions, persistence/domain invariants, accessibility semantics and failure handling;
+- use real rendered/packaged evidence for visual hierarchy, readability, density, responsive composition and visual identity;
+- if a visual requirement has no meaningful automation boundary, do not fabricate one;
+- remove or rewrite tests that encode a wrong product premise instead of preserving them for green CI.
+
+Focused-test counts are not acceptance evidence. The orchestrator must review whether each test premise is valid before using it as evidence.

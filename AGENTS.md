@@ -70,6 +70,8 @@ Take the smallest coherent step that advances a real product outcome. Routine im
 
 Tests protect user-visible behavior, domain and security boundaries, local ownership, portable artifacts, and meaningful failure semantics. Do not let fixtures, exact interaction order, internal identity, token syntax, or an old workflow silently become product requirements.
 
+Do not create reassurance tests merely to accompany a change or make CI look stronger. A test must fail for a meaningful product or durable technical regression, not merely because the current DOM, CSS, component split, class name, spacing rule, mocked call sequence, or implementation shape changed. Visual hierarchy, density, layout quality, styling and identity require real rendered/packaged inspection; unit/mocked/CSS-structure assertions cannot stand in for that evidence. If no meaningful automated assertion exists, do not invent one. Delete or rewrite tests whose premise is wrong, even if they were added recently and pass reliably.
+
 Keep proven technical boundaries where they remain useful: a local authoritative workspace, typed/domain validation, normal application-service mutation paths, a sandboxed unprivileged renderer, optional bounded AI operations, and user-owned portable document output. Do not add a framework, generic CRUD/query surface, policy engine, workflow/agent platform, requirements database, or compatibility machinery without demonstrated need.
 
 AAAAT has no established real-use v2 compatibility baseline. Development databases, fixtures, and development-era schema are disposable and must be corrected directly when current product meaning requires it. A dormant audit record is not a request to establish a baseline.
