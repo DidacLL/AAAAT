@@ -131,6 +131,8 @@
 }
 
 .candidature-recognition-cue {
+  display: block;
+  grid-template-columns: none;
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -168,9 +170,21 @@
 }
 
 .candidature-cue-content {
+  position: relative;
   display: block;
   min-width: 0;
   border-radius: 2px;
+}
+
+.candidature-recognition-cue.has-clamped-value .candidature-cue-content::after {
+  position: absolute;
+  right: 0.04rem;
+  bottom: 0;
+  padding-left: 0.35rem;
+  content: "…";
+  color: var(--muted-ink);
+  background: linear-gradient(90deg, transparent, var(--paper) 38%);
+  font-weight: 650;
 }
 
 .candidature-cue-label {
@@ -420,17 +434,17 @@
 }
 
 .candidature-corpus-card {
-  flex: 1 1 255px;
-  min-width: min(100%, 230px);
-  max-width: 320px;
+  flex: 1 1 235px;
+  min-width: min(100%, 215px);
+  max-width: 300px;
   align-self: flex-start;
   gap: 0;
   padding: 0.16rem;
 }
 
 .candidature-corpus-card-preselected {
-  flex: 1.7 1 500px;
-  max-width: min(100%, 620px);
+  flex: 1.15 1 340px;
+  max-width: min(100%, 460px);
   border-left-color: var(--focus);
   box-shadow: 0 2px 7px rgb(69 51 33 / 10%);
 }
@@ -501,30 +515,33 @@
 .candidature-cue-value {
   display: -webkit-box;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   color: var(--ink);
+  white-space: normal;
+  word-break: normal;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
-  line-height: 1.18;
+  line-height: 1.2;
 }
 
 .candidature-cue-size-compact .candidature-cue-value {
   -webkit-line-clamp: 2;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 520;
   line-height: 1.22;
 }
 
 .candidature-cue-size-normal .candidature-cue-value {
   -webkit-line-clamp: 3;
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 590;
   line-height: 1.22;
 }
 
 .candidature-cue-size-wide .candidature-cue-value {
   -webkit-line-clamp: 4;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 720;
   line-height: 1.24;
   white-space: normal;
@@ -532,15 +549,15 @@
 }
 
 .candidature-corpus-card-preselected .candidature-cue-size-compact .candidature-cue-value {
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5;
 }
 
 .candidature-corpus-card-preselected .candidature-cue-size-normal .candidature-cue-value {
-  -webkit-line-clamp: 7;
+  -webkit-line-clamp: 9;
 }
 
 .candidature-corpus-card-preselected .candidature-cue-size-wide .candidature-cue-value {
-  -webkit-line-clamp: 10;
+  -webkit-line-clamp: 14;
 }
 
 .candidature-search-match {
@@ -753,13 +770,13 @@
 
 @media (max-width: 900px) {
   .candidature-corpus-card {
-    flex-basis: 225px;
-    max-width: 300px;
+    flex-basis: 210px;
+    max-width: 270px;
   }
 
   .candidature-corpus-card-preselected {
-    flex-basis: 460px;
-    max-width: 560px;
+    flex-basis: 300px;
+    max-width: 390px;
   }
 }
 
