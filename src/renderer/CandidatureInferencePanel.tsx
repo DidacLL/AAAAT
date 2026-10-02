@@ -8,6 +8,7 @@ import type {
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
+  CandidatureRuntimeValue,
   CandidatureSource,
 } from "../shared/contracts";
 import { clearAiTask, startAiTask, useAiTask } from "./ai-task-store";
@@ -24,6 +25,15 @@ interface Props {
   readonly title: string;
   readonly allowNewFields?: boolean;
   readonly onChanged?: () => void | Promise<void>;
+}
+
+function routeReady(
+  connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>,
+): boolean {
+  return connections.some(
+    (connection) =>
+      connection.defaultForOperations.includes("job_extraction") || connection.isDefault,
+  );
 }
 
 function normalizedLabel(value: string): string {
