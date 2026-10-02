@@ -146,8 +146,11 @@ describe("application corpus inspection", () => {
     const inspectButtons = await screen.findAllByRole("button", { name: "Inspect saved application" });
     expect(inspectButtons).toHaveLength(2);
     expect(screen.queryByText("Recognition 1")).not.toBeInTheDocument();
-    expect(within(inspectButtons[0]!).getByLabelText("Related Tags")).toHaveTextContent("Reliability");
-    expect(within(inspectButtons[1]!).getByLabelText("Related Tags")).toHaveTextContent("Accessibility");
+    const firstCard = inspectButtons[0]!.closest("article")!;
+    const secondCard = inspectButtons[1]!.closest("article")!;
+    expect(within(firstCard).getByLabelText("Related Tags")).toHaveTextContent("Reliability");
+    expect(within(secondCard).getByLabelText("Related Tags")).toHaveTextContent("Accessibility");
+    expect(within(firstCard).getByText("10/2/2026")).toBeVisible();
     expect(screen.queryByText("Dependable production ownership")).not.toBeInTheDocument();
     expect(screen.queryByText("Inclusive product and interface practice")).not.toBeInTheDocument();
 
@@ -166,7 +169,7 @@ describe("application corpus inspection", () => {
       "--cue-rows": "5",
       "--cue-lines": "5",
     });
-    expect(screen.getByRole("button", { name: "Collapse saved application" }).querySelector('[aria-label="Related Tags"]')).toBeNull();
+    expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: firstId,
@@ -184,7 +187,7 @@ describe("application corpus inspection", () => {
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
     expect(screen.queryByText(/First expanded notes/)).not.toBeInTheDocument();
     expect(screen.getByText(/Second expanded notes/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Collapse saved application" }).querySelector('[aria-label="Related Tags"]')).toBeNull();
+    expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: secondId,
       tags: [expect.objectContaining({ name: "Accessibility" })],
