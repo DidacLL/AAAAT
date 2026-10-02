@@ -83,6 +83,7 @@ function CorpusRecognitionCue({
     };
 
     updateSpan();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(updateSpan);
     observer.observe(contentElement);
     return () => observer.disconnect();
