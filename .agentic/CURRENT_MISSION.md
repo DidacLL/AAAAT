@@ -93,7 +93,7 @@ Acceptance is:
 1. independent production-code audit;
 2. real rendered desktop inspection.
 
-For rendered inspection, run the actual Electron application and capture direct screenshots from the real renderer. Do not build a Playwright/screenshot test harness and do not create test-only product fixtures merely to manufacture evidence. Use normal development/demo/local data sufficient to inspect the real surfaces.
+The implementation specialist is GitHub-connector-only and does not launch Electron or capture screenshots. After the exact implementation head is returned, the orchestrator owns rendered inspection. If no local runtime is available, use a temporary Actions evidence branch/workflow against that exact head to run the real Electron app and capture direct screenshots. That evidence branch must not alter product code, must contain no visual assertions/tests, and must not be merged as product implementation. Use normal development/demo/local data sufficient to inspect the real surfaces.
 
 Rendered evidence must cover:
 - first-run Welcome;
