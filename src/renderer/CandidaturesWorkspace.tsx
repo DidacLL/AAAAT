@@ -587,7 +587,7 @@ export function CandidaturesWorkspace({
                             const footprint = candidatureCueFootprint(recognition.retainedSourceCue, preselected);
                             return {
                               "--cue-columns": footprint.columns,
-                              "--cue-rows": footprint.rows,
+                              "--cue-rows": footprint.rows + 1,
                               "--cue-lines": footprint.lines,
                             } as CSSProperties;
                           })()}
