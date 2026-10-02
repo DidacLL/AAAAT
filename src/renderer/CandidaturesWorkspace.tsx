@@ -783,7 +783,7 @@ export function CandidaturesWorkspace({
                       <label className="candidature-prominence-control">
                         Corpus card prominence
                         <select
-                          aria-label={`${field.definition.label} card size`}
+                          aria-label={`${field.definition.label} corpus card prominence`}
                           value={field.preferences.presentationSize}
                           onChange={(event) =>
                             void updateFieldPreference(field, {
