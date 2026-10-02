@@ -57,33 +57,39 @@ function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaa
   return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
 }
 
-function preferredCueWidth(
+function preferredCueRatio(
   cue: CandidatureRecognitionCue,
   containerWidth: number,
   expanded: boolean,
   textElement: HTMLElement,
 ): number {
   const styles = getComputedStyle(textElement);
+  const fontSize = Number.parseFloat(styles.fontSize) || 14;
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   if (context) context.font = styles.font || `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
-  const measured = context?.measureText(cue.value).width ?? cue.value.length * 7;
-  const narrow = containerWidth < 340;
+  const intrinsicWidth = context?.measureText(cue.value).width ?? cue.value.length * fontSize * 0.52;
+  const readableMeasure = (
+    cue.presentationSize === "wide" ? 30 :
+    cue.presentationSize === "normal" ? 18 :
+    11
+  ) * fontSize;
+  const readableRatio = readableMeasure / Math.max(containerWidth, 1);
+  const contentRatio = (intrinsicWidth + fontSize * 1.2) / Math.max(containerWidth, 1);
 
-  if (cue.presentationSize === "wide") {
-    if (narrow) return containerWidth;
-    const minimum = containerWidth * (expanded ? 0.5 : 0.58);
-    const maximum = containerWidth * (expanded ? 0.82 : 0.78);
-    return Math.min(maximum, Math.max(minimum, measured * 1.9 + 24));
-  }
-  if (cue.presentationSize === "normal") {
-    const minimum = Math.min(containerWidth, Math.max(126, containerWidth * 0.34));
-    const maximum = containerWidth * (expanded ? 0.58 : 0.52);
-    return Math.min(maximum, Math.max(minimum, measured * 1.25 + 18));
-  }
-  const minimum = Math.min(containerWidth, Math.max(88, containerWidth * 0.23));
-  const maximum = containerWidth * (expanded ? 0.4 : 0.34);
-  return Math.min(maximum, Math.max(minimum, measured + 14));
+  const [minimum, maximum] = cue.presentationSize === "wide"
+    ? [expanded ? 0.48 : 0.56, expanded ? 0.86 : 0.9]
+    : cue.presentationSize === "normal"
+      ? [expanded ? 0.3 : 0.34, expanded ? 0.58 : 0.54]
+      : [expanded ? 0.2 : 0.22, expanded ? 0.4 : 0.36];
+
+  return Math.min(
+    1,
+    Math.max(
+      minimum,
+      Math.min(maximum, Math.max(readableRatio, contentRatio)),
+    ),
+  );
 }
 
 function CorpusRecognitionLayout({
@@ -115,58 +121,60 @@ function CorpusRecognitionLayout({
         return;
       }
 
-      const gap = 5;
-      const unit = 5;
-      const columnCount = Math.max(1, Math.floor((containerWidth + gap) / unit));
-      const skyline = Array<number>(columnCount).fill(0);
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const gapX = rootFontSize * 0.32;
+      const gapY = rootFontSize * 0.18;
+      const gapRatio = gapX / containerWidth;
       container.classList.add("is-packed");
 
-      for (const item of items) {
+      const prepared = items.flatMap((item) => {
         const cueIndex = Number(item.dataset.cueIndex ?? "0");
         const cue = cues[cueIndex];
         const textElement = item.querySelector<HTMLElement>(".candidature-cue-value");
-        if (!cue || !textElement) continue;
+        if (!cue || !textElement) return [];
+        const ratio = preferredCueRatio(cue, containerWidth, expanded, textElement);
+        item.style.width = `${String(ratio * 100)}%`;
+        item.style.left = "0";
+        item.style.top = "0";
+        return [{ item, ratio }];
+      });
 
-        const width = Math.min(
-          containerWidth,
-          Math.max(unit * 8, preferredCueWidth(cue, containerWidth, expanded, textElement)),
-        );
-        item.style.width = `${String(width)}px`;
-        item.style.left = "0px";
-        item.style.top = "0px";
-      }
+      const placed: Array<{ readonly left: number; readonly right: number; readonly bottom: number }> = [];
+      let containerHeight = 0;
 
-      for (const item of items) {
-        const width = item.getBoundingClientRect().width;
+      for (const { item, ratio } of prepared) {
         const height = item.getBoundingClientRect().height;
-        const occupiedColumns = Math.min(
-          columnCount,
-          Math.max(1, Math.ceil((width + gap) / unit)),
-        );
+        const candidates = new Set<number>([0, Math.max(0, 1 - ratio)]);
+        for (const rectangle of placed) {
+          candidates.add(Math.min(1 - ratio, rectangle.right + gapRatio));
+          candidates.add(Math.max(0, rectangle.left - ratio - gapRatio));
+        }
 
-        let bestColumn = 0;
+        let bestLeft = 0;
         let bestTop = Number.POSITIVE_INFINITY;
-        for (let column = 0; column <= columnCount - occupiedColumns; column += 1) {
-          let candidateTop = 0;
-          for (let offset = 0; offset < occupiedColumns; offset += 1) {
-            candidateTop = Math.max(candidateTop, skyline[column + offset] ?? 0);
+        for (const candidate of candidates) {
+          if (candidate < 0 || candidate + ratio > 1.0001) continue;
+          let top = 0;
+          for (const rectangle of placed) {
+            const overlapsHorizontally =
+              candidate < rectangle.right + gapRatio &&
+              candidate + ratio + gapRatio > rectangle.left;
+            if (overlapsHorizontally) top = Math.max(top, rectangle.bottom + gapY);
           }
-          if (candidateTop < bestTop) {
-            bestTop = candidateTop;
-            bestColumn = column;
+          if (top < bestTop - 0.5 || (Math.abs(top - bestTop) <= 0.5 && candidate < bestLeft)) {
+            bestTop = top;
+            bestLeft = candidate;
           }
         }
 
-        const left = bestColumn * unit;
-        item.style.left = `${String(left)}px`;
+        item.style.left = `${String(bestLeft * 100)}%`;
         item.style.top = `${String(bestTop)}px`;
-        const nextHeight = bestTop + height + gap;
-        for (let offset = 0; offset < occupiedColumns; offset += 1) {
-          skyline[bestColumn + offset] = nextHeight;
-        }
+        const bottom = bestTop + height;
+        placed.push({ left: bestLeft, right: bestLeft + ratio, bottom });
+        containerHeight = Math.max(containerHeight, bottom);
       }
 
-      container.style.height = `${String(Math.max(0, ...skyline) - gap)}px`;
+      container.style.height = `${String(containerHeight)}px`;
     };
 
     layout();
