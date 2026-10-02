@@ -153,6 +153,40 @@
   }
 
   .tag-visor {
-    max-width: 34rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    max-width: none;
+    align-items: center;
+    gap: 0.28rem 0.45rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .tag-visor-heading {
+    align-items: center;
+  }
+
+  .tag-visor-heading span,
+  .tag-visor-message,
+  .tag-visor-results,
+  .tag-visor-readout {
+    display: none;
+  }
+
+  .tag-visor-search {
+    grid-column: 2;
+  }
+
+  .tag-visor:focus-within {
+    align-items: start;
+  }
+
+  .tag-visor:focus-within .tag-visor-message {
+    display: block;
+    grid-column: 1 / -1;
+  }
+
+  .tag-visor:focus-within .tag-visor-results,
+  .tag-visor:focus-within .tag-visor-readout {
+    display: grid;
+    grid-column: 1 / -1;
   }
 }
