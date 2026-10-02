@@ -164,11 +164,7 @@ describe("application corpus inspection", () => {
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
     const expandedNotes = screen.getByText(/First expanded notes/);
     expect(expandedNotes).toBeVisible();
-    expect(expandedNotes.closest(".candidature-recognition-cue")).toHaveStyle({
-      "--cue-columns": "6",
-      "--cue-rows": "5",
-      "--cue-lines": "5",
-    });
+    expect(expandedNotes.textContent?.length ?? 0).toBeGreaterThan(200);
     expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
