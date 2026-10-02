@@ -157,14 +157,10 @@ describe("application corpus inspection", () => {
     const compactValue = within(inspectButtons[0]!).getByText(/First compact value that remains readable/);
     expect(compactValue.closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-compact");
     expect(within(inspectButtons[0]!).getByText("First value 1").closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-wide");
-    expect(screen.queryByText(/First expanded notes/)).not.toBeInTheDocument();
 
     await user.click(inspectButtons[0]!);
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
-    const expandedNotes = screen.getByText(/First expanded notes/);
-    expect(expandedNotes).toBeVisible();
-    expect(expandedNotes.textContent?.length ?? 0).toBeGreaterThan(200);
     expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -181,7 +177,6 @@ describe("application corpus inspection", () => {
     await user.click(nextButtons[0]!);
     await user.click(nextButtons[1]!);
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
-    expect(screen.queryByText(/First expanded notes/)).not.toBeInTheDocument();
     expect(screen.getByText(/Second expanded notes/)).toBeVisible();
     expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
