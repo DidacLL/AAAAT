@@ -451,7 +451,7 @@
   grid-auto-rows: 1px;
   grid-auto-flow: dense;
   align-items: start;
-  gap: 3px 0.5rem;
+  gap: 3px 0.38rem;
 }
 
 .candidature-recognition-cue {
@@ -466,7 +466,7 @@
 }
 
 .candidature-cue-size-compact {
-  grid-column: span 4;
+  grid-column: span 3;
   opacity: 0.82;
 }
 
