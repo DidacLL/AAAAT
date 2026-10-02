@@ -507,6 +507,12 @@ describe("candidature field cohesion", () => {
     await user.type(description, "Role being pursued");
     await waitFor(() => expect(dirty).toHaveBeenLastCalledWith(true));
 
+    await user.click(within(card).getByLabelText("Configure Role"));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved application edits?");
+    expect(name).toHaveValue("Target role");
+    expect(within(card).getByLabelText("Configure Role").closest("details")).toHaveAttribute("open");
+    confirm.mockClear();
+
     const companyCard = screen.getByRole("article", { name: "Company information" });
     await user.click(within(companyCard).getByLabelText("Configure Company"));
     expect(confirm).toHaveBeenCalledWith("Discard unsaved application edits?");

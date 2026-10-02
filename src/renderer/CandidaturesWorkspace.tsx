@@ -15,7 +15,7 @@ import { CandidatureBulkAiReview } from "./CandidatureBulkAiReview";
 import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
-import { CandidatureInferencePanel, candidatureInferenceContext } from "./CandidatureInferencePanel";
+import { CandidatureInferencePanel } from "./CandidatureInferencePanel";
 import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
 import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
@@ -31,6 +31,7 @@ import {
   type RecencyFilter,
 } from "./candidature-projections";
 import { clearAiTask, getAiTask } from "./ai-task-store";
+import { candidatureInferenceContext } from "./candidature-inference-context";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
 import "./candidature-recovery.css";
