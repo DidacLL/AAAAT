@@ -532,6 +532,7 @@ export function CandidaturesWorkspace({
           <div className="candidature-corpus-grid" aria-label="Application corpus">
             {visibleRecords.map((record) => {
               const preselected = preselectedId === record.id;
+              const recordTags = tags.filter((tag) => record.tagIds.includes(tag.id));
               const recognition = candidatureCardRecognitionProjection(record, fields, preselected);
               const primaryCues = recognition.primaryCues;
               const searchMatchCue =
@@ -582,6 +583,13 @@ export function CandidaturesWorkspace({
                       <span className="candidature-search-match">
                         <span>{distinctSearchCue.label}</span>
                         <span>{distinctSearchCue.value}</span>
+                      </span>
+                    ) : null}
+                    {!preselected && recordTags.length > 0 ? (
+                      <span className="candidature-collapsed-tags" aria-label="Related Tags">
+                        {recordTags.map((tag) => (
+                          <span className="candidature-collapsed-tag" key={tag.id}>{tag.name}</span>
+                        ))}
                       </span>
                     ) : null}
                     <time dateTime={record.createdAt}>
