@@ -1025,6 +1025,11 @@ export function CandidaturesWorkspace({
         >
           {selected.archived ? "Restore" : "Archive"}
         </button>
+        {enabledMissingFields.length > 0 ? (
+          <button type="button" className="compact-secondary" onClick={() => setBulkInferenceOpen(true)}>
+            Ask AI to fill missing information
+          </button>
+        ) : null}
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
@@ -1068,11 +1073,6 @@ export function CandidaturesWorkspace({
             <p className="eyebrow">Information</p>
             <h3>Remaining information</h3>
           </div>
-          {enabledMissingFields.length > 0 ? (
-            <button type="button" className="compact-secondary" onClick={() => setBulkInferenceOpen(true)}>
-              Ask AI to fill missing information
-            </button>
-          ) : null}
         </div>
         <CandidatureBulkAiReview candidature={selected} fields={fields} onRetry={() => setBulkInferenceOpen(true)} />
         {remainingFields.length === 0 ? (
