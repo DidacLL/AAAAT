@@ -599,3 +599,155 @@
 .candidature-corpus-card .candidature-cue-size-wide .candidature-cue-value {
   font-weight: 760;
 }
+
+/* Product Owner correction: recognition is typographic and adaptive, not a schema grid. */
+.candidature-recognition-cues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+}
+
+.candidature-corpus-card .candidature-recognition-cue {
+  flex: 1 1 10rem;
+  min-width: min(100%, 8rem);
+  padding: 0.08rem 0;
+}
+
+.candidature-corpus-card .candidature-cue-size-compact {
+  flex: 0.7 1 8rem;
+  opacity: 0.82;
+}
+
+.candidature-corpus-card .candidature-cue-size-normal {
+  flex: 1 1 11rem;
+}
+
+.candidature-corpus-card .candidature-cue-size-wide {
+  flex: 1 1 100%;
+  padding-block: 0.12rem;
+}
+
+.candidature-corpus-card .candidature-cue-value,
+.candidature-corpus-card .candidature-cue-size-compact .candidature-cue-value {
+  -webkit-line-clamp: 2;
+  font-size: 0.82rem;
+  font-weight: 620;
+  line-height: 1.28;
+}
+
+.candidature-corpus-card .candidature-cue-size-normal .candidature-cue-value {
+  -webkit-line-clamp: 3;
+  font-size: 0.88rem;
+  font-weight: 680;
+}
+
+.candidature-corpus-card .candidature-cue-size-wide .candidature-cue-value {
+  -webkit-line-clamp: 4;
+  font-size: 0.96rem;
+  font-weight: 760;
+  line-height: 1.32;
+}
+
+.candidature-corpus-inspection {
+  padding: 0.18rem 0 0;
+}
+
+.candidature-corpus-open-strip {
+  width: 100%;
+  min-height: 1.8rem;
+  padding: 0.22rem 0.55rem;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--ink);
+  background: rgb(178 143 105 / 10%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-align: center;
+}
+
+.candidature-corpus-open-strip:hover,
+.candidature-corpus-open-strip:focus-visible {
+  background: rgb(178 143 105 / 18%);
+}
+
+.candidature-information-unit {
+  padding: 0.48rem 0.18rem 0.58rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.candidature-information-unit-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.candidature-information-unit-heading h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.candidature-information-unit-heading > div:first-child > p {
+  margin: 0.12rem 0 0;
+  color: var(--muted-ink);
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.candidature-field-context-controls {
+  flex-wrap: nowrap;
+  gap: 0.14rem;
+}
+
+.candidature-field-context-controls .candidature-icon-button {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0.18rem 0.3rem;
+}
+
+.candidature-ai-sparkle {
+  font-size: 0.92rem;
+}
+
+.candidature-field-ai-preflight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted-ink);
+  font-size: 0.76rem;
+}
+
+.candidature-field-ai-preflight .compact-secondary {
+  min-height: 1.75rem;
+  padding-block: 0.2rem;
+}
+
+@media (max-width: 760px) {
+  .candidature-recognition-cues {
+    display: flex;
+  }
+
+  .candidature-corpus-card .candidature-recognition-cue,
+  .candidature-corpus-card .candidature-cue-size-compact,
+  .candidature-corpus-card .candidature-cue-size-normal,
+  .candidature-corpus-card .candidature-cue-size-wide {
+    flex-basis: min(100%, 10rem);
+    min-width: 0;
+  }
+
+  .candidature-corpus-card .candidature-cue-size-wide {
+    flex-basis: 100%;
+  }
+}
