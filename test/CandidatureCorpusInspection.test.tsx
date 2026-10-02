@@ -77,7 +77,9 @@ function record(id: string, prefix: string, tagId: string): CandidatureRecord {
       fieldId,
       value: index === 1
         ? `${prefix} compact value that remains readable across multiple words ${index + 1}`
-        : `${prefix} value ${index + 1}`,
+        : index === 4
+          ? `${prefix} expanded notes ${"detail ".repeat(40).trim()}`
+          : `${prefix} value ${index + 1}`,
       createdAt: now,
       updatedAt: now,
     })),
@@ -152,12 +154,18 @@ describe("application corpus inspection", () => {
     const compactValue = within(inspectButtons[0]!).getByText(/First compact value that remains readable/);
     expect(compactValue.closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-compact");
     expect(within(inspectButtons[0]!).getByText("First value 1").closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-wide");
-    expect(screen.queryByText("First value 5")).not.toBeInTheDocument();
+    expect(screen.queryByText(/First expanded notes/)).not.toBeInTheDocument();
 
     await user.click(inspectButtons[0]!);
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
-    expect(screen.getByText("First value 5")).toBeVisible();
+    const expandedNotes = screen.getByText(/First expanded notes/);
+    expect(expandedNotes).toBeVisible();
+    expect(expandedNotes.closest(".candidature-recognition-cue")).toHaveStyle({
+      "--cue-columns": "6",
+      "--cue-rows": "5",
+      "--cue-lines": "5",
+    });
     expect(screen.getByRole("button", { name: "Collapse saved application" }).querySelector('[aria-label="Related Tags"]')).toBeNull();
     expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -174,8 +182,8 @@ describe("application corpus inspection", () => {
     await user.click(nextButtons[0]!);
     await user.click(nextButtons[1]!);
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
-    expect(screen.queryByText("First value 5")).not.toBeInTheDocument();
-    expect(screen.getByText("Second value 5")).toBeVisible();
+    expect(screen.queryByText(/First expanded notes/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Second expanded notes/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Collapse saved application" }).querySelector('[aria-label="Related Tags"]')).toBeNull();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: secondId,
