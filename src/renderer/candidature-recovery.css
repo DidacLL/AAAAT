@@ -591,17 +591,21 @@
 }
 
 @media (max-width: 900px) {
-  .candidature-corpus-card,
+  .candidature-corpus-card {
+    flex-basis: 235px;
+    max-width: 310px;
+  }
+
   .candidature-corpus-card-preselected {
-    flex-basis: 210px;
-    max-width: 270px;
+    flex-basis: 300px;
+    max-width: 420px;
   }
 }
 
 @media (min-width: 1400px) {
   .candidature-corpus-card-preselected {
-    flex-basis: 390px;
-    max-width: 500px;
+    flex-basis: 430px;
+    max-width: 620px;
   }
 }
 
