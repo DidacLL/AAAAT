@@ -30,9 +30,11 @@ Do not reopen these accepted boundaries unless #395 implementation directly expo
 
 Real desktop use exposed one coherent UX-model problem, not a set of cosmetic micro-defects.
 
-### Applications corpus: recognize → inspect → edit
+### Applications corpus: recognize → filter → inspect → edit
 
 The current corpus jumps directly from a compact card to the full editor and visually decomposes applications into rigid field boxes.
+
+Retrieval also needs a compact recency control: add a `From` selector beside Search/archive with Last 24h / 48h / 72h / week / month / All. All is default. Filter on candidature `createdAt` using rolling 24/48/72-hour, 7-day and 30-day windows; intersect with Search and archive filtering. Do not use `updatedAt`, a configurable application-date field, a date picker, schema changes or persistence.
 
 Required model:
 1. compact card for recognition;
@@ -112,6 +114,7 @@ Do not add:
 ## Acceptance
 
 Focused evidence must prove:
+- From defaults to All and creation-time windows intersect correctly with Search and Current/Archived/All;
 - first corpus activation preselects/expands only;
 - second activation or explicit Open enters the exact application;
 - one preselected card at a time;
