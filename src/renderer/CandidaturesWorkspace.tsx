@@ -851,14 +851,6 @@ export function CandidaturesWorkspace({
         </details>
       </section>
 
-      {initialTask ? null : (
-        <CandidatureOpportunityResearchAccessPanel
-          key={`external-research-${selected.id}`}
-          candidatureId={selected.id}
-          contextDirty={taskContextDirty}
-        />
-      )}
-
       <section className="section-surface candidature-tags-direct" aria-label="Tags">
         <div className="candidature-editor-heading">
           <div>
@@ -1033,6 +1025,13 @@ export function CandidaturesWorkspace({
               candidatureId={selected.id}
               onSourcesChanged={() => void handleSourcesChanged()}
               onDirtyChange={setSourceDirty}
+            />
+          )}
+          {initialTask ? null : (
+            <CandidatureOpportunityResearchAccessPanel
+              key={`external-research-${selected.id}`}
+              candidatureId={selected.id}
+              contextDirty={taskContextDirty}
             />
           )}
 
