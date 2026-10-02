@@ -144,8 +144,10 @@ describe("application corpus inspection", () => {
     const inspectButtons = await screen.findAllByRole("button", { name: "Inspect saved application" });
     expect(inspectButtons).toHaveLength(2);
     expect(screen.queryByText("Recognition 1")).not.toBeInTheDocument();
-    expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
+    expect(within(inspectButtons[0]!).getByLabelText("Related Tags")).toHaveTextContent("Reliability");
+    expect(within(inspectButtons[1]!).getByLabelText("Related Tags")).toHaveTextContent("Accessibility");
     expect(screen.queryByText("Dependable production ownership")).not.toBeInTheDocument();
+    expect(screen.queryByText("Inclusive product and interface practice")).not.toBeInTheDocument();
 
     const compactValue = within(inspectButtons[0]!).getByText(/First compact value that remains readable/);
     expect(compactValue.closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-compact");
@@ -156,6 +158,7 @@ describe("application corpus inspection", () => {
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
     expect(screen.getByText("First value 5")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Collapse saved application" }).querySelector('[aria-label="Related Tags"]')).toBeNull();
     expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: firstId,
@@ -173,6 +176,7 @@ describe("application corpus inspection", () => {
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
     expect(screen.queryByText("First value 5")).not.toBeInTheDocument();
     expect(screen.getByText("Second value 5")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Collapse saved application" }).querySelector('[aria-label="Related Tags"]')).toBeNull();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: secondId,
       tags: [expect.objectContaining({ name: "Accessibility" })],
