@@ -966,3 +966,26 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Collapsed cards expose Tag identity; expanded context delegates Tag detail to the rail monitor. */
+.candidature-collapsed-tags {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.16rem 0.22rem;
+  padding-top: 0.22rem;
+  border-top: 1px solid rgb(120 96 67 / 14%);
+}
+
+.candidature-collapsed-tag {
+  max-width: 100%;
+  padding: 0.08rem 0.28rem;
+  border: 1px solid rgb(120 96 67 / 26%);
+  border-radius: 999px;
+  color: var(--muted-ink);
+  background: rgb(255 255 255 / 28%);
+  font-size: 0.61rem;
+  font-weight: 560;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
