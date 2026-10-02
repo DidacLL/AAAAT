@@ -582,14 +582,17 @@
 .working-cv-composition {
   display: grid;
   gap: 12px;
-  padding: 14px 16px 12px;
-  border: 1px solid var(--line);
+  padding: clamp(18px, 2.4vw, 30px) clamp(18px, 3.2vw, 38px);
+  border: 1px solid #aaa18e;
   border-left: 4px solid var(--rust);
-  border-radius: 5px;
+  border-radius: 2px 5px 3px 4px;
+  color: #202724;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 26%), transparent 18%),
-    #f7eedf;
-  box-shadow: 0 1px 0 rgb(82 61 39 / 8%);
+    linear-gradient(180deg, rgb(255 255 255 / 42%), transparent 18%),
+    var(--paper-sheet);
+  box-shadow: var(--paper-shadow);
+  font-family: var(--document-font);
+  line-height: 1.46;
 }
 
 .working-cv-sections,
@@ -1105,4 +1108,22 @@
   .working-cv-items {
     padding-left: 0;
   }
+}
+
+
+.working-cv-composition button,
+.working-cv-composition input,
+.working-cv-composition select,
+.working-cv-composition textarea,
+.working-cv-composition summary {
+  font-family: var(--ui-font);
+}
+.working-cv-composition .working-cv-section-title h2,
+.working-cv-composition .working-cv-section > h4 { letter-spacing: 0.01em; }
+.documents-sidebar .section-heading,
+.document-local-nav,
+.working-cv-document-details > summary,
+.working-cv-reuse > summary,
+.working-cv-add-section > summary {
+  font-family: var(--machine-font);
 }

@@ -1,27 +1,37 @@
 :root {
-  color: #243038;
-  background: #8f9181;
+  color: #202a28;
+  background: #252e2a;
   color-scheme: light;
-  font-family: "Segoe UI", Inter, Arial, sans-serif;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --canvas: #8f9181;
-  --paper: #e9dfc8;
-  --paper-strong: #f3ead8;
-  --panel: #777d6e;
-  --panel-deep: #596157;
-  --machine: #343b36;
-  --machine-edge: #5e665d;
+  --ui-font: "Segoe UI", Tahoma, Arial, sans-serif;
+  --machine-font: "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
+  --document-font: Georgia, Cambria, "Times New Roman", serif;
+  --canvas: #6f766b;
+  --paper: #eadfc9;
+  --paper-strong: #f5ecdc;
+  --paper-sheet: #fbf5e8;
+  --panel: #717968;
+  --panel-deep: #505a50;
+  --machine: #303934;
+  --machine-raised: #3d4740;
+  --machine-deep: #222a26;
+  --machine-edge: #676f66;
+  --machine-highlight: #8f9589;
   --ink: #1d2827;
   --muted-ink: #58625d;
-  --line: #7c806f;
-  --line-soft: #b9b59f;
+  --line: #7d806f;
+  --line-soft: #bab59f;
   --accent: #b6542b;
   --accent-dark: #803b23;
   --rust: #a65330;
-  --focus: #397c7a;
+  --focus: #2f7776;
   --olive: #6d7450;
-  --paper-shadow: 0 2px 0 rgb(25 31 27 / 18%);
+  --teal: #4d7772;
+  --paper-shadow: 0 2px 0 rgb(25 31 27 / 18%), 0 10px 24px rgb(24 27 22 / 8%);
+  --machine-inset: inset 1px 1px 0 rgb(255 255 255 / 12%), inset -1px -1px 0 rgb(0 0 0 / 24%);
+  --machine-shadow: 0 2px 0 rgb(24 29 26 / 28%);
 }
 
 * {
@@ -40,10 +50,13 @@ body {
   min-height: 100vh;
   overflow: hidden;
   color: var(--ink);
-  background:
-    linear-gradient(90deg, rgb(18 24 21 / 7%) 1px, transparent 1px) 0 0 / 24px 24px,
-    linear-gradient(rgb(18 24 21 / 7%) 1px, transparent 1px) 0 0 / 24px 24px,
-    var(--canvas);
+  background-color: var(--machine-deep);
+  background-image:
+    linear-gradient(135deg, rgb(27 33 29 / 48%), rgb(48 55 48 / 22%)),
+    url("./assets/aaaat-bg-machine.png");
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 button,
@@ -83,28 +96,31 @@ summary:focus-visible {
 .app-header {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #9f8c71;
-  color: var(--ink);
+  border-bottom: 1px solid #1d2521;
+  color: #efe5cc;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 18%), transparent 44%),
-    #3b433d;
-  box-shadow: inset 0 -2px 0 rgb(92 70 45 / 8%);
+    linear-gradient(180deg, rgb(255 255 255 / 13%), transparent 44%),
+    linear-gradient(90deg, var(--machine-raised), var(--machine) 62%, var(--machine-deep));
+  box-shadow: var(--machine-inset), 0 2px 0 rgb(20 24 21 / 24%);
 }
 
 .brand-mark {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #9f8b70;
-  border-radius: 50%;
-  background: var(--paper);
-  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 35%);
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border: 1px solid var(--machine-highlight);
+  border-radius: 8px 3px 8px 3px;
+  background: var(--machine-deep);
+  box-shadow: var(--machine-inset);
 }
 
 .brand-name {
   color: #efe5cc;
-  font-size: 18px;
-  font-weight: 750;
-  letter-spacing: 0.035em;
+  font-family: var(--machine-font);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 .empty-state {
@@ -538,4 +554,25 @@ button:disabled {
   .secondary-action {
     transition: none;
   }
+}
+
+
+/* Shared material roles keep machine framing distinct from readable dossier content. */
+.console-section-code,
+.eyebrow,
+.rail-workspace span,
+.primary-work-nav::before,
+.loaded-home-workspace > span {
+  font-family: var(--machine-font);
+  font-stretch: condensed;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.section-surface,
+.source-card,
+.source-reader,
+.professional-information-item,
+.loaded-home-recent {
+  background-color: var(--paper);
 }

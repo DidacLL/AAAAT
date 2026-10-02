@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiTaskStatus } from "./AiTaskStatus";
-import logo from "./assets/aaaat-logo-light.png";
+import logoMachine from "./assets/aaaat-logo-dark.png";
+import logoPaper from "./assets/aaaat-logo-light.png";
+import loadingMachine from "./assets/aaaat-loading-dark.png";
 import { CandidaturesAiWorkspace } from "./CandidaturesAiWorkspace";
 import { CareerContextPanel } from "./CareerContextPanel";
 import {
@@ -454,8 +456,12 @@ export function App() {
     !welcomeOpen && !settingsOpen && productView === "documents" && !documentHandoff?.candidatureId;
 
   const welcomeContent = (
-    <>
-      <img className="hero-logo" src={logo} alt="AAAAT explorer robot holding a magnifying glass" />
+    <div className="welcome-console">
+      <img
+        className={loading ? "startup-art" : "hero-logo"}
+        src={loading ? loadingMachine : logoPaper}
+        alt={loading ? "AAAAT starting up" : "AAAAT explorer robot holding a magnifying glass"}
+      />
       <p className="tagline">Your application work, on your computer.</p>
       <h1>{loading ? "Checking your workspace…" : "Welcome to AAAAT"}</h1>
       <p>Open your saved work or start a local workspace.</p>
@@ -476,7 +482,7 @@ export function App() {
         </>
       )}
       {workspaceError ? <p className="error-message" role="alert">{workspaceError}</p> : null}
-    </>
+    </div>
   );
 
   const loadedHomeContent = workspace ? (
@@ -495,7 +501,7 @@ export function App() {
       <div className="app-shell">
         <header className="app-header">
           <div className="brand-lockup">
-            <img className="brand-mark" src={logo} alt="" />
+            <img className="brand-mark" src={logoMachine} alt="" />
             <span className="brand-name">AAAAT</span>
           </div>
         </header>
@@ -603,7 +609,7 @@ export function App() {
             </div>
           </main>
         ) : (
-          <main className="empty-state">{welcomeContent}</main>
+          <main className={loading ? "empty-state startup-state" : "empty-state first-run-state"}>{welcomeContent}</main>
         )}
       </div>
     </ContextualHandoffContext.Provider>
