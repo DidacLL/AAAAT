@@ -52,6 +52,9 @@ function tagDraft(tag: TagRecord): TagInput {
   return { name: tag.name, definition: tag.definition, notes: tag.notes ?? "", aliases: tag.aliases };
 }
 function normalizedTagText(value: string): string { return value.trim().toLocaleLowerCase(); }
+function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>): boolean {
+  return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
+}
 
 export function CandidaturesWorkspace({
   initialSelection,
@@ -66,7 +69,7 @@ export function CandidaturesWorkspace({
   readonly onTagGlossaryChange?: () => void;
   readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
-  const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
+  const { documentHandoff, openDocumentFromCandidature, openSettingsFor } = useContextualHandoffs();
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
@@ -92,6 +95,8 @@ export function CandidaturesWorkspace({
   const [activeFieldEditorId, setActiveFieldEditorId] = useState<string | null>(null);
   const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
+  const [fieldAiUnavailableId, setFieldAiUnavailableId] = useState<string | null>(null);
+  const [openFieldOptionsId, setOpenFieldOptionsId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
@@ -120,7 +125,7 @@ export function CandidaturesWorkspace({
     setSelectedTagId(record?.tagIds[0] ?? null);
     setTagQuery(""); setSourceDirty(false); setValueEditorDirty(new Set());
     setActiveFieldEditorId(null);
-    setFieldDefinitionsDirty(false); setDiscoveryFieldId(null); setBulkInferenceOpen(false);
+    setFieldDefinitionsDirty(false); setDiscoveryFieldId(null); setFieldAiUnavailableId(null); setOpenFieldOptionsId(null); setBulkInferenceOpen(false);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
     setApplicationCvSource("profile"); setPacketRenderedCvId(""); setPacketLetterId("");
@@ -221,11 +226,7 @@ export function CandidaturesWorkspace({
     setMode("selected");
   };
   const inspectRecord = (record: CandidatureRecord) => {
-    if (preselectedId === record.id) {
-      openRecord(record);
-      return;
-    }
-    setPreselectedId(record.id);
+    setPreselectedId((current) => current === record.id ? null : record.id);
     setError(null);
   };
   const returnToCorpus = () => {
@@ -282,6 +283,34 @@ export function CandidaturesWorkspace({
       throw reason;
     }
   };
+  const requestFieldInference = async (field: CandidatureFieldConfiguration) => {
+    if (!field.preferences.aiUseAllowed) return;
+    setFieldAiUnavailableId(null);
+    try {
+      const connections = await window.aaaat.aiConnections.list();
+      if (!hasJobExtractionRoute(connections)) {
+        setDiscoveryFieldId(null);
+        setFieldAiUnavailableId(field.definition.id);
+        return;
+      }
+      setDiscoveryFieldId(field.definition.id);
+    } catch {
+      setDiscoveryFieldId(null);
+      setFieldAiUnavailableId(field.definition.id);
+    }
+  };
+
+  useEffect(() => {
+    if (!openFieldOptionsId) return;
+    const closeOptions = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".candidature-field-options")) return;
+      setOpenFieldOptionsId(null);
+    };
+    document.addEventListener("pointerdown", closeOptions);
+    return () => document.removeEventListener("pointerdown", closeOptions);
+  }, [openFieldOptionsId]);
+
   const refreshInformation = async () => {
     try {
       const [nextFields, nextRecords, nextTags] = await Promise.all([
@@ -435,7 +464,15 @@ export function CandidaturesWorkspace({
 
   if (mode === "corpus") {
     return (
-      <section className="candidatures-workspace candidature-corpus" aria-label="Applications">
+      <section
+        className="candidatures-workspace candidature-corpus"
+        aria-label="Applications"
+        onClick={(event) => {
+          if (preselectedId && event.target instanceof Element && !event.target.closest(".candidature-corpus-card")) {
+            setPreselectedId(null);
+          }
+        }}
+      >
         <header className="candidature-toolbar">
           <div>
             <h2>Applications</h2>
@@ -497,7 +534,6 @@ export function CandidaturesWorkspace({
               const preselected = preselectedId === record.id;
               const recognition = candidatureRecognitionProjection(record, fields, preselected ? 8 : 4);
               const primaryCues = recognition.primaryCues;
-              const recordTags = tags.filter((tag) => record.tagIds.includes(tag.id));
               const searchMatchCue =
                 normalizedQuery && textMatches?.has(record.id)
                   ? candidatureSearchMatchCue(record, fields, tags, normalizedQuery)
@@ -518,7 +554,7 @@ export function CandidaturesWorkspace({
                     type="button"
                     className="candidature-corpus-entry"
                     aria-expanded={preselected}
-                    aria-label={preselected ? "Open saved application" : "Inspect saved application"}
+                    aria-label={preselected ? "Collapse saved application" : "Inspect saved application"}
                     onClick={() => inspectRecord(record)}
                   >
                     {primaryCues.length > 0 ? (
@@ -528,7 +564,6 @@ export function CandidaturesWorkspace({
                             className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
                             key={cue.fieldId}
                           >
-                            <span className="candidature-cue-label">{cue.label}</span>
                             <span className="candidature-cue-value">{cue.value}</span>
                           </span>
                         ))}
@@ -543,13 +578,6 @@ export function CandidaturesWorkspace({
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
                     )}
-                    {recordTags.length > 0 ? (
-                      <span className="candidature-corpus-tags" aria-label="Attached Tags">
-                        {recordTags.map((tag) => (
-                          <span className="candidature-corpus-tag" key={tag.id}>{tag.name}</span>
-                        ))}
-                      </span>
-                    ) : null}
                     {distinctSearchCue ? (
                       <span className="candidature-search-match">
                         <span>{distinctSearchCue.label}</span>
@@ -562,16 +590,12 @@ export function CandidaturesWorkspace({
                   </button>
                   {preselected ? (
                     <div className="candidature-corpus-inspection" aria-label="Application inspection">
-                      {recordTags.length > 0 ? (
-                        <div className="candidature-inspection-tags" aria-label="Tag meanings">
-                          {recordTags.map((tag) => (
-                            <p key={tag.id}><strong>{tag.name}</strong><span>{tag.definition}</span></p>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="compact-help">No Tags attached.</p>
-                      )}
-                      <button type="button" className="compact-primary" aria-label="Open application" onClick={() => openRecord(record)}>
+                      <button
+                        type="button"
+                        className="candidature-corpus-open-strip"
+                        aria-label="Open application"
+                        onClick={() => openRecord(record)}
+                      >
                         Open / Edit
                       </button>
                     </div>
@@ -681,7 +705,7 @@ export function CandidaturesWorkspace({
             <h4>{field.definition.label}</h4>
             {field.definition.description ? <p>{field.definition.description}</p> : null}
           </div>
-          <div className="candidature-field-context-controls">
+          <div className="candidature-field-context-controls" role="group" aria-label={`${field.definition.label} field controls`}>
             <button
               type="button"
               className="candidature-icon-button candidature-ai-use-eye"
@@ -692,7 +716,30 @@ export function CandidaturesWorkspace({
             >
               <span aria-hidden="true">👁</span>
             </button>
-            <details className="candidature-field-options">
+            <button
+              type="button"
+              className="candidature-icon-button candidature-ai-sparkle"
+              aria-label={`Ask AI to fill ${field.definition.label}`}
+              title={field.preferences.aiUseAllowed ? `Ask AI to fill ${field.definition.label}` : "Allow AI to use this information first"}
+              disabled={!field.preferences.aiUseAllowed}
+              onClick={() => void requestFieldInference(field)}
+            >
+              <span aria-hidden="true">✨</span>
+            </button>
+            <button
+              type="button"
+              className="candidature-icon-button candidature-edit-field"
+              aria-label={`Edit ${field.definition.label}`}
+              title={`Edit ${field.definition.label}`}
+              onClick={() => requestFieldEditor(field.definition.id)}
+            >
+              <span aria-hidden="true">✎</span>
+            </button>
+            <details
+              className="candidature-field-options"
+              open={openFieldOptionsId === field.definition.id}
+              onToggle={(event) => setOpenFieldOptionsId(event.currentTarget.open ? field.definition.id : null)}
+            >
               <summary>Field options</summary>
               <div className="candidature-field-options-panel">
                 <button
@@ -752,7 +799,6 @@ export function CandidaturesWorkspace({
           value={retained?.value}
           onSave={(value) => setValue(field.definition.id, value)}
           onClear={() => clearValue(field.definition.id)}
-          onDiscover={() => setDiscoveryFieldId(field.definition.id)}
           onUpdateField={updateFieldDefinition}
           onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
           editing={activeFieldEditorId === field.definition.id}
@@ -761,7 +807,20 @@ export function CandidaturesWorkspace({
             else closeFieldEditor(field.definition.id);
           }}
           showFieldControls
+          showEditAction={false}
         />
+        {fieldAiUnavailableId === field.definition.id ? (
+          <div className="candidature-field-ai-preflight" role="alert">
+            <span>AI isn't configured for this action</span>
+            <button
+              type="button"
+              className="compact-secondary"
+              onClick={() => openSettingsFor("ai", "candidatures")}
+            >
+              Open AI settings
+            </button>
+          </div>
+        ) : null}
         <CandidatureFieldAiState
           candidatureId={selected.id}
           field={field}
