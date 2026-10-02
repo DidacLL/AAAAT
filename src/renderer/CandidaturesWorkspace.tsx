@@ -69,31 +69,19 @@ function preferredCueRatio(
   const context = canvas.getContext("2d");
   if (context) context.font = styles.font || `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
   const intrinsicWidth = context?.measureText(cue.value).width ?? cue.value.length * fontSize * 0.52;
-  const readableMeasure = (
-    cue.presentationSize === "wide" ? 30 :
-    cue.presentationSize === "normal" ? 18 :
-    11
-  ) * fontSize;
-  const readableRatio = readableMeasure / Math.max(containerWidth, 1);
   const contentRatio = (intrinsicWidth + fontSize * 1.2) / Math.max(containerWidth, 1);
   const capacityInEm = containerWidth / fontSize;
 
   if (cue.presentationSize === "wide" && capacityInEm < 22) return 1;
   if (cue.presentationSize === "normal" && capacityInEm < 15) return 1;
 
-  const [minimum, maximum] = cue.presentationSize === "wide"
-    ? [expanded ? 0.48 : 0.56, expanded ? 0.86 : 0.9]
+  const [minimum, maximum, expansion] = cue.presentationSize === "wide"
+    ? [expanded ? 0.38 : 0.42, expanded ? 0.84 : 0.88, 1.12]
     : cue.presentationSize === "normal"
-      ? [expanded ? 0.3 : 0.34, expanded ? 0.58 : 0.54]
-      : [expanded ? 0.2 : 0.22, expanded ? 0.4 : 0.36];
+      ? [expanded ? 0.28 : 0.3, expanded ? 0.56 : 0.54, 1.08]
+      : [expanded ? 0.18 : 0.2, expanded ? 0.38 : 0.34, 1.04];
 
-  return Math.min(
-    1,
-    Math.max(
-      minimum,
-      Math.min(maximum, Math.max(readableRatio, contentRatio)),
-    ),
-  );
+  return Math.min(1, Math.max(minimum, Math.min(maximum, contentRatio * expansion)));
 }
 
 function CorpusRecognitionLayout({
@@ -143,12 +131,29 @@ function CorpusRecognitionLayout({
         return [{ item, ratio }];
       });
 
-      const placed: Array<{ readonly left: number; readonly right: number; readonly bottom: number }> = [];
+      const placed: Array<{
+        readonly left: number;
+        readonly right: number;
+        readonly bottom: number;
+        readonly height: number;
+      }> = [];
       let containerHeight = 0;
 
       for (const { item, ratio } of prepared) {
+        const textElement = item.querySelector<HTMLElement>(".candidature-cue-value");
+        if (textElement) {
+          item.classList.toggle(
+            "has-clamped-value",
+            textElement.scrollHeight > textElement.clientHeight + 1,
+          );
+        }
+
         const height = item.getBoundingClientRect().height;
-        const candidates = new Set<number>([0, Math.max(0, 1 - ratio)]);
+        const candidates = new Set<number>([
+          0,
+          Math.max(0, (1 - ratio) / 2),
+          Math.max(0, 1 - ratio),
+        ]);
         for (const rectangle of placed) {
           candidates.add(Math.min(1 - ratio, rectangle.right + gapRatio));
           candidates.add(Math.max(0, rectangle.left - ratio - gapRatio));
@@ -156,6 +161,7 @@ function CorpusRecognitionLayout({
 
         let bestLeft = 0;
         let bestTop = Number.POSITIVE_INFINITY;
+        let bestBalance = Number.POSITIVE_INFINITY;
         for (const candidate of candidates) {
           if (candidate < 0 || candidate + ratio > 1.0001) continue;
           let top = 0;
@@ -165,16 +171,39 @@ function CorpusRecognitionLayout({
               candidate + ratio + gapRatio > rectangle.left;
             if (overlapsHorizontally) top = Math.max(top, rectangle.bottom + gapY);
           }
-          if (top < bestTop - 0.5 || (Math.abs(top - bestTop) <= 0.5 && candidate < bestLeft)) {
+
+          const existingArea = placed.reduce(
+            (sum, rectangle) => sum + (rectangle.right - rectangle.left) * rectangle.height,
+            0,
+          );
+          const existingMoment = placed.reduce(
+            (sum, rectangle) =>
+              sum +
+              (rectangle.right - rectangle.left) *
+                rectangle.height *
+                ((rectangle.left + rectangle.right) / 2),
+            0,
+          );
+          const candidateArea = ratio * height;
+          const centroid =
+            (existingMoment + candidateArea * (candidate + ratio / 2)) /
+            Math.max(existingArea + candidateArea, Number.EPSILON);
+          const balance = Math.abs(centroid - 0.5);
+
+          if (
+            top < bestTop - 0.5 ||
+            (Math.abs(top - bestTop) <= 0.5 && balance < bestBalance - 0.0001)
+          ) {
             bestTop = top;
             bestLeft = candidate;
+            bestBalance = balance;
           }
         }
 
         item.style.left = `${String(bestLeft * 100)}%`;
         item.style.top = `${String(bestTop)}px`;
         const bottom = bestTop + height;
-        placed.push({ left: bestLeft, right: bestLeft + ratio, bottom });
+        placed.push({ left: bestLeft, right: bestLeft + ratio, bottom, height });
         containerHeight = Math.max(containerHeight, bottom);
       }
 
