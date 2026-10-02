@@ -135,7 +135,8 @@ function prepareAccessApi() {
 
 async function openSelectedCandidature(user: ReturnType<typeof userEvent.setup>) {
   render(<CandidaturesWorkspace />);
-  await user.click(await screen.findByRole("button", { name: "Open saved application" }));
+  await user.click(await screen.findByRole("button", { name: "Inspect saved application" }));
+  await user.click(screen.getByRole("button", { name: "Open application" }));
   return screen.findByRole("button", { name: "Send to my AI" });
 }
 
