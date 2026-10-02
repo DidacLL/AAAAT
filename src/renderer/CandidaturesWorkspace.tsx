@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -23,6 +23,7 @@ import { useContextualHandoffs } from "./contextual-handoffs";
 import { createApplicationDocuments } from "./create-application-documents";
 import {
   candidatureCardRecognitionProjection,
+  candidatureCueFootprint,
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
@@ -560,18 +561,37 @@ export function CandidaturesWorkspace({
                   >
                     {primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
-                        {primaryCues.map((cue) => (
-                          <span
-                            className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
-                            key={cue.fieldId}
-                          >
-                            <span className="candidature-cue-value">{cue.value}</span>
-                          </span>
-                        ))}
+                        {primaryCues.map((cue) => {
+                          const footprint = candidatureCueFootprint(cue, preselected);
+                          const style = {
+                            "--cue-columns": footprint.columns,
+                            "--cue-rows": footprint.rows,
+                            "--cue-lines": footprint.lines,
+                          } as CSSProperties;
+                          return (
+                            <span
+                              className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
+                              key={cue.fieldId}
+                              style={style}
+                            >
+                              <span className="candidature-cue-value">{cue.value}</span>
+                            </span>
+                          );
+                        })}
                       </span>
                     ) : recognition.retainedSourceCue ? (
                       <span className="candidature-recognition-cues">
-                        <span className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue">
+                        <span
+                          className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue"
+                          style={(() => {
+                            const footprint = candidatureCueFootprint(recognition.retainedSourceCue, preselected);
+                            return {
+                              "--cue-columns": footprint.columns,
+                              "--cue-rows": footprint.rows,
+                              "--cue-lines": footprint.lines,
+                            } as CSSProperties;
+                          })()}
+                        >
                           <span className="candidature-cue-label">{recognition.retainedSourceCue.label}</span>
                           <span className="candidature-cue-value">{recognition.retainedSourceCue.value}</span>
                         </span>
