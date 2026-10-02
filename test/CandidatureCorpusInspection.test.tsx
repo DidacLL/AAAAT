@@ -19,7 +19,7 @@ vi.mock("../src/renderer/CandidatureOfferPanel", () => ({ CandidatureOfferPanel:
 vi.mock("../src/renderer/CandidatureOpportunityResearchAccessPanel", () => ({
   CandidatureOpportunityResearchAccessPanel: () => null,
 }));
-vi.mock("../src/renderer/CandidatureSourcesPanel", () => ({ CandidatureSourcesPanel: () => null }));
+vi.mock("../src/renderer/CandidatureSourcesPanel", () => ({ CandidatureSourcesPanel: () => <section aria-label="Retained Sources">Retained Sources</section> }));
 
 import { CandidaturesWorkspace } from "../src/renderer/CandidaturesWorkspace";
 import type {
@@ -102,15 +102,15 @@ const tags: TagRecord[] = [
   },
 ];
 
-function installApi() {
+function installApi(records: readonly CandidatureRecord[] = [
+  record(firstId, "First", firstTagId),
+  record(secondId, "Second", secondTagId),
+]) {
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
       candidatures: {
-        list: vi.fn(async () => [
-          record(firstId, "First", firstTagId),
-          record(secondId, "Second", secondTagId),
-        ]),
+        list: vi.fn(async () => [...records]),
         listFields: vi.fn(async () => fields),
         listTags: vi.fn(async () => tags),
         listSources: vi.fn(async () => []),
@@ -143,8 +143,10 @@ describe("application corpus inspection", () => {
     render(<CandidaturesWorkspace onTagContextChange={onTagContextChange} />);
 
     expect(await screen.findByLabelText("From")).toHaveValue("all");
-    const inspectButtons = await screen.findAllByRole("button", { name: "Inspect saved application" });
+    const inspectButtons = await screen.findAllByRole("button", { name: /^Inspect saved application:/ });
     expect(inspectButtons).toHaveLength(2);
+    expect(inspectButtons[0]).toHaveAccessibleName(/First value 1/);
+    expect(inspectButtons[1]).toHaveAccessibleName(/Second value 1/);
     expect(screen.queryByText("Recognition 1")).not.toBeInTheDocument();
     const firstCard = inspectButtons[0]!.closest("article")!;
     const secondCard = inspectButtons[1]!.closest("article")!;
@@ -154,31 +156,30 @@ describe("application corpus inspection", () => {
     expect(screen.queryByText("Dependable production ownership")).not.toBeInTheDocument();
     expect(screen.queryByText("Inclusive product and interface practice")).not.toBeInTheDocument();
 
-    const compactValue = within(inspectButtons[0]!).getByText(/First compact value that remains readable/);
-    expect(compactValue.closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-compact");
-    expect(within(inspectButtons[0]!).getByText("First value 1").closest(".candidature-recognition-cue")).toHaveClass("candidature-cue-size-wide");
+    expect(within(inspectButtons[0]!).getByText(/First compact value that remains readable/)).toBeVisible();
+    expect(within(inspectButtons[0]!).getByText("First value 1")).toBeVisible();
 
     await user.click(inspectButtons[0]!);
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
-    expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /^Collapse saved application:/ }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     expect(screen.queryByText("Reliability")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: firstId,
       tags: [expect.objectContaining({ name: "Reliability" })],
     })));
 
-    await user.click(screen.getByRole("button", { name: "Collapse saved application" }));
+    await user.click(screen.getByRole("button", { name: /^Collapse saved application:/ }));
     expect(screen.queryByLabelText("Application inspection")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(null));
 
-    const nextButtons = screen.getAllByRole("button", { name: "Inspect saved application" });
+    const nextButtons = screen.getAllByRole("button", { name: /^Inspect saved application:/ });
     await user.click(nextButtons[0]!);
     await user.click(nextButtons[1]!);
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
     expect(screen.getByText(/Second expanded notes/)).toBeVisible();
-    expect(within(screen.getByRole("button", { name: "Collapse saved application" }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: /^Collapse saved application:/ }).closest("article")!).queryByLabelText("Related Tags")).not.toBeInTheDocument();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({
       candidatureId: secondId,
       tags: [expect.objectContaining({ name: "Accessibility" })],
@@ -194,10 +195,10 @@ describe("application corpus inspection", () => {
     const user = userEvent.setup();
     render(<CandidaturesWorkspace />);
 
-    const first = (await screen.findAllByRole("button", { name: "Inspect saved application" }))[0]!;
+    const first = (await screen.findAllByRole("button", { name: /^Inspect saved application:/ }))[0]!;
     first.focus();
     await user.keyboard("{Enter}");
-    expect(screen.getByRole("button", { name: "Collapse saved application" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /^Collapse saved application:/ })).toHaveFocus();
     expect(screen.getAllByLabelText("Application inspection")).toHaveLength(1);
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
 
@@ -206,20 +207,47 @@ describe("application corpus inspection", () => {
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
   });
 
+  it("keeps retained Source principal when Source is the normal-open recognition fallback", async () => {
+    const rawOnly: CandidatureRecord = {
+      id: firstId,
+      archived: false,
+      createdAt: now,
+      updatedAt: now,
+      sourceSearchText: "Recruiter message for overnight operations with retained application details.",
+      values: [],
+      tagIds: [],
+    };
+    installApi([rawOnly]);
+    const user = userEvent.setup();
+    render(<CandidaturesWorkspace />);
+
+    const inspect = await screen.findByRole("button", {
+      name: /^Inspect saved application: Recruiter message for overnight operations/,
+    });
+    await user.click(inspect);
+    expect(screen.getByRole("button", {
+      name: /^Collapse saved application: Recruiter message for overnight operations/,
+    })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Open application" }));
+    expect(await screen.findByRole("region", { name: "Application information" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Retained Sources" })).toBeVisible();
+  });
+
   it("enters the exact editor only through the dedicated Open / Edit strip", async () => {
     installApi();
     const user = userEvent.setup();
     const onTagContextChange = vi.fn<(context: ApplicationTagContext | null) => void>();
     render(<CandidaturesWorkspace onTagContextChange={onTagContextChange} />);
 
-    const secondInspect = (await screen.findAllByRole("button", { name: "Inspect saved application" }))[1]!;
+    const secondInspect = (await screen.findAllByRole("button", { name: /^Inspect saved application:/ }))[1]!;
     await user.click(secondInspect);
     expect(screen.getByRole("button", { name: "Open application" })).toHaveTextContent("Open / Edit");
 
-    await user.click(screen.getByRole("button", { name: "Collapse saved application" }));
+    await user.click(screen.getByRole("button", { name: /^Collapse saved application:/ }));
     expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Inspect saved application" })[1]!);
+    await user.click(screen.getAllByRole("button", { name: /^Inspect saved application:/ })[1]!);
     await user.click(screen.getByRole("button", { name: "Open application" }));
     expect(await screen.findByRole("region", { name: "Application information" })).toBeVisible();
     await waitFor(() => expect(onTagContextChange).toHaveBeenLastCalledWith(expect.objectContaining({

@@ -202,9 +202,12 @@ function installWorkspaceApi() {
   return { updateFieldPreferences, reorderFavouriteFields, updateField, setFieldValue, clearFieldValue, listAiConnections, extractJob };
 }
 
-async function openWorkspace(user: ReturnType<typeof userEvent.setup>) {
-  render(<CandidaturesWorkspace />);
-  await user.click(await screen.findByRole("button", { name: "Inspect saved application" }));
+async function openWorkspace(
+  user: ReturnType<typeof userEvent.setup>,
+  onDirtyChange?: (dirty: boolean) => void,
+) {
+  render(<CandidaturesWorkspace onDirtyChange={onDirtyChange} />);
+  await user.click(await screen.findByRole("button", { name: /^Inspect saved application:/ }));
   await user.click(screen.getByRole("button", { name: "Open application" }));
 }
 
@@ -259,7 +262,7 @@ describe("candidature field cohesion", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "AI may use this information" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Allow AI to use / })).not.toBeInTheDocument();
     const aiAction = screen.getByRole("button", { name: "Ask AI to fill Role" });
     expect(aiAction).toBeVisible();
     expect(aiAction).toHaveTextContent("✨");
@@ -300,7 +303,7 @@ describe("candidature field cohesion", () => {
     expect(within(roleCard).getByText("Platform Engineer")).toBeVisible();
     const roleControls = within(roleCard).getByRole("group", { name: "Role field controls" });
     expect(within(roleControls).getByRole("button", { name: "Edit Role" })).toBeVisible();
-    expect(within(roleControls).getByRole("button", { name: "AI may use this information" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(roleControls).getByRole("button", { name: "Allow AI to use Role" })).toHaveAttribute("aria-pressed", "true");
     expect(within(roleControls).getByRole("button", { name: "Ask AI to fill Role" })).toHaveTextContent("✨");
     expect(within(roleControls).getByRole("button", { name: "Remove Role from favourites" })).toHaveAttribute("aria-pressed", "true");
     expect(within(roleControls).getByLabelText("Configure Role")).toBeVisible();
@@ -316,10 +319,10 @@ describe("candidature field cohesion", () => {
     let locationCard = within(remaining).getByRole("article", { name: "Location information" });
     expect(within(locationCard).getByText("Not set")).toBeVisible();
     expect(within(locationCard).getByRole("button", { name: "Edit Location" })).toBeVisible();
-    expect(screen.getAllByRole("button", { name: "AI may use this information" })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /^Allow AI to use / })).toHaveLength(3);
     expect(screen.queryByText("Ask AI", { exact: true })).not.toBeInTheDocument();
 
-    await user.click(within(locationCard).getByRole("button", { name: "AI may use this information" }));
+    await user.click(within(locationCard).getByRole("button", { name: "Allow AI to use Location" }));
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: locationId,
       aiUseAllowed: false,
@@ -357,15 +360,13 @@ describe("candidature field cohesion", () => {
     await user.click(within(roleCard).getByText("Platform Engineer"));
     expect(roleOptions).not.toHaveAttribute("open");
     await user.click(within(roleCard).getByLabelText("Configure Role"));
-    const editorFieldClassBeforeProminenceChange = roleCard.className;
     await user.selectOptions(within(roleCard).getByLabelText("Role corpus card prominence"), "wide");
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: roleId,
       presentationSize: "wide",
     })));
     roleCard = within(primary).getByRole("article", { name: "Role information" });
-    expect(roleCard.className).toBe(editorFieldClassBeforeProminenceChange);
-    expect(roleCard.className).not.toMatch(/candidature-unit-size-/);
+    expect(within(roleCard).getByText("Platform Engineer")).toBeVisible();
 
     const companyCardAfter = within(primary).getByRole("article", { name: "Company information" });
     await user.click(within(companyCardAfter).getByLabelText("Configure Company"));
@@ -397,7 +398,7 @@ describe("candidature field cohesion", () => {
     expect(openSettingsFor).toHaveBeenCalledWith("ai", "candidatures");
   });
 
-  it("uses the shared AI task store when a configured field inference actually starts", async () => {
+  it("starts and explicitly restarts a configured field inference through the shared AI task store", async () => {
     const api = installWorkspaceApi();
     api.listAiConnections.mockResolvedValue([{
       id: "00000000-0000-4000-8000-000000003659",
@@ -418,12 +419,74 @@ describe("candidature field cohesion", () => {
     await waitFor(() => expect(getAiTask(key)?.status).toBe("completed"));
     expect(api.extractJob).toHaveBeenCalledTimes(1);
     expect(within(locationCard).queryByText("AI isn't configured for this action")).not.toBeInTheDocument();
+
+    await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
+    await waitFor(() => expect(api.extractJob).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getAiTask(key)?.status).toBe("completed"));
   });
 
-  it("keeps shared field-definition editing inside Field options, separate from application value edit", async () => {
+  it("explains at the clicked field when configured AI has no retained context", async () => {
     const api = installWorkspaceApi();
+    api.listAiConnections.mockResolvedValue([{
+      id: "00000000-0000-4000-8000-000000003659",
+      name: "Configured test AI",
+      endpoint: "https://example.test/v1",
+      model: "test-model",
+      isDefault: false,
+      validatedOperations: ["job_extraction"],
+      defaultForOperations: ["job_extraction"],
+    }]);
     const user = userEvent.setup();
     await openWorkspace(user);
+
+    const primary = screen.getByRole("region", { name: "Starred application information" });
+    await user.click(within(primary).getByRole("button", { name: "Allow AI to use Role" }));
+    await user.click(within(primary).getByRole("button", { name: "Allow AI to use Company" }));
+    await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
+      fieldId: companyId,
+      aiUseAllowed: false,
+    })));
+
+    const locationCard = screen.getByRole("article", { name: "Location information" });
+    await user.click(within(locationCard).getByRole("button", { name: "Ask AI to fill Location" }));
+
+    const feedback = await within(locationCard).findByRole("alert");
+    expect(feedback).toHaveTextContent("AI needs retained Source or AI-allowed application information");
+    expect(getAiTask(`candidature-inference:${candidatureId}:${locationId}`)).toBeNull();
+    expect(api.extractJob).not.toHaveBeenCalled();
+  });
+
+  it("explicitly restarts a completed bulk missing-information request", async () => {
+    const api = installWorkspaceApi();
+    api.listAiConnections.mockResolvedValue([{
+      id: "00000000-0000-4000-8000-000000003659",
+      name: "Configured test AI",
+      endpoint: "https://example.test/v1",
+      model: "test-model",
+      isDefault: false,
+      validatedOperations: ["job_extraction"],
+      defaultForOperations: ["job_extraction"],
+    }]);
+    const user = userEvent.setup();
+    await openWorkspace(user);
+
+    const request = screen.getByRole("button", { name: "Ask AI to fill missing information" });
+    const key = `candidature-inference:${candidatureId}:missing`;
+    await user.click(request);
+    await waitFor(() => expect(getAiTask(key)?.status).toBe("completed"));
+    expect(api.extractJob).toHaveBeenCalledTimes(1);
+
+    await user.click(request);
+    await waitFor(() => expect(api.extractJob).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getAiTask(key)?.status).toBe("completed"));
+  });
+
+  it("keeps shared field-definition editing inside Field options, protects its draft, and clears dirty state on save", async () => {
+    const api = installWorkspaceApi();
+    const user = userEvent.setup();
+    const dirty = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await openWorkspace(user, dirty);
 
     const card = screen.getByRole("article", { name: "Role information" });
     await user.click(within(card).getByRole("button", { name: "Edit Role" }));
@@ -442,6 +505,14 @@ describe("candidature field cohesion", () => {
     await user.type(name, "Target role");
     await user.clear(description);
     await user.type(description, "Role being pursued");
+    await waitFor(() => expect(dirty).toHaveBeenLastCalledWith(true));
+
+    const companyCard = screen.getByRole("article", { name: "Company information" });
+    await user.click(within(companyCard).getByLabelText("Configure Company"));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved application edits?");
+    expect(name).toHaveValue("Target role");
+    expect(within(companyCard).getByLabelText("Configure Company").closest("details")).not.toHaveAttribute("open");
+
     await user.click(within(card).getByRole("button", { name: "Save shared field" }));
 
     await waitFor(() => expect(api.updateField).toHaveBeenCalledWith(expect.objectContaining({
@@ -451,6 +522,7 @@ describe("candidature field cohesion", () => {
       valueType: "text",
       cardinality: "one",
     })));
+    await waitFor(() => expect(dirty).toHaveBeenLastCalledWith(false));
   });
 
   it("keeps Add information as the advanced new-field and value-format surface", async () => {

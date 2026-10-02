@@ -49,7 +49,7 @@ function routeReady(
   );
 }
 
-function sourceContext(
+export function candidatureInferenceContext(
   candidature: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
   sources: readonly CandidatureSource[],
@@ -160,7 +160,7 @@ export function CandidatureInferencePanel({
   }, [candidature.id]);
 
   const context = useMemo(
-    () => (sources === null ? "" : sourceContext(candidature, fields, sources, targetSet)),
+    () => (sources === null ? "" : candidatureInferenceContext(candidature, fields, sources, targetSet)),
     [candidature, fields, sources, targetSet],
   );
 
