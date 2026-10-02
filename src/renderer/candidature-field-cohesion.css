@@ -44,11 +44,14 @@
 
 .candidature-ai-use-eye[aria-pressed="true"] {
   color: var(--focus);
-  background: rgb(57 124 122 / 8%);
+  background: transparent;
+  font-weight: 650;
 }
 
 .candidature-ai-use-eye[aria-pressed="false"] {
-  opacity: 0.68;
+  color: var(--muted-ink);
+  background: transparent;
+  opacity: 0.62;
 }
 
 .candidature-field-options {
