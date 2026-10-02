@@ -26,7 +26,9 @@ import {
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
+  type RecencyFilter,
 } from "./candidature-projections";
+import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
 import "./candidature-recovery.css";
 import "./owner-feedback-recovery.css";
@@ -56,11 +58,13 @@ export function CandidaturesWorkspace({
   onInitialSelectionCleared,
   onDirtyChange,
   onTagGlossaryChange,
+  onTagContextChange,
 }: {
   readonly initialSelection?: InitialCandidatureSelection;
   readonly onInitialSelectionCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
+  readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
@@ -75,9 +79,11 @@ export function CandidaturesWorkspace({
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [preselectedId, setPreselectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ readonly query: string; readonly ids: ReadonlySet<string> } | null>(null);
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
+  const [recencyFilter, setRecencyFilter] = useState<RecencyFilter>("all");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState("");
@@ -176,7 +182,26 @@ export function CandidaturesWorkspace({
     if (!normalizedQuery) return null;
     return searchResult?.query === normalizedQuery ? searchResult.ids : new Set();
   }, [normalizedQuery, searchResult]);
-  const visibleRecords = useMemo(() => filterCandidatures(records, archiveFilter, null, textMatches), [records, archiveFilter, textMatches]);
+  const visibleRecords = useMemo(
+    () => filterCandidatures(records, archiveFilter, null, textMatches, recencyFilter),
+    [records, archiveFilter, textMatches, recencyFilter],
+  );
+  const contextualRecord = mode === "selected"
+    ? selected
+    : records.find((record) => record.id === preselectedId) ?? null;
+  const tagContext = useMemo<ApplicationTagContext | null>(
+    () => contextualRecord
+      ? {
+          candidatureId: contextualRecord.id,
+          tags: tags.filter((tag) => contextualRecord.tagIds.includes(tag.id)),
+        }
+      : null,
+    [contextualRecord, tags],
+  );
+  useEffect(() => {
+    onTagContextChange?.(tagContext);
+  }, [onTagContextChange, tagContext]);
+  useEffect(() => () => onTagContextChange?.(null), [onTagContextChange]);
 
   const selectedRecordId = mode === "selected" ? selectedId : null;
   useEffect(() => {
@@ -190,12 +215,22 @@ export function CandidaturesWorkspace({
   const storeRecord = (record: CandidatureRecord) => setRecords((current) => current.map((candidate) => candidate.id === record.id ? record : candidate));
   const openRecord = (record: CandidatureRecord) => {
     if (!confirmDiscard()) return;
+    setPreselectedId(record.id);
     setSelectedSources([]);
     hydrate(record);
     setMode("selected");
   };
+  const inspectRecord = (record: CandidatureRecord) => {
+    if (preselectedId === record.id) {
+      openRecord(record);
+      return;
+    }
+    setPreselectedId(record.id);
+    setError(null);
+  };
   const returnToCorpus = () => {
     if (!confirmDiscard()) return;
+    setPreselectedId(selectedId);
     setMode("corpus"); setSelectedId(null); resetEditorDrafts();
     onInitialSelectionCleared?.();
   };
@@ -404,7 +439,7 @@ export function CandidaturesWorkspace({
         <header className="candidature-toolbar">
           <div>
             <h2>Applications</h2>
-            <span className="corpus-count">{visibleRecords.length} / {records.length}</span>
+            <span className="corpus-count">{visibleRecords.length} / {records.length} shown</span>
           </div>
         </header>
         <div className="candidature-corpus-tools">
@@ -432,6 +467,21 @@ export function CandidaturesWorkspace({
               <option value="all">All</option>
             </select>
           </label>
+          <label>
+            From
+            <select
+              aria-label="From"
+              value={recencyFilter}
+              onChange={(event) => setRecencyFilter(event.target.value as RecencyFilter)}
+            >
+              <option value="all">All</option>
+              <option value="24h">Last 24h</option>
+              <option value="48h">Last 48h</option>
+              <option value="72h">Last 72h</option>
+              <option value="week">Last week</option>
+              <option value="month">Last month</option>
+            </select>
+          </label>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         {records.length === 0 ? (
@@ -444,8 +494,10 @@ export function CandidaturesWorkspace({
         ) : (
           <div className="candidature-corpus-grid" aria-label="Application corpus">
             {visibleRecords.map((record) => {
-              const recognition = candidatureRecognitionProjection(record, fields, 4);
+              const preselected = preselectedId === record.id;
+              const recognition = candidatureRecognitionProjection(record, fields, preselected ? 8 : 4);
               const primaryCues = recognition.primaryCues;
+              const recordTags = tags.filter((tag) => record.tagIds.includes(tag.id));
               const searchMatchCue =
                 normalizedQuery && textMatches?.has(record.id)
                   ? candidatureSearchMatchCue(record, fields, tags, normalizedQuery)
@@ -458,12 +510,16 @@ export function CandidaturesWorkspace({
                   ? searchMatchCue
                   : null;
               return (
-                <article className="candidature-corpus-card" key={record.id}>
+                <article
+                  className={`candidature-corpus-card${preselected ? " candidature-corpus-card-preselected" : ""}`}
+                  key={record.id}
+                >
                   <button
                     type="button"
                     className="candidature-corpus-entry"
-                    aria-label="Open saved application"
-                    onClick={() => openRecord(record)}
+                    aria-expanded={preselected}
+                    aria-label={preselected ? "Open saved application" : "Inspect saved application"}
+                    onClick={() => inspectRecord(record)}
                   >
                     {primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
@@ -472,36 +528,54 @@ export function CandidaturesWorkspace({
                             className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
                             key={cue.fieldId}
                           >
+                            <span className="candidature-cue-label">{cue.label}</span>
                             <span className="candidature-cue-value">{cue.value}</span>
                           </span>
                         ))}
                       </span>
                     ) : recognition.retainedSourceCue ? (
                       <span className="candidature-recognition-cues">
-                        <span
-                          className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue"
-                        >
-                          <span className="candidature-cue-label">
-                            {recognition.retainedSourceCue.label}
-                          </span>
-                          <span className="candidature-cue-value">
-                            {recognition.retainedSourceCue.value}
-                          </span>
+                        <span className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue">
+                          <span className="candidature-cue-label">{recognition.retainedSourceCue.label}</span>
+                          <span className="candidature-cue-value">{recognition.retainedSourceCue.value}</span>
                         </span>
                       </span>
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
                     )}
+                    {recordTags.length > 0 ? (
+                      <span className="candidature-corpus-tags" aria-label="Attached Tags">
+                        {recordTags.map((tag) => (
+                          <span className="candidature-corpus-tag" key={tag.id}>{tag.name}</span>
+                        ))}
+                      </span>
+                    ) : null}
                     {distinctSearchCue ? (
                       <span className="candidature-search-match">
                         <span>{distinctSearchCue.label}</span>
                         <span>{distinctSearchCue.value}</span>
                       </span>
                     ) : null}
-                    <time dateTime={record.updatedAt}>
-                      Updated {new Date(record.updatedAt).toLocaleDateString()}
+                    <time dateTime={record.createdAt}>
+                      Saved {new Date(record.createdAt).toLocaleDateString()}
                     </time>
                   </button>
+                  {preselected ? (
+                    <div className="candidature-corpus-inspection" aria-label="Application inspection">
+                      {recordTags.length > 0 ? (
+                        <div className="candidature-inspection-tags" aria-label="Tag meanings">
+                          {recordTags.map((tag) => (
+                            <p key={tag.id}><strong>{tag.name}</strong><span>{tag.definition}</span></p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="compact-help">No Tags attached.</p>
+                      )}
+                      <button type="button" className="compact-primary" aria-label="Open application" onClick={() => openRecord(record)}>
+                        Open / Edit
+                      </button>
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -601,7 +675,7 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className="retained-information-card candidature-information-unit"
+        className={`retained-information-card candidature-information-unit candidature-unit-size-${field.preferences.presentationSize}`}
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
@@ -640,7 +714,7 @@ export function CandidaturesWorkspace({
                         disabled={favouriteIndex === 0}
                         onClick={() => void moveFavourite(field, -1)}
                       >
-                        Move earlier
+                        ↑
                       </button>
                       <button
                         type="button"
@@ -649,7 +723,7 @@ export function CandidaturesWorkspace({
                         disabled={favouriteIndex === favouriteFields.length - 1}
                         onClick={() => void moveFavourite(field, 1)}
                       >
-                        Move later
+                        ↓
                       </button>
                     </div>
                     <label className="candidature-prominence-control">
@@ -743,9 +817,38 @@ export function CandidaturesWorkspace({
           </div>
         ) : (
           <p className="compact-empty">
-            No primary information yet. Open More and choose Show in primary information from a field's options.
+            No primary information yet. Use Field options below to promote useful information here.
           </p>
         )}
+      </section>
+
+      <section
+        className="section-surface candidature-information-surface"
+        aria-label="Remaining application information"
+      >
+        <div className="candidature-editor-heading candidature-information-heading">
+          <div>
+            <p className="eyebrow">Information</p>
+            <h3>Remaining information</h3>
+          </div>
+          {enabledMissingFields.length > 0 ? (
+            <button type="button" className="compact-secondary" onClick={() => setBulkInferenceOpen(true)}>
+              Ask AI to fill missing information
+            </button>
+          ) : null}
+        </div>
+        <CandidatureBulkAiReview candidature={selected} fields={fields} onRetry={() => setBulkInferenceOpen(true)} />
+        {remainingFields.length === 0 ? (
+          <p className="compact-help">All enabled fields are in primary information.</p>
+        ) : (
+          <div className="retained-information-list candidature-information-grid">
+            {remainingFields.map(renderInformationField)}
+          </div>
+        )}
+        <details className="candidature-field-administration">
+          <summary>Information setup</summary>
+          <CandidatureFieldDefinitionsPanel onChanged={() => void refreshFields()} onDirtyChange={setFieldDefinitionsDirty} />
+        </details>
       </section>
 
       {initialTask ? null : (
@@ -922,42 +1025,8 @@ export function CandidaturesWorkspace({
       </section>
 
       <details className="candidature-more">
-        <summary>More</summary>
+        <summary>Sources, documents & history</summary>
         <div className="candidature-more-content">
-          <section className="section-surface candidature-information-surface" aria-label="More application information">
-            <div className="candidature-editor-heading candidature-information-heading">
-              <div>
-                <p className="eyebrow">Information</p>
-                <h3>Remaining fields</h3>
-              </div>
-              {enabledMissingFields.length > 0 ? (
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => setBulkInferenceOpen(true)}
-                >
-                  Ask AI to fill missing information
-                </button>
-              ) : null}
-            </div>
-            <CandidatureBulkAiReview
-              candidature={selected}
-              fields={fields}
-              onRetry={() => setBulkInferenceOpen(true)}
-            />
-            {remainingFields.length === 0 ? (
-              <p className="compact-help">All enabled fields are in primary information.</p>
-            ) : (
-              <div className="retained-information-list candidature-information-grid">
-                {remainingFields.map(renderInformationField)}
-              </div>
-            )}
-            <CandidatureFieldDefinitionsPanel
-              onChanged={() => void refreshFields()}
-              onDirtyChange={setFieldDefinitionsDirty}
-            />
-          </section>
-
           <CandidatureOfferPanel candidatureId={selected.id} />
           {sourceOwnsInitialContext ? null : (
             <CandidatureSourcesPanel
