@@ -39,11 +39,12 @@ Retrieval also needs a compact recency control: add a `From` selector beside Sea
 Required model:
 1. compact card for recognition;
 2. first activation preselects/expands exactly one card in place for inspection;
-3. second activation or explicit Open/Edit enters the exact selected application editor.
+3. activating the same expanded card again collapses it;
+4. only the dedicated compact Open/Edit action enters the exact application editor.
 
-The preselected card should reveal more retained primary/favourite information and attached Tags while staying bounded. Raw-only applications retain the accepted Source fallback. Search/archive behavior remains unchanged.
+The preselected card should reveal more retained primary/favourite information while staying bounded. Raw-only applications retain the accepted Source fallback. Search/archive behavior remains unchanged.
 
-Corpus cards should read as application cards, not mini-form grids. Values remain primary. Attached Tags are visible without search. Compact/normal/wide presentation preferences must produce perceptible information hierarchy without chaotic masonry or unbounded card height.
+Corpus cards should read as application cards, not mini-form grids. Values remain primary. Compact non-selected cards may show lightweight attached Tag names for scanning. When a card is preselected, that lightweight card Tag row gets out of the way and the rail becomes the detailed contextual Tag readout with definitions. Compact/normal/wide presentation preferences must produce perceptible information hierarchy without chaotic masonry or unbounded card height.
 
 ### Contextual Tags
 
@@ -116,9 +117,10 @@ Do not add:
 Focused evidence must prove:
 - From defaults to All and creation-time windows intersect correctly with Search and Current/Archived/All;
 - first corpus activation preselects/expands only;
-- second activation or explicit Open enters the exact application;
+- activating the same expanded card collapses it;
+- only explicit Open/Edit enters the exact application;
 - one preselected card at a time;
-- card and expanded inspection expose useful primary cues + attached Tags while bounding long/raw content;
+- compact cards may expose lightweight Tag names for scanning, while the preselected/selected application's detailed Tag definitions move to the rail without redundant duplicate detail;
 - rail Tag monitor follows preselected/selected application and contains no duplicate global search flow;
 - application-local Tag mutation remains functional;
 - selected application shows primary and remaining enabled fields without `More`;
@@ -131,3 +133,27 @@ Run full `npm run verify`.
 Final Windows packaged evidence should exercise the corrected journey as one integrated flow: large corpus → preselect → inspect Tags/primary information → open exact application → see/edit all fields → return → open a Working CV and confirm recognizable read-first document composition at constrained and expanded representative sizes.
 
 The Product Owner is not routine QA or a prompt courier. The orchestrator owns independent diff review, exact-head verification, packaged evidence, PR/merge and final PLAN classification.
+
+
+## Current Product Owner testing correction
+
+For #395 and all following work, automated tests must protect real product behavior or durable technical boundaries. Do not add mocked/structural reassurance tests merely because implementation changed.
+
+In particular:
+- do not assert CSS rules, class names, DOM grouping, card geometry, typography weight, spacing, or component structure as a substitute for UX acceptance;
+- do not freeze an arbitrary implementation mechanism just to make a focused test pass;
+- use behavior tests for meaningful actions, state transitions, persistence/domain invariants, accessibility semantics and failure handling;
+- use real rendered/packaged evidence for visual hierarchy, readability, density, responsive composition and visual identity;
+- if a visual requirement has no meaningful automation boundary, do not fabricate one;
+- remove or rewrite tests that encode a wrong product premise instead of preserving them for green CI.
+
+Focused-test counts are not acceptance evidence. The orchestrator must review whether each test premise is valid before using it as evidence.
+
+
+## Test authority clarification
+
+Tests never drive product development. They are subordinate verification artifacts.
+
+Before changing product code because a test failed, validate the test premise against current Product Owner/Product Definition authority. If the premise is not independently required, delete or rewrite the test. Do not alter valid product behavior to satisfy stale fixtures, selectors, counts, DOM structure, CSS/class assumptions, mocked call sequences, or historical workflows.
+
+Green CI is useful only after the test premises are known to be valid. A passing test suite cannot establish product correctness by itself.

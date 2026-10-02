@@ -121,3 +121,35 @@ A completed development step should normally leave the application in a more use
 Development order is not user workflow, but development should visibly converge toward a usable product.
 
 Do not estimate completion primarily from issue count, milestone count or internal architectural consistency. Integrated owner-visible product behavior and fidelity to product intent are the meaningful measures.
+
+
+## Tests never drive product development
+
+Tests are subordinate verification artifacts. Product Definition and current explicit Product Owner intent drive development.
+
+Never change product behavior, interaction, UX, visual composition, architecture, persistence, compatibility policy, or fixtures merely to make an existing or newly written test pass.
+
+When a test fails:
+1. validate the premise against current product authority;
+2. if the premise is valid, fix the product defect;
+3. if the premise is obsolete, arbitrary, implementation-shaped, fixture-specific, or contradicted by current intent, delete or rewrite the test.
+
+A green suite can show that checked behavior still holds. It cannot establish that the checked behavior was the right requirement.
+
+## No reassurance tests or implementation-lock tests
+
+Automated tests exist to detect meaningful regressions in product behavior and durable technical boundaries. They are not a ritual that must accompany every code change, and they must not be manufactured to make an implementation appear safer than it is.
+
+Do not add tests whose main effect is to mirror or freeze the implementation that was just written. In particular, do not use mocked/unit tests to “prove” visual quality, information hierarchy, spacing, card composition, CSS choices, DOM structure, component boundaries, class names, or other arbitrary rendering mechanisms.
+
+A new test is justified only when a failure would correspond to a real product regression independent of the current implementation strategy. Prefer tests of user-observable behavior, domain invariants, meaningful failure handling, accessibility semantics, security/privacy/local-ownership boundaries, and stable cross-component contracts.
+
+For UX and visual work:
+- use automated tests for behavior that can be expressed meaningfully, such as what action opens/collapses/saves/routes, which data is visible or reachable, keyboard/accessibility semantics, or whether an error is surfaced;
+- use real rendered/packaged evidence for layout, hierarchy, density, readability, visual identity, responsive composition and aesthetic acceptance;
+- do not substitute CSS/DOM assertions, mocked screenshots, class-name checks or implementation-shaped snapshots for rendered product evidence;
+- if no meaningful automated regression test exists, do not invent one merely to increase the passing-test count.
+
+Mocking is acceptable when it isolates a real contract or unavoidable external boundary, but mocked success must not be presented as evidence for a real integration, rendered UX, provider behavior, package behavior or end-to-end journey it does not exercise.
+
+Delete or rewrite tests that protect an obsolete or wrong premise. Test quantity, green CI and newly added “focused tests” are not acceptance criteria by themselves.
