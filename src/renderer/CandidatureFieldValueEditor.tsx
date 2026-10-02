@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
-  CandidatureFieldUpdate,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
 import "./candidature-field-cohesion.css";
@@ -13,7 +12,6 @@ interface Props {
   readonly onSave: (value: CandidatureRuntimeValue) => Promise<void>;
   readonly onClear: () => Promise<void>;
   readonly onDiscover?: () => void | Promise<void>;
-  readonly onUpdateField?: (update: CandidatureFieldUpdate) => Promise<void>;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly editing?: boolean;
   readonly onEditingChange?: (editing: boolean) => void;
@@ -21,7 +19,6 @@ interface Props {
   readonly saveLabel?: string;
   readonly clearLabel?: string;
   readonly discoverLabel?: string;
-  readonly showFieldControls?: boolean;
   readonly showEditAction?: boolean;
 }
 
@@ -61,7 +58,6 @@ export function CandidatureFieldValueEditor({
   onSave,
   onClear,
   onDiscover,
-  onUpdateField,
   onDirtyChange,
   editing: controlledEditing,
   onEditingChange,
@@ -69,14 +65,11 @@ export function CandidatureFieldValueEditor({
   saveLabel = "Save",
   clearLabel = "Clear",
   discoverLabel = "Ask AI to fill",
-  showFieldControls = true,
   showEditAction = true,
 }: Props) {
   const [internalEditing, setInternalEditing] = useState(initialEditing);
   const [text, setText] = useState(textFor(value));
   const [choices, setChoices] = useState<string[]>(choicesFor(field, value));
-  const [definitionName, setDefinitionName] = useState(field.definition.label);
-  const [definitionDescription, setDefinitionDescription] = useState(field.definition.description);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onDirtyChangeRef = useRef(onDirtyChange);
@@ -89,19 +82,12 @@ export function CandidatureFieldValueEditor({
   const valueDirty =
     editing &&
     (text !== textFor(value) || JSON.stringify(choices) !== JSON.stringify(choicesFor(field, value)));
-  const definitionDirty =
-    editing &&
-    showFieldControls &&
-    onUpdateField !== undefined &&
-    (definitionName !== field.definition.label || definitionDescription !== field.definition.description);
-  const dirty = valueDirty || definitionDirty;
+  const dirty = valueDirty;
 
   useEffect(() => {
     if (dirty) return;
     setText(textFor(value));
     setChoices(choicesFor(field, value));
-    setDefinitionName(field.definition.label);
-    setDefinitionDescription(field.definition.description);
     setError(null);
   }, [dirty, field, value]);
 
@@ -163,25 +149,10 @@ export function CandidatureFieldValueEditor({
     return text;
   };
 
-  const persistDefinition = async () => {
-    if (!definitionDirty || !onUpdateField) return;
-    await onUpdateField({
-      id: field.definition.id,
-      label: definitionName.trim(),
-      description: definitionDescription,
-      valueType: field.definition.valueType,
-      cardinality: field.definition.cardinality,
-      choices: field.definition.choices,
-      enabled: field.definition.enabled,
-    });
-  };
-
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      if (!definitionName.trim()) throw new Error("Information name cannot be empty.");
-      await persistDefinition();
       const parsed = parsedValue();
       if (parsed === null || (Array.isArray(parsed) && parsed.length === 0)) {
         await onClear();
@@ -200,7 +171,6 @@ export function CandidatureFieldValueEditor({
     setBusy(true);
     setError(null);
     try {
-      await persistDefinition();
       await onClear();
       setEditing(false);
     } catch (reason) {
@@ -223,8 +193,6 @@ export function CandidatureFieldValueEditor({
   const cancel = () => {
     setText(textFor(value));
     setChoices(choicesFor(field, value));
-    setDefinitionName(field.definition.label);
-    setDefinitionDescription(field.definition.description);
     setError(null);
     setEditing(false);
   };
@@ -347,30 +315,6 @@ export function CandidatureFieldValueEditor({
         Value
         {input}
       </label>
-
-      {showFieldControls && onUpdateField ? (
-        <details className="candidature-field-details">
-          <summary>Edit information details</summary>
-          <div className="candidature-field-definition-inline">
-            <label>
-              Name
-              <input
-                value={definitionName}
-                disabled={busy}
-                onChange={(event) => setDefinitionName(event.target.value)}
-              />
-            </label>
-            <label>
-              Details <span className="compact-help">optional</span>
-              <input
-                value={definitionDescription}
-                disabled={busy}
-                onChange={(event) => setDefinitionDescription(event.target.value)}
-              />
-            </label>
-          </div>
-        </details>
-      ) : null}
 
       <div className="button-row candidature-field-edit-actions">
         <button type="button" disabled={busy} onClick={() => void save()}>{saveLabel}</button>
