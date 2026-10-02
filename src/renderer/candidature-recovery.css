@@ -66,22 +66,24 @@
   container-type: inline-size;
   flex: 1 1 235px;
   min-width: min(100%, 215px);
-  max-width: 300px;
+  max-width: 310px;
   align-self: flex-start;
   gap: 0;
-  padding: 0.16rem;
+  padding: 0;
+  overflow: hidden;
 }
 
 .candidature-corpus-card-preselected {
-  flex: 1.08 1 280px;
-  max-width: 340px;
+  flex: 1.28 1 360px;
+  max-width: min(100%, 520px);
   border-left-color: var(--focus);
   box-shadow: 0 2px 7px rgb(69 51 33 / 10%);
 }
 
 .candidature-corpus-entry {
   display: block;
-  padding: 0.22rem 0.24rem 0.12rem;
+  width: 100%;
+  padding: 0.34rem 0.38rem 0.28rem;
   text-align: left;
 }
 
@@ -103,19 +105,29 @@
   align-self: start;
   padding: 0;
   border: 0;
-  border-radius: 0;
   background: transparent;
-  box-shadow: none;
   overflow: visible;
 }
 
 .candidature-cue-size-compact {
-  grid-column: span 4;
+  grid-column: span 3;
   opacity: 0.84;
 }
 
+.candidature-cue-size-compact.candidature-cue-length-long {
+  grid-column: span 4;
+}
+
 .candidature-cue-size-normal {
+  grid-column: span 5;
+}
+
+.candidature-cue-size-normal.candidature-cue-length-medium {
   grid-column: span 6;
+}
+
+.candidature-cue-size-normal.candidature-cue-length-long {
+  grid-column: span 7;
 }
 
 .candidature-cue-size-wide {
@@ -127,17 +139,17 @@
 }
 
 .candidature-cue-size-wide.candidature-cue-length-long {
-  grid-column: span 10;
+  grid-column: 1 / -1;
 }
 
 .candidature-cue-content {
   display: block;
   min-width: 0;
-  padding: 0.04rem 0.08rem 0.06rem;
+  padding: 0.04rem 0.07rem 0.05rem;
 }
 
 .candidature-cue-size-wide .candidature-cue-content {
-  padding-inline-start: 0.13rem;
+  padding-inline-start: 0.12rem;
   box-shadow: inset 2px 0 0 rgb(178 143 105 / 48%);
 }
 
@@ -167,7 +179,7 @@
 .candidature-cue-size-compact .candidature-cue-value {
   -webkit-line-clamp: 2;
   font-size: 0.79rem;
-  font-weight: 540;
+  font-weight: 530;
   line-height: 1.24;
 }
 
@@ -175,26 +187,30 @@
   -webkit-line-clamp: 3;
   font-size: 0.86rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.24;
 }
 
 .candidature-cue-size-wide .candidature-cue-value {
   -webkit-line-clamp: 4;
-  font-size: 0.96rem;
+  font-size: 0.98rem;
   font-weight: 720;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
-.candidature-corpus-card-preselected .candidature-cue-size-compact .candidature-cue-value {
-  -webkit-line-clamp: 4;
+.candidature-cue-size-wide.candidature-cue-length-short .candidature-cue-value {
+  font-size: clamp(1.05rem, 7.5cqi, 1.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.018em;
 }
 
-.candidature-corpus-card-preselected .candidature-cue-size-normal .candidature-cue-value {
-  -webkit-line-clamp: 6;
+.candidature-cue-size-wide.candidature-cue-length-medium .candidature-cue-value {
+  font-size: clamp(0.98rem, 5.4cqi, 1.3rem);
+  line-height: 1.15;
 }
 
-.candidature-corpus-card-preselected .candidature-cue-size-wide .candidature-cue-value {
-  -webkit-line-clamp: 9;
+.candidature-cue-size-normal.candidature-cue-length-short .candidature-cue-value {
+  font-size: clamp(0.88rem, 4.3cqi, 1.05rem);
+  font-weight: 640;
 }
 
 @container (max-width: 15rem) {
@@ -203,6 +219,8 @@
   }
 
   .candidature-cue-size-normal,
+  .candidature-cue-size-normal.candidature-cue-length-medium,
+  .candidature-cue-size-normal.candidature-cue-length-long,
   .candidature-cue-size-wide,
   .candidature-cue-size-wide.candidature-cue-length-medium,
   .candidature-cue-size-wide.candidature-cue-length-long {
@@ -210,393 +228,99 @@
   }
 }
 
-@container (min-width: 22rem) {
-  .candidature-cue-size-compact {
-    grid-column: span 3;
-  }
-
-  .candidature-cue-size-normal {
-    grid-column: span 5;
-  }
-
-  .candidature-cue-size-wide {
-    grid-column: span 7;
-  }
-
-  .candidature-cue-size-wide.candidature-cue-length-medium {
-    grid-column: span 8;
-  }
-
-  .candidature-cue-size-wide.candidature-cue-length-long {
-    grid-column: span 9;
-  }
-}
-
-.candidature-search-match {
+.candidature-expanded-summary {
   display: grid;
-  grid-template-columns: minmax(70px, max-content) minmax(0, 1fr);
-  gap: 0.35rem;
-}
-
-.candidature-search-match span,
-.selected-tag-definition {
-  overflow-wrap: break-word;
-  word-break: normal;
-}
-
-.candidature-search-match > span:first-child {
-  color: var(--muted-ink);
-  font-size: 0.69rem;
-  font-weight: 750;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
-}
-
-.candidature-search-match > span:last-child {
-  color: var(--ink);
-  font-size: 0.82rem;
-}
-
-.candidature-neutral-reference {
-  color: var(--muted-ink);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.candidature-search-match {
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--line-soft);
-}
-
-.candidature-empty-state {
-  display: grid;
-  min-height: 150px;
-  place-content: center;
-  justify-items: center;
-  gap: 5px;
-  padding: 28px;
-  border: 1px dashed #ad9a80;
-  border-radius: 5px;
-  background:
-    linear-gradient(135deg, rgb(145 115 78 / 4%) 0 1px, transparent 1px 12px),
-    #f7eedf;
-  text-align: center;
-}
-
-.candidature-empty-state h3,
-.candidature-empty-state p {
-  margin: 0;
-}
-
-.candidature-empty-state p {
-  max-width: 52ch;
-  color: var(--muted-ink);
-}
-
-.candidature-selected {
-  display: grid;
-  gap: 0.7rem;
-}
-
-.candidature-selected-actions {
-  display: flex;
-  justify-content: space-between;
   gap: 0.5rem;
-}
-
-.candidature-primary-information {
-  border-left: 4px solid var(--focus);
-}
-
-.candidature-primary-grid,
-.candidature-information-grid,
-.retained-information-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-  gap: 0.55rem;
-  align-items: start;
-}
-
-.retained-information-card {
-  min-width: 0;
-  padding: 0.68rem;
-  border: 1px solid var(--line-soft);
-  border-left: 3px solid #c2a57f;
-  border-radius: 4px;
-  background: var(--paper-strong);
-}
-
-.retained-information-card h4 {
-  margin: 0;
-}
-
-.retained-information-card > div:first-child > p {
-  margin-top: 3px;
-  font-size: 0.82rem;
-}
-
-.candidature-information-unit {
-  min-width: 0;
-  align-self: start;
-}
-
-.candidature-information-unit-heading {
-  align-items: flex-start;
-}
-
-.candidature-information-unit-heading > div:first-child {
   min-width: 0;
 }
 
-.candidature-field-presentation-controls {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.candidature-field-presentation-controls button {
-  min-width: 2rem;
-  min-height: 2rem;
-  padding: 0.25rem 0.45rem;
-}
-
-.candidature-star-button {
-  border: 1px solid var(--line);
-  color: var(--muted-ink);
-  background: transparent;
-}
-
-.candidature-star-button[aria-pressed="true"] {
-  color: var(--accent);
-  background: #f5ead9;
-}
-
-.candidature-prominence-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--muted-ink);
-  font-size: 0.72rem;
-}
-
-.candidature-prominence-control select {
-  min-height: 2rem;
-  padding: 0.2rem 0.35rem;
-}
-
-.candidature-more {
-  border-top: 1px solid var(--line);
-}
-
-.candidature-more > summary {
-  width: fit-content;
-  padding: 0.5rem 0;
-  color: var(--muted-ink);
-  cursor: pointer;
-  font-weight: 750;
-}
-
-.candidature-more > summary:hover,
-.candidature-more > summary:focus-visible,
-.candidature-more[open] > summary {
-  color: var(--ink);
-}
-
-.candidature-more-content {
+.candidature-expanded-prominent {
   display: grid;
-  gap: 0.7rem;
-  padding-top: 0.35rem;
+  gap: 0.32rem;
+  min-width: 0;
 }
 
-.selected-tag-definition {
-  margin-top: 0.4rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--line-soft);
-  border-left: 3px solid var(--focus);
-  border-radius: 3px;
-  background: #fff9ec;
-}
-
-.tag-editor {
-  display: grid;
-  gap: 0.65rem;
-  margin-block-start: 0.7rem;
-}
-
-@media (max-width: 760px) {
-  .candidature-corpus-tools,
-  .candidature-primary-grid,
-  .candidature-information-grid,
-  .retained-information-list {
-    grid-template-columns: 1fr;
-  }
-
-  .candidature-corpus-card {
-    flex-basis: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-
-  .candidature-selected-actions,
-  .candidature-editor-heading > .button-row {
-    align-items: stretch;
-  }
-
-}
-
-@media (max-height: 640px) {
-  .candidature-corpus-tools {
-    margin-block: 0.42rem 0.55rem;
-  }
-
-  .candidature-empty-state {
-    min-height: 180px;
-  }
-}
-
-/* PLAN[5] application corpus and selected-application composition. */
-.candidature-corpus-tools {
-  grid-template-columns: minmax(260px, 1fr) minmax(120px, 160px) minmax(120px, 160px);
-}
-
-.candidature-corpus-grid {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.38rem;
-}
-
-.candidature-corpus-card {
-  flex: 1 1 235px;
-  min-width: min(100%, 215px);
-  max-width: 300px;
-  align-self: flex-start;
-  gap: 0;
-  padding: 0.16rem;
-}
-
-.candidature-corpus-card-preselected {
-  flex: 1.15 1 340px;
-  max-width: min(100%, 460px);
-  border-left-color: var(--focus);
-  box-shadow: 0 2px 7px rgb(69 51 33 / 10%);
-}
-
-.candidature-corpus-entry {
+.candidature-expanded-cue {
   display: block;
-  padding: 0.2rem 0.22rem 0.1rem;
-}
-
-.candidature-recognition-cues {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: 1px;
-  grid-auto-flow: dense;
-  align-items: start;
-  gap: 2px 0.32rem;
-}
-
-.candidature-recognition-cue {
   min-width: 0;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  text-align: left;
+}
+
+.candidature-expanded-cue-prominent {
+  padding: 0.08rem 0 0.34rem;
+  border-bottom: 1px solid rgb(120 96 67 / 16%);
+}
+
+.candidature-expanded-value {
+  display: -webkit-box;
   overflow: hidden;
-  align-self: start;
+  color: var(--ink);
+  white-space: normal;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
 }
 
-.candidature-cue-size-compact {
-  grid-column: span 3;
-  opacity: 0.8;
+.candidature-expanded-cue-prominent.candidature-cue-size-wide .candidature-expanded-value {
+  -webkit-line-clamp: 10;
+  font-size: clamp(1.08rem, 5.8cqi, 1.72rem);
+  font-weight: 730;
+  line-height: 1.14;
+  letter-spacing: -0.015em;
 }
 
-.candidature-cue-size-compact .candidature-cue-content {
-  padding: 0.06rem 0.1rem;
+.candidature-expanded-cue-prominent.candidature-cue-size-normal .candidature-expanded-value {
+  -webkit-line-clamp: 8;
+  font-size: clamp(1rem, 4.5cqi, 1.3rem);
+  font-weight: 680;
+  line-height: 1.18;
 }
 
-.candidature-cue-size-normal {
-  grid-column: span 6;
+.candidature-expanded-cue-prominent.candidature-cue-size-compact .candidature-expanded-value {
+  -webkit-line-clamp: 5;
+  font-size: 0.9rem;
+  font-weight: 590;
+  line-height: 1.25;
 }
 
-.candidature-cue-size-normal .candidature-cue-content {
-  padding: 0.06rem 0.1rem;
+.candidature-expanded-supporting {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.4rem 0.8rem;
+  align-items: start;
+  min-width: 0;
 }
 
-.candidature-cue-size-wide {
+.candidature-expanded-supporting .candidature-expanded-cue {
+  padding: 0.08rem 0;
+}
+
+.candidature-expanded-supporting .candidature-cue-size-wide {
   grid-column: 1 / -1;
 }
 
-.candidature-cue-content {
-  display: block;
-  min-width: 0;
-  border-radius: 2px;
-}
-
-.candidature-cue-label {
-  display: block;
-  margin-bottom: 0.08rem;
-  color: var(--muted-ink);
-  font-size: 0.61rem;
-  font-weight: 620;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
-}
-
-.candidature-cue-value {
-  display: -webkit-box;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--ink);
-  white-space: normal;
-  word-break: normal;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  line-height: 1.2;
-}
-
-.candidature-cue-size-compact .candidature-cue-value {
-  -webkit-line-clamp: 2;
-  font-size: 0.8rem;
-  font-weight: 520;
-  line-height: 1.22;
-}
-
-.candidature-cue-size-normal .candidature-cue-value {
-  -webkit-line-clamp: 3;
-  font-size: 0.86rem;
-  font-weight: 590;
-  line-height: 1.22;
-}
-
-.candidature-cue-size-wide .candidature-cue-value {
+.candidature-expanded-supporting .candidature-cue-size-compact .candidature-expanded-value {
   -webkit-line-clamp: 4;
-  font-size: 0.96rem;
-  font-weight: 720;
-  line-height: 1.24;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  font-weight: 530;
+  line-height: 1.28;
 }
 
-.candidature-corpus-card-preselected .candidature-cue-size-compact .candidature-cue-value {
-  -webkit-line-clamp: 5;
+.candidature-expanded-supporting .candidature-cue-size-normal .candidature-expanded-value {
+  -webkit-line-clamp: 6;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.28;
 }
 
-.candidature-corpus-card-preselected .candidature-cue-size-normal .candidature-cue-value {
+.candidature-expanded-supporting .candidature-cue-size-wide .candidature-expanded-value {
   -webkit-line-clamp: 9;
-}
-
-.candidature-corpus-card-preselected .candidature-cue-size-wide .candidature-cue-value {
-  -webkit-line-clamp: 14;
+  font-size: 0.98rem;
+  font-weight: 660;
+  line-height: 1.25;
 }
 
 .candidature-search-match {
-  margin-top: 0.18rem;
+  margin-top: 0.2rem;
   padding-top: 0.2rem;
 }
 
@@ -607,9 +331,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.28rem;
-  padding: 0.05rem 0.24rem 0.06rem;
-  border-top: 1px solid rgb(120 96 67 / 16%);
+  padding: 0.08rem 0.36rem 0.1rem;
   color: var(--muted-ink);
+  background: rgb(120 96 67 / 3%);
 }
 
 .candidature-card-footer > time {
@@ -636,8 +360,8 @@
   border: 1px solid rgb(120 96 67 / 24%);
   border-radius: 999px;
   color: var(--muted-ink);
-  background: rgb(255 255 255 / 22%);
-  font-size: 0.58rem;
+  background: rgb(255 255 255 / 24%);
+  font-size: 0.59rem;
   font-weight: 540;
   line-height: 1.05;
   overflow: hidden;
@@ -648,22 +372,20 @@
 .candidature-corpus-inspection {
   display: block;
   padding: 0;
-  border: 0;
 }
 
 .candidature-corpus-open-strip {
   display: block;
   width: 100%;
-  min-height: 1.3rem;
-  padding: 0.14rem 0.32rem 0.12rem;
+  min-height: 1.4rem;
+  padding: 0.2rem 0.36rem 0.18rem;
   border: 0;
-  border-top: 2px solid var(--accent);
   border-radius: 0;
-  color: #9f542d;
-  background: rgb(184 97 50 / 6%);
+  color: var(--paper-strong);
+  background: var(--accent);
   cursor: pointer;
   font-size: 0.69rem;
-  font-weight: 660;
+  font-weight: 680;
   letter-spacing: 0.015em;
   line-height: 1;
   text-align: center;
@@ -671,8 +393,26 @@
 
 .candidature-corpus-open-strip:hover,
 .candidature-corpus-open-strip:focus-visible {
-  color: var(--ink);
-  background: rgb(178 143 105 / 6%);
+  filter: brightness(0.94);
+}
+
+@media (max-width: 900px) {
+  .candidature-corpus-card {
+    flex-basis: 210px;
+    max-width: 280px;
+  }
+
+  .candidature-corpus-card-preselected {
+    flex-basis: 280px;
+    max-width: 400px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .candidature-corpus-card-preselected {
+    flex-basis: 430px;
+    max-width: 620px;
+  }
 }
 
 .candidature-field-administration {
