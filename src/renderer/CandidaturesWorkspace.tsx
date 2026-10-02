@@ -114,6 +114,60 @@ function CorpusRecognitionCue({
   );
 }
 
+function ExpandedCorpusRecognition({
+  cues,
+  retainedSourceCue,
+}: {
+  readonly cues: readonly CandidatureRecognitionCue[];
+  readonly retainedSourceCue: CandidatureRecognitionCue | null;
+}) {
+  const available = cues.length > 0
+    ? cues
+    : retainedSourceCue
+      ? [retainedSourceCue]
+      : [];
+  if (available.length === 0) {
+    return <span className="candidature-neutral-reference">Saved application</span>;
+  }
+
+  const wide = available.filter((cue) => cue.presentationSize === "wide");
+  const prominentIds = new Set(
+    (wide.length > 0 ? wide : available.slice(0, 1)).map((cue) => cue.fieldId),
+  );
+  const supporting = available.filter((cue) => !prominentIds.has(cue.fieldId));
+  const prominent = available.filter((cue) => prominentIds.has(cue.fieldId));
+
+  return (
+    <span className="candidature-expanded-summary">
+      <span className="candidature-expanded-prominent">
+        {prominent.map((cue) => (
+          <span
+            className={`candidature-expanded-cue candidature-expanded-cue-prominent candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}
+            key={cue.fieldId}
+          >
+            {cue.fieldId === "retained-source" ? (
+              <span className="candidature-cue-label">{cue.label}</span>
+            ) : null}
+            <span className="candidature-expanded-value">{cue.value}</span>
+          </span>
+        ))}
+      </span>
+      {supporting.length > 0 ? (
+        <span className="candidature-expanded-supporting">
+          {supporting.map((cue) => (
+            <span
+              className={`candidature-expanded-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}
+              key={cue.fieldId}
+            >
+              <span className="candidature-expanded-value">{cue.value}</span>
+            </span>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export function CandidaturesWorkspace({
   initialSelection,
   onInitialSelectionCleared,
@@ -616,15 +670,20 @@ export function CandidaturesWorkspace({
                     aria-label={preselected ? "Collapse saved application" : "Inspect saved application"}
                     onClick={() => inspectRecord(record)}
                   >
-                    {primaryCues.length > 0 ? (
+                    {preselected ? (
+                      <ExpandedCorpusRecognition
+                        cues={primaryCues}
+                        retainedSourceCue={recognition.retainedSourceCue}
+                      />
+                    ) : primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
                         {primaryCues.map((cue) => (
-                          <CorpusRecognitionCue cue={cue} expanded={preselected} key={cue.fieldId} />
+                          <CorpusRecognitionCue cue={cue} expanded={false} key={cue.fieldId} />
                         ))}
                       </span>
                     ) : recognition.retainedSourceCue ? (
                       <span className="candidature-recognition-cues">
-                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} expanded={preselected} sourceLabel />
+                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} expanded={false} sourceLabel />
                       </span>
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
