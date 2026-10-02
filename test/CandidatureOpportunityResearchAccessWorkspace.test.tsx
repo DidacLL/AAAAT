@@ -203,7 +203,7 @@ describe("selected candidature Send to my AI", () => {
     await user.click(open);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
 
-    await user.click(screen.getByText("More"));
+    await user.click(screen.getByText("Information setup"));
     await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.type(screen.getByPlaceholderText("Flight hours"), "Seniority");
 
