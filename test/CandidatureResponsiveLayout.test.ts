@@ -12,26 +12,21 @@ const workspace = readFileSync(
 );
 
 describe("Applications responsive layout", () => {
-  it("packs collapsed card favourites into dense columns with distinct bounded heights", () => {
+  it("uses dense two-dimensional cue footprints instead of shared fixed-height rows", () => {
     expect(css).toMatch(/\.candidature-corpus-grid\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
     expect(css).toMatch(/\.candidature-corpus-card\s*\{[^}]*flex:\s*1 1 280px;[^}]*max-width:\s*420px;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-recognition-cues\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(12, minmax\(0, 1fr\)\);[^}]*grid-auto-flow:\s*dense;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-cue-size-compact\s*\{[^}]*grid-column:\s*span 4;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-cue-size-normal\s*\{[^}]*grid-column:\s*span 6;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-cue-size-wide\s*\{[^}]*grid-column:\s*span 8;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-cue-size-compact \.candidature-cue-value\s*\{[^}]*-webkit-line-clamp:\s*2;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-cue-size-normal \.candidature-cue-value\s*\{[^}]*-webkit-line-clamp:\s*3;/s);
-    expect(css).toMatch(/\.candidature-corpus-card \.candidature-cue-size-wide \.candidature-cue-value\s*\{[^}]*-webkit-line-clamp:\s*4;/s);
+    expect(css).toMatch(/\.candidature-corpus-card \.candidature-recognition-cues\s*\{[^}]*grid-template-columns:\s*repeat\(12, minmax\(0, 1fr\)\);[^}]*grid-auto-rows:\s*1\.08rem;[^}]*grid-auto-flow:\s*dense;/s);
+    expect(css).toMatch(/\.candidature-corpus-card \.candidature-recognition-cue\s*\{[^}]*grid-column:\s*span var\(--cue-columns\);[^}]*grid-row:\s*span var\(--cue-rows\);/s);
+    expect(css).toMatch(/-webkit-line-clamp:\s*var\(--cue-lines\);/);
+    expect(workspace).toContain('"--cue-columns": footprint.columns');
+    expect(workspace).toContain('"--cue-rows": footprint.rows');
+    expect(workspace).toContain('"--cue-lines": footprint.lines');
   });
 
-  it("expands naturally, reveals more reading height, and still densely composes values", () => {
-    expect(css).toMatch(/\.candidature-corpus-card-preselected\s*\{[^}]*flex:\s*2 1 580px;[^}]*max-width:\s*min\(100%, 760px\);/s);
-    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-cue-size-compact\s*\{[^}]*grid-column:\s*span 4;/s);
-    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-cue-size-normal\s*\{[^}]*grid-column:\s*span 5;/s);
-    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-cue-size-wide\s*\{[^}]*grid-column:\s*span 8;/s);
-    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-cue-size-compact \.candidature-cue-value\s*\{[^}]*-webkit-line-clamp:\s*3;/s);
-    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-cue-size-normal \.candidature-cue-value\s*\{[^}]*-webkit-line-clamp:\s*5;/s);
-    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-cue-size-wide \.candidature-cue-value\s*\{[^}]*-webkit-line-clamp:\s*7;/s);
+  it("gives expanded cards more physical room and a larger content-derived reading budget", () => {
+    expect(css).toMatch(/\.candidature-corpus-card-preselected\s*\{[^}]*flex:\s*2 1 600px;[^}]*max-width:\s*min\(100%, 780px\);/s);
+    expect(css).toMatch(/\.candidature-corpus-card-preselected \.candidature-recognition-cues\s*\{[^}]*grid-auto-rows:\s*1\.12rem;/s);
+    expect(workspace).toContain("candidatureCueFootprint(cue, preselected)");
   });
 
   it("keeps selected application geometry independent from corpus prominence", () => {
