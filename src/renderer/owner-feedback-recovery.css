@@ -565,3 +565,35 @@
   max-height: 10.2em;
   -webkit-line-clamp: 7;
 }
+
+
+/* Information reads as one application surface, not a grid of miniature forms. */
+.candidature-information-unit {
+  border: 0;
+  border-left: 2px solid #c4ae8d;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.candidature-information-unit-heading {
+  border-bottom-color: rgb(120 96 67 / 16%);
+}
+
+.candidature-information-unit-heading h4 {
+  color: var(--muted-ink);
+  font-size: 0.72rem;
+  font-weight: 720;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.candidature-value-reader > p {
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.candidature-primary-information .candidature-value-reader > p {
+  font-size: 1rem;
+}
