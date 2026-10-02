@@ -177,7 +177,7 @@ function initializeWorkspaceFixture(rootPath: string): void {
         if (index === 0 || index === 2) attachTag.run(candidatureId, reliabilityTagId);
         if (index === 1 || index === 3) attachTag.run(candidatureId, accessibilityTagId);
         if (index === 0 || index === 1) {
-          const values = index === 0
+          const values: ReadonlyArray<readonly [string, string]> = index === 0
             ? [
                 ["00000000-0000-4000-8000-000000000101", "Alpha Systems"],
                 ["00000000-0000-4000-8000-000000000102", "Reliability Engineer"],
