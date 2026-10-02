@@ -76,6 +76,23 @@ Working CV must read immediately as a CV/document composition, using the success
 
 Preserve every settled PLAN[4] ownership/render distinction. This is not a WYSIWYG PDF editor and not a document-domain rewrite.
 
+### Horizontal space and menu density
+
+The desktop must stop behaving like a narrow form stretched across a wide landscape viewport.
+
+- use deliberate multi-column composition for related information on wide views where it improves scanning and reduces eye travel;
+- keep readable line lengths rather than pouring fields/descriptions into one oversized horizontal strip;
+- application information, descriptions/supporting metadata and document composition should align to calm predictable grids rather than many isolated boxes;
+- expanded corpus inspection may span multiple grid columns;
+- avoid full-width controls/text where they add no value;
+- keep constrained widths stackable and task-first.
+
+Primary navigation must feel like a menu:
+- smaller/lighter typography and tighter rows;
+- active state through restrained accent/contrast, not oversized bold treatment;
+- utility/reorder/edit/options controls visually subordinate to values and document content;
+- reduce unnecessary padding, border weight and oversized bold labels throughout affected surfaces.
+
 ## Architecture and non-goals
 
 Keep this as one coherent bounded renderer interaction correction.
