@@ -105,7 +105,7 @@ async function openSelected(user: ReturnType<typeof userEvent.setup>, onTagGloss
       onTagGlossaryChange={onTagGlossaryChange}
     />,
   );
-  await user.click(await screen.findByRole("button", { name: "Inspect saved application" }));
+  await user.click(await screen.findByRole("button", { name: /^Inspect saved application:/ }));
   await user.click(screen.getByRole("button", { name: "Open application" }));
   return { tagsRegion: screen.getByRole("region", { name: "Tags" }), onTagGlossaryChange };
 }
