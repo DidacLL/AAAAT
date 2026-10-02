@@ -419,20 +419,23 @@
 }
 
 .candidature-corpus-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-  align-items: start;
-  gap: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.45rem;
 }
 
 .candidature-corpus-card {
-  min-width: 0;
-  max-width: none;
-  align-self: stretch;
+  flex: 1 1 250px;
+  min-width: min(100%, 230px);
+  max-width: 360px;
+  align-self: flex-start;
 }
 
 .candidature-corpus-card-preselected {
-  grid-column: span 2;
+  flex: 2 1 620px;
+  max-width: 780px;
+  grid-column: auto;
   border-left-color: var(--focus);
   box-shadow: 0 2px 7px rgb(69 51 33 / 10%);
 }
@@ -535,15 +538,21 @@
   font-weight: 700;
 }
 
-@media (min-width: 1120px) {
+@media (min-width: 980px) {
   .candidature-primary-grid,
   .candidature-information-grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: dense;
   }
 
-  .candidature-unit-size-compact { grid-column: span 4; }
-  .candidature-unit-size-normal { grid-column: span 6; }
-  .candidature-unit-size-wide { grid-column: span 12; }
+  .candidature-unit-size-compact,
+  .candidature-unit-size-normal {
+    grid-column: span 1;
+  }
+
+  .candidature-unit-size-wide {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 760px) {
@@ -749,5 +758,135 @@
 
   .candidature-corpus-card .candidature-cue-size-wide {
     flex-basis: 100%;
+  }
+}
+
+/* Product Owner density correction: use horizontal space without inflating field boxes. */
+.candidature-selected {
+  gap: 0.48rem;
+  font-size: 0.9rem;
+}
+
+.candidature-selected .section-surface {
+  gap: 0.58rem;
+  padding: 0.68rem 0.78rem;
+  border-radius: 6px;
+}
+
+.candidature-primary-information {
+  border-left-width: 2px;
+}
+
+.candidature-information-heading {
+  padding-bottom: 0.12rem !important;
+}
+
+.candidature-selected .candidature-editor-heading h3 {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.candidature-selected .eyebrow {
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.candidature-primary-grid,
+.candidature-information-grid,
+.retained-information-list {
+  gap: 0.22rem 1rem;
+}
+
+.candidature-information-unit {
+  gap: 0.24rem;
+  padding: 0.34rem 0 0.42rem;
+}
+
+.candidature-information-unit-heading {
+  gap: 0.38rem;
+  padding-bottom: 0.2rem;
+}
+
+.candidature-information-unit-heading h4 {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+}
+
+.candidature-information-unit-heading > div:first-child > p {
+  margin-top: 0.08rem;
+  font-size: 0.69rem;
+  line-height: 1.25;
+}
+
+.candidature-value-reader > p,
+.candidature-primary-information .candidature-value-reader > p {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.candidature-field-context-controls {
+  gap: 0.08rem;
+}
+
+.candidature-field-context-controls .candidature-icon-button {
+  min-width: 1.55rem;
+  min-height: 1.55rem;
+  padding: 0.1rem 0.2rem;
+  font-size: 0.75rem;
+}
+
+.candidature-field-options > summary {
+  min-height: 1.55rem;
+  padding: 0.18rem 0.3rem;
+  font-size: 0.66rem;
+  font-weight: 620;
+}
+
+.candidature-corpus-card-preselected .candidature-recognition-cues {
+  align-items: flex-start;
+  gap: 0.35rem 1rem;
+}
+
+.candidature-corpus-card-preselected .candidature-cue-size-compact {
+  flex: 1 1 28%;
+}
+
+.candidature-corpus-card-preselected .candidature-cue-size-normal {
+  flex: 1 1 42%;
+}
+
+.candidature-corpus-card-preselected .candidature-cue-size-wide {
+  flex: 1 1 100%;
+}
+
+.candidature-corpus-card-preselected .candidature-cue-value,
+.candidature-corpus-card-preselected .candidature-cue-size-compact .candidature-cue-value {
+  -webkit-line-clamp: 4;
+}
+
+.candidature-corpus-card-preselected .candidature-cue-size-normal .candidature-cue-value {
+  -webkit-line-clamp: 5;
+}
+
+.candidature-corpus-card-preselected .candidature-cue-size-wide .candidature-cue-value {
+  -webkit-line-clamp: 7;
+}
+
+@media (max-width: 760px) {
+  .candidature-corpus-card,
+  .candidature-corpus-card-preselected {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .candidature-primary-grid,
+  .candidature-information-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .candidature-unit-size-wide {
+    grid-column: auto;
   }
 }
