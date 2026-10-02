@@ -14,27 +14,39 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
-  const { useState } = await import("react");
+  const { useEffect, useState } = await import("react");
   return {
     CandidaturesAiWorkspace: ({
-      onTagGlossaryChange,
+      onTagContextChange,
     }: {
       onDirtyChange?: (dirty: boolean) => void;
-      onTagGlossaryChange?: () => void;
+      onTagContextChange?: (context: {
+        candidatureId: string;
+        tags: Array<{ id: string; name: string; aliases: string[]; definition: string; notes?: string }>;
+      } | null) => void;
     }) => {
       const [draft, setDraft] = useState("");
+      const publish = (tags = state.tagSets[state.activeRoot] ?? []) => {
+        onTagContextChange?.({
+          candidatureId: "00000000-0000-4000-8000-000000003695",
+          tags,
+        });
+      };
+      useEffect(() => () => onTagContextChange?.(null), [onTagContextChange]);
       return (
         <section aria-label="Applications mock">
           <input aria-label="Application draft" value={draft} onChange={(event) => setDraft(event.target.value)} />
+          <button type="button" onClick={() => publish()}>Select mock application</button>
           <button
             type="button"
             onClick={() => {
-              state.tagSets[state.activeRoot] = (state.tagSets[state.activeRoot] ?? []).map((tag) =>
+              const next = (state.tagSets[state.activeRoot] ?? []).map((tag) =>
                 tag.name === "Reliability engineering"
                   ? { ...tag, definition: "Updated shared reliability meaning" }
                   : tag,
               );
-              onTagGlossaryChange?.();
+              state.tagSets[state.activeRoot] = next;
+              publish(next);
             }}
           >
             Update shared Tag
@@ -42,7 +54,7 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
           <button
             type="button"
             onClick={() => {
-              state.tagSets[state.activeRoot] = [
+              const next = [
                 ...(state.tagSets[state.activeRoot] ?? []),
                 {
                   id: "00000000-0000-4000-8000-000000003699",
@@ -51,7 +63,8 @@ vi.mock("../src/renderer/CandidaturesAiWorkspace", async () => {
                   definition: "Shared safety vocabulary",
                 },
               ];
-              onTagGlossaryChange?.();
+              state.tagSets[state.activeRoot] = next;
+              publish(next);
             }}
           >
             Create shared Tag
@@ -87,38 +100,23 @@ vi.mock("../src/renderer/SettingsWorkspace", () => ({
     onRestored: (workspace: { rootPath: string }) => void;
   }) => (
     <section aria-label="Settings mock">
-      <button
-        type="button"
-        onClick={() => {
-          state.activeRoot = "/tmp/tag-workspace-b";
-          onChooseWorkspace("open");
-        }}
-      >
-        Switch workspace
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          state.tagSets[state.activeRoot] = [{
-            id: "00000000-0000-4000-8000-000000003698",
-            name: "Reset vocabulary",
-            aliases: [],
-            definition: "Vocabulary loaded after reset",
-          }];
-          onWorkspaceReset({ rootPath: state.activeRoot });
-        }}
-      >
-        Reset workspace
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          state.activeRoot = "/tmp/tag-workspace-c";
-          onRestored({ rootPath: state.activeRoot });
-        }}
-      >
-        Restore workspace
-      </button>
+      <button type="button" onClick={() => {
+        state.activeRoot = "/tmp/tag-workspace-b";
+        onChooseWorkspace("open");
+      }}>Switch workspace</button>
+      <button type="button" onClick={() => {
+        state.tagSets[state.activeRoot] = [{
+          id: "00000000-0000-4000-8000-000000003698",
+          name: "Reset vocabulary",
+          aliases: [],
+          definition: "Vocabulary loaded after reset",
+        }];
+        onWorkspaceReset({ rootPath: state.activeRoot });
+      }}>Reset workspace</button>
+      <button type="button" onClick={() => {
+        state.activeRoot = "/tmp/tag-workspace-c";
+        onRestored({ rootPath: state.activeRoot });
+      }}>Restore workspace</button>
     </section>
   ),
 }));
@@ -126,7 +124,6 @@ vi.mock("../src/renderer/SettingsWorkspace", () => ({
 import { App } from "../src/renderer/App";
 
 function installApi() {
-  const listTags = vi.fn(async () => state.tagSets[state.activeRoot] ?? []);
   Object.defineProperty(window, "aaaat", {
     configurable: true,
     value: {
@@ -138,10 +135,8 @@ function installApi() {
         createDemo: vi.fn(async () => ({ rootPath: state.activeRoot })),
         status: vi.fn(async () => ({ demo: false })),
       },
-      candidatures: { listTags },
     },
   });
-  return { listTags };
 }
 
 beforeEach(() => {
@@ -174,82 +169,92 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("persistent rail Tag visor", () => {
-  it("stays reachable in the loaded rail across Home, Applications, CVs, My information and Settings", async () => {
+describe("contextual rail Tag monitor in App", () => {
+  it("stays read-only and follows Applications context while other destinations show the neutral state", async () => {
     installApi();
     const user = userEvent.setup();
     render(<App />);
 
-    const home = await screen.findByRole("region", { name: "Home" });
+    await screen.findByRole("region", { name: "Home" });
     const rail = screen.getByRole("complementary", { name: "Workspace controls" });
-    expect(home).toBeVisible();
-    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toBeVisible();
-    expect(within(rail).getByRole("searchbox", { name: "Search Tags" })).toBeVisible();
+    const monitor = within(rail).getByRole("region", { name: "Tags glossary" });
+    expect(monitor).toHaveTextContent("Select an application to inspect its Tags");
+    expect(within(rail).queryByRole("searchbox", { name: "Search Tags" })).not.toBeInTheDocument();
 
     await user.click(within(rail).getByRole("button", { name: "Applications" }));
-    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toBeVisible();
+    expect(monitor).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
+    await waitFor(() => expect(monitor).toHaveTextContent("Reliability engineering"));
+    expect(monitor).toHaveTextContent("Initial shared reliability meaning");
+
     await user.click(within(rail).getByRole("button", { name: "CVs" }));
-    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toBeVisible();
+    expect(monitor).toHaveTextContent("Select an application to inspect its Tags");
     await user.click(within(rail).getByRole("button", { name: "My information" }));
-    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toBeVisible();
+    expect(monitor).toHaveTextContent("Select an application to inspect its Tags");
     await user.click(within(rail).getByRole("button", { name: "Settings" }));
-    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toBeVisible();
+    expect(monitor).toHaveTextContent("Select an application to inspect its Tags");
   });
 
-  it("refreshes create/update changes without remounting or discarding candidature work", async () => {
-    const api = installApi();
+  it("updates shared Tag meaning without remounting or discarding application work", async () => {
+    installApi();
     const user = userEvent.setup();
     render(<App />);
 
     await screen.findByRole("region", { name: "Home" });
     await user.click(screen.getByRole("button", { name: "Applications" }));
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
     const draft = screen.getByRole("textbox", { name: "Application draft" });
     await user.type(draft, "unsaved candidature work");
 
-    const search = screen.getByRole("searchbox", { name: "Search Tags" });
-    await user.type(search, "SRE");
-    await user.click(await screen.findByRole("button", { name: "Reliability engineering" }));
-    expect(screen.getByRole("article", { name: "Selected Tag" })).toHaveTextContent("Initial shared reliability meaning");
-
+    const monitor = screen.getByRole("region", { name: "Tags glossary" });
+    await waitFor(() => expect(monitor).toHaveTextContent("Initial shared reliability meaning"));
     await user.click(screen.getByRole("button", { name: "Update shared Tag" }));
-    await waitFor(() => expect(screen.getByRole("article", { name: "Selected Tag" }))
-      .toHaveTextContent("Updated shared reliability meaning"));
+    await waitFor(() => expect(monitor).toHaveTextContent("Updated shared reliability meaning"));
     expect(draft).toHaveValue("unsaved candidature work");
 
     await user.click(screen.getByRole("button", { name: "Create shared Tag" }));
-    await user.clear(search);
-    await user.type(search, "Aviation");
-    expect(await screen.findByRole("button", { name: "Aviation safety" })).toBeVisible();
+    await waitFor(() => expect(monitor).toHaveTextContent("Aviation safety"));
+    expect(monitor).toHaveTextContent("Shared safety vocabulary");
     expect(draft).toHaveValue("unsaved candidature work");
-    expect(api.listTags.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(within(monitor).queryByRole("searchbox")).not.toBeInTheDocument();
   });
 
-  it("loads the appropriate glossary after workspace switch, reset and restore", async () => {
+  it("does not leak stale application Tags after workspace switch, reset or restore", async () => {
     installApi();
     const user = userEvent.setup();
     render(<App />);
 
     await screen.findByRole("region", { name: "Home" });
-    let search = screen.getByRole("searchbox", { name: "Search Tags" });
-    await user.type(search, "Reliability");
-    expect(await screen.findByRole("button", { name: "Reliability engineering" })).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Workspace controls" });
+    await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
+    await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Reliability engineering"));
 
-    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(within(rail).getByRole("button", { name: "Settings" }));
     await user.click(screen.getByRole("button", { name: "Switch workspace" }));
-    search = await screen.findByRole("searchbox", { name: "Search Tags" });
-    await user.type(search, "Workspace B");
-    expect(await screen.findByRole("button", { name: "Workspace B vocabulary" })).toBeVisible();
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
 
-    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
+    await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Workspace B vocabulary"));
+
+    await user.click(within(rail).getByRole("button", { name: "Settings" }));
     await user.click(screen.getByRole("button", { name: "Reset workspace" }));
-    search = screen.getByRole("searchbox", { name: "Search Tags" });
-    await user.clear(search);
-    await user.type(search, "Reset");
-    expect(await screen.findByRole("button", { name: "Reset vocabulary" })).toBeVisible();
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
 
+    await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
+    await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Reset vocabulary"));
+
+    await user.click(within(rail).getByRole("button", { name: "Settings" }));
     await user.click(screen.getByRole("button", { name: "Restore workspace" }));
-    search = await screen.findByRole("searchbox", { name: "Search Tags" });
-    await user.type(search, "Workspace C");
-    expect(await screen.findByRole("button", { name: "Workspace C vocabulary" })).toBeVisible();
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+
+    await user.click(within(rail).getByRole("button", { name: "Applications" }));
+    expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Select an application to inspect its Tags");
+    await user.click(screen.getByRole("button", { name: "Select mock application" }));
+    await waitFor(() => expect(within(rail).getByRole("region", { name: "Tags glossary" })).toHaveTextContent("Workspace C vocabulary"));
   });
 });

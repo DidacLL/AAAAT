@@ -7,6 +7,15 @@ import type {
 } from "../shared/contracts";
 
 export type ArchiveFilter = "active" | "archived" | "all";
+export type RecencyFilter = "all" | "24h" | "48h" | "72h" | "week" | "month";
+
+const recencyWindowMs: Readonly<Record<Exclude<RecencyFilter, "all">, number>> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "48h": 48 * 60 * 60 * 1000,
+  "72h": 72 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+};
 
 export interface CandidatureRecognitionCue {
   readonly fieldId: string;
@@ -35,11 +44,13 @@ function scalarValue(
 function displayValue(
   field: CandidatureFieldConfiguration,
   value: CandidatureRuntimeValue,
+  limit = 96,
 ): string {
   const displayed = Array.isArray(value)
     ? value.map((item) => scalarValue(field, item)).join(", ")
     : scalarValue(field, value);
-  return displayed.length > 96 ? `${displayed.slice(0, 93).trimEnd()}…` : displayed;
+  const bounded = Math.max(2, limit);
+  return displayed.length > bounded ? `${displayed.slice(0, bounded - 1).trimEnd()}…` : displayed;
 }
 
 function matchingExcerpt(text: string, query: string, limit = 112): string | null {
@@ -120,6 +131,7 @@ export function candidatureRecognitionCues(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
   limit = 4,
+  valueLimit = 96,
 ): CandidatureRecognitionCue[] {
   if (limit <= 0) return [];
   const fieldById = new Map(fields.map((field) => [field.definition.id, field]));
@@ -127,7 +139,7 @@ export function candidatureRecognitionCues(
   const displayable = record.values.flatMap((retained) => {
     const field = fieldById.get(retained.fieldId);
     if (!field?.definition.enabled) return [];
-    const value = displayValue(field, retained.value).trim();
+    const value = displayValue(field, retained.value, valueLimit).trim();
     if (!value) return [];
     return [{
       field,
@@ -180,6 +192,45 @@ export function candidatureRetainedSourceCue(
   };
 }
 
+
+const cardCueWeight: Readonly<Record<CandidaturePresentationSize, number>> = {
+  compact: 1,
+  normal: 2,
+  wide: 3,
+};
+const collapsedCardCapacity = 9;
+
+export function candidatureCardRecognitionProjection(
+  record: CandidatureRecord,
+  fields: readonly CandidatureFieldConfiguration[],
+  expanded: boolean,
+): CandidatureRecognitionProjection {
+  const allFavouriteCues = candidatureRecognitionCues(
+    record,
+    fields,
+    Number.MAX_SAFE_INTEGER,
+    2000,
+  );
+  let primaryCues: readonly CandidatureRecognitionCue[] = allFavouriteCues;
+  if (!expanded) {
+    let used = 0;
+    const visible: CandidatureRecognitionCue[] = [];
+    for (const cue of allFavouriteCues) {
+      const weight = cardCueWeight[cue.presentationSize];
+      if (used + weight > collapsedCardCapacity) break;
+      visible.push(cue);
+      used += weight;
+    }
+    primaryCues = visible;
+  }
+  return {
+    primaryCues,
+    retainedSourceCue: primaryCues.length === 0
+      ? candidatureRetainedSourceCue(record, expanded ? 1000 : 140)
+      : null,
+  };
+}
+
 export function candidatureRecognitionProjection(
   record: CandidatureRecord,
   fields: readonly CandidatureFieldConfiguration[],
@@ -198,12 +249,19 @@ export function filterCandidatures(
   archive: ArchiveFilter,
   fieldMatches: ReadonlySet<string> | null = null,
   textMatches: ReadonlySet<string> | null = null,
+  recency: RecencyFilter = "all",
+  nowMs = Date.now(),
 ): CandidatureRecord[] {
+  const windowMs = recency === "all" ? null : recencyWindowMs[recency];
   return records.filter((record) => {
     if (archive === "active" && record.archived) return false;
     if (archive === "archived" && !record.archived) return false;
     if (fieldMatches && !fieldMatches.has(record.id)) return false;
     if (textMatches && !textMatches.has(record.id)) return false;
+    if (windowMs !== null) {
+      const createdAt = Date.parse(record.createdAt);
+      if (!Number.isFinite(createdAt) || createdAt > nowMs || nowMs - createdAt > windowMs) return false;
+    }
     return true;
   });
 }

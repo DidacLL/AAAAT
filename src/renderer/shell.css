@@ -683,3 +683,28 @@
   .work-rail { min-height: 0; border-radius: 12px 5px; }
   .rail-workspace { display: none; }
 }
+
+
+/* Primary work areas read as compact navigation rather than CTA buttons. */
+.primary-work-nav {
+  gap: 1px;
+  padding: 4px;
+}
+
+.primary-work-nav::before {
+  padding: 1px 6px 3px;
+  font-size: 8px;
+}
+
+.primary-work-nav button {
+  padding: 5px 7px;
+  font-size: 0.84rem;
+  font-weight: 520;
+}
+
+.primary-work-nav .active-work-destination {
+  border-color: #b7a68f;
+  background: rgb(255 249 238 / 72%);
+  box-shadow: inset 2px 0 0 var(--accent);
+  font-weight: 650;
+}

@@ -105,7 +105,8 @@ async function openSelected(user: ReturnType<typeof userEvent.setup>, onTagGloss
       onTagGlossaryChange={onTagGlossaryChange}
     />,
   );
-  await user.click(await screen.findByRole("button", { name: "Open saved application" }));
+  await user.click(await screen.findByRole("button", { name: /^Inspect saved application:/ }));
+  await user.click(screen.getByRole("button", { name: "Open application" }));
   return { tagsRegion: screen.getByRole("region", { name: "Tags" }), onTagGlossaryChange };
 }
 
@@ -123,7 +124,8 @@ describe("selected application Tags", () => {
 
     expect(tagsRegion).toBeVisible();
     expect(screen.getAllByRole("region", { name: "Tags", hidden: true })).toHaveLength(1);
-    expect(screen.getByText("More")).toBeVisible();
+    expect(screen.queryByText("More", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText("Sources, documents & history")).toBeVisible();
     expect(screen.queryByText(operations.name)).not.toBeInTheDocument();
 
     await user.click(within(tagsRegion).getByRole("button", { name: reliability.name }));

@@ -190,3 +190,41 @@
     grid-column: 1 / -1;
   }
 }
+
+
+.tag-visor-monitor-list {
+  display: grid;
+  min-width: 0;
+  gap: 0.42rem;
+}
+
+.tag-visor-monitor-list .tag-visor-readout:first-child {
+  padding-top: 0.2rem;
+}
+
+.tag-visor-aliases {
+  color: var(--muted-ink) !important;
+}
+
+@media (max-width: 900px) {
+  .tag-visor {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .tag-visor-heading span,
+  .tag-visor-message {
+    display: block;
+  }
+
+  .tag-visor-monitor-list {
+    display: grid;
+    max-height: 6.5rem;
+    overflow-y: auto;
+  }
+
+  .tag-visor-monitor-list .tag-visor-readout {
+    display: grid;
+  }
+}

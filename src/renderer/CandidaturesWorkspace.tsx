@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -22,11 +22,17 @@ import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { createApplicationDocuments } from "./create-application-documents";
 import {
+  candidatureCardRecognitionProjection,
   candidatureRecognitionProjection,
   candidatureSearchMatchCue,
   filterCandidatures,
   type ArchiveFilter,
+  type CandidatureRecognitionCue,
+  type RecencyFilter,
 } from "./candidature-projections";
+import { clearAiTask, getAiTask } from "./ai-task-store";
+import { candidatureInferenceContext } from "./candidature-inference-context";
+import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
 import "./candidature-recovery.css";
 import "./owner-feedback-recovery.css";
@@ -37,6 +43,16 @@ type InitialCandidatureTask = "manual" | "ai";
 interface InitialCandidatureSelection {
   readonly candidatureId: string;
   readonly task?: InitialCandidatureTask;
+}
+interface SharedFieldDefinitionDraft {
+  readonly fieldId: string;
+  readonly label: string;
+  readonly description: string;
+}
+type AiRequestFeedback = "unconfigured" | "missing-context" | "context-unavailable" | "active";
+interface FieldAiRequestFeedback {
+  readonly fieldId: string;
+  readonly kind: AiRequestFeedback;
 }
 const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 const emptyCollections: DocumentCollections = {
@@ -50,19 +66,155 @@ function tagDraft(tag: TagRecord): TagInput {
   return { name: tag.name, definition: tag.definition, notes: tag.notes ?? "", aliases: tag.aliases };
 }
 function normalizedTagText(value: string): string { return value.trim().toLocaleLowerCase(); }
+function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>): boolean {
+  return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
+}
+function aiRequestFeedbackMessage(kind: AiRequestFeedback): string {
+  if (kind === "unconfigured") return "AI isn't configured for this action";
+  if (kind === "missing-context") {
+    return "AI needs retained Source or AI-allowed application information for this request.";
+  }
+  if (kind === "context-unavailable") return "AAAAT couldn't read retained information for this AI request.";
+  return "AI is already working on this request.";
+}
+function corpusActionIdentity(
+  cues: readonly CandidatureRecognitionCue[],
+  retainedSourceCue: CandidatureRecognitionCue | null,
+): string {
+  const visible = cues.length > 0 ? cues : retainedSourceCue ? [retainedSourceCue] : [];
+  const identity = visible
+    .map((cue) => cue.value.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" · ");
+  if (!identity) return "Saved application";
+  return identity.length > 180 ? `${identity.slice(0, 179).trimEnd()}…` : identity;
+}
+
+function cueLengthClass(value: string): "short" | "medium" | "long" {
+  if (value.length <= 28) return "short";
+  if (value.length <= 96) return "medium";
+  return "long";
+}
+
+function CorpusRecognitionCue({
+  cue,
+  expanded,
+  sourceLabel = false,
+}: {
+  readonly cue: CandidatureRecognitionCue;
+  readonly expanded: boolean;
+  readonly sourceLabel?: boolean;
+}) {
+  const cueRef = useRef<HTMLSpanElement>(null);
+  const contentRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const cueElement = cueRef.current;
+    const contentElement = contentRef.current;
+    const grid = cueElement?.parentElement;
+    if (!cueElement || !contentElement || !grid) return;
+
+    const updateSpan = () => {
+      const styles = getComputedStyle(grid);
+      const rowHeight = Number.parseFloat(styles.gridAutoRows);
+      const rowGap = Number.parseFloat(styles.rowGap) || 0;
+      if (!Number.isFinite(rowHeight) || rowHeight <= 0) {
+        cueElement.style.gridRowEnd = "";
+        return;
+      }
+      const height = contentElement.getBoundingClientRect().height;
+      cueElement.style.gridRowEnd =
+        `span ${String(Math.max(1, Math.ceil((height + rowGap) / (rowHeight + rowGap))))}`;
+    };
+
+    updateSpan();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateSpan);
+    observer.observe(contentElement);
+    return () => observer.disconnect();
+  }, [cue.value, cue.presentationSize, expanded]);
+
+  return (
+    <span
+      ref={cueRef}
+      className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
+    >
+      <span ref={contentRef} className="candidature-cue-content">
+        {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
+        <span className="candidature-cue-value">{cue.value}</span>
+      </span>
+    </span>
+  );
+}
+
+function ExpandedCorpusRecognition({
+  cues,
+  retainedSourceCue,
+}: {
+  readonly cues: readonly CandidatureRecognitionCue[];
+  readonly retainedSourceCue: CandidatureRecognitionCue | null;
+}) {
+  const available = cues.length > 0
+    ? cues
+    : retainedSourceCue
+      ? [retainedSourceCue]
+      : [];
+  if (available.length === 0) {
+    return <span className="candidature-neutral-reference">Saved application</span>;
+  }
+
+  const wide = available.filter((cue) => cue.presentationSize === "wide");
+  const prominentIds = new Set(
+    (wide.length > 0 ? wide : available.slice(0, 1)).map((cue) => cue.fieldId),
+  );
+  const supporting = available.filter((cue) => !prominentIds.has(cue.fieldId));
+  const prominent = available.filter((cue) => prominentIds.has(cue.fieldId));
+
+  return (
+    <span className="candidature-expanded-summary">
+      <span className="candidature-expanded-prominent">
+        {prominent.map((cue) => (
+          <span
+            className={`candidature-expanded-cue candidature-expanded-cue-prominent candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}
+            key={cue.fieldId}
+          >
+            {cue.fieldId === "retained-source" ? (
+              <span className="candidature-cue-label">{cue.label}</span>
+            ) : null}
+            <span className="candidature-expanded-value">{cue.value}</span>
+          </span>
+        ))}
+      </span>
+      {supporting.length > 0 ? (
+        <span className="candidature-expanded-supporting">
+          {supporting.map((cue) => (
+            <span
+              className={`candidature-expanded-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}
+              key={cue.fieldId}
+            >
+              <span className="candidature-expanded-value">{cue.value}</span>
+            </span>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 export function CandidaturesWorkspace({
   initialSelection,
   onInitialSelectionCleared,
   onDirtyChange,
   onTagGlossaryChange,
+  onTagContextChange,
 }: {
   readonly initialSelection?: InitialCandidatureSelection;
   readonly onInitialSelectionCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
+  readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
-  const { documentHandoff, openDocumentFromCandidature } = useContextualHandoffs();
+  const { documentHandoff, openDocumentFromCandidature, openSettingsFor } = useContextualHandoffs();
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
@@ -75,9 +227,11 @@ export function CandidaturesWorkspace({
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [preselectedId, setPreselectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ readonly query: string; readonly ids: ReadonlySet<string> } | null>(null);
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
+  const [recencyFilter, setRecencyFilter] = useState<RecencyFilter>("all");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState("");
@@ -85,8 +239,12 @@ export function CandidaturesWorkspace({
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
   const [activeFieldEditorId, setActiveFieldEditorId] = useState<string | null>(null);
   const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
+  const [fieldDefinitionDraft, setFieldDefinitionDraft] = useState<SharedFieldDefinitionDraft | null>(null);
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
+  const [fieldAiFeedback, setFieldAiFeedback] = useState<FieldAiRequestFeedback | null>(null);
+  const [openFieldOptionsId, setOpenFieldOptionsId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
+  const [bulkAiFeedback, setBulkAiFeedback] = useState<AiRequestFeedback | null>(null);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [tagEditorDraft, setTagEditorDraft] = useState<TagInput>(emptyTag);
@@ -101,7 +259,15 @@ export function CandidaturesWorkspace({
   const tagEditorDirty = tagEditorOpen
     ? JSON.stringify({ ...tagEditorDraft, aliases: aliasesFromText(tagAliasesText) }) !== JSON.stringify(persistedTag ? tagDraft(persistedTag) : emptyTag)
     : false;
-  const taskContextDirty = fieldDefinitionsDirty || valueEditorDirty.size > 0;
+  const persistedFieldDefinition = fieldDefinitionDraft
+    ? fields.find((field) => field.definition.id === fieldDefinitionDraft.fieldId)?.definition ?? null
+    : null;
+  const fieldDefinitionDraftDirty = fieldDefinitionDraft !== null && (
+    persistedFieldDefinition === null
+    || fieldDefinitionDraft.label !== persistedFieldDefinition.label
+    || fieldDefinitionDraft.description !== persistedFieldDefinition.description
+  );
+  const taskContextDirty = fieldDefinitionsDirty || fieldDefinitionDraftDirty || valueEditorDirty.size > 0;
   const hasUnsavedChanges = sourceDirty || tagEditorDirty || taskContextDirty;
 
   useEffect(() => {
@@ -114,7 +280,8 @@ export function CandidaturesWorkspace({
     setSelectedTagId(record?.tagIds[0] ?? null);
     setTagQuery(""); setSourceDirty(false); setValueEditorDirty(new Set());
     setActiveFieldEditorId(null);
-    setFieldDefinitionsDirty(false); setDiscoveryFieldId(null); setBulkInferenceOpen(false);
+    setFieldDefinitionsDirty(false); setFieldDefinitionDraft(null); setDiscoveryFieldId(null); setFieldAiFeedback(null);
+    setOpenFieldOptionsId(null); setBulkInferenceOpen(false); setBulkAiFeedback(null);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
     setApplicationCvSource("profile"); setPacketRenderedCvId(""); setPacketLetterId("");
@@ -176,7 +343,26 @@ export function CandidaturesWorkspace({
     if (!normalizedQuery) return null;
     return searchResult?.query === normalizedQuery ? searchResult.ids : new Set();
   }, [normalizedQuery, searchResult]);
-  const visibleRecords = useMemo(() => filterCandidatures(records, archiveFilter, null, textMatches), [records, archiveFilter, textMatches]);
+  const visibleRecords = useMemo(
+    () => filterCandidatures(records, archiveFilter, null, textMatches, recencyFilter),
+    [records, archiveFilter, textMatches, recencyFilter],
+  );
+  const contextualRecord = mode === "selected"
+    ? selected
+    : visibleRecords.find((record) => record.id === preselectedId) ?? null;
+  const tagContext = useMemo<ApplicationTagContext | null>(
+    () => contextualRecord
+      ? {
+          candidatureId: contextualRecord.id,
+          tags: tags.filter((tag) => contextualRecord.tagIds.includes(tag.id)),
+        }
+      : null,
+    [contextualRecord, tags],
+  );
+  useEffect(() => {
+    onTagContextChange?.(tagContext);
+  }, [onTagContextChange, tagContext]);
+  useEffect(() => () => onTagContextChange?.(null), [onTagContextChange]);
 
   const selectedRecordId = mode === "selected" ? selectedId : null;
   useEffect(() => {
@@ -190,12 +376,18 @@ export function CandidaturesWorkspace({
   const storeRecord = (record: CandidatureRecord) => setRecords((current) => current.map((candidate) => candidate.id === record.id ? record : candidate));
   const openRecord = (record: CandidatureRecord) => {
     if (!confirmDiscard()) return;
+    setPreselectedId(record.id);
     setSelectedSources([]);
     hydrate(record);
     setMode("selected");
   };
+  const inspectRecord = (record: CandidatureRecord) => {
+    setPreselectedId((current) => current === record.id ? null : record.id);
+    setError(null);
+  };
   const returnToCorpus = () => {
     if (!confirmDiscard()) return;
+    setPreselectedId(selectedId);
     setMode("corpus"); setSelectedId(null); resetEditorDrafts();
     onInitialSelectionCleared?.();
   };
@@ -247,6 +439,88 @@ export function CandidaturesWorkspace({
       throw reason;
     }
   };
+  const inferencePreflight = async (
+    targetFieldIds: readonly string[],
+  ): Promise<AiRequestFeedback | null> => {
+    if (!selected) return "context-unavailable";
+
+    let connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>;
+    try {
+      connections = await window.aaaat.aiConnections.list();
+    } catch {
+      return "unconfigured";
+    }
+    if (!hasJobExtractionRoute(connections)) return "unconfigured";
+
+    let sources: CandidatureSource[];
+    try {
+      sources = await window.aaaat.candidatures.listSources(selected.id);
+    } catch {
+      return "context-unavailable";
+    }
+    return candidatureInferenceContext(
+      selected,
+      fields,
+      sources,
+      new Set(targetFieldIds),
+    )
+      ? null
+      : "missing-context";
+  };
+
+  const requestFieldInference = async (field: CandidatureFieldConfiguration) => {
+    if (!selected || !field.preferences.aiUseAllowed) return;
+    setFieldAiFeedback(null);
+
+    const feedback = await inferencePreflight([field.definition.id]);
+    if (feedback) {
+      setDiscoveryFieldId(null);
+      setFieldAiFeedback({ fieldId: field.definition.id, kind: feedback });
+      return;
+    }
+
+    const taskId = `candidature-inference:${selected.id}:${field.definition.id}`;
+    const current = getAiTask(taskId);
+    if (current?.status === "queued" || current?.status === "working") {
+      setDiscoveryFieldId(field.definition.id);
+      setFieldAiFeedback({ fieldId: field.definition.id, kind: "active" });
+      return;
+    }
+    if (current) clearAiTask(taskId);
+    setDiscoveryFieldId(field.definition.id);
+  };
+
+  const discardFieldDefinitionDraft = () =>
+    !fieldDefinitionDraftDirty || window.confirm("Discard unsaved application edits?");
+  const toggleFieldOptions = (field: CandidatureFieldConfiguration) => {
+    if (openFieldOptionsId === field.definition.id) {
+      if (!discardFieldDefinitionDraft()) return;
+      setOpenFieldOptionsId(null);
+      setFieldDefinitionDraft(null);
+      return;
+    }
+    if (!discardFieldDefinitionDraft()) return;
+    setOpenFieldOptionsId(field.definition.id);
+    setFieldDefinitionDraft({
+      fieldId: field.definition.id,
+      label: field.definition.label,
+      description: field.definition.description,
+    });
+  };
+
+  useEffect(() => {
+    if (!openFieldOptionsId) return;
+    const closeOptions = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".candidature-field-options")) return;
+      if (fieldDefinitionDraftDirty) return;
+      setOpenFieldOptionsId(null);
+      setFieldDefinitionDraft(null);
+    };
+    document.addEventListener("pointerdown", closeOptions);
+    return () => document.removeEventListener("pointerdown", closeOptions);
+  }, [fieldDefinitionDraftDirty, openFieldOptionsId]);
+
   const refreshInformation = async () => {
     try {
       const [nextFields, nextRecords, nextTags] = await Promise.all([
@@ -358,6 +632,27 @@ export function CandidaturesWorkspace({
       )
     : [];
   const discoveryField = fields.find((field) => field.definition.id === discoveryFieldId);
+  const requestBulkInference = async () => {
+    if (!selected || enabledMissingFields.length === 0) return;
+    setBulkAiFeedback(null);
+    const targetFieldIds = enabledMissingFields.map((field) => field.definition.id);
+    const feedback = await inferencePreflight(targetFieldIds);
+    if (feedback) {
+      setBulkInferenceOpen(false);
+      setBulkAiFeedback(feedback);
+      return;
+    }
+
+    const taskId = `candidature-inference:${selected.id}:missing`;
+    const current = getAiTask(taskId);
+    if (current?.status === "queued" || current?.status === "working") {
+      setBulkInferenceOpen(true);
+      setBulkAiFeedback("active");
+      return;
+    }
+    if (current) clearAiTask(taskId);
+    setBulkInferenceOpen(true);
+  };
 
   const setFavourite = async (
     field: CandidatureFieldConfiguration,
@@ -400,11 +695,19 @@ export function CandidaturesWorkspace({
 
   if (mode === "corpus") {
     return (
-      <section className="candidatures-workspace candidature-corpus" aria-label="Applications">
+      <section
+        className="candidatures-workspace candidature-corpus"
+        aria-label="Applications"
+        onClick={(event) => {
+          if (preselectedId && event.target instanceof Element && !event.target.closest(".candidature-corpus-card")) {
+            setPreselectedId(null);
+          }
+        }}
+      >
         <header className="candidature-toolbar">
           <div>
             <h2>Applications</h2>
-            <span className="corpus-count">{visibleRecords.length} / {records.length}</span>
+            <span className="corpus-count">{visibleRecords.length} / {records.length} shown</span>
           </div>
         </header>
         <div className="candidature-corpus-tools">
@@ -432,6 +735,21 @@ export function CandidaturesWorkspace({
               <option value="all">All</option>
             </select>
           </label>
+          <label>
+            From
+            <select
+              aria-label="From"
+              value={recencyFilter}
+              onChange={(event) => setRecencyFilter(event.target.value as RecencyFilter)}
+            >
+              <option value="all">All</option>
+              <option value="24h">Last 24h</option>
+              <option value="48h">Last 48h</option>
+              <option value="72h">Last 72h</option>
+              <option value="week">Last week</option>
+              <option value="month">Last month</option>
+            </select>
+          </label>
         </div>
         {error ? <p className="error-message" role="alert">{error}</p> : null}
         {records.length === 0 ? (
@@ -444,8 +762,11 @@ export function CandidaturesWorkspace({
         ) : (
           <div className="candidature-corpus-grid" aria-label="Application corpus">
             {visibleRecords.map((record) => {
-              const recognition = candidatureRecognitionProjection(record, fields, 4);
+              const preselected = preselectedId === record.id;
+              const recordTags = tags.filter((tag) => record.tagIds.includes(tag.id));
+              const recognition = candidatureCardRecognitionProjection(record, fields, preselected);
               const primaryCues = recognition.primaryCues;
+              const actionIdentity = corpusActionIdentity(primaryCues, recognition.retainedSourceCue);
               const searchMatchCue =
                 normalizedQuery && textMatches?.has(record.id)
                   ? candidatureSearchMatchCue(record, fields, tags, normalizedQuery)
@@ -458,36 +779,31 @@ export function CandidaturesWorkspace({
                   ? searchMatchCue
                   : null;
               return (
-                <article className="candidature-corpus-card" key={record.id}>
+                <article
+                  className={`candidature-corpus-card${preselected ? " candidature-corpus-card-preselected" : ""}`}
+                  key={record.id}
+                >
                   <button
                     type="button"
                     className="candidature-corpus-entry"
-                    aria-label="Open saved application"
-                    onClick={() => openRecord(record)}
+                    aria-expanded={preselected}
+                    aria-label={`${preselected ? "Collapse" : "Inspect"} saved application: ${actionIdentity}`}
+                    onClick={() => inspectRecord(record)}
                   >
-                    {primaryCues.length > 0 ? (
+                    {preselected ? (
+                      <ExpandedCorpusRecognition
+                        cues={primaryCues}
+                        retainedSourceCue={recognition.retainedSourceCue}
+                      />
+                    ) : primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
                         {primaryCues.map((cue) => (
-                          <span
-                            className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize}`}
-                            key={cue.fieldId}
-                          >
-                            <span className="candidature-cue-value">{cue.value}</span>
-                          </span>
+                          <CorpusRecognitionCue cue={cue} expanded={false} key={cue.fieldId} />
                         ))}
                       </span>
                     ) : recognition.retainedSourceCue ? (
                       <span className="candidature-recognition-cues">
-                        <span
-                          className="candidature-recognition-cue candidature-cue-size-wide candidature-retained-source-cue"
-                        >
-                          <span className="candidature-cue-label">
-                            {recognition.retainedSourceCue.label}
-                          </span>
-                          <span className="candidature-cue-value">
-                            {recognition.retainedSourceCue.value}
-                          </span>
-                        </span>
+                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} expanded={false} sourceLabel />
                       </span>
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
@@ -498,10 +814,33 @@ export function CandidaturesWorkspace({
                         <span>{distinctSearchCue.value}</span>
                       </span>
                     ) : null}
-                    <time dateTime={record.updatedAt}>
-                      Updated {new Date(record.updatedAt).toLocaleDateString()}
-                    </time>
                   </button>
+                  {!preselected ? (
+                    <div className="candidature-card-footer">
+                      {recordTags.length > 0 ? (
+                        <span className="candidature-collapsed-tags" aria-label="Related Tags">
+                          {recordTags.map((tag) => (
+                            <span className="candidature-collapsed-tag" key={tag.id}>{tag.name}</span>
+                          ))}
+                        </span>
+                      ) : <span />}
+                      <time dateTime={record.createdAt}>
+                        {new Date(record.createdAt).toLocaleDateString()}
+                      </time>
+                    </div>
+                  ) : null}
+                  {preselected ? (
+                    <div className="candidature-corpus-inspection" aria-label="Application inspection">
+                      <button
+                        type="button"
+                        className="candidature-corpus-open-strip"
+                        aria-label="Open application"
+                        onClick={() => openRecord(record)}
+                      >
+                        Open / Edit
+                      </button>
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -594,6 +933,18 @@ export function CandidaturesWorkspace({
 
   const renderInformationField = (field: CandidatureFieldConfiguration) => {
     const retained = selected.values.find((value) => value.fieldId === field.definition.id);
+    const retainedText = retained
+      ? Array.isArray(retained.value)
+        ? retained.value.map(String).join(", ")
+        : String(retained.value)
+      : "";
+    const longReading =
+      field.definition.valueType === "long_text" ||
+      retainedText.length > 180 ||
+      activeFieldEditorId === field.definition.id;
+    const mediumReading =
+      !longReading &&
+      (retainedText.length > 80 || field.definition.description.length > 140);
     const favouriteIndex = favouriteFields.findIndex(
       (candidate) => candidate.definition.id === field.definition.id,
     );
@@ -601,77 +952,176 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className="retained-information-card candidature-information-unit"
+        className={`retained-information-card candidature-information-unit${longReading ? " candidature-information-unit-long-content" : mediumReading ? " candidature-information-unit-medium-content" : ""}`}
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
-          <div>
+          <div className="candidature-information-unit-meta">
             <h4>{field.definition.label}</h4>
             {field.definition.description ? <p>{field.definition.description}</p> : null}
           </div>
-          <div className="candidature-field-context-controls">
+          <div className="candidature-field-context-controls" role="group" aria-label={`${field.definition.label} field controls`}>
+            <button
+              type="button"
+              className="candidature-icon-button candidature-favourite-star"
+              aria-label={favourite ? `Remove ${field.definition.label} from favourites` : `Add ${field.definition.label} to favourites`}
+              aria-pressed={favourite}
+              title={favourite ? "Remove from favourite card information" : "Add to favourite card information"}
+              onClick={() => void setFavourite(field, !favourite)}
+            >
+              <span aria-hidden="true">{favourite ? "★" : "☆"}</span>
+            </button>
             <button
               type="button"
               className="candidature-icon-button candidature-ai-use-eye"
-              aria-label="AI may use this information"
+              aria-label={`Allow AI to use ${field.definition.label}`}
               aria-pressed={field.preferences.aiUseAllowed}
               title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
               onClick={() => void updateFieldPreference(field, { aiUseAllowed: !field.preferences.aiUseAllowed })}
             >
               <span aria-hidden="true">👁</span>
             </button>
-            <details className="candidature-field-options">
-              <summary>Field options</summary>
-              <div className="candidature-field-options-panel">
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => void setFavourite(field, !favourite)}
-                >
-                  {favourite ? "Remove from primary information" : "Show in primary information"}
-                </button>
-                {favourite ? (
-                  <>
-                    <div className="candidature-field-order-actions">
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        aria-label={`Move ${field.definition.label} earlier`}
-                        disabled={favouriteIndex === 0}
-                        onClick={() => void moveFavourite(field, -1)}
-                      >
-                        Move earlier
-                      </button>
-                      <button
-                        type="button"
-                        className="compact-secondary"
-                        aria-label={`Move ${field.definition.label} later`}
-                        disabled={favouriteIndex === favouriteFields.length - 1}
-                        onClick={() => void moveFavourite(field, 1)}
-                      >
-                        Move later
-                      </button>
-                    </div>
-                    <label className="candidature-prominence-control">
-                      Card size
-                      <select
-                        aria-label={`${field.definition.label} card size`}
-                        value={field.preferences.presentationSize}
-                        onChange={(event) =>
-                          void updateFieldPreference(field, {
-                            presentationSize: event.target.value as
-                              CandidatureFieldConfiguration["preferences"]["presentationSize"],
-                          })
-                        }
-                      >
-                        <option value="compact">Compact</option>
-                        <option value="normal">Normal</option>
-                        <option value="wide">Wide</option>
-                      </select>
-                    </label>
-                  </>
-                ) : null}
-              </div>
+            <button
+              type="button"
+              className="candidature-icon-button candidature-ai-sparkle"
+              aria-label={`Ask AI to fill ${field.definition.label}`}
+              title={field.preferences.aiUseAllowed ? `Ask AI to fill ${field.definition.label}` : "Allow AI to use this information first"}
+              disabled={!field.preferences.aiUseAllowed}
+              onClick={() => void requestFieldInference(field)}
+            >
+              <span aria-hidden="true">✨</span>
+            </button>
+            <button
+              type="button"
+              className="candidature-icon-button candidature-edit-field"
+              aria-label={`Edit ${field.definition.label}`}
+              title={`Edit ${field.definition.label}`}
+              onClick={() => requestFieldEditor(field.definition.id)}
+            >
+              <span aria-hidden="true">✎</span>
+            </button>
+            <details
+              className="candidature-field-options"
+              open={openFieldOptionsId === field.definition.id}
+            >
+              <summary
+                onClick={(event) => {
+                  event.preventDefault();
+                  toggleFieldOptions(field);
+                }}
+                aria-label={`Configure ${field.definition.label}`}
+                title={`Configure ${field.definition.label}`}
+              >
+                <span aria-hidden="true">⚙</span>
+              </summary>
+              {openFieldOptionsId === field.definition.id ? (
+                <div className="candidature-field-options-panel">
+                  {favourite ? (
+                    <>
+                      <div className="candidature-field-order-actions">
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          aria-label={`Move ${field.definition.label} earlier`}
+                          disabled={favouriteIndex === 0}
+                          onClick={() => void moveFavourite(field, -1)}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="compact-secondary"
+                          aria-label={`Move ${field.definition.label} later`}
+                          disabled={favouriteIndex === favouriteFields.length - 1}
+                          onClick={() => void moveFavourite(field, 1)}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                      <label className="candidature-prominence-control">
+                        Card size
+                        <select
+                          aria-label={`${field.definition.label} card size`}
+                          value={field.preferences.presentationSize}
+                          onChange={(event) =>
+                            void updateFieldPreference(field, {
+                              presentationSize: event.target.value as
+                                CandidatureFieldConfiguration["preferences"]["presentationSize"],
+                            })
+                          }
+                        >
+                          <option value="compact">Compact</option>
+                          <option value="normal">Normal</option>
+                          <option value="wide">Wide</option>
+                        </select>
+                      </label>
+                    </>
+                  ) : null}
+                  <details className="candidature-shared-field-definition">
+                    <summary>Edit field definition</summary>
+                    <form
+                      className="candidature-shared-field-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        if (fieldDefinitionDraft?.fieldId !== field.definition.id) return;
+                        const label = fieldDefinitionDraft.label.trim();
+                        if (!label) return;
+                        void updateFieldDefinition({
+                          id: field.definition.id,
+                          label,
+                          description: fieldDefinitionDraft.description,
+                          valueType: field.definition.valueType,
+                          cardinality: field.definition.cardinality,
+                          choices: field.definition.choices,
+                          enabled: field.definition.enabled,
+                        }).then(() => {
+                          setFieldDefinitionDraft(null);
+                          setOpenFieldOptionsId(null);
+                        });
+                      }}
+                    >
+                      <p>Shared field definition · changes apply to every application.</p>
+                      <label>
+                        Name
+                        <input
+                          name="label"
+                          value={fieldDefinitionDraft?.fieldId === field.definition.id ? fieldDefinitionDraft.label : field.definition.label}
+                          maxLength={120}
+                          required
+                          onChange={(event) =>
+                            setFieldDefinitionDraft((current) => ({
+                              fieldId: field.definition.id,
+                              label: event.target.value,
+                              description: current?.fieldId === field.definition.id
+                                ? current.description
+                                : field.definition.description,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Description
+                        <textarea
+                          name="description"
+                          value={fieldDefinitionDraft?.fieldId === field.definition.id ? fieldDefinitionDraft.description : field.definition.description}
+                          maxLength={2000}
+                          rows={3}
+                          onChange={(event) =>
+                            setFieldDefinitionDraft((current) => ({
+                              fieldId: field.definition.id,
+                              label: current?.fieldId === field.definition.id
+                                ? current.label
+                                : field.definition.label,
+                              description: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <button type="submit" className="compact-secondary">Save shared field</button>
+                    </form>
+                  </details>
+                </div>
+              ) : null}
             </details>
           </div>
         </div>
@@ -680,22 +1130,37 @@ export function CandidaturesWorkspace({
           value={retained?.value}
           onSave={(value) => setValue(field.definition.id, value)}
           onClear={() => clearValue(field.definition.id)}
-          onDiscover={() => setDiscoveryFieldId(field.definition.id)}
-          onUpdateField={updateFieldDefinition}
           onDirtyChange={(dirty) => setEditorDirty(field.definition.id, dirty)}
           editing={activeFieldEditorId === field.definition.id}
           onEditingChange={(editing) => {
             if (editing) requestFieldEditor(field.definition.id);
             else closeFieldEditor(field.definition.id);
           }}
-          showFieldControls
+          showEditAction={false}
         />
+        {fieldAiFeedback?.fieldId === field.definition.id ? (
+          <div
+            className="candidature-field-ai-preflight"
+            role={fieldAiFeedback.kind === "active" ? "status" : "alert"}
+          >
+            <span>{aiRequestFeedbackMessage(fieldAiFeedback.kind)}</span>
+            {fieldAiFeedback.kind === "unconfigured" ? (
+              <button
+                type="button"
+                className="compact-secondary"
+                onClick={() => openSettingsFor("ai", "candidatures")}
+              >
+                Open AI settings
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <CandidatureFieldAiState
           candidatureId={selected.id}
           field={field}
           currentValue={retained?.value}
           onSaveValue={(value) => setValue(field.definition.id, value)}
-          onRetry={() => setDiscoveryFieldId(field.definition.id)}
+          onRetry={() => void requestFieldInference(field)}
         />
       </article>
     );
@@ -714,8 +1179,30 @@ export function CandidaturesWorkspace({
         >
           {selected.archived ? "Restore" : "Archive"}
         </button>
+        {enabledMissingFields.length > 0 ? (
+          <button type="button" className="compact-secondary" onClick={() => void requestBulkInference()}>
+            Ask AI to fill missing information
+          </button>
+        ) : null}
       </div>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
+      {bulkAiFeedback ? (
+        <div
+          className="candidature-field-ai-preflight"
+          role={bulkAiFeedback === "active" ? "status" : "alert"}
+        >
+          <span>{aiRequestFeedbackMessage(bulkAiFeedback)}</span>
+          {bulkAiFeedback === "unconfigured" ? (
+            <button
+              type="button"
+              className="compact-secondary"
+              onClick={() => openSettingsFor("ai", "candidatures")}
+            >
+              Open AI settings
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {sourceOwnsInitialContext ? (
         <CandidatureSourcesPanel
@@ -733,7 +1220,7 @@ export function CandidaturesWorkspace({
           <div>
             <p className="eyebrow">Primary information</p>
             <p className="compact-help">
-              Choose which information stays up front. Order and card size are available in Field options.
+              Choose which information stays up front. Order and card size are available under the gear control.
             </p>
           </div>
         </div>
@@ -743,18 +1230,34 @@ export function CandidaturesWorkspace({
           </div>
         ) : (
           <p className="compact-empty">
-            No primary information yet. Open More and choose Show in primary information from a field's options.
+            No primary information yet. Use the star beside a field to keep it in the card summary.
           </p>
         )}
       </section>
 
-      {initialTask ? null : (
-        <CandidatureOpportunityResearchAccessPanel
-          key={`external-research-${selected.id}`}
-          candidatureId={selected.id}
-          contextDirty={taskContextDirty}
-        />
-      )}
+      <section
+        className="section-surface candidature-information-surface"
+        aria-label="Remaining application information"
+      >
+        <div className="candidature-editor-heading candidature-information-heading">
+          <div>
+            <p className="eyebrow">Information</p>
+            <h3>Remaining information</h3>
+          </div>
+        </div>
+        <CandidatureBulkAiReview candidature={selected} fields={fields} onRetry={() => void requestBulkInference()} />
+        {remainingFields.length === 0 ? (
+          <p className="compact-help">All enabled fields are in primary information.</p>
+        ) : (
+          <div className="retained-information-list candidature-information-grid">
+            {remainingFields.map(renderInformationField)}
+          </div>
+        )}
+        <details className="candidature-field-administration">
+          <summary>Information setup</summary>
+          <CandidatureFieldDefinitionsPanel onChanged={() => void refreshFields()} onDirtyChange={setFieldDefinitionsDirty} />
+        </details>
+      </section>
 
       <section className="section-surface candidature-tags-direct" aria-label="Tags">
         <div className="candidature-editor-heading">
@@ -922,48 +1425,21 @@ export function CandidaturesWorkspace({
       </section>
 
       <details className="candidature-more">
-        <summary>More</summary>
+        <summary>Sources, documents & history</summary>
         <div className="candidature-more-content">
-          <section className="section-surface candidature-information-surface" aria-label="More application information">
-            <div className="candidature-editor-heading candidature-information-heading">
-              <div>
-                <p className="eyebrow">Information</p>
-                <h3>Remaining fields</h3>
-              </div>
-              {enabledMissingFields.length > 0 ? (
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  onClick={() => setBulkInferenceOpen(true)}
-                >
-                  Ask AI to fill missing information
-                </button>
-              ) : null}
-            </div>
-            <CandidatureBulkAiReview
-              candidature={selected}
-              fields={fields}
-              onRetry={() => setBulkInferenceOpen(true)}
-            />
-            {remainingFields.length === 0 ? (
-              <p className="compact-help">All enabled fields are in primary information.</p>
-            ) : (
-              <div className="retained-information-list candidature-information-grid">
-                {remainingFields.map(renderInformationField)}
-              </div>
-            )}
-            <CandidatureFieldDefinitionsPanel
-              onChanged={() => void refreshFields()}
-              onDirtyChange={setFieldDefinitionsDirty}
-            />
-          </section>
-
           <CandidatureOfferPanel candidatureId={selected.id} />
           {sourceOwnsInitialContext ? null : (
             <CandidatureSourcesPanel
               candidatureId={selected.id}
               onSourcesChanged={() => void handleSourcesChanged()}
               onDirtyChange={setSourceDirty}
+            />
+          )}
+          {initialTask ? null : (
+            <CandidatureOpportunityResearchAccessPanel
+              key={`external-research-${selected.id}`}
+              candidatureId={selected.id}
+              contextDirty={taskContextDirty}
             />
           )}
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  candidatureCardRecognitionProjection,
   candidatureRecognitionCues,
   candidatureRecognitionProjection,
   candidatureRetainedSourceCue,
@@ -13,11 +14,15 @@ import type {
   TagRecord,
 } from "../src/shared/contracts";
 
-function record(id: string, archived = false): CandidatureRecord {
+function record(
+  id: string,
+  archived = false,
+  createdAt = "2026-09-04T00:00:00.000Z",
+): CandidatureRecord {
   return {
     id,
     archived,
-    createdAt: "2026-09-04T00:00:00.000Z",
+    createdAt,
     updatedAt: "2026-09-04T00:00:00.000Z",
     sourceSearchText: "",
     values: [],
@@ -89,6 +94,34 @@ describe("candidature renderer projection", () => {
     ).toEqual([archived]);
   });
 
+  it("uses createdAt rolling windows and intersects recency with archive and search matches", () => {
+    const now = Date.parse("2026-10-02T10:00:00.000Z");
+    const at = (hoursAgo: number) => new Date(now - hoursAgo * 60 * 60 * 1000).toISOString();
+    const recent = record("00000000-0000-4000-8000-000000000430", false, at(23));
+    const within48 = record("00000000-0000-4000-8000-000000000431", false, at(47));
+    const within72 = record("00000000-0000-4000-8000-000000000432", false, at(71));
+    const withinWeek = record("00000000-0000-4000-8000-000000000433", false, at(6 * 24));
+    const withinMonth = record("00000000-0000-4000-8000-000000000434", false, at(29 * 24));
+    const older = record("00000000-0000-4000-8000-000000000435", false, at(31 * 24));
+    const archived = record("00000000-0000-4000-8000-000000000436", true, at(12));
+    const records = [recent, within48, within72, withinWeek, withinMonth, older, archived];
+
+    expect(filterCandidatures(records, "all", null, null, "24h", now)).toEqual([recent, archived]);
+    expect(filterCandidatures(records, "active", null, null, "48h", now)).toEqual([recent, within48]);
+    expect(filterCandidatures(records, "active", null, null, "72h", now)).toEqual([recent, within48, within72]);
+    expect(filterCandidatures(records, "active", null, null, "week", now)).toEqual([recent, within48, within72, withinWeek]);
+    expect(filterCandidatures(records, "active", null, null, "month", now)).toEqual([recent, within48, within72, withinWeek, withinMonth]);
+    expect(filterCandidatures(records, "active", null, null, "all", now)).toEqual([
+      recent, within48, within72, withinWeek, withinMonth, older,
+    ]);
+    expect(
+      filterCandidatures(records, "archived", null, new Set([archived.id]), "24h", now),
+    ).toEqual([archived]);
+    expect(
+      filterCandidatures(records, "active", null, new Set([within48.id, older.id]), "48h", now),
+    ).toEqual([within48]);
+  });
+
   it("ordinary corpus cues contain only starred fields", () => {
     const candidateId = "00000000-0000-4000-8000-000000000417";
     const candidate = {
@@ -123,6 +156,49 @@ describe("candidature renderer projection", () => {
     ]);
     expect(candidatureRecognitionProjection(candidate, [locationField, roleField], 3).retainedSourceCue)
       .toBeNull();
+  });
+
+  it("uses presentation-size capacity when collapsed and reveals all favourite information when expanded", () => {
+    const candidateId = "00000000-0000-4000-8000-000000000440";
+    const makeField = (
+      id: string,
+      label: string,
+      presentationSize: CandidatureFieldConfiguration["preferences"]["presentationSize"],
+      favouriteOrder: number,
+    ): CandidatureFieldConfiguration => ({
+      ...roleField,
+      definition: { ...roleField.definition, id, label },
+      preferences: {
+        ...roleField.preferences,
+        fieldId: id,
+        presentationSize,
+        favouriteOrder,
+      },
+    });
+    const cardFields = [
+      makeField("00000000-0000-4000-8000-000000000441", "Wide one", "wide", 0),
+      makeField("00000000-0000-4000-8000-000000000442", "Wide two", "wide", 1),
+      makeField("00000000-0000-4000-8000-000000000443", "Compact", "compact", 2),
+      makeField("00000000-0000-4000-8000-000000000444", "Normal", "normal", 3),
+      makeField("00000000-0000-4000-8000-000000000445", "Expanded only", "normal", 4),
+    ];
+    const longExpandedValue = "Expanded detail ".repeat(40).trim();
+    const candidate: CandidatureRecord = {
+      ...record(candidateId),
+      values: cardFields.map((field, index) => ({
+        candidatureId: candidateId,
+        fieldId: field.definition.id,
+        value: index === 4 ? longExpandedValue : `Value ${index + 1}`,
+        createdAt: "2026-09-04T00:00:00.000Z",
+        updatedAt: "2026-09-04T00:00:00.000Z",
+      })),
+    };
+
+    const collapsed = candidatureCardRecognitionProjection(candidate, cardFields, false);
+    const expanded = candidatureCardRecognitionProjection(candidate, cardFields, true);
+    expect(collapsed.primaryCues.length).toBeLessThan(expanded.primaryCues.length);
+    expect(expanded.primaryCues.map((cue) => cue.label)).toContain("Expanded only");
+    expect(expanded.primaryCues.at(-1)?.value).toBe(longExpandedValue);
   });
 
   it("does not promote non-favourite values ahead of retained Source fallback", () => {

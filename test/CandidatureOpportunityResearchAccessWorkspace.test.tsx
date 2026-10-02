@@ -135,7 +135,9 @@ function prepareAccessApi() {
 
 async function openSelectedCandidature(user: ReturnType<typeof userEvent.setup>) {
   render(<CandidaturesWorkspace />);
-  await user.click(await screen.findByRole("button", { name: "Open saved application" }));
+  await user.click(await screen.findByRole("button", { name: /^Inspect saved application:/ }));
+  await user.click(screen.getByRole("button", { name: "Open application" }));
+  await user.click(screen.getByText("Sources, documents & history"));
   return screen.findByRole("button", { name: "Send to my AI" });
 }
 
@@ -201,7 +203,7 @@ describe("selected candidature Send to my AI", () => {
     await user.click(open);
     expect(update).toHaveBeenCalledWith({ candidatureId, allowed: true });
 
-    await user.click(screen.getByText("More"));
+    await user.click(screen.getByText("Information setup"));
     await user.click(screen.getByRole("button", { name: "Add information" }));
     await user.type(screen.getByPlaceholderText("Flight hours"), "Seniority");
 

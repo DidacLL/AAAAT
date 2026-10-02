@@ -230,13 +230,17 @@ describe("new application recovery", () => {
     await screen.findByRole("region", { name: "Raw material continuation" });
     await user.click(screen.getByRole("button", { name: "← Applications" }));
     const corpus = screen.getByLabelText("Application corpus");
-    const entry = within(corpus).getByRole("button", { name: "Open saved application" });
+    const entry = within(corpus).getByRole("button", { name: /^Inspect saved application:/ });
     expect(within(entry).getByText("Retained source")).toBeVisible();
     expect(entry).toHaveTextContent("Aster Aviation seeks a captain. Keep this exact text.");
 
     await user.click(entry);
-    expect(await screen.findByRole("region", { name: "Sources" })).toBeVisible();
-    const role = screen.getByRole("article", { name: "Role information" });
+    expect(screen.queryByRole("region", { name: "Application information" })).not.toBeInTheDocument();
+    await user.click(within(corpus).getByRole("button", { name: "Open application" }));
+    const selected = await screen.findByRole("region", { name: "Application information" });
+    await user.click(within(selected).getByText("Sources, documents & history"));
+    expect(within(selected).getByRole("region", { name: "Sources" })).toBeVisible();
+    const role = within(selected).getByRole("article", { name: "Role information" });
     expect(within(role).getByRole("button", { name: "Edit Role" })).toBeVisible();
   });
 

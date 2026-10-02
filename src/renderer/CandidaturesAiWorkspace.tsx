@@ -5,6 +5,7 @@ import {
   CandidatureRawCapturePanel,
 } from "./CandidatureManualEntryPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
+import type { ApplicationTagContext } from "./TagVisor";
 import "./candidature-capture.css";
 
 type NewApplicationIntent = "direct" | "raw";
@@ -21,11 +22,13 @@ export function CandidaturesAiWorkspace({
   onInitialCandidatureCleared,
   onDirtyChange,
   onTagGlossaryChange,
+  onTagContextChange,
 }: {
   readonly initialCandidatureId?: string;
   readonly onInitialCandidatureCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
+  readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
   const [view, setView] = useState<"applications" | "new">("applications");
   const [newIntent, setNewIntent] = useState<NewApplicationIntent | null>(null);
@@ -213,6 +216,7 @@ export function CandidaturesAiWorkspace({
             onInitialSelectionCleared={clearInitialSelection}
             onDirtyChange={reportDirty}
             onTagGlossaryChange={onTagGlossaryChange}
+            onTagContextChange={onTagContextChange}
           />
         </>
       )}
