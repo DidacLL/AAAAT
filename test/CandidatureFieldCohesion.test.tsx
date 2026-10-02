@@ -360,7 +360,7 @@ describe("candidature field cohesion", () => {
     await user.click(within(roleCard).getByText("Platform Engineer"));
     expect(roleOptions).not.toHaveAttribute("open");
     await user.click(within(roleCard).getByLabelText("Configure Role"));
-    await user.selectOptions(within(roleCard).getByLabelText("Role card size"), "wide");
+    await user.selectOptions(within(roleCard).getByRole("combobox"), "wide");
     await waitFor(() => expect(api.updateFieldPreferences).toHaveBeenCalledWith(expect.objectContaining({
       fieldId: roleId,
       presentationSize: "wide",
