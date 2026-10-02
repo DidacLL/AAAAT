@@ -22,6 +22,7 @@ interface Props {
   readonly clearLabel?: string;
   readonly discoverLabel?: string;
   readonly showFieldControls?: boolean;
+  readonly showEditAction?: boolean;
 }
 
 function textFor(value: CandidatureRuntimeValue | undefined): string {
@@ -69,6 +70,7 @@ export function CandidatureFieldValueEditor({
   clearLabel = "Clear",
   discoverLabel = "Ask AI to fill",
   showFieldControls = true,
+  showEditAction = true,
 }: Props) {
   const [internalEditing, setInternalEditing] = useState(initialEditing);
   const [text, setText] = useState(textFor(value));
@@ -233,27 +235,31 @@ export function CandidatureFieldValueEditor({
         <p className={value === undefined ? "candidature-missing-value" : undefined}>
           {value === undefined ? "Not set" : displayValue(field, value)}
         </p>
-        <div className="candidature-field-affordances">
-          <button
-            type="button"
-            className="compact-secondary"
-            aria-label={`Edit ${field.definition.label}`}
-            onClick={() => setEditing(true)}
-          >
-            Edit
-          </button>
-          {onDiscover && field.preferences.aiUseAllowed ? (
-            <button
-              type="button"
-              className="compact-secondary candidature-ai-button"
-              aria-label={`Ask AI to fill ${field.definition.label}`}
-              title={discoverLabel}
-              onClick={() => void discover()}
-            >
-              Ask AI
-            </button>
-          ) : null}
-        </div>
+        {showEditAction || (onDiscover && field.preferences.aiUseAllowed) ? (
+          <div className="candidature-field-affordances">
+            {showEditAction ? (
+              <button
+                type="button"
+                className="compact-secondary"
+                aria-label={`Edit ${field.definition.label}`}
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </button>
+            ) : null}
+            {onDiscover && field.preferences.aiUseAllowed ? (
+              <button
+                type="button"
+                className="compact-secondary candidature-ai-button"
+                aria-label={`Ask AI to fill ${field.definition.label}`}
+                title={discoverLabel}
+                onClick={() => void discover()}
+              >
+                <span aria-hidden="true">✨</span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {error ? <p className="error-message" role="alert">{error}</p> : null}
       </div>
     );
@@ -385,7 +391,7 @@ export function CandidatureFieldValueEditor({
             disabled={busy}
             onClick={() => void discover()}
           >
-            Ask AI
+            <span aria-hidden="true">✨</span>
           </button>
         ) : null}
       </div>
