@@ -472,7 +472,7 @@ export function App() {
               </button>
             ) : null}
             <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing folder..." : "New workspace"}</button>
-            <button className="secondary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open folder</button>
+            <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open folder</button>
             <button className="secondary-action" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
           </div>
           <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />

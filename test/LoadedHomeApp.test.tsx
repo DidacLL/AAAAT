@@ -152,9 +152,12 @@ describe("loaded Home shell behavior", () => {
 
     expect(await screen.findByRole("heading", { name: "Welcome to AAAAT" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continue previous workspace/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open folder" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open demo" })).toBeInTheDocument();
+    const createWorkspace = screen.getByRole("button", { name: "New workspace" });
+    const openWorkspace = screen.getByRole("button", { name: "Open folder" });
+    const openDemo = screen.getByRole("button", { name: "Open demo" });
+    expect(createWorkspace).toHaveClass("primary-action");
+    expect(openWorkspace).toHaveClass("primary-action");
+    expect(openDemo).toHaveClass("secondary-action");
     expect(screen.getByRole("region", { name: "Workspace recovery" })).toBeInTheDocument();
   });
 });
