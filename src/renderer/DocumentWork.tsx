@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
@@ -12,6 +13,7 @@ import type {
   WorkingCvSection,
 } from "../shared/document-domain-contracts";
 import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
+import { startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import "./documents.css";
 
@@ -131,13 +133,6 @@ function move<T>(items: readonly T[], index: number, offset: -1 | 1): T[] {
   return next;
 }
 
-function sourceLabel(item: WorkingCvItem, variants: readonly ProfileVariantRecord[]): string {
-  if (item.sourceMode === "custom" || item.sourceMode === "override") return "This CV only";
-  if (item.sourceMode === "current") return "My information — current";
-  const variant = variants.find((candidate) => candidate.id === item.profileVariantId);
-  return variant ? `Saved variation — ${variant.name}` : "Saved variation";
-}
-
 function dateRange(item: WorkingCvItem): string | null {
   if (item.content.startDate && item.content.endDate) return `${item.content.startDate} – ${item.content.endDate}`;
   return item.content.startDate ?? item.content.endDate ?? null;
@@ -188,6 +183,11 @@ export function WorkingCvEditor({
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
   const [tailoringNotes, setTailoringNotes] = useState<Record<string, string>>({});
   const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
+  const tailoringTaskKey = `document:cv-tailoring:${document.id}`;
+  const tailoringTask = useAiTask<CvTailoringResult>(tailoringTaskKey);
+  const handledTailoringResult = useRef<CvTailoringResult | null>(null);
+  const tailoringActive =
+    tailoringTask?.status === "queued" || tailoringTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
@@ -197,6 +197,39 @@ export function WorkingCvEditor({
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    const result = tailoringTask?.status === "completed" ? tailoringTask.result : undefined;
+    if (!result || handledTailoringResult.current === result) return;
+    handledTailoringResult.current = result;
+    const rank = new Map(
+      result.recommendations.map((recommendation, index) => [recommendation.itemId, index]),
+    );
+    setDraft((current) => ({
+      ...current,
+      sections: current.sections.map((section) => ({
+        ...section,
+        items: [...section.items].sort(
+          (left, right) =>
+            (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+            (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+        ),
+      })),
+    }));
+    setTailoringNotes(
+      Object.fromEntries(
+        result.recommendations.map((recommendation) => [
+          recommendation.itemId,
+          recommendation.rationale,
+        ]),
+      ),
+    );
+    setTailoringMessage(
+      result.recommendations.length > 0
+        ? "AI suggestions are ready in this CV draft. Review them, then Save or keep editing."
+        : "AI did not recommend a different emphasis for this CV.",
+    );
+  }, [tailoringTask]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -390,35 +423,26 @@ export function WorkingCvEditor({
   };
 
   const askAiToTailor = async () => {
-    if (!draft.candidatureId || busy) return;
-    setBusy(true);
+    if (!draft.candidatureId || tailoringActive) return;
     setError(null);
     setTailoringMessage(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
-      const result = await window.aaaat.ai.tailorCv({
-        candidatureId: saved.candidatureId!,
-        workingCvId: saved.id,
-      });
-      const rank = new Map(result.recommendations.map((recommendation, index) => [recommendation.itemId, index]));
-      const notes = Object.fromEntries(result.recommendations.map((recommendation) => [recommendation.itemId, recommendation.rationale]));
-      const sections = saved.sections.map((section) => ({
-        ...section,
-        items: [...section.items].sort(
-          (left, right) => (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
-        ),
-      }));
-      setDraft({ ...saved, sections });
-      setTailoringNotes(notes);
-      setTailoringMessage(
-        result.recommendations.length > 0
-          ? "AI suggestions changed only this Working CV draft. Review them, then Save or keep editing."
-          : "AI did not recommend a different emphasis for this Working CV.",
+      startAiTask<CvTailoringResult>(
+        tailoringTaskKey,
+        async (updateDetail) => {
+          updateDetail("Reviewing application context and CV content…");
+          return window.aaaat.ai.tailorCv({
+            candidatureId: saved.candidatureId!,
+            workingCvId: saved.id,
+          });
+        },
+        "Tailor CV",
+        (result) =>
+          result.recommendations.length > 0 ? "Suggestions ready" : "No changes suggested",
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not tailor this Working CV with AI.");
-    } finally {
-      setBusy(false);
+      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this CV for AI.");
     }
   };
 
@@ -456,7 +480,7 @@ export function WorkingCvEditor({
             <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button>
           ) : null}
           {draft.candidatureId ? (
-            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAiToTailor()}>Ask AI to tailor</button>
+            <button type="button" className="compact-secondary" disabled={busy || tailoringActive} onClick={() => void askAiToTailor()}>{tailoringActive ? "AI tailoring…" : "Ask AI to tailor"}</button>
           ) : null}
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
           <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
@@ -559,10 +583,6 @@ export function WorkingCvEditor({
 
                               {item.content.description ? <p className="working-cv-description">{item.content.description}</p> : null}
                               {item.content.url ? <p className="working-cv-link">{item.content.url}</p> : null}
-                              <div className="working-cv-source-summary">
-                                <span>{sourceLabel(item, variants)}</span>
-                                {item.profileItemId && !editing ? <button type="button" className="working-cv-link-button" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button> : null}
-                              </div>
                               {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
 
                               {editing ? (
@@ -578,13 +598,15 @@ export function WorkingCvEditor({
                                       </div>
                                     ) : (
                                       <div className="working-source-row">
-                                        <label>
-                                          Wording source
-                                          <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
-                                            <option value="current">My information — current</option>
-                                            {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>Saved variation — {variant.name}</option>)}
-                                          </select>
-                                        </label>
+                                        {itemVariants.length > 0 ? (
+                                          <label>
+                                            Use wording
+                                            <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
+                                              <option value="current">Current My information</option>
+                                              {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}
+                                            </select>
+                                          </label>
+                                        ) : <span className="working-cv-source-chip">Uses My information</span>}
                                         <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
                                       </div>
                                     )
@@ -618,18 +640,20 @@ export function WorkingCvEditor({
                                   ) : null}
 
                                   {item.profileItemId && item.sourceMode === "override" ? (
-                                    <div className="ownership-actions">
-                                      <strong>These changes are only in this CV.</strong>
-                                      <span>Keep them here, or deliberately reuse this wording elsewhere.</span>
-                                      <div className="working-cv-ownership-buttons">
-                                        {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Save to template</button> : null}
-                                        <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
+                                    <details className="ownership-actions">
+                                      <summary>Reuse these edits elsewhere</summary>
+                                      <div>
+                                        <span>These changes are currently only in this CV.</span>
+                                        <div className="working-cv-ownership-buttons">
+                                          {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Update template</button> : null}
+                                          <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
+                                        </div>
+                                        <div className="working-cv-variant-save">
+                                          <label>Save alternate wording<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
+                                          <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save variation</button>
+                                        </div>
                                       </div>
-                                      <div className="working-cv-variant-save">
-                                        <label>Variation name<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
-                                        <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save as profile variant</button>
-                                      </div>
-                                    </div>
+                                    </details>
                                   ) : null}
                                 </div>
                               ) : null}
@@ -703,6 +727,11 @@ function LetterEditor({
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
+  const draftingTaskKey = `document:cover-letter-draft:${document.id}`;
+  const draftingTask = useAiTask<CoverLetterDraft>(draftingTaskKey);
+  const handledDraftResult = useRef<CoverLetterDraft | null>(null);
+  const draftingActive =
+    draftingTask?.status === "queued" || draftingTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productionMessage, setProductionMessage] = useState<string | null>(null);
@@ -717,6 +746,19 @@ function LetterEditor({
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    const suggestion = draftingTask?.status === "completed" ? draftingTask.result : undefined;
+    if (!suggestion || handledDraftResult.current === suggestion) return;
+    handledDraftResult.current = suggestion;
+    setDraft((current) => ({
+      ...current,
+      recipient: suggestion.recipient || undefined,
+      subject: suggestion.subject || undefined,
+      closing: suggestion.closing || undefined,
+    }));
+    setBody(suggestion.bodyParagraphs.join("\n\n"));
+  }, [draftingTask]);
 
   const persistDraft = async (): Promise<CoverLetterRecord> => {
     const saved = await window.aaaat.documentDomain.updateLetter({
@@ -747,22 +789,21 @@ function LetterEditor({
   };
 
   const askAi = async () => {
-    setBusy(true);
+    if (draftingActive) return;
     setError(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
-      const suggestion = await window.aaaat.ai.draftCoverLetter({ coverLetterId: saved.id });
-      setDraft((current) => ({
-        ...current,
-        recipient: suggestion.recipient || undefined,
-        subject: suggestion.subject || undefined,
-        closing: suggestion.closing || undefined,
-      }));
-      setBody(suggestion.bodyParagraphs.join("\n\n"));
+      startAiTask<CoverLetterDraft>(
+        draftingTaskKey,
+        async (updateDetail) => {
+          updateDetail("Drafting from the application and allowed My information…");
+          return window.aaaat.ai.draftCoverLetter({ coverLetterId: saved.id });
+        },
+        "Draft cover letter",
+        () => "Draft ready",
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter with AI.");
-    } finally {
-      setBusy(false);
+      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this cover letter for AI.");
     }
   };
 
@@ -809,7 +850,7 @@ function LetterEditor({
         </div>
         <div className="button-row">
           {documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}
-          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAi()}>Ask AI to draft</button>
+          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={() => void askAi()}>{draftingActive ? "AI drafting…" : "Ask AI to draft"}</button>
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
           <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
           <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void renderLetter()}>Render PDF</button>
