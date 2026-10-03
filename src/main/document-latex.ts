@@ -85,7 +85,8 @@ export function resolveDocumentBabelLanguage(language: string | undefined): stri
 function pdfMetadataSource(metadata: DocumentPdfMetadata): string {
   return "\\AAAATPdfMetadata{" + encodeMetadataText(metadata.title) + "}{"
     + encodeMetadataText(metadata.author) + "}{"
-    + encodeMetadataText(metadata.subject) + "}";
+    + encodeMetadataText(metadata.subject) + "}{"
+    + encodeMetadataText(metadata.keywords) + "}";
 }
 
 function documentDataHeader(
@@ -191,6 +192,7 @@ function letterMetadata(letter: CoverLetterSnapshot): DocumentPdfMetadata {
     title: letter.title,
     author: letter.sender.name.trim() || "AAAAT",
     subject: letter.subject?.trim() || "Cover letter",
+    keywords: "",
   };
 }
 
@@ -222,14 +224,13 @@ function serializeLatexDocument(input: RenderDocumentInput): string {
   } else {
     lines.push(
       pdfMetadataSource(input.metadata),
-      "\\AAAATApplyPdfMetadata",
-      "\\AAAATResetDocumentData",
+      "\\AAAATCombinedLetterData{",
       ...coverLetterData(input.letter, letterMetadata(input.letter)),
-      "\\AAAATRenderLetterDocument",
-      "\\clearpage",
-      "\\AAAATResetDocumentData",
+      "}",
+      "\\AAAATCombinedCvData{",
       ...cvData(input.cv),
-      "\\AAAATRenderCvDocument",
+      "}",
+      "\\AAAATRenderCombinedDocument",
     );
   }
 
@@ -281,6 +282,7 @@ export function writeApplicationPacketLatexProject(
     title: "Application · " + working.title + " + " + letter.title,
     author: letter.sender.name.trim() || working.pdfMetadata.author.trim() || "AAAAT",
     subject: "Application documents",
+    keywords: working.pdfMetadata.keywords,
   },
 ): string {
   return writeLatexDocumentProject(

@@ -340,15 +340,17 @@ function defaultCvPdfMetadata(
   return {
     title,
     author: cvDocumentAuthorFromSections(sections),
-    subject: 'Curriculum vitae'
+    subject: 'Curriculum vitae',
+    keywords: ''
   };
 }
 function cvDocumentAuthor(working: WorkingCvRecord): string {
   return working.pdfMetadata.author.trim() || cvDocumentAuthorFromSections(working.sections);
 }
 function documentMetadata(
-    title: string, subject: string, author: string): DocumentPdfMetadata {
-  return {title, author, subject};
+    title: string, subject: string, author: string,
+    keywords = ''): DocumentPdfMetadata {
+  return {title, author, subject, keywords};
 }
 function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
   return renderedCvRecordSchema.parse({
@@ -1084,7 +1086,8 @@ export async function createApplicationPacket(
         stagePath, working, letterSnapshot, blueprintSource,
         documentMetadata(
             title, 'Application documents',
-            letter.sender.name.trim() || cvDocumentAuthor(working)));
+            letter.sender.name.trim() || cvDocumentAuthor(working),
+            working.pdfMetadata.keywords));
     await compileProject(
         stagePath, title, 'application-document', effectiveTimeoutMs, sourceFileName);
     renameSync(stagePath, projectPath);

@@ -5,8 +5,10 @@
 %   \AAAATDocumentKind{cv|letter}
 %   \AAAATDocumentLanguage{babel-language}
 %   \AAAATDocumentTitle{text}
-%   \AAAATPdfMetadata{title}{author}{subject}
+%   \AAAATPdfMetadata{title}{author}{subject}{keywords}
 %   \AAAATParserSummary{text}
+%   \AAAATCombinedLetterData{serialized letter data}
+%   \AAAATCombinedCvData{serialized CV data}
 %   \AAAATBlock{header|main|secondary|footer}{section title}{items}
 %   \AAAATEntry{kind}{title}{subtitle}{dates}{description}{url}
 %   \AAAATSenderName, \AAAATSenderHeadline, \AAAATSenderDetail
@@ -61,7 +63,10 @@
 \tl_new:N \g_aaaat_pdf_title_tl
 \tl_new:N \g_aaaat_pdf_author_tl
 \tl_new:N \g_aaaat_pdf_subject_tl
+\tl_new:N \g_aaaat_pdf_keywords_tl
 \tl_new:N \g_aaaat_parser_summary_tl
+\tl_new:N \g_aaaat_combined_letter_data_tl
+\tl_new:N \g_aaaat_combined_cv_data_tl
 \tl_new:N \g_aaaat_sender_name_tl
 \tl_new:N \g_aaaat_sender_headline_tl
 
@@ -94,11 +99,12 @@
 \NewDocumentCommand{\AAAATDocumentTitle}{m}
   {\tl_gset:Nn \g_aaaat_document_title_tl {#1}}
 
-\NewDocumentCommand{\AAAATPdfMetadata}{mmm}
+\NewDocumentCommand{\AAAATPdfMetadata}{mmmm}
   {
     \tl_gset:Nn \g_aaaat_pdf_title_tl {#1}
     \tl_gset:Nn \g_aaaat_pdf_author_tl {#2}
     \tl_gset:Nn \g_aaaat_pdf_subject_tl {#3}
+    \tl_gset:Nn \g_aaaat_pdf_keywords_tl {#4}
   }
 
 \NewDocumentCommand{\AAAATApplyPdfMetadata}{}
@@ -107,12 +113,19 @@
       pdftitle={\tl_use:N \g_aaaat_pdf_title_tl},
       pdfauthor={\tl_use:N \g_aaaat_pdf_author_tl},
       pdfsubject={\tl_use:N \g_aaaat_pdf_subject_tl},
+      pdfkeywords={\tl_use:N \g_aaaat_pdf_keywords_tl},
       pdfcreator={AAAAT}
     }
   }
 
 \NewDocumentCommand{\AAAATParserSummary}{m}
   {\tl_gset:Nn \g_aaaat_parser_summary_tl {#1}}
+
+\NewDocumentCommand{\AAAATCombinedLetterData}{+m}
+  {\tl_gset:Nn \g_aaaat_combined_letter_data_tl {#1}}
+
+\NewDocumentCommand{\AAAATCombinedCvData}{+m}
+  {\tl_gset:Nn \g_aaaat_combined_cv_data_tl {#1}}
 
 \NewDocumentCommand{\AAAATSenderName}{m}
   {\tl_gset:Nn \g_aaaat_sender_name_tl {#1}}
@@ -146,6 +159,7 @@
     \tl_gclear:N \g_aaaat_pdf_title_tl
     \tl_gclear:N \g_aaaat_pdf_author_tl
     \tl_gclear:N \g_aaaat_pdf_subject_tl
+    \tl_gclear:N \g_aaaat_pdf_keywords_tl
     \tl_gclear:N \g_aaaat_parser_summary_tl
     \tl_gclear:N \g_aaaat_sender_name_tl
     \tl_gclear:N \g_aaaat_sender_headline_tl
@@ -336,7 +350,6 @@
   {
     \AAAATRenderDocumentTitle
     \vspace{0.6em}
-    {\small\itshape \AAAATRenderParserSummary}
     \AAAATRenderHeader
     \AAAATRenderMainBody
     \AAAATRenderSecondaryBody
@@ -362,9 +375,14 @@
 
 \NewDocumentCommand{\AAAATRenderCombinedDocument}{}
   {
-    \PackageError{aaaat}
-      {Combined~mode~contains~multiple~document~states}
-      {Render~the~serialized~letter~and~CV~segments~in~one~LaTeX~document.}
+    \AAAATApplyPdfMetadata
+    \AAAATResetDocumentData
+    \tl_use:N \g_aaaat_combined_letter_data_tl
+    \AAAATRenderLetterDocument
+    \clearpage
+    \AAAATResetDocumentData
+    \tl_use:N \g_aaaat_combined_cv_data_tl
+    \AAAATRenderCvDocument
   }
 
 \NewDocumentCommand{\AAAATRenderStandaloneDocument}{}

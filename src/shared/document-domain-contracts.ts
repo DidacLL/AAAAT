@@ -57,12 +57,14 @@ export const cvPdfMetadataSchema = z.object({
   title: z.string().max(500),
   author: z.string().max(500),
   subject: z.string().max(500),
+  keywords: z.string().max(500).default(""),
 }).strict();
 export type CvPdfMetadata = z.infer<typeof cvPdfMetadataSchema>;
 export const emptyCvPdfMetadata: CvPdfMetadata = Object.freeze({
   title: "",
   author: "",
   subject: "",
+  keywords: "",
 });
 export const cvParserSummarySchema = z.string().max(8_000);
 

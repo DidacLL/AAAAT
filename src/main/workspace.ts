@@ -453,6 +453,50 @@ function migrateCoverLetterSenderComposition(database: DatabaseSync): void {
   );
 }
 
+function migrateCvDocumentMetadata(database: DatabaseSync): void {
+  const templateColumns = new Set(
+    (database
+      .prepare(`SELECT name FROM pragma_table_xinfo('cv_templates') ORDER BY cid`)
+      .all() as unknown as ColumnNameRow[]).map((column) => column.name),
+  );
+  const workingColumns = new Set(
+    (database
+      .prepare(`SELECT name FROM pragma_table_xinfo('working_cvs') ORDER BY cid`)
+      .all() as unknown as ColumnNameRow[]).map((column) => column.name),
+  );
+
+  transact(database, () => {
+    if (!templateColumns.has("pdf_metadata_json")) {
+      database.exec(
+        `ALTER TABLE cv_templates
+         ADD COLUMN pdf_metadata_json TEXT NOT NULL
+         DEFAULT '{"title":"","author":"","subject":""}'
+         CHECK (json_valid(pdf_metadata_json))`,
+      );
+    }
+    if (!templateColumns.has("parser_summary")) {
+      database.exec(
+        `ALTER TABLE cv_templates
+         ADD COLUMN parser_summary TEXT NOT NULL DEFAULT ''`,
+      );
+    }
+    if (!workingColumns.has("pdf_metadata_json")) {
+      database.exec(
+        `ALTER TABLE working_cvs
+         ADD COLUMN pdf_metadata_json TEXT NOT NULL
+         DEFAULT '{"title":"","author":"","subject":""}'
+         CHECK (json_valid(pdf_metadata_json))`,
+      );
+    }
+    if (!workingColumns.has("parser_summary")) {
+      database.exec(
+        `ALTER TABLE working_cvs
+         ADD COLUMN parser_summary TEXT NOT NULL DEFAULT ''`,
+      );
+    }
+  });
+}
+
 function migrateLegacyApplicationPackets(database: DatabaseSync): void {
   const columns = database
     .prepare(`SELECT name FROM pragma_table_xinfo('application_packets') ORDER BY cid`)
@@ -576,6 +620,7 @@ function verifyExistingWorkspace(rootPath: string): void {
     configureDatabase(database);
     migrateLegacyApplicationPackets(database);
     migrateCoverLetterSenderComposition(database);
+    migrateCvDocumentMetadata(database);
     validateCurrentWorkspaceDatabase(database);
   } catch {
     throw new WorkspaceError(

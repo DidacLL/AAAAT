@@ -895,6 +895,16 @@ export function WorkingCvEditor({
                 }))}
               />
             </label>
+            <label>
+              Keywords
+              <input
+                value={draft.pdfMetadata.keywords}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, keywords: event.target.value },
+                }))}
+              />
+            </label>
           </fieldset>
           <label>
             Parser summary
