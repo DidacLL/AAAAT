@@ -164,7 +164,7 @@ export async function reviewOpportunity(
   const stored = requireStoredConnection(rootPath, "opportunity_review");
   const projected = projectOpportunityReviewContext(rootPath, request);
   const context = providerOpportunityReviewContextSchema.parse({ candidature: providerCandidature(rootPath, projected.candidature), profileItems: projected.profileItems });
-  return opportunityReviewResultSchema.parse(await provider.reviewOpportunity(statusFor(stored), context));
+  return opportunityReviewResultSchema.parse(await provider.reviewOpportunity(stored, context));
 }
 
 export async function extractJob(rootPath: string, rawRequest: JobExtractionRequest): Promise<JobExtractionResult> {
@@ -219,7 +219,7 @@ export async function discoverCandidatureFieldFromSources(
     fields: [{ fieldRef, label: field.definition.label, description: field.definition.description, valueType: field.definition.valueType, cardinality: field.definition.cardinality, choices }],
     tags: [],
   });
-  const result = providerJobExtractionEnvelopeSchema.parse(await provider.extractJob(statusFor(stored), wire, undefined, "historical_field_discovery"));
+  const result = providerJobExtractionEnvelopeSchema.parse(await provider.extractJob(stored, wire, undefined, "historical_field_discovery"));
   const proposed = result.proposals.find((candidate) =>
     Boolean(
       candidate &&
@@ -290,7 +290,7 @@ export async function tailorCv(
   if (workingCv.candidatureId && workingCv.candidatureId !== request.candidatureId) throw new AiServiceError("This Working CV belongs to a different application.");
   const context = projectDocumentContext(rootPath, projectCandidature(rootPath, request.candidatureId, true), workingCv.sections.flatMap((section) => section.items));
   const providerContext = providerDocumentContext(rootPath, context, "cv");
-  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(statusFor(stored), providerContext.context));
+  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(stored, providerContext.context));
   const allowed = new Set(context.items.map((item) => item.id));
   const recommendations = result.recommendations.map((item) => ({ itemId: providerContext.itemIds.get(item.itemRef) ?? "", rationale: item.rationale }));
   if (recommendations.some((item) => !allowed.has(item.itemId))) throw new AiServiceError("The model recommended CV content that is not available to AI.");
@@ -312,5 +312,5 @@ export async function draftCoverLetter(
     .filter((item) => isDocumentEvidence(item.kind) && (permissions.get(item.id) ?? true))
     .map((item) => ({ id: item.id, profileItemId: item.id, content: { kind: item.kind, title: item.title, ...(item.subtitle ? { subtitle: item.subtitle } : {}), ...(item.description ? { description: item.description } : {}), ...(item.startDate ? { startDate: item.startDate } : {}), ...(item.endDate ? { endDate: item.endDate } : {}), ...(item.url ? { url: item.url } : {}) } }));
   const context = projectDocumentContext(rootPath, candidature, items);
-  return coverLetterDraftSchema.parse(await provider.draftCoverLetter(statusFor(stored), providerDocumentContext(rootPath, context, "coverletter").context));
+  return coverLetterDraftSchema.parse(await provider.draftCoverLetter(stored, providerDocumentContext(rootPath, context, "coverletter").context));
 }

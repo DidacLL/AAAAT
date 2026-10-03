@@ -127,6 +127,68 @@ describe("OpenAI-compatible provider", () => {
     expect(JSON.stringify(bodies)).not.toContain("variant_recommendation");
   });
 
+  it("sends optional Bearer authentication through every provider operation", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as {
+        response_format?: { json_schema?: { name?: string } };
+      };
+      switch (body.response_format?.json_schema?.name) {
+        case "aaaat_opportunity_review":
+          return response({ summary: "Relevant role", relevantEvidence: [], uncertainties: [], questions: [] });
+        case "aaaat_job_extraction":
+        case "aaaat_historical_field_discovery":
+          return response({ proposals: [], newFields: [], existingTags: [], newTags: [] });
+        case "aaaat_cv_tailoring":
+          return response({ recommendations: [] });
+        case "aaaat_cover_letter_draft":
+          return response({ recipient: "", subject: "", bodyParagraphs: ["Application"], closing: "" });
+        default:
+          throw new Error("Unexpected provider operation");
+      }
+    });
+    const provider = createOpenAiCompatibleProvider(fetchImpl);
+    const extractionRequest = {
+      sourceText: "Role: Platform Engineer",
+      sourceTitle: "Fixture",
+      sourceUrl: "",
+      fields: [],
+      tags: [],
+    };
+
+    const runAllOperations = async (providerConnection: AiConnectionStatus & { credential?: string }) => {
+      await provider.reviewOpportunity(providerConnection, reviewContext);
+      await provider.extractJob(providerConnection, extractionRequest, undefined, "job_extraction");
+      await provider.extractJob(providerConnection, extractionRequest, undefined, "historical_field_discovery");
+      await provider.tailorCv(providerConnection, documentContext);
+      await provider.draftCoverLetter(providerConnection, documentContext);
+    };
+
+    await runAllOperations({ ...connection, credential: "test-secret" });
+    await runAllOperations(connection);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(10);
+    const calls = fetchImpl.mock.calls.map(([, init]) => ({
+      authorization: new Headers(init?.headers).get("authorization"),
+      operation: (JSON.parse(String(init?.body)) as {
+        response_format?: { json_schema?: { name?: string } };
+      }).response_format?.json_schema?.name,
+    }));
+    expect(calls.slice(0, 5)).toEqual([
+      { authorization: "Bearer test-secret", operation: "aaaat_opportunity_review" },
+      { authorization: "Bearer test-secret", operation: "aaaat_job_extraction" },
+      { authorization: "Bearer test-secret", operation: "aaaat_historical_field_discovery" },
+      { authorization: "Bearer test-secret", operation: "aaaat_cv_tailoring" },
+      { authorization: "Bearer test-secret", operation: "aaaat_cover_letter_draft" },
+    ]);
+    expect(calls.slice(5)).toEqual([
+      { authorization: null, operation: "aaaat_opportunity_review" },
+      { authorization: null, operation: "aaaat_job_extraction" },
+      { authorization: null, operation: "aaaat_historical_field_discovery" },
+      { authorization: null, operation: "aaaat_cv_tailoring" },
+      { authorization: null, operation: "aaaat_cover_letter_draft" },
+    ]);
+  });
+
   it("disables Undici parser timeouts so AAAAT's configured ceiling is authoritative", async () => {
     const symbol = Symbol.for("undici.globalDispatcher.1");
     const scope = globalThis as unknown as Record<PropertyKey, unknown>;
