@@ -172,12 +172,20 @@ export type RenderedCoverLetterRecord = z.infer<typeof renderedCoverLetterRecord
 
 export const applicationPacketCreateSchema = z.object({
   candidatureId: z.string().uuid(),
-  workingCvId: z.string().uuid(),
+  workingCvId: z.string().uuid().optional(),
+  renderedCvId: z.string().uuid().optional(),
   coverLetterId: z.string().uuid(),
-  blueprintId: blueprintIdSchema,
+  blueprintId: blueprintIdSchema.default("builtin:default"),
   title: z.string().trim().min(1).max(200).optional(),
-}).strict();
-export type ApplicationPacketCreate = z.infer<typeof applicationPacketCreateSchema>;
+}).strict().superRefine((input, context) => {
+  if ((input.workingCvId ? 1 : 0) + (input.renderedCvId ? 1 : 0) !== 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Choose exactly one editable or legacy CV source.",
+    });
+  }
+});
+export type ApplicationPacketCreate = z.input<typeof applicationPacketCreateSchema>;
 export const applicationPacketRecordSchema = z.object({
   id: z.string().uuid(),
   candidatureId: z.string().uuid(),
