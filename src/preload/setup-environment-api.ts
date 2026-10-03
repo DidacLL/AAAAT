@@ -17,6 +17,10 @@ export function createSetupEnvironmentDesktopApi(invoke: Invoke): SetupEnvironme
         setupEnvironmentSnapshotSchema.parse(
           await invoke(setupEnvironmentChannels.current),
         ),
+      refresh: async () =>
+        setupEnvironmentSnapshotSchema.parse(
+          await invoke(setupEnvironmentChannels.refresh),
+        ),
       externalConnection: async () =>
         externalAssistantConnectionSchema.parse(
           await invoke(setupEnvironmentChannels.externalConnection),
