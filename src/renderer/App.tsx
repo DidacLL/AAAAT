@@ -528,8 +528,8 @@ export function App() {
                   refreshRevision={railStatusRevision}
                   attentionConnectionName={aiAttentionConnectionName}
                 />
-                <AiTaskStatus />
                 <TagVisor applicationContext={applicationContextActive ? applicationTagContext : null} />
+                <AiTaskStatus />
               </aside>
 
               <section className="work-surface">
