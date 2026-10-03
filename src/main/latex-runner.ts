@@ -78,12 +78,17 @@ async function terminateProcessTree(child: ChildProcess): Promise<void> {
 export async function runPdfLatex(
   projectPath: string,
   timeoutMs = 30_000,
+  outputBaseName = "main",
 ): Promise<void> {
+  if (!/^[a-z0-9][a-z0-9._-]{0,95}$/iu.test(outputBaseName)) {
+    throw new LatexRunnerError("The generated PDF filename is invalid.");
+  }
   mkdirSync(path.join(projectPath, "build"), { recursive: true });
   const pdfLatexArgs = [
     "-interaction=nonstopmode",
     "-halt-on-error",
     "-output-directory=build",
+    `-jobname=${outputBaseName}`,
     "main.tex",
   ];
   const command =
