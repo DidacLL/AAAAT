@@ -883,9 +883,13 @@ function LetterEditor({
     <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
       <header className="document-editor-toolbar">
         <div className="document-editor-context">
-          {documentHandoff?.candidatureId ? (
-            <button type="button" className="document-back-button" onClick={returnToCandidature}>← Application</button>
-          ) : null}
+          <button
+            type="button"
+            className="document-back-button"
+            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
+          >
+            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
+          </button>
           <div>
             <p className="eyebrow">Cover letter</p>
             <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
