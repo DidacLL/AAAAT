@@ -10,6 +10,12 @@ import aaatStyle from "./latex/aaaat.sty?raw";
 import applicationPacketTemplate from "./latex/application-packet.tex?raw";
 import documentEntrypoint from "./latex/document.tex?raw";
 
+export interface DocumentPdfMetadata {
+  readonly title: string;
+  readonly author: string;
+  readonly subject: string;
+}
+
 const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
   "\\": "\\textbackslash{}",
   "{": "\\{",
@@ -60,6 +66,10 @@ export function encodeDocumentText(value: string): string {
     .replace(/\n/g, "\\AAAATLineBreak{}");
 }
 
+function encodeMetadataText(value: string): string {
+  return encodeDocumentText(value.replace(/\s+/gu, " ").trim());
+}
+
 export function resolveDocumentBabelLanguage(language: string | undefined): string {
   if (language === undefined) return "english";
   const normalizedLanguage = language.trim().toLowerCase();
@@ -74,20 +84,26 @@ export function resolveDocumentBabelLanguage(language: string | undefined): stri
   );
 }
 
+function pdfMetadataSource(metadata: DocumentPdfMetadata): string {
+  return `\\AAAATPdfMetadata{${encodeMetadataText(metadata.title)}}{${encodeMetadataText(metadata.author)}}{${encodeMetadataText(metadata.subject)}}`;
+}
+
 function documentDataHeader(
   kind: "cv" | "letter",
   title: string,
   language: string | undefined,
+  metadata?: DocumentPdfMetadata,
 ): string[] {
   return [
+    ...(metadata ? [pdfMetadataSource(metadata)] : []),
     `\\AAAATDocumentKind{${kind}}`,
     `\\AAAATDocumentLanguage{${resolveDocumentBabelLanguage(language)}}`,
     `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
   ];
 }
 
-function cvData(working: WorkingCvRecord): string {
-  const lines = documentDataHeader("cv", working.title, working.language);
+function cvData(working: WorkingCvRecord, metadata?: DocumentPdfMetadata): string {
+  const lines = documentDataHeader("cv", working.title, working.language, metadata);
   for (const section of working.sections) {
     lines.push(
       `\\AAAATBlock{${section.presentationRole}}{${encodeDocumentText(section.name)}}{`,
@@ -106,8 +122,11 @@ function cvData(working: WorkingCvRecord): string {
   return `${lines.join("\n")}\n`;
 }
 
-function coverLetterData(letter: CoverLetterSnapshot): string {
-  const lines = documentDataHeader("letter", letter.title, letter.language);
+function coverLetterData(
+  letter: CoverLetterSnapshot,
+  metadata?: DocumentPdfMetadata,
+): string {
+  const lines = documentDataHeader("letter", letter.title, letter.language, metadata);
   if (letter.recipient) {
     lines.push(`\\AAAATMetadata{To}{${encodeDocumentText(letter.recipient)}}`);
   }
@@ -139,18 +158,36 @@ export function writeCvLatexProject(
   projectPath: string,
   working: WorkingCvRecord,
   blueprintSource: string,
+  metadata: DocumentPdfMetadata,
 ): void {
-  writePortableDocumentProject(projectPath, cvData(working), blueprintSource);
+  writePortableDocumentProject(projectPath, cvData(working, metadata), blueprintSource);
 }
 
 export function writeCoverLetterLatexProject(
   projectPath: string,
   letter: CoverLetterSnapshot,
   blueprintSource: string,
+  metadata: DocumentPdfMetadata,
 ): void {
-  writePortableDocumentProject(projectPath, coverLetterData(letter), blueprintSource);
+  writePortableDocumentProject(projectPath, coverLetterData(letter, metadata), blueprintSource);
 }
 
-export function writeApplicationPacketEntrypoint(projectPath: string): void {
+export function writeApplicationPacketLatexProject(
+  projectPath: string,
+  working: WorkingCvRecord,
+  letter: CoverLetterSnapshot,
+  blueprintSource: string,
+  metadata: DocumentPdfMetadata,
+): void {
+  mkdirSync(projectPath, { recursive: true });
   writeFileSync(path.join(projectPath, "main.tex"), applicationPacketTemplate, "utf8");
+  writeFileSync(path.join(projectPath, "blueprint.tex"), blueprintSource, "utf8");
+  writeFileSync(path.join(projectPath, "letter-data.tex"), coverLetterData(letter), "utf8");
+  writeFileSync(path.join(projectPath, "cv-data.tex"), cvData(working), "utf8");
+  writeFileSync(
+    path.join(projectPath, "packet-metadata.tex"),
+    `${pdfMetadataSource(metadata)}\n`,
+    "utf8",
+  );
+  writeFileSync(path.join(projectPath, "aaaat.sty"), aaatStyle, "utf8");
 }
