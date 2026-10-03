@@ -94,7 +94,7 @@ export function SetupEnvironmentPanel({
     setError(null);
     try {
       const [nextSnapshot, nextAccess] = await Promise.all([
-        window.aaaat.setupEnvironment.current(),
+        window.aaaat.setupEnvironment.refresh(),
         window.aaaat.setupAssistant.access(),
       ]);
       setSnapshot(nextSnapshot);
@@ -149,7 +149,7 @@ export function SetupEnvironmentPanel({
     try {
       await window.aaaat.setupAssistant.runRenderingSelfTest();
       setSelfTestResult("Rendering self-test passed. AAAAT created, rendered and removed its temporary test document.");
-      setSnapshot(await window.aaaat.setupEnvironment.current());
+      setSnapshot(await window.aaaat.setupEnvironment.refresh());
       onEnvironmentChange?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT's rendering self-test failed.");
