@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage{aaaat}
+\usepackage[application]{aaaat}
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
 \setlength{\headheight}{0pt}
@@ -10,12 +10,10 @@
 
 \begin{document}
 \input{letter-data.tex}
-\AAAATApplyLetterLayout
-\AAAATRenderLetterBlueprint
+\AAAATRenderLetterDocument
 \clearpage
 
 \AAAATResetDocumentData
 \input{cv-data.tex}
-\AAAATApplyCvLayout
-\AAAATRenderCvBlueprint
+\AAAATRenderCvDocument
 \end{document}
