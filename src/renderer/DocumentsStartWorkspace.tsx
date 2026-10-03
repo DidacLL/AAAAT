@@ -122,6 +122,8 @@ export function DocumentsStartWorkspace({
         id: template.id,
         name: proposed,
         language: template.language,
+        pdfMetadata: template.pdfMetadata,
+        parserSummary: template.parserSummary,
         sections: template.sections,
       }));
     } catch (reason) {

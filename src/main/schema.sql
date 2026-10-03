@@ -173,6 +173,8 @@ CREATE TABLE cv_templates (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL COLLATE NOCASE UNIQUE,
   language TEXT,
+  pdf_metadata_json TEXT NOT NULL DEFAULT '{"title":"","author":"","subject":""}' CHECK (json_valid(pdf_metadata_json)),
+  parser_summary TEXT NOT NULL DEFAULT '',
   composition_json TEXT NOT NULL CHECK (json_valid(composition_json)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -184,6 +186,8 @@ CREATE TABLE working_cvs (
   language TEXT,
   source_template_id TEXT REFERENCES cv_templates(id) ON DELETE SET NULL,
   candidature_id TEXT REFERENCES candidatures(id) ON DELETE CASCADE,
+  pdf_metadata_json TEXT NOT NULL DEFAULT '{"title":"","author":"","subject":""}' CHECK (json_valid(pdf_metadata_json)),
+  parser_summary TEXT NOT NULL DEFAULT '',
   composition_json TEXT NOT NULL CHECK (json_valid(composition_json)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL

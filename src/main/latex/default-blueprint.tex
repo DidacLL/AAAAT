@@ -1,20 +1,196 @@
-% AAAAT CV Blueprint contract: CV formatting shared by standalone and combined documents.
-\NewDocumentCommand{\AAAATApplyCvLayout}{}
+% AAAAT built-in CV Blueprint.
+% It uses aaaat.sty's public document API; the Blueprint owns physical layout.
+% Header / Main body / Secondary body / Footer remain semantic storage roles.
+% Another Blueprint may place them in any order without changing saved CV data.
+%
+% \AAAATEntry receives:
+%   {kind}{title}{subtitle}{dates}{description}{url}
+% This Blueprint treats all kinds alike. Another Blueprint may branch on kind.
+
+\RequirePackage{geometry}
+
+\ExplSyntaxOn
+
+\box_new:N \l_aaaat_default_header_box
+\box_new:N \l_aaaat_default_footer_box
+\box_new:N \l_aaaat_default_secondary_body_box
+\box_new:N \l_aaaat_default_main_body_box
+\box_new:N \l_aaaat_default_secondary_page_box
+\box_new:N \l_aaaat_default_main_page_box
+\dim_new:N \l_aaaat_default_region_page_height_dim
+\bool_new:N \l_aaaat_default_header_pending_bool
+
+\RenewDocumentCommand{\AAAATRenderSection}{mm}
   {
-    \setlength{\parskip}{0.25em}
-    \setlength{\oddsidemargin}{-0.2in}
-    \setlength{\evensidemargin}{-0.2in}
-    \setlength{\textwidth}{6.9in}
-    \setlength{\topmargin}{-0.55in}
-    \setlength{\textheight}{9.65in}
+    \par\noindent
+    {\large\bfseries #1\par}
+    \vspace{0.2em}
+    \hrule height 0.35pt
+    \vspace{0.45em}
+    #2
+  }
+
+\RenewDocumentCommand{\AAAATEntry}{mmmmmm}
+  {
+    \par\medskip\noindent
+    {\bfseries #2}
+    \tl_if_blank:nF {#4}
+      {\hfill{\small #4}}
+    \par
+    \tl_if_blank:nF {#3}
+      {{\small\itshape #3}\par}
+    \tl_if_blank:nF {#5}
+      {#5\par}
+    \tl_if_blank:nF {#6}
+      {{\footnotesize\ttfamily #6}\par}
+  }
+
+\cs_new_protected:Npn \aaaat_default_prepare_two_region_body:
+  {
+    \setbox\l_aaaat_default_secondary_body_box=\vbox
+      {
+        \hsize=0.28\textwidth
+        \parindent=0pt
+        \small
+        \AAAATRenderSecondaryBody
+        \par
+      }
+    \setbox\l_aaaat_default_main_body_box=\vbox
+      {
+        \hsize=0.66\textwidth
+        \parindent=0pt
+        \AAAATRenderMainBody
+        \par
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_default_set_region_page_height:
+  {
+    \dim_set:Nn \l_aaaat_default_region_page_height_dim {\textheight}
+    \bool_if:NT \l_aaaat_default_header_pending_bool
+      {
+        \dim_sub:Nn \l_aaaat_default_region_page_height_dim
+          {
+            \box_ht:N \l_aaaat_default_header_box
+            + \box_dp:N \l_aaaat_default_header_box
+          }
+      }
+    % Reserve the semantic Footer so the last page can place it after the
+    % two-column body without turning it into package-owned layout.
+    \dim_sub:Nn \l_aaaat_default_region_page_height_dim
+      {
+        \box_ht:N \l_aaaat_default_footer_box
+        + \box_dp:N \l_aaaat_default_footer_box
+        + 1em
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_default_split_region_page:
+  {
+    \setbox\l_aaaat_default_secondary_page_box=
+      \vsplit\l_aaaat_default_secondary_body_box
+      to \l_aaaat_default_region_page_height_dim
+    \setbox\l_aaaat_default_main_page_box=
+      \vsplit\l_aaaat_default_main_body_box
+      to \l_aaaat_default_region_page_height_dim
+  }
+
+\cs_new_protected:Npn \aaaat_default_render_region_row:
+  {
+    \hbox to \textwidth
+      {
+        \hbox to 0.28\textwidth
+          {
+            \vbox to \l_aaaat_default_region_page_height_dim
+              {\box\l_aaaat_default_secondary_page_box\vfil}
+            \hss
+          }
+        \hfil
+        {
+          \vrule width 0.45pt
+            height \l_aaaat_default_region_page_height_dim
+            depth 0pt
+        }
+        \hfil
+        \hbox to 0.66\textwidth
+          {
+            \vbox to \l_aaaat_default_region_page_height_dim
+              {\box\l_aaaat_default_main_page_box\vfil}
+            \hss
+          }
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_default_render_two_region_page:
+  {
+    \aaaat_default_set_region_page_height:
+    \aaaat_default_split_region_page:
+    \par
+    \nointerlineskip
+    \bool_if:NT \l_aaaat_default_header_pending_bool
+      {
+        \box\l_aaaat_default_header_box
+        \nointerlineskip
+      }
+    \aaaat_default_render_region_row:
+    \bool_set_false:N \l_aaaat_default_header_pending_bool
+    \ifvoid\l_aaaat_default_secondary_body_box
+      \ifvoid\l_aaaat_default_main_body_box
+        \vspace{0.6em}
+        \par
+        \nointerlineskip
+        \box\l_aaaat_default_footer_box
+        \par
+      \else
+        \newpage
+        \aaaat_default_render_two_region_page:
+      \fi
+    \else
+      \newpage
+      \aaaat_default_render_two_region_page:
+    \fi
   }
 
 \NewDocumentCommand{\AAAATRenderCvBlueprint}{}
   {
-    \AAAATSelectDocumentLanguage
-    \AAAATFullWidthHeader{\AAAATRenderDocumentTitle}
-    \AAAATTwoRegionBody
-      {\AAAATRenderSecondaryBlocks}
-      {\AAAATRenderMainBlocks}
+    % geometry owns the page-layout transition correctly even when this CV is
+    % the second segment of a combined one-compilation application document.
+    \newgeometry{
+      left=0.55in,
+      right=0.55in,
+      top=0.45in,
+      bottom=0.55in
+    }
+    \pagestyle{empty}
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{0.25em}
+
+    \setbox\l_aaaat_default_header_box=\vbox
+      {
+        \hsize=\textwidth
+        \parindent=0pt
+        \AAAATRenderDocumentTitle
+        \vspace{0.4em}
+        {\small\itshape \AAAATRenderParserSummary}
+        \AAAATRenderHeader
+        \par
+        \vspace{0.8em}
+      }
+    \setbox\l_aaaat_default_footer_box=\vbox
+      {
+        \hsize=\textwidth
+        \parindent=0pt
+        \AAAATRenderFooter
+        \par
+      }
+    \bool_set_true:N \l_aaaat_default_header_pending_bool
+
+    \begingroup
+    \splittopskip=0pt
+    \splitmaxdepth=0pt
+    \aaaat_default_prepare_two_region_body:
+    \aaaat_default_render_two_region_page:
+    \endgroup
   }
 
+\ExplSyntaxOff

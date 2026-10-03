@@ -145,9 +145,16 @@ export async function runPdfLatex(
   projectPath: string,
   timeoutMs = 30_000,
   outputBaseName = "main",
+  sourceFileName = "main.tex",
 ): Promise<void> {
   if (!/^[a-z0-9][a-z0-9._-]{0,95}$/iu.test(outputBaseName)) {
     throw new LatexRunnerError("The generated PDF filename is invalid.");
+  }
+  if (
+    path.basename(sourceFileName) !== sourceFileName
+    || !/^[a-z0-9][a-z0-9._-]{0,91}\.tex$/iu.test(sourceFileName)
+  ) {
+    throw new LatexRunnerError("The generated TeX source filename is invalid.");
   }
 
   mkdirSync(path.join(projectPath, "build"), { recursive: true });
@@ -157,7 +164,7 @@ export async function runPdfLatex(
     "-file-line-error",
     "-output-directory=build",
     `-jobname=${outputBaseName}`,
-    "main.tex",
+    sourceFileName,
   ];
 
   await new Promise<void>((resolve, reject) => {

@@ -53,6 +53,19 @@ export const cvContentSchema = profileItemContentSchema
   .strict();
 export type CvContent = z.infer<typeof cvContentSchema>;
 
+export const cvPdfMetadataSchema = z.object({
+  title: z.string().max(500),
+  author: z.string().max(500),
+  subject: z.string().max(500),
+}).strict();
+export type CvPdfMetadata = z.infer<typeof cvPdfMetadataSchema>;
+export const emptyCvPdfMetadata: CvPdfMetadata = Object.freeze({
+  title: "",
+  author: "",
+  subject: "",
+});
+export const cvParserSummarySchema = z.string().max(8_000);
+
 const templateCurrentItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("current"), profileItemId: z.string().uuid() }).strict();
 const templateVariantItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("variant"), profileItemId: z.string().uuid(), profileVariantId: z.string().uuid() }).strict();
 const templateOverrideItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("override"), profileItemId: z.string().uuid(), content: cvContentSchema }).strict();
@@ -65,7 +78,7 @@ export const cvTemplateItemSchema = z.discriminatedUnion("sourceMode", [
   templateCustomItemSchema,
 ]);
 export type CvTemplateItem = z.infer<typeof cvTemplateItemSchema>;
-export const cvSectionPresentationRoleSchema = z.enum(["main", "secondary"]);
+export const cvSectionPresentationRoleSchema = z.enum(["header", "main", "secondary", "footer"]);
 export type CvSectionPresentationRole = z.infer<typeof cvSectionPresentationRoleSchema>;
 export const cvTemplateSectionSchema = z.object({
   id: z.string().uuid(),
@@ -74,12 +87,22 @@ export const cvTemplateSectionSchema = z.object({
   items: z.array(cvTemplateItemSchema).max(100),
 }).strict();
 export type CvTemplateSection = z.infer<typeof cvTemplateSectionSchema>;
-export const cvTemplateInputSchema = z.object({ name: z.string().trim().min(1).max(200), language: optionalLanguageSchema, sections: z.array(cvTemplateSectionSchema).max(40) }).strict();
-export type CvTemplateInput = z.infer<typeof cvTemplateInputSchema>;
-export const cvTemplateRecordSchema = cvTemplateInputSchema.extend({ id: z.string().uuid(), createdAt: z.string().min(1), updatedAt: z.string().min(1) }).strict();
+export const cvTemplateInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  language: optionalLanguageSchema,
+  pdfMetadata: cvPdfMetadataSchema.default(emptyCvPdfMetadata),
+  parserSummary: cvParserSummarySchema.default(""),
+  sections: z.array(cvTemplateSectionSchema).max(40),
+}).strict();
+export type CvTemplateInput = z.input<typeof cvTemplateInputSchema>;
+export const cvTemplateRecordSchema = cvTemplateInputSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+}).strict();
 export type CvTemplateRecord = z.infer<typeof cvTemplateRecordSchema>;
 export const cvTemplateUpdateSchema = cvTemplateInputSchema.extend({ id: z.string().uuid() }).strict();
-export type CvTemplateUpdate = z.infer<typeof cvTemplateUpdateSchema>;
+export type CvTemplateUpdate = z.input<typeof cvTemplateUpdateSchema>;
 
 export const workingCvItemSchema = z.object({
   id: z.string().uuid(),
@@ -121,12 +144,21 @@ export const workingCvRecordSchema = z.object({
   language: optionalLanguageSchema,
   sourceTemplateId: optionalUuidSchema,
   candidatureId: optionalUuidSchema,
+  pdfMetadata: cvPdfMetadataSchema,
+  parserSummary: cvParserSummarySchema,
   sections: z.array(workingCvSectionSchema).max(40),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 }).strict();
 export type WorkingCvRecord = z.infer<typeof workingCvRecordSchema>;
-export const workingCvUpdateSchema = workingCvRecordSchema.pick({ id: true, title: true, language: true, sections: true }).strict();
+export const workingCvUpdateSchema = workingCvRecordSchema.pick({
+  id: true,
+  title: true,
+  language: true,
+  pdfMetadata: true,
+  parserSummary: true,
+  sections: true,
+}).strict();
 export type WorkingCvUpdate = z.infer<typeof workingCvUpdateSchema>;
 
 export const workingCvOwnershipTargetSchema = z.enum(["template", "profile_variant", "profile"]);
@@ -136,7 +168,15 @@ export type WorkingCvSaveItem = z.infer<typeof workingCvSaveItemSchema>;
 export const workingCvSaveTemplateSchema = z.object({ workingCvId: z.string().uuid(), name: z.string().trim().min(1).max(200) }).strict();
 export type WorkingCvSaveTemplate = z.infer<typeof workingCvSaveTemplateSchema>;
 
-export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({ title: true, language: true, sourceTemplateId: true, candidatureId: true, sections: true });
+export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({
+  title: true,
+  language: true,
+  sourceTemplateId: true,
+  candidatureId: true,
+  pdfMetadata: true,
+  parserSummary: true,
+  sections: true,
+});
 export type RenderedCvSnapshot = z.infer<typeof renderedCvSnapshotSchema>;
 export const renderedCvRecordSchema = z.object({ id: z.string().uuid(), workingCvId: optionalUuidSchema, sourceTemplateId: optionalUuidSchema, candidatureId: optionalUuidSchema, title: z.string().min(1), language: optionalLanguageSchema, snapshot: renderedCvSnapshotSchema, createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
 export type RenderedCvRecord = z.infer<typeof renderedCvRecordSchema>;

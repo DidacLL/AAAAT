@@ -5,6 +5,7 @@ import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
   CoverLetterRecord,
+  CvSectionPresentationRole,
   CvTemplateItem,
   CvTemplateSection,
   DocumentCollections,
@@ -246,7 +247,19 @@ export function WorkingCvEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
-  const dirty = JSON.stringify({ title: draft.title, language: draft.language, sections: draft.sections }) !== JSON.stringify({ title: document.title, language: document.language, sections: document.sections });
+  const dirty = JSON.stringify({
+    title: draft.title,
+    language: draft.language,
+    pdfMetadata: draft.pdfMetadata,
+    parserSummary: draft.parserSummary,
+    sections: draft.sections,
+  }) !== JSON.stringify({
+    title: document.title,
+    language: document.language,
+    pdfMetadata: document.pdfMetadata,
+    parserSummary: document.parserSummary,
+    sections: document.sections,
+  });
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -324,6 +337,8 @@ export function WorkingCvEditor({
       id: draft.id,
       title: draft.title,
       language: draft.language,
+      pdfMetadata: draft.pdfMetadata,
+      parserSummary: draft.parserSummary,
       sections: draft.sections,
     });
     setDraft(saved);
@@ -460,6 +475,8 @@ export function WorkingCvEditor({
         id: template.id,
         name: template.name,
         language: saved.language,
+        pdfMetadata: saved.pdfMetadata,
+        parserSummary: saved.parserSummary,
         sections: templateSections(saved),
       }));
       setCvTemplateReuseChoice("");
@@ -602,11 +619,13 @@ export function WorkingCvEditor({
                             value={section.presentationRole}
                             onChange={(event) => updateSection(section.id, (current) => ({
                               ...current,
-                              presentationRole: event.target.value === "secondary" ? "secondary" : "main",
+                              presentationRole: event.target.value as CvSectionPresentationRole,
                             }))}
                           >
-                            <option value="main">Main area</option>
-                            <option value="secondary">Side area</option>
+                            <option value="header">Header</option>
+                            <option value="main">Main body</option>
+                            <option value="secondary">Secondary body</option>
+                            <option value="footer">Footer</option>
                           </select>
                         </label>
                         <button type="button" className="compact-secondary" onClick={() => setRenamingSectionId((current) => current === section.id ? null : section.id)}>{renamingSectionId === section.id ? "Done" : "Rename"}</button>
@@ -842,6 +861,51 @@ export function WorkingCvEditor({
                 language: event.target.value.trim() || undefined,
               }))}
               placeholder="Optional"
+            />
+          </label>
+          <fieldset>
+            <legend>PDF metadata</legend>
+            <label>
+              Title
+              <input
+                value={draft.pdfMetadata.title}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, title: event.target.value },
+                }))}
+              />
+            </label>
+            <label>
+              Author
+              <input
+                value={draft.pdfMetadata.author}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, author: event.target.value },
+                }))}
+              />
+            </label>
+            <label>
+              Subject
+              <input
+                value={draft.pdfMetadata.subject}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, subject: event.target.value },
+                }))}
+              />
+            </label>
+          </fieldset>
+          <label>
+            Parser summary
+            <textarea
+              rows={4}
+              value={draft.parserSummary}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                parserSummary: event.target.value,
+              }))}
+              placeholder="Optional plain-text summary for parsers"
             />
           </label>
           {blueprints.length > 1 ? (
