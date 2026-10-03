@@ -161,7 +161,11 @@ export function writeCvLatexProject(
   projectPath: string,
   working: WorkingCvRecord,
   blueprintSource: string,
-  metadata: DocumentPdfMetadata,
+  metadata: DocumentPdfMetadata = {
+    title: working.title,
+    author: "AAAAT",
+    subject: "Curriculum vitae",
+  },
 ): void {
   writePortableDocumentProject(projectPath, "cv", cvData(working, metadata), blueprintSource);
 }
@@ -170,7 +174,11 @@ export function writeCoverLetterLatexProject(
   projectPath: string,
   letter: CoverLetterSnapshot,
   blueprintSource: string,
-  metadata: DocumentPdfMetadata,
+  metadata: DocumentPdfMetadata = {
+    title: letter.title,
+    author: "AAAAT",
+    subject: letter.subject?.trim() || "Cover letter",
+  },
 ): void {
   writePortableDocumentProject(projectPath, "letter", coverLetterData(letter, metadata), blueprintSource);
 }
@@ -180,7 +188,11 @@ export function writeApplicationPacketLatexProject(
   working: WorkingCvRecord,
   letter: CoverLetterSnapshot,
   blueprintSource: string,
-  metadata: DocumentPdfMetadata,
+  metadata: DocumentPdfMetadata = {
+    title: `Application · ${working.title} + ${letter.title}`,
+    author: "AAAAT",
+    subject: "Application documents",
+  },
 ): void {
   mkdirSync(projectPath, { recursive: true });
   writeFileSync(path.join(projectPath, "main.tex"), applicationPacketTemplate, "utf8");
