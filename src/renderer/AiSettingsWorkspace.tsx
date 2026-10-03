@@ -6,10 +6,14 @@ import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
 import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
 
+type CredentialIntent = "unchanged" | "replace" | "clear";
+
 interface Draft {
   readonly name: string;
   readonly endpoint: string;
   readonly model: string;
+  readonly credential: string;
+  readonly credentialIntent: CredentialIntent;
 }
 
 type AiSettingsView = "all" | "connections" | "portability";
@@ -18,6 +22,8 @@ const emptyDraft: Draft = {
   name: "",
   endpoint: "",
   model: "",
+  credential: "",
+  credentialIntent: "unchanged",
 };
 
 function addressIssue(value: string): string | null {
@@ -34,11 +40,16 @@ function addressIssue(value: string): string | null {
   return null;
 }
 
-function editable(connection: NamedAiConnection): Draft {
+function editable(
+  connection: NamedAiConnection,
+  credentialIntent: CredentialIntent = "unchanged",
+): Draft {
   return {
     name: connection.name,
     endpoint: connection.endpoint,
     model: connection.model,
+    credential: "",
+    credentialIntent,
   };
 }
 
@@ -113,11 +124,18 @@ export function AiSettingsWorkspace({
     setFormOpen(true);
   };
 
-  const beginEdit = (connection: NamedAiConnection) => {
-    if (connection.id === editingId && formOpen) return;
+  const beginEdit = (
+    connection: NamedAiConnection,
+    credentialIntent: CredentialIntent = "unchanged",
+  ) => {
+    if (
+      connection.id === editingId &&
+      formOpen &&
+      credentialIntent === draft.credentialIntent
+    ) return;
     if (!confirmDiscard()) return;
     setEditingId(connection.id);
-    setDraft(editable(connection));
+    setDraft(editable(connection, credentialIntent));
     setFormOpen(true);
   };
 
@@ -131,6 +149,10 @@ export function AiSettingsWorkspace({
   const save = async () => {
     const issue = addressIssue(draft.endpoint);
     if (issue) { setAddressError(issue); return; }
+    if (editingId && draft.credentialIntent === "replace" && !draft.credential.trim()) {
+      setError("Enter the replacement API key or Bearer credential, or keep the current credential.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setAddressError(null);
@@ -141,9 +163,22 @@ export function AiSettingsWorkspace({
       const previous = editingId
         ? connections.find((connection) => connection.id === editingId) ?? null
         : null;
+      const credentialUpdate =
+        editingId
+          ? draft.credentialIntent === "replace"
+            ? draft.credential
+            : draft.credentialIntent === "clear"
+              ? null
+              : undefined
+          : draft.credential.trim()
+            ? draft.credential
+            : undefined;
       const saved = await window.aaaat.aiConnections.save({
         ...(editingId ? { id: editingId } : {}),
-        ...draft,
+        name: draft.name,
+        endpoint: draft.endpoint,
+        model: draft.model,
+        ...(credentialUpdate !== undefined ? { credential: credentialUpdate } : {}),
       });
       acceptConnections(saved);
       const savedConnection = editingId
@@ -155,9 +190,13 @@ export function AiSettingsWorkspace({
         const capabilityBoundaryChanged =
           previous !== null &&
           (previous.endpoint !== savedConnection.endpoint || previous.model !== savedConnection.model);
-        if (capabilityBoundaryChanged) clearAiTask(`ai-validation:${savedConnection.id}`);
+        const credentialBoundaryChanged =
+          previous !== null && draft.credentialIntent !== "unchanged";
+        if (capabilityBoundaryChanged || credentialBoundaryChanged) {
+          clearAiTask(`ai-validation:${savedConnection.id}`);
+        }
         const probe = window.aaaat.aiConnections?.probe;
-        if (probe && (!previous || capabilityBoundaryChanged)) {
+        if (probe && (!previous || capabilityBoundaryChanged || credentialBoundaryChanged)) {
           void probe(savedConnection.id)
             .then((reachable) => {
               recordAiReachabilityEvidence(savedConnection.name, reachable);
@@ -310,6 +349,78 @@ export function AiSettingsWorkspace({
                 />
               </label>
               {addressError ? <small id="ai-address-error" className="error-message wide-field" role="alert">{addressError}</small> : null}
+              <div className="wide-field">
+                <strong>API key / Bearer credential (optional)</strong>
+                {editing?.hasCredential && draft.credentialIntent === "unchanged" ? (
+                  <>
+                    <p>Credential configured. The stored secret is hidden and is sent only with requests to this model server.</p>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        onClick={() => setDraft({ ...draft, credentialIntent: "replace", credential: "" })}
+                      >
+                        Replace
+                      </button>
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        onClick={() => setDraft({ ...draft, credentialIntent: "clear", credential: "" })}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </>
+                ) : editing?.hasCredential && draft.credentialIntent === "clear" ? (
+                  <>
+                    <p>The configured credential will be cleared when you save this connection.</p>
+                    <button
+                      type="button"
+                      className="compact-secondary"
+                      onClick={() => setDraft({ ...draft, credentialIntent: "unchanged", credential: "" })}
+                    >
+                      Keep credential
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <label>
+                      {editing?.hasCredential ? "Replacement credential" : "Credential"}
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={draft.credential}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            credential: event.target.value,
+                            credentialIntent: editing
+                              ? event.target.value.trim()
+                                ? "replace"
+                                : editing.hasCredential
+                                  ? "replace"
+                                  : "unchanged"
+                              : "unchanged",
+                          })
+                        }
+                        placeholder="Optional API key or Bearer token"
+                      />
+                    </label>
+                    <p className="compact-help">
+                      Leave blank for servers that do not require authentication. AAAAT sends a configured credential as an Authorization: Bearer header and does not display it again after saving.
+                    </p>
+                    {editing?.hasCredential ? (
+                      <button
+                        type="button"
+                        className="compact-secondary"
+                        onClick={() => setDraft({ ...draft, credentialIntent: "unchanged", credential: "" })}
+                      >
+                        Keep current credential
+                      </button>
+                    ) : null}
+                  </>
+                )}
+              </div>
               <div className="form-actions wide-field">
                 <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
                 {editing && view === "all" ? <button type="button" className="compact-secondary" onClick={beginNew}>Add another</button> : null}
@@ -337,11 +448,18 @@ export function AiSettingsWorkspace({
                   <div>
                     <h3>{connection.name}</h3>
                     <p>Model: {connection.model} · Address: <code>{connection.endpoint}</code></p>
+                    <p>Authentication: {connection.hasCredential ? <strong>Credential configured</strong> : "None"}</p>
                     {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
                   </div>
                   <div className="button-row">
                     {!connection.isDefault ? <button type="button" className="compact-secondary" onClick={() => void setDefault(connection)} aria-label={`Use ${connection.name} as the general default`}>General default</button> : null}
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
+                    {connection.hasCredential ? (
+                      <>
+                        <button type="button" className="compact-secondary" onClick={() => beginEdit(connection, "replace")}>Replace credential</button>
+                        <button type="button" className="compact-secondary" onClick={() => beginEdit(connection, "clear")}>Clear credential</button>
+                      </>
+                    ) : null}
                     <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
                   </div>
                   <AiConnectionValidationPanel

@@ -25,12 +25,17 @@ import {
   type NamedAiConnectionInput,
   type PortableAiSetup,
 } from "../shared/ai-connection-contracts";
-import { createOpenAiCompatibleProvider, type ModelProvider } from "./ai-provider";
+import {
+  createOpenAiCompatibleProvider,
+  type AiProviderConnection,
+  type ModelProvider,
+} from "./ai-provider";
 import { validateAiOperation } from "./ai-operation-validation";
 
 const storedConnectionSchema = aiConnectionInputSchema
   .extend({
     id: aiConnectionIdSchema,
+    credentialCiphertext: z.string().min(1).max(32768).optional(),
     validatedOperations: z.array(aiOperationSchema).max(aiOperations.length),
   })
   .strict();
@@ -96,6 +101,55 @@ export class AiConnectionServiceError extends Error {
   }
 }
 
+interface AiCredentialProtection {
+  readonly isSecure: () => boolean;
+  readonly encryptString: (value: string) => Buffer;
+  readonly decryptString: (value: Buffer) => string;
+}
+
+let credentialProtection: AiCredentialProtection | null = null;
+
+export function configureAiCredentialProtection(protection: AiCredentialProtection): void {
+  credentialProtection = Object.freeze(protection);
+}
+
+function normalizedCredential(value: string): string {
+  const credential = value.trim().replace(/^Bearer\s+/iu, "").trim();
+  if (!credential) throw new AiConnectionServiceError("Enter a non-empty AI credential.");
+  return credential;
+}
+
+function encryptCredential(value: string): string {
+  if (!credentialProtection?.isSecure()) {
+    throw new AiConnectionServiceError(
+      "Secure local credential storage is unavailable on this computer. Configure the operating-system credential store, then retry.",
+    );
+  }
+  try {
+    return credentialProtection.encryptString(normalizedCredential(value)).toString("base64");
+  } catch (reason) {
+    if (reason instanceof AiConnectionServiceError) throw reason;
+    throw new AiConnectionServiceError("AAAAT could not protect this AI credential locally.");
+  }
+}
+
+function decryptCredential(value: string): string {
+  if (!credentialProtection) {
+    throw new AiConnectionServiceError(
+      "AAAAT cannot read the stored AI credential in this process.",
+    );
+  }
+  try {
+    return normalizedCredential(
+      credentialProtection.decryptString(Buffer.from(value, "base64")),
+    );
+  } catch {
+    throw new AiConnectionServiceError(
+      "AAAAT could not read the stored AI credential. Replace or clear it in AI Settings.",
+    );
+  }
+}
+
 function connectionPath(rootPath: string): string {
   return path.join(rootPath, "ai-connection.json");
 }
@@ -137,10 +191,16 @@ export async function probeAiConnection(
   const connectionId = aiConnectionIdSchema.parse(rawConnectionId);
   const configuration = readConfiguration(rootPath);
   const connection = connectionById(configuration, connectionId);
+  const providerConnection = providerConnectionForStored(connection);
   try {
     const response = await fetchImpl(modelsUrl(connection.endpoint), {
       method: "GET",
-      headers: { accept: "application/json" },
+      headers: {
+        accept: "application/json",
+        ...(providerConnection.credential
+          ? { authorization: `Bearer ${providerConnection.credential}` }
+          : {}),
+      },
       redirect: "error",
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -190,6 +250,7 @@ function listFor(configuration: StoredConnectionConfiguration): NamedAiConnectio
     configuration.connections.map((connection) => ({
       ...statusFor(connection),
       id: connection.id,
+      hasCredential: connection.credentialCiphertext !== undefined,
       isDefault: connection.id === configuration.defaultConnectionId,
       validatedOperations: aiOperations.filter((operation) =>
         connection.validatedOperations.includes(operation),
@@ -205,12 +266,14 @@ function normalizedStoredConnection(
   input: NamedAiConnectionInput,
   id: string,
   validatedOperations: readonly AiOperation[] = [],
+  credentialCiphertext?: string,
 ): StoredConnection {
   return storedConnectionSchema.parse({
     id,
     name: input.name,
     endpoint: validatedEndpoint(input),
     model: input.model,
+    ...(credentialCiphertext ? { credentialCiphertext } : {}),
     validatedOperations,
   });
 }
@@ -251,6 +314,22 @@ function connectionById(
   return connection;
 }
 
+function connectionForOperation(
+  configuration: StoredConnectionConfiguration,
+  operation: AiOperation,
+): StoredConnection | null {
+  const connectionId =
+    configuration.operationDefaults[operation] ?? configuration.defaultConnectionId;
+  return connectionId ? connectionById(configuration, connectionId) : null;
+}
+
+function providerConnectionForStored(connection: StoredConnection): AiProviderConnection {
+  const status = statusFor(connection);
+  return connection.credentialCiphertext
+    ? { ...status, credential: decryptCredential(connection.credentialCiphertext) }
+    : status;
+}
+
 export function listAiConnections(rootPath: string): NamedAiConnection[] {
   return listFor(readConfiguration(rootPath));
 }
@@ -284,11 +363,8 @@ export function getAiConnectionForOperation(
   rawOperation: AiOperation,
 ): AiConnectionStatus | null {
   const operation = aiOperationSchema.parse(rawOperation);
-  const configuration = readConfiguration(rootPath);
-  const operationDefaultId = configuration.operationDefaults[operation];
-  if (operationDefaultId) return statusFor(connectionById(configuration, operationDefaultId));
-  if (configuration.defaultConnectionId === null) return null;
-  return statusFor(connectionById(configuration, configuration.defaultConnectionId));
+  const connection = connectionForOperation(readConfiguration(rootPath), operation);
+  return connection ? statusFor(connection) : null;
 }
 
 export function requireAiConnectionForOperation(
@@ -302,13 +378,33 @@ export function requireAiConnectionForOperation(
       "Configure an AI connection before using AI assistance.",
     );
   }
-  const connection = getAiConnectionForOperation(rootPath, operation);
+  const connection = connectionForOperation(configuration, operation);
   if (!connection) {
     throw new AiConnectionServiceError(
       `Choose a default AI connection before using ${aiOperationLabels[operation]}.`,
     );
   }
-  return connection;
+  return statusFor(connection);
+}
+
+export function requireAiProviderConnectionForOperation(
+  rootPath: string,
+  rawOperation: AiOperation,
+): AiProviderConnection {
+  const operation = aiOperationSchema.parse(rawOperation);
+  const configuration = readConfiguration(rootPath);
+  if (configuration.connections.length === 0) {
+    throw new AiConnectionServiceError(
+      "Configure an AI connection before using AI assistance.",
+    );
+  }
+  const connection = connectionForOperation(configuration, operation);
+  if (!connection) {
+    throw new AiConnectionServiceError(
+      `Choose a default AI connection before using ${aiOperationLabels[operation]}.`,
+    );
+  }
+  return providerConnectionForStored(connection);
 }
 
 export function saveNamedAiConnection(
@@ -325,12 +421,21 @@ export function saveNamedAiConnection(
     const previous = configuration.connections[index];
     if (!previous) throw new AiConnectionServiceError("The AI connection no longer exists.");
     const endpoint = validatedEndpoint(input);
-    const capabilityBoundaryChanged = endpoint !== previous.endpoint || input.model !== previous.model;
+    const credentialChanged = input.credential !== undefined;
+    const credentialCiphertext =
+      input.credential === undefined
+        ? previous.credentialCiphertext
+        : input.credential === null
+          ? undefined
+          : encryptCredential(input.credential);
+    const capabilityBoundaryChanged =
+      endpoint !== previous.endpoint || input.model !== previous.model || credentialChanged;
     const connections = [...configuration.connections];
     connections[index] = normalizedStoredConnection(
       { ...input, endpoint },
       input.id,
       capabilityBoundaryChanged ? [] : previous.validatedOperations,
+      credentialCiphertext,
     );
     return listFor(
       writeConfiguration(rootPath, {
@@ -347,7 +452,9 @@ export function saveNamedAiConnection(
     throw new AiConnectionServiceError("AAAAT supports at most 16 AI connections.");
   }
   const id = randomUUID();
-  const connection = normalizedStoredConnection(input, id);
+  const credentialCiphertext =
+    typeof input.credential === "string" ? encryptCredential(input.credential) : undefined;
+  const connection = normalizedStoredConnection(input, id, [], credentialCiphertext);
   return listFor(
     writeConfiguration(rootPath, {
       ...configuration,
@@ -374,22 +481,31 @@ export async function validateAiConnectionOperation(
   rootPath: string,
   rawInput: AiConnectionOperationInput,
   provider: ModelProvider = createOpenAiCompatibleProvider(),
+  signal?: AbortSignal,
 ): Promise<NamedAiConnection[]> {
   const input = aiConnectionOperationInputSchema.parse(rawInput);
   const configuration = readConfiguration(rootPath);
   const connection = connectionById(configuration, input.connectionId);
-  await validateAiOperation(statusFor(connection), input.operation, provider);
+  await validateAiOperation(
+    providerConnectionForStored(connection),
+    input.operation,
+    provider,
+    signal,
+  );
+  if (signal?.aborted) throw new AiConnectionServiceError("AI task cancelled.");
 
   const currentConfiguration = readConfiguration(rootPath);
   const currentConnection = connectionById(currentConfiguration, input.connectionId);
   if (
     currentConnection.endpoint !== connection.endpoint ||
-    currentConnection.model !== connection.model
+    currentConnection.model !== connection.model ||
+    currentConnection.credentialCiphertext !== connection.credentialCiphertext
   ) {
     throw new AiConnectionServiceError(
       "The AI connection changed during capability validation. Validate the operation again.",
     );
   }
+  if (signal?.aborted) throw new AiConnectionServiceError("AI task cancelled.");
 
   const connections = currentConfiguration.connections.map((candidate) =>
     candidate.id === currentConnection.id

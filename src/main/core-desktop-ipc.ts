@@ -21,6 +21,8 @@ import {
   aiTaskCancellationChannels,
   aiTaskCancellationResultSchema,
   aiTaskIdSchema,
+  cancellableAiConnectionValidationRequestSchema,
+  cancellableAiConnectionValidationResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
 } from "../shared/ai-task-cancellation-contracts";
@@ -77,7 +79,9 @@ import {
   tailorCv,
 } from "./ai-service";
 import {
+  cancelCancellableAiConnectionValidation,
   cancelCancellableJobExtraction,
+  runCancellableAiConnectionValidation,
   runCancellableJobExtraction,
 } from "./ai-task-cancellation";
 import {
@@ -481,6 +485,23 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return aiTaskCancellationResultSchema.parse(
       cancelCancellableJobExtraction(aiTaskIdSchema.parse(taskId)),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.connectionValidate, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const parsed = cancellableAiConnectionValidationRequestSchema.parse(input);
+    return cancellableAiConnectionValidationResultSchema.parse(
+      await runCancellableAiConnectionValidation(
+        requireWorkspaceRoot(),
+        parsed.taskId,
+        parsed.request,
+      ),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.connectionValidateCancel, (event, taskId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiTaskCancellationResultSchema.parse(
+      cancelCancellableAiConnectionValidation(aiTaskIdSchema.parse(taskId)),
     );
   });
   ipcMain.handle(aiChannels.fieldDiscover, async (event, input: unknown) => {

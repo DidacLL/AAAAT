@@ -60,12 +60,14 @@ export function AiPromptTransparencyPanel({ onDirtyChange }: { readonly onDirtyC
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       <div className="document-list">
         {items.map((item) => (
-          <article className="document-card" key={item.operation}>
-            <h3>{item.label}</h3>
-            <p><strong>Context sent:</strong> {item.contextSummary}</p>
+          <details className="document-card" key={item.operation}>
+            <summary>
+              <strong>{item.label}</strong> · {item.isDefault ? "Default" : "Customized"}
+            </summary>
+            <p><strong>Context AAAAT sends:</strong> {item.contextSummary}</p>
             <p><strong>Expected response:</strong> {item.responseExpectation}</p>
             <label>
-              Instruction
+              Effective instruction
               <textarea
                 value={drafts[item.operation] ?? ""}
                 onChange={(event) =>
@@ -74,7 +76,7 @@ export function AiPromptTransparencyPanel({ onDirtyChange }: { readonly onDirtyC
                     [item.operation]: event.target.value,
                   }))
                 }
-                rows={3}
+                rows={4}
                 placeholder="Instruction sent to the model for this AI action."
               />
             </label>
@@ -102,7 +104,7 @@ export function AiPromptTransparencyPanel({ onDirtyChange }: { readonly onDirtyC
                     .finally(() => setBusy(null));
                 }}
               >
-                Save instruction
+                Save
               </button>
               <button
                 type="button"
@@ -124,14 +126,14 @@ export function AiPromptTransparencyPanel({ onDirtyChange }: { readonly onDirtyC
                     .finally(() => setBusy(null));
                 }}
               >
-                Reset to default
+                Reset to shipped default
               </button>
             </div>
-                        <details>
+            <details>
               <summary>Shipped default</summary>
               <pre className="ai-effective-instruction">{item.defaultInstruction}</pre>
             </details>
-          </article>
+          </details>
         ))}
       </div>
     </section>

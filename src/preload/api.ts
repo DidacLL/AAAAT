@@ -18,6 +18,8 @@ import {
   aiTaskCancellationChannels,
   aiTaskCancellationResultSchema,
   aiTaskIdSchema,
+  cancellableAiConnectionValidationRequestSchema,
+  cancellableAiConnectionValidationResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
   type AiTaskCancellationDesktopApi,
@@ -223,6 +225,23 @@ export function createDesktopApi(
   });
 
   const aiTasks = Object.freeze({
+    validateConnection: async (
+      taskId: string,
+      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["validateConnection"]>[1],
+    ) =>
+      cancellableAiConnectionValidationResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.connectionValidate,
+          cancellableAiConnectionValidationRequestSchema.parse({ taskId, request }),
+        ),
+      ),
+    cancelConnectionValidation: async (taskId: string) =>
+      aiTaskCancellationResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.connectionValidateCancel,
+          aiTaskIdSchema.parse(taskId),
+        ),
+      ),
     extractJob: async (
       taskId: string,
       request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["extractJob"]>[1],

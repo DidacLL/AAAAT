@@ -106,40 +106,51 @@ export function AiConnectionValidationPanel({
   const validate = useCallback(() => {
     startAiTask<ValidationResult>(
       taskKey(connection.id),
-      async (updateDetail) => {
-        let connections = await window.aaaat.aiConnections.list();
-        let current = connections.find((candidate) => candidate.id === connection.id);
-        if (!current) throw new Error("The AI connection no longer exists.");
-        const nextFailures: ValidationFailure[] = [];
+      async (updateDetail, signal) => {
+        const validationTaskId = taskKey(connection.id);
+        const cancelProvider = () => {
+          void window.aaaat.aiTasks.cancelConnectionValidation(validationTaskId).catch(() => undefined);
+        };
+        signal.addEventListener("abort", cancelProvider, { once: true });
+        try {
+          let connections = await window.aaaat.aiConnections.list();
+          let current = connections.find((candidate) => candidate.id === connection.id);
+          if (!current) throw new Error("The AI connection no longer exists.");
+          const nextFailures: ValidationFailure[] = [];
 
-        for (const operation of aiOperations) {
-          if (current.validatedOperations.includes(operation)) continue;
-          updateDetail(
-            `Validating ${aiOperationLabels[operation]}. Slow local models can take several minutes; you can keep using AAAAT while this runs.`,
-          );
-          try {
-            connections = await window.aaaat.aiConnections.validateOperation({
-              connectionId: connection.id,
-              operation,
-            });
-            current = connections.find((candidate) => candidate.id === connection.id);
-            if (!current) throw new Error("The AI connection no longer exists.");
-          } catch (reason) {
-            const failure = aiTaskFailure(reason);
-            if (isProviderLevelFailure(failure.exchange)) throw reason;
-            nextFailures.push({
-              operation,
-              message: failure.message,
-              ...(failure.exchange ? { exchange: failure.exchange } : {}),
-            });
-            connections = await window.aaaat.aiConnections.list();
-            current = connections.find((candidate) => candidate.id === connection.id);
-            if (!current) {
-              throw new Error("The AI connection no longer exists.", { cause: reason });
+          for (const operation of aiOperations) {
+            if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+            if (current.validatedOperations.includes(operation)) continue;
+            updateDetail(
+              `Validating ${aiOperationLabels[operation]}. Slow local models can take several minutes; you can keep using AAAAT while this runs.`,
+            );
+            try {
+              connections = await window.aaaat.aiTasks.validateConnection(validationTaskId, {
+                connectionId: connection.id,
+                operation,
+              });
+              current = connections.find((candidate) => candidate.id === connection.id);
+              if (!current) throw new Error("The AI connection no longer exists.");
+            } catch (reason) {
+              if (signal.aborted) throw reason;
+              const failure = aiTaskFailure(reason);
+              if (isProviderLevelFailure(failure.exchange)) throw reason;
+              nextFailures.push({
+                operation,
+                message: failure.message,
+                ...(failure.exchange ? { exchange: failure.exchange } : {}),
+              });
+              connections = await window.aaaat.aiConnections.list();
+              current = connections.find((candidate) => candidate.id === connection.id);
+              if (!current) {
+                throw new Error("The AI connection no longer exists.", { cause: reason });
+              }
             }
           }
+          return { connections, failures: nextFailures };
+        } finally {
+          signal.removeEventListener("abort", cancelProvider);
         }
-        return { connections, failures: nextFailures };
       },
       `Validate ${connection.name}`,
       (result) =>

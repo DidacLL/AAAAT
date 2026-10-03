@@ -50,7 +50,7 @@ import type { WorkingCvItem } from "../shared/document-domain-contracts";
 import { compactSourceText } from "../shared/source-text";
 import {
   getDefaultAiConnection,
-  requireAiConnectionForOperation,
+  requireAiProviderConnectionForOperation,
   saveDefaultAiConnection,
 } from "./ai-connection-service";
 import type { ModelProvider } from "./ai-provider";
@@ -74,10 +74,14 @@ export class AiServiceError extends Error {
 }
 
 function statusFor(connection: AiConnectionStatus): AiConnectionStatus {
-  return aiConnectionStatusSchema.parse(connection);
+  return aiConnectionStatusSchema.parse({
+    name: connection.name,
+    endpoint: connection.endpoint,
+    model: connection.model,
+  });
 }
-function requireStoredConnection(rootPath: string, operation: AiOperation): AiConnectionStatus {
-  return requireAiConnectionForOperation(rootPath, operation);
+function requireStoredConnection(rootPath: string, operation: AiOperation) {
+  return requireAiProviderConnectionForOperation(rootPath, operation);
 }
 export function getAiConnection(rootPath: string): AiConnectionStatus | null {
   return getDefaultAiConnection(rootPath);

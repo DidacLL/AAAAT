@@ -40,13 +40,17 @@ export const aiConnectionOperationInputSchema = z
 export type AiConnectionOperationInput = z.infer<typeof aiConnectionOperationInputSchema>;
 
 export const namedAiConnectionInputSchema = aiConnectionInputSchema
-  .extend({ id: aiConnectionIdSchema.optional() })
+  .extend({
+    id: aiConnectionIdSchema.optional(),
+    credential: z.string().trim().min(1).max(4096).nullable().optional(),
+  })
   .strict();
 export type NamedAiConnectionInput = z.infer<typeof namedAiConnectionInputSchema>;
 
 export const namedAiConnectionSchema = aiConnectionInputSchema
   .extend({
     id: aiConnectionIdSchema,
+    hasCredential: z.boolean().optional(),
     isDefault: z.boolean(),
     validatedOperations: z.array(aiOperationSchema).max(aiOperations.length),
     defaultForOperations: z.array(aiOperationSchema).max(aiOperations.length),
