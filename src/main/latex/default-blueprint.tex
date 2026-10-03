@@ -1,4 +1,4 @@
-% AAAAT Blueprint contract: formatting/rendering commands shared by standalone and combined documents.
+% AAAAT CV Blueprint contract: CV formatting shared by standalone and combined documents.
 \NewDocumentCommand{\AAAATApplyCvLayout}{}
   {
     \setlength{\parskip}{0.25em}
@@ -7,16 +7,6 @@
     \setlength{\textwidth}{6.9in}
     \setlength{\topmargin}{-0.55in}
     \setlength{\textheight}{9.65in}
-  }
-
-\NewDocumentCommand{\AAAATApplyLetterLayout}{}
-  {
-    \setlength{\parskip}{0.8em}
-    \setlength{\oddsidemargin}{0in}
-    \setlength{\evensidemargin}{0in}
-    \setlength{\textwidth}{6.5in}
-    \setlength{\topmargin}{-0.35in}
-    \setlength{\textheight}{9.25in}
   }
 
 \NewDocumentCommand{\AAAATRenderCvBlueprint}{}
@@ -28,8 +18,3 @@
       {\AAAATRenderMainBlocks}
   }
 
-\NewDocumentCommand{\AAAATRenderLetterBlueprint}{}
-  {
-    \AAAATSelectDocumentLanguage
-    \AAAATRenderLetter
-  }

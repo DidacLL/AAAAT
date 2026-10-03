@@ -49,6 +49,7 @@ import {
 } from '../shared/document-domain-contracts';
 
 import {
+  type DocumentLetterSender,
   type DocumentPdfMetadata,
   writeApplicationPacketLatexProject,
   writeCoverLetterLatexProject,
@@ -180,7 +181,7 @@ function toWorking(row: WorkingRow): WorkingCvRecord {
     candidatureId: row.candidatureId,
     sections: parseJson(
         row.compositionJson, (value) => workingCvRecordSchema.shape.sections.parse(value),
-        'Stored Working CV composition is invalid.'),
+        'Stored CV composition is invalid.'),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   });
@@ -198,7 +199,7 @@ function requireWorkingCv(database: DatabaseSync, id: string): WorkingCvRecord {
                   `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs WHERE id = ?`)
               .get(id) as unknown as WorkingRow |
       undefined;
-  if (!row) throw new DocumentDomainServiceError('The Working CV no longer exists.');
+  if (!row) throw new DocumentDomainServiceError('The CV no longer exists.');
   return toWorking(row);
 }
 function toLetter(row: LetterRow): CoverLetterRecord {
@@ -277,10 +278,34 @@ function retainedPdf(projectPath: string, title: string, fallback: string): stri
   if (existsSync(meaningful)) return meaningful;
   return path.join(projectPath, 'build', 'main.pdf');
 }
+function letterSender(rootPath: string): DocumentLetterSender {
+  const items = getProfile(rootPath).items;
+  const identity = items.find(
+      (item) => item.kind.trim().toLocaleLowerCase() === 'identity' && item.title.trim());
+  const details: {label: string; value: string}[] = [];
+  if (identity?.url?.trim()) details.push({label: 'Website', value: identity.url.trim()});
+  for (const item of items) {
+    const kind = item.kind.trim().toLocaleLowerCase();
+    if (kind === 'contact' && item.title.trim()) {
+      details.push({
+        label: item.subtitle?.trim() || 'Contact',
+        value: item.title.trim(),
+      });
+    } else if (kind === 'link' && item.url?.trim()) {
+      details.push({
+        label: item.title.trim() || item.subtitle?.trim() || 'Website',
+        value: item.url.trim(),
+      });
+    }
+  }
+  return {
+    ...(identity?.title.trim() ? {name: identity.title.trim()} : {}),
+    ...(identity?.subtitle?.trim() ? {headline: identity.subtitle.trim()} : {}),
+    details,
+  };
+}
 function documentAuthor(rootPath: string): string {
-  return getProfile(rootPath).items.find(
-      (item) => item.kind.trim().toLocaleLowerCase() === 'identity' && item.title.trim())
-      ?.title.trim() ?? 'AAAAT';
+  return letterSender(rootPath).name ?? 'AAAAT';
 }
 function documentMetadata(
     rootPath: string, title: string, subject: string): DocumentPdfMetadata {
@@ -631,7 +656,7 @@ function findWorkingItem(working: WorkingCvRecord, itemId: string): WorkingCvIte
     const item = section.items.find((candidate) => candidate.id === itemId);
     if (item) return item;
   }
-  throw new DocumentDomainServiceError('The Working CV item no longer exists.');
+  throw new DocumentDomainServiceError('The CV item no longer exists.');
 }
 export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem): WorkingCvRecord {
   const input = workingCvSaveItemSchema.parse(rawInput);
@@ -648,8 +673,8 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
   } else if (input.target === 'profile_variant') {
     if (!item.profileItemId)
       throw new DocumentDomainServiceError(
-          'Custom CV content cannot become a profile variant without a My information item.');
-    if (!input.variantName) throw new DocumentDomainServiceError('Name the new profile variant.');
+          'Custom CV content needs a My information item before it can be saved as a variation.');
+    if (!input.variantName) throw new DocumentDomainServiceError('Name the new variation.');
     createProfileVariant(rootPath, {
       itemId: item.profileItemId,
       name: input.variantName,
@@ -657,7 +682,7 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
     });
   } else {
     if (!working.sourceTemplateId || !item.templateItemId)
-      throw new DocumentDomainServiceError('This Working CV item was not derived from a template.');
+      throw new DocumentDomainServiceError('This CV item was not created from a reusable template.');
     const template = withWorkspaceDatabase(
         rootPath, (database) => requireTemplate(database, working.sourceTemplateId ?? ''));
     const sections = template.sections.map(
@@ -740,8 +765,7 @@ async function compileProject(
     await runPdfLatex(projectPath, timeoutMs, outputBaseName);
   } catch (error) {
     if (error instanceof LatexRunnerError)
-      throw new DocumentDomainServiceError(
-          `${error.message} Check that pdflatex is installed and compatible.`);
+      throw new DocumentDomainServiceError(error.message);
     throw error;
   }
   if (!existsSync(retainedPdf(projectPath, title, fallback)))
@@ -912,7 +936,7 @@ export function removeCoverLetter(rootPath: string, letterId: string): DocumentC
   });
 }
 export async function renderCoverLetter(
-    rootPath: string, coverLetterId: string, blueprintSource: string,
+    rootPath: string, coverLetterId: string,
     timeoutMs = 30000): Promise<RenderedCoverLetterRecord> {
   const letter =
       withWorkspaceDatabase(rootPath, (database) => requireLetter(database, coverLetterId));
@@ -922,8 +946,9 @@ export async function renderCoverLetter(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
+    const sender = letterSender(rootPath);
     writeCoverLetterLatexProject(
-        stagePath, snapshot, blueprintSource,
+        stagePath, snapshot, sender,
         documentMetadata(rootPath, letter.title, letter.subject?.trim() || 'Cover letter'));
     await compileProject(stagePath, letter.title, 'cover-letter', timeoutMs);
     renameSync(stagePath, projectPath);
@@ -987,7 +1012,7 @@ export async function createApplicationPacket(
         })();
     const currentLetter = requireLetter(database, input.coverLetterId);
     if (currentWorking.candidatureId !== input.candidatureId)
-      throw new DocumentDomainServiceError('Choose a Working CV owned by this application.');
+      throw new DocumentDomainServiceError('Choose a CV owned by this application.');
     if (currentLetter.candidatureId !== input.candidatureId)
       throw new DocumentDomainServiceError('Choose a cover letter owned by this application.');
     return {working: currentWorking, letter: currentLetter};
@@ -997,10 +1022,11 @@ export async function createApplicationPacket(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   const letterSnapshot = snapshotCoverLetter(letter);
+  const sender = letterSender(rootPath);
   const title = input.title ?? `Application · ${working.title} + ${letter.title}`;
   try {
     writeApplicationPacketLatexProject(
-        stagePath, working, letterSnapshot, blueprintSource,
+        stagePath, working, letterSnapshot, sender, blueprintSource,
         documentMetadata(rootPath, title, 'Application documents'));
     await compileProject(stagePath, title, 'application-document', effectiveTimeoutMs);
     renameSync(stagePath, projectPath);

@@ -1443,22 +1443,21 @@
   background: rgb(239 230 216 / 72%);
 }
 
-.working-cv-section-options,
-.working-cv-item-controls,
-.working-cv-add-information {
+.working-cv-section-options {
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease;
 }
 
+.working-cv-item-controls,
+.working-cv-add-information {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .working-cv-section:hover > .working-cv-section-heading .working-cv-section-options,
 .working-cv-section:focus-within > .working-cv-section-heading .working-cv-section-options,
-.working-cv-item:hover .working-cv-item-controls,
-.working-cv-item:focus-within .working-cv-item-controls,
-.working-cv-section:hover > .working-cv-add-information,
-.working-cv-section:focus-within > .working-cv-add-information,
-.working-cv-section-options[open],
-.working-cv-item-editing .working-cv-item-controls {
+.working-cv-section-options[open] {
   opacity: 1;
   pointer-events: auto;
 }
@@ -1558,6 +1557,65 @@
   gap: 22px;
   padding: clamp(34px, 5vw, 62px) clamp(30px, 6vw, 72px);
   font-family: var(--document-font);
+}
+
+
+.letter-sender-preview {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.letter-sender-preview > span,
+.letter-sender-empty {
+  color: var(--muted-ink);
+  font-family: var(--ui-font);
+  font-size: 11px;
+}
+
+.letter-sender-preview > span {
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.letter-sender-preview > div {
+  display: grid;
+  gap: 1px;
+}
+
+.letter-sender-preview > div strong {
+  font-size: 18px;
+}
+
+.letter-sender-preview > div small {
+  color: var(--muted-ink);
+}
+
+.letter-sender-preview p {
+  display: grid;
+  grid-template-columns: minmax(74px, auto) minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.letter-sender-preview p span {
+  color: var(--muted-ink);
+  font-family: var(--ui-font);
+}
+
+.letter-sender-preview p strong {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.letter-sender-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--line-soft);
+  background: rgb(239 230 216 / 38%);
+  line-height: 1.45;
 }
 
 .letter-address-block {

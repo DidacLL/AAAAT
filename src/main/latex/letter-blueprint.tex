@@ -1,0 +1,16 @@
+% AAAAT letter presentation. This is intentionally separate from CV Blueprints.
+\NewDocumentCommand{\AAAATApplyLetterLayout}{}
+  {
+    \setlength{\parskip}{0.8em}
+    \setlength{\oddsidemargin}{0in}
+    \setlength{\evensidemargin}{0in}
+    \setlength{\textwidth}{6.5in}
+    \setlength{\topmargin}{-0.35in}
+    \setlength{\textheight}{9.25in}
+  }
+
+\NewDocumentCommand{\AAAATRenderLetterBlueprint}{}
+  {
+    \AAAATSelectDocumentLanguage
+    \AAAATRenderLetter
+  }

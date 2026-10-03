@@ -45,7 +45,6 @@ export const renderCvRequestSchema = z.object({
 export type RenderCvRequest = z.infer<typeof renderCvRequestSchema>;
 export const renderLetterRequestSchema = z.object({
   letterId: z.string().uuid(),
-  blueprintId: blueprintIdSchema,
 }).strict().readonly();
 export type RenderLetterRequest = z.infer<typeof renderLetterRequestSchema>;
 
@@ -91,8 +90,8 @@ export const workingCvItemSchema = z.object({
   content: cvContentSchema,
 }).strict().superRefine((item, context) => {
   if (item.sourceMode === "custom" && (item.profileItemId !== null || item.profileVariantId !== null)) context.addIssue({ code: "custom", message: "Custom CV content cannot point to My information." });
-  if (item.sourceMode !== "custom" && item.profileItemId === null) context.addIssue({ code: "custom", message: "Profile-backed CV content needs a My information item." });
-  if (item.sourceMode === "variant" && item.profileVariantId === null) context.addIssue({ code: "custom", message: "Variant CV content needs a saved item variant." });
+  if (item.sourceMode !== "custom" && item.profileItemId === null) context.addIssue({ code: "custom", message: "CV content linked to My information needs that information item." });
+  if (item.sourceMode === "variant" && item.profileVariantId === null) context.addIssue({ code: "custom", message: "This CV variation is no longer available." });
 });
 export type WorkingCvItem = z.infer<typeof workingCvItemSchema>;
 export const workingCvSectionSchema = z.object({

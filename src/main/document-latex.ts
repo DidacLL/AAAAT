@@ -9,11 +9,23 @@ import type {
 import aaatStyle from "./latex/aaaat.sty?raw";
 import applicationPacketTemplate from "./latex/application-packet.tex?raw";
 import documentEntrypoint from "./latex/document.tex?raw";
+import letterBlueprintSource from "./latex/letter-blueprint.tex?raw";
 
 export interface DocumentPdfMetadata {
   readonly title: string;
   readonly author: string;
   readonly subject: string;
+}
+
+export interface DocumentLetterSenderDetail {
+  readonly label: string;
+  readonly value: string;
+}
+
+export interface DocumentLetterSender {
+  readonly name?: string;
+  readonly headline?: string;
+  readonly details: readonly DocumentLetterSenderDetail[];
 }
 
 const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
@@ -122,9 +134,19 @@ function cvData(working: WorkingCvRecord, metadata?: DocumentPdfMetadata): strin
 
 function coverLetterData(
   letter: CoverLetterSnapshot,
+  sender: DocumentLetterSender,
   metadata?: DocumentPdfMetadata,
 ): string {
   const lines = documentDataHeader(letter.title, letter.language, metadata);
+  if (sender.name) lines.push(`\\AAAATSenderName{${encodeDocumentText(sender.name)}}`);
+  if (sender.headline) {
+    lines.push(`\\AAAATSenderHeadline{${encodeDocumentText(sender.headline)}}`);
+  }
+  for (const detail of sender.details) {
+    lines.push(
+      `\\AAAATSenderDetail{${encodeDocumentText(detail.label)}}{${encodeDocumentText(detail.value)}}`,
+    );
+  }
   if (letter.recipient) {
     lines.push(`\\AAAATMetadata{To}{${encodeDocumentText(letter.recipient)}}`);
   }
@@ -173,31 +195,38 @@ export function writeCvLatexProject(
 export function writeCoverLetterLatexProject(
   projectPath: string,
   letter: CoverLetterSnapshot,
-  blueprintSource: string,
+  sender: DocumentLetterSender,
   metadata: DocumentPdfMetadata = {
     title: letter.title,
-    author: "AAAAT",
+    author: sender.name ?? "AAAAT",
     subject: letter.subject?.trim() || "Cover letter",
   },
 ): void {
-  writePortableDocumentProject(projectPath, "letter", coverLetterData(letter, metadata), blueprintSource);
+  writePortableDocumentProject(
+    projectPath,
+    "letter",
+    coverLetterData(letter, sender, metadata),
+    letterBlueprintSource,
+  );
 }
 
 export function writeApplicationPacketLatexProject(
   projectPath: string,
   working: WorkingCvRecord,
   letter: CoverLetterSnapshot,
+  sender: DocumentLetterSender,
   blueprintSource: string,
   metadata: DocumentPdfMetadata = {
     title: `Application · ${working.title} + ${letter.title}`,
-    author: "AAAAT",
+    author: sender.name ?? "AAAAT",
     subject: "Application documents",
   },
 ): void {
   mkdirSync(projectPath, { recursive: true });
   writeFileSync(path.join(projectPath, "main.tex"), applicationPacketTemplate, "utf8");
   writeFileSync(path.join(projectPath, "blueprint.tex"), blueprintSource, "utf8");
-  writeFileSync(path.join(projectPath, "letter-data.tex"), coverLetterData(letter), "utf8");
+  writeFileSync(path.join(projectPath, "letter-blueprint.tex"), letterBlueprintSource, "utf8");
+  writeFileSync(path.join(projectPath, "letter-data.tex"), coverLetterData(letter, sender), "utf8");
   writeFileSync(path.join(projectPath, "cv-data.tex"), cvData(working), "utf8");
   writeFileSync(
     path.join(projectPath, "packet-metadata.tex"),

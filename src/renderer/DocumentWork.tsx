@@ -26,6 +26,18 @@ const emptyCollections: DocumentCollections = {
   applicationPackets: [],
 };
 
+function readableDocumentError(reason: unknown, fallback: string): string {
+  if (!(reason instanceof Error) || !reason.message.trim()) return fallback;
+  return reason.message
+    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
+    .replace(/^Error:\s*/u, "")
+    .trim() || fallback;
+}
+
+function contactLabel(item: ProfileItem): string {
+  return item.subtitle?.trim() || "Contact";
+}
+
 function useBlueprintSelection(): {
   blueprints: BlueprintSummary[];
   selectedBlueprintId: string;
@@ -282,7 +294,7 @@ export function WorkingCvEditor({
     try {
       return await persistDraft();
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "AAAAT could not save this Working CV.";
+      const message = reason instanceof Error ? reason.message : "AAAAT could not save this CV.";
       setError(message);
       throw reason;
     } finally {
@@ -460,8 +472,9 @@ export function WorkingCvEditor({
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedCv(rendered.id);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not render this CV.");
-      setRenderSettingsSuggested(true);
+      const message = readableDocumentError(reason, "AAAAT could not render this CV.");
+      setError(message);
+      setRenderSettingsSuggested(/pdflatex was not found/iu.test(message));
     } finally {
       setBusy(false);
     }
@@ -609,9 +622,9 @@ export function WorkingCvEditor({
                                       <div className="working-source-row">
                                         {itemVariants.length > 0 ? (
                                           <label>
-                                            Use wording
+                                            Use My information
                                             <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
-                                              <option value="current">Current My information</option>
+                                              <option value="current">Current version</option>
                                               {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}
                                             </select>
                                           </label>
@@ -630,7 +643,18 @@ export function WorkingCvEditor({
                                     {editingOptionalDetails.includes("url") ? <label className="working-cv-wide-field">Link<input value={item.content.url ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { url: event.target.value || undefined })} /></label> : null}
                                   </div>
 
-                                  {availableOptionalDetails.length > 0 ? (
+                                  {availableOptionalDetails.length === 1 ? (
+                                    <button
+                                      type="button"
+                                      className="compact-secondary working-cv-add-detail-button"
+                                      onClick={() => {
+                                        const key = availableOptionalDetails[0]?.key;
+                                        if (key) setEditingOptionalDetails((current) => current.includes(key) ? current : [...current, key]);
+                                      }}
+                                    >
+                                      + {availableOptionalDetails[0]?.label}
+                                    </button>
+                                  ) : availableOptionalDetails.length > 1 ? (
                                     <label className="working-cv-add-detail">
                                       <span>Add detail</span>
                                       <select
@@ -675,13 +699,33 @@ export function WorkingCvEditor({
 
                   {addingToSectionId === section.id ? (
                     <div className="working-cv-add-row">
-                      <label>
-                        From My information
-                        <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
-                          <option value="">Choose…</option>
-                          {profile.filter((item) => !section.items.some((current) => current.profileItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-                        </select>
-                      </label>
+                      {(() => {
+                        const available = profile.filter(
+                          (item) => !section.items.some((current) => current.profileItemId === item.id),
+                        );
+                        if (available.length === 0) return null;
+                        if (available.length === 1) {
+                          const item = available[0]!;
+                          return (
+                            <button
+                              type="button"
+                              className="compact-secondary"
+                              onClick={() => addProfileItem(section.id, item.id)}
+                            >
+                              Add {item.title} from My information
+                            </button>
+                          );
+                        }
+                        return (
+                          <label>
+                            From My information
+                            <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
+                              <option value="">Choose…</option>
+                              {available.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                            </select>
+                          </label>
+                        );
+                      })()}
                       <button type="button" className="compact-secondary" onClick={() => addCustomItem(section.id)}>Add custom content</button>
                       <button type="button" className="working-cv-link-button" onClick={() => setAddingToSectionId(null)}>Cancel</button>
                     </div>
@@ -751,19 +795,20 @@ export function WorkingCvEditor({
 
 function LetterEditor({
   document,
+  profile,
   collections,
   onSaved,
   onCollections,
   onDirtyChange,
 }: {
   readonly document: CoverLetterRecord;
+  readonly profile: readonly ProfileItem[];
   readonly collections: DocumentCollections;
   readonly onSaved: (document: CoverLetterRecord) => void;
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, returnToCandidature, returnToDocuments } = useContextualHandoffs();
-  const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
   const draftingTaskKey = `document:cover-letter-draft:${document.id}`;
@@ -778,6 +823,15 @@ function LetterEditor({
   const latestRendered = collections.renderedLetters.find(
     (candidate) => candidate.coverLetterId === document.id,
   ) ?? null;
+  const senderIdentity = profile.find(
+    (item) => item.kind.trim().toLocaleLowerCase() === "identity" && item.title.trim(),
+  ) ?? null;
+  const senderContacts = profile.filter(
+    (item) => item.kind.trim().toLocaleLowerCase() === "contact" && item.title.trim(),
+  );
+  const senderLinks = profile.filter(
+    (item) => item.kind.trim().toLocaleLowerCase() === "link" && item.url?.trim(),
+  );
   const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
 
@@ -847,7 +901,6 @@ function LetterEditor({
   };
 
   const renderLetter = async () => {
-    if (!selectedBlueprintId) return;
     setBusy(true);
     setError(null);
     setProductionMessage(null);
@@ -855,13 +908,12 @@ function LetterEditor({
       const saved = dirty ? await persistDraft() : draft;
       const rendered = await window.aaaat.documentDomain.renderLetter({
         letterId: saved.id,
-        blueprintId: selectedBlueprintId,
       });
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedLetter(rendered.id);
       setProductionMessage("Rendered cover letter retained.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not render this cover letter.");
+      setError(readableDocumentError(reason, "AAAAT could not render this cover letter."));
     } finally {
       setBusy(false);
     }
@@ -900,7 +952,7 @@ function LetterEditor({
             {draftingActive ? "AI working…" : "Draft with AI"}
           </button>
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void renderLetter()}>
+          <button type="button" className="compact-primary" disabled={busy} onClick={() => void renderLetter()}>
             {busy ? "Creating PDF…" : "Create PDF"}
           </button>
         </div>
@@ -919,6 +971,31 @@ function LetterEditor({
           />
           <small>{draft.candidatureId ? "Application cover letter" : "Standalone cover letter"}</small>
         </header>
+
+        {(senderIdentity || senderContacts.length > 0 || senderLinks.length > 0) ? (
+          <div className="letter-sender-preview" aria-label="Sender information from My information">
+            <span>From My information</span>
+            {senderIdentity ? (
+              <div>
+                <strong>{senderIdentity.title}</strong>
+                {senderIdentity.subtitle ? <small>{senderIdentity.subtitle}</small> : null}
+              </div>
+            ) : null}
+            {senderIdentity?.url ? (
+              <p><span>Website</span><strong>{senderIdentity.url}</strong></p>
+            ) : null}
+            {senderContacts.map((item) => (
+              <p key={item.id}><span>{contactLabel(item)}</span><strong>{item.title}</strong></p>
+            ))}
+            {senderLinks.map((item) => (
+              <p key={item.id}><span>{item.title}</span><strong>{item.url}</strong></p>
+            ))}
+          </div>
+        ) : (
+          <p className="letter-sender-empty">
+            Add your name and contact details in My information to include them in the PDF.
+          </p>
+        )}
 
         <div className="letter-address-block">
           <label>
@@ -973,13 +1050,6 @@ function LetterEditor({
               placeholder="Optional"
             />
           </label>
-          {blueprints.length > 1 ? (
-            <BlueprintRenderChoice
-              blueprints={blueprints}
-              selectedBlueprintId={selectedBlueprintId}
-              onChange={setSelectedBlueprintId}
-            />
-          ) : null}
           {latestRendered ? (
             <div className="document-generated-actions">
               <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>
@@ -1035,8 +1105,8 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
   }));
 
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
-  if (!id) return <section className="document-work"><p className="compact-empty">Choose a Working CV or letter to edit.</p></section>;
+  if (!id) return <section className="document-work"><p className="compact-empty">Choose a CV or cover letter to edit.</p></section>;
   if (working) return <WorkingCvEditor key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
-  if (letter) return <LetterEditor key={letter.id} document={letter} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (letter) return <LetterEditor key={letter.id} document={letter} profile={profile} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
 }

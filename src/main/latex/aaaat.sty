@@ -32,6 +32,9 @@
 \tl_new:N \g_aaaat_document_kind_tl
 \tl_new:N \g_aaaat_document_title_tl
 \tl_new:N \g_aaaat_document_language_tl
+\tl_new:N \g_aaaat_sender_name_tl
+\tl_new:N \g_aaaat_sender_headline_tl
+\seq_new:N \g_aaaat_sender_detail_seq
 \seq_new:N \g_aaaat_metadata_seq
 \seq_new:N \g_aaaat_paragraph_seq
 \seq_new:N \g_aaaat_main_blocks_seq
@@ -65,6 +68,18 @@
 \NewDocumentCommand{\AAAATDocumentTitle}{m}
   {\tl_gset:Nn \g_aaaat_document_title_tl {#1}}
 
+\NewDocumentCommand{\AAAATSenderName}{m}
+  {\tl_gset:Nn \g_aaaat_sender_name_tl {#1}}
+
+\NewDocumentCommand{\AAAATSenderHeadline}{m}
+  {\tl_gset:Nn \g_aaaat_sender_headline_tl {#1}}
+
+\NewDocumentCommand{\AAAATSenderDetail}{mm}
+  {
+    \seq_gput_right:Nn \g_aaaat_sender_detail_seq
+      {\aaaat_sender_detail_render:nn {#1} {#2}}
+  }
+
 \NewDocumentCommand{\AAAATPdfMetadata}{mmm}
   {
     \hypersetup{
@@ -80,6 +95,9 @@
     \tl_gclear:N \g_aaaat_document_kind_tl
     \tl_gclear:N \g_aaaat_document_title_tl
     \tl_gclear:N \g_aaaat_document_language_tl
+    \tl_gclear:N \g_aaaat_sender_name_tl
+    \tl_gclear:N \g_aaaat_sender_headline_tl
+    \seq_gclear:N \g_aaaat_sender_detail_seq
     \seq_gclear:N \g_aaaat_metadata_seq
     \seq_gclear:N \g_aaaat_paragraph_seq
     \seq_gclear:N \g_aaaat_main_blocks_seq
@@ -145,6 +163,34 @@
         \hrule height 0.8pt
         \vspace{0.8em}
       }
+  }
+
+\cs_new_protected:Npn \aaaat_sender_detail_render:nn #1#2
+  {
+    \par\noindent
+    {\footnotesize\bfseries #1:}\nobreakspace{\footnotesize #2}
+    \par
+  }
+
+\cs_new_protected:Npn \aaaat_sender_render:
+  {
+    \tl_if_empty:NF \g_aaaat_sender_name_tl
+      {
+        \par\noindent
+        {\Large\bfseries \tl_use:N \g_aaaat_sender_name_tl\par}
+      }
+    \tl_if_empty:NF \g_aaaat_sender_headline_tl
+      {
+        \par\noindent
+        {\small\itshape \tl_use:N \g_aaaat_sender_headline_tl\par}
+      }
+    \seq_if_empty:NF \g_aaaat_sender_detail_seq
+      {
+        \vspace{0.35em}
+        \seq_map_inline:Nn \g_aaaat_sender_detail_seq {##1}
+      }
+    \tl_if_empty:NF \g_aaaat_sender_name_tl
+      {\vspace{0.9em}}
   }
 
 \cs_new_protected:Npn \aaaat_metadata_render:nn #1#2
@@ -303,7 +349,7 @@
 
 \NewDocumentCommand{\AAAATRenderLetter}{}
   {
-    \aaaat_document_title_render:
+    \aaaat_sender_render:
     \seq_map_inline:Nn \g_aaaat_metadata_seq {##1}
     \vspace{0.8em}
     \seq_map_inline:Nn \g_aaaat_paragraph_seq {##1}

@@ -59,6 +59,14 @@ const emptyCollections: DocumentCollections = {
   templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [],
 };
 
+function readableDocumentError(reason: unknown, fallback: string): string {
+  if (!(reason instanceof Error) || !reason.message.trim()) return fallback;
+  return reason.message
+    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
+    .replace(/^Error:\s*/u, "")
+    .trim() || fallback;
+}
+
 function aliasesFromText(value: string): string[] {
   return value.split(",").map((alias) => alias.trim()).filter(Boolean);
 }
@@ -947,11 +955,7 @@ export function CandidaturesWorkspace({
       });
       await refreshCollections();
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "AAAAT could not create the application packet.",
-      );
+      setError(readableDocumentError(reason, "AAAAT could not create the application PDF."));
     } finally {
       setPacketBusy(false);
     }
