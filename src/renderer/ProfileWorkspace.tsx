@@ -17,12 +17,71 @@ interface ItemFormState {
 type OptionalDetail = "subtitle" | "description" | "startDate" | "endDate" | "url";
 
 const optionalDetails: readonly { key: OptionalDetail; label: string }[] = [
-  { key: "subtitle", label: "Subtitle" },
+  { key: "subtitle", label: "Context" },
   { key: "description", label: "Description" },
   { key: "startDate", label: "Start date" },
   { key: "endDate", label: "End date" },
   { key: "url", label: "Link" },
 ];
+
+const informationTypes = [
+  ["identity", "Identity"],
+  ["contact", "Contact"],
+  ["summary", "Summary"],
+  ["experience", "Experience"],
+  ["education", "Education"],
+  ["project", "Project"],
+  ["skill", "Skill"],
+  ["certification", "Certification"],
+  ["language", "Language"],
+  ["link", "Link"],
+  ["other", "Other"],
+] as const;
+
+const contactTypes = ["Email", "Phone", "Location", "Website", "Other"] as const;
+
+function informationTypeLabel(kind: string): string {
+  return informationTypes.find(([value]) => value === kind)?.[1]
+    ?? kind.replace(/[-_]+/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function primaryFieldLabel(kind: string, contactType: string): string {
+  if (kind === "identity") return "Name";
+  if (kind === "contact") {
+    if (contactType.toLocaleLowerCase() === "email") return "Email address";
+    if (contactType.toLocaleLowerCase() === "phone") return "Phone number";
+    if (contactType.toLocaleLowerCase() === "location") return "Location";
+    if (contactType.toLocaleLowerCase() === "website") return "Website";
+    return "Contact detail";
+  }
+  if (kind === "experience") return "Role";
+  if (kind === "education") return "Qualification";
+  if (kind === "project") return "Project";
+  if (kind === "skill") return "Skill";
+  if (kind === "certification") return "Certification";
+  if (kind === "language") return "Language";
+  if (kind === "link") return "Link name";
+  if (kind === "summary") return "Heading";
+  return "Name";
+}
+
+function secondaryFieldLabel(kind: string): string {
+  if (kind === "identity") return "Professional headline";
+  if (kind === "experience") return "Organisation";
+  if (kind === "education") return "Institution";
+  if (kind === "project") return "Organisation or context";
+  if (kind === "skill") return "Level or context";
+  if (kind === "certification") return "Issuer";
+  if (kind === "language") return "Proficiency";
+  if (kind === "link") return "Type";
+  if (kind === "summary") return "Context";
+  return "Context";
+}
+
+function detailLabel(key: OptionalDetail, kind: string): string {
+  if (key === "subtitle") return secondaryFieldLabel(kind);
+  return optionalDetails.find((detail) => detail.key === key)?.label ?? key;
+}
 
 const emptyItem: ItemFormState = {
   kind: "other",
@@ -154,7 +213,9 @@ export function ProfileWorkspace({
     [variants, selectedId],
   );
   const groups = useMemo(() => [...new Set(snapshot.items.map((item) => item.kind))], [snapshot.items]);
-  const availableItemDetails = optionalDetails.filter(({ key }) => !itemDetails.includes(key));
+  const availableItemDetails = optionalDetails.filter(
+    ({ key }) => !itemDetails.includes(key) && !(draft.kind === "contact" && key === "subtitle"),
+  );
   const availableVariantDetails = optionalDetails.filter(({ key }) => !variantDetails.includes(key));
 
   const itemDirty = creating
@@ -391,7 +452,7 @@ export function ProfileWorkspace({
           ) : (
             groups.map((kind) => (
               <section key={kind} aria-label={`${kind} group`}>
-                <h2>{kind}</h2>
+                <h2>{informationTypeLabel(kind)}</h2>
                 {snapshot.items
                   .filter((item) => item.kind === kind)
                   .map((item) => (
@@ -416,7 +477,7 @@ export function ProfileWorkspace({
             <section className="section-surface professional-information-item" aria-label={creating ? "New information" : `${selected?.title ?? "Information"} details`}>
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">{creating ? "New information" : selected?.kind}</p>
+                  <p className="eyebrow">{creating ? "New information" : informationTypeLabel(selected?.kind ?? "other")}</p>
                   <h2>{creating ? "Add information" : selected?.title}</h2>
                 </div>
                 {selected ? <ProfileItemAiDisclosureControl itemId={selected.id} /> : null}
@@ -426,25 +487,48 @@ export function ProfileWorkspace({
                 <div className="professional-information-item-editor" aria-label={creating ? "Edit new information" : `Edit ${selected?.title ?? "information"}`}>
                   <div className="profile-item-form">
                     <label>
-                      Group
-                      <input
-                        value={draft.kind}
-                        maxLength={80}
-                        onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value }))}
-                        placeholder="experience, project, research…"
-                      />
+                      Information type
+                      <select
+                        value={informationTypes.some(([value]) => value === draft.kind) ? draft.kind : "other"}
+                        onChange={(event) => {
+                          const kind = event.target.value;
+                          setDraft((current) => ({
+                            ...current,
+                            kind,
+                            subtitle:
+                              kind === "contact" && !current.subtitle.trim()
+                                ? "Email"
+                                : current.subtitle,
+                          }));
+                        }}
+                      >
+                        {informationTypes.map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
                     </label>
-                    <label>
-                      Title
+                    {draft.kind === "contact" ? (
+                      <label>
+                        Contact type
+                        <select
+                          value={contactTypes.includes(draft.subtitle as typeof contactTypes[number]) ? draft.subtitle : "Other"}
+                          onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
+                        >
+                          {contactTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </label>
+                    ) : null}
+                    <label className={draft.kind === "contact" ? "profile-wide-field" : undefined}>
+                      {primaryFieldLabel(draft.kind, draft.subtitle)}
                       <input
                         value={draft.title}
                         maxLength={200}
                         onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
                       />
                     </label>
-                    {itemDetails.includes("subtitle") ? (
+                    {draft.kind !== "contact" && itemDetails.includes("subtitle") ? (
                       <label className="profile-wide-field">
-                        Subtitle
+                        {secondaryFieldLabel(draft.kind)}
                         <input value={draft.subtitle} maxLength={300} onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))} />
                       </label>
                     ) : null}
@@ -486,7 +570,7 @@ export function ProfileWorkspace({
                         }}
                       >
                         <option value="">Choose…</option>
-                        {availableItemDetails.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+                        {availableItemDetails.map(({ key }) => <option key={key} value={key}>{detailLabel(key, draft.kind)}</option>)}
                       </select>
                     </label>
                   ) : null}
