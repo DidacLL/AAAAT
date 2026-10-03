@@ -89,21 +89,19 @@ function pdfMetadataSource(metadata: DocumentPdfMetadata): string {
 }
 
 function documentDataHeader(
-  kind: "cv" | "letter",
   title: string,
   language: string | undefined,
   metadata?: DocumentPdfMetadata,
 ): string[] {
   return [
     ...(metadata ? [pdfMetadataSource(metadata)] : []),
-    `\\AAAATDocumentKind{${kind}}`,
     `\\AAAATDocumentLanguage{${resolveDocumentBabelLanguage(language)}}`,
     `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
   ];
 }
 
 function cvData(working: WorkingCvRecord, metadata?: DocumentPdfMetadata): string {
-  const lines = documentDataHeader("cv", working.title, working.language, metadata);
+  const lines = documentDataHeader(working.title, working.language, metadata);
   for (const section of working.sections) {
     lines.push(
       `\\AAAATBlock{${section.presentationRole}}{${encodeDocumentText(section.name)}}{`,
@@ -126,7 +124,7 @@ function coverLetterData(
   letter: CoverLetterSnapshot,
   metadata?: DocumentPdfMetadata,
 ): string {
-  const lines = documentDataHeader("letter", letter.title, letter.language, metadata);
+  const lines = documentDataHeader(letter.title, letter.language, metadata);
   if (letter.recipient) {
     lines.push(`\\AAAATMetadata{To}{${encodeDocumentText(letter.recipient)}}`);
   }
@@ -144,11 +142,16 @@ function coverLetterData(
 
 function writePortableDocumentProject(
   projectPath: string,
+  mode: "cv" | "letter",
   dataSource: string,
   blueprintSource: string,
 ): void {
   mkdirSync(projectPath, { recursive: true });
-  writeFileSync(path.join(projectPath, "main.tex"), documentEntrypoint, "utf8");
+  writeFileSync(
+    path.join(projectPath, "main.tex"),
+    documentEntrypoint.replace("__AAAAT_DOCUMENT_MODE__", mode),
+    "utf8",
+  );
   writeFileSync(path.join(projectPath, "blueprint.tex"), blueprintSource, "utf8");
   writeFileSync(path.join(projectPath, "data.tex"), dataSource, "utf8");
   writeFileSync(path.join(projectPath, "aaaat.sty"), aaatStyle, "utf8");
@@ -160,7 +163,7 @@ export function writeCvLatexProject(
   blueprintSource: string,
   metadata: DocumentPdfMetadata,
 ): void {
-  writePortableDocumentProject(projectPath, cvData(working, metadata), blueprintSource);
+  writePortableDocumentProject(projectPath, "cv", cvData(working, metadata), blueprintSource);
 }
 
 export function writeCoverLetterLatexProject(
@@ -169,7 +172,7 @@ export function writeCoverLetterLatexProject(
   blueprintSource: string,
   metadata: DocumentPdfMetadata,
 ): void {
-  writePortableDocumentProject(projectPath, coverLetterData(letter, metadata), blueprintSource);
+  writePortableDocumentProject(projectPath, "letter", coverLetterData(letter, metadata), blueprintSource);
 }
 
 export function writeApplicationPacketLatexProject(
