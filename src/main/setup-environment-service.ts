@@ -24,6 +24,8 @@ const maxProbeOutput = 4_096;
 
 type TexProbe = (command: SetupTexCommand) => Promise<SetupTexCommandStatus>;
 
+let sessionTexStatus: SetupTexCommandStatus | null = null;
+
 function firstOutputLine(output: string): string | null {
   const line = output
     .split(/\r?\n/u)
@@ -124,12 +126,21 @@ function aiProjection(rootPath: string, ready: boolean) {
   }
 }
 
-export async function getSetupEnvironmentSnapshot(
+async function texStatus(probe: TexProbe, refresh: boolean): Promise<SetupTexCommandStatus> {
+  if (probe !== probeSetupTexCommand) return probe("pdflatex");
+  if (refresh || sessionTexStatus === null) {
+    sessionTexStatus = await probe("pdflatex");
+  }
+  return sessionTexStatus;
+}
+
+async function setupEnvironmentSnapshot(
   rootPath: string,
-  probe: TexProbe = probeSetupTexCommand,
+  probe: TexProbe,
+  refreshTex: boolean,
 ): Promise<SetupEnvironmentSnapshot> {
   const ready = workspaceReady(rootPath);
-  const pdflatex = await probe("pdflatex");
+  const pdflatex = await texStatus(probe, refreshTex);
 
   return setupEnvironmentSnapshotSchema.parse({
     workspaceReady: ready,
@@ -139,4 +150,18 @@ export async function getSetupEnvironmentSnapshot(
     },
     ai: aiProjection(rootPath, ready),
   });
+}
+
+export async function getSetupEnvironmentSnapshot(
+  rootPath: string,
+  probe: TexProbe = probeSetupTexCommand,
+): Promise<SetupEnvironmentSnapshot> {
+  return setupEnvironmentSnapshot(rootPath, probe, false);
+}
+
+export async function refreshSetupEnvironmentSnapshot(
+  rootPath: string,
+  probe: TexProbe = probeSetupTexCommand,
+): Promise<SetupEnvironmentSnapshot> {
+  return setupEnvironmentSnapshot(rootPath, probe, true);
 }
