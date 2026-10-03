@@ -168,7 +168,9 @@
 \cs_new_protected:Npn \aaaat_sender_detail_render:nn #1#2
   {
     \par\noindent
-    {\footnotesize\bfseries #1:}\nobreakspace{\footnotesize #2}
+    \tl_if_blank:nTF {#1}
+      {{\footnotesize #2}}
+      {{\footnotesize\bfseries #1:}\nobreakspace{\footnotesize #2}}
     \par
   }
 
@@ -189,7 +191,12 @@
         \vspace{0.35em}
         \seq_map_inline:Nn \g_aaaat_sender_detail_seq {##1}
       }
-    \tl_if_empty:NF \g_aaaat_sender_name_tl
+    \tl_if_empty:NTF \g_aaaat_sender_name_tl
+      {
+        \tl_if_empty:NTF \g_aaaat_sender_headline_tl
+          {\seq_if_empty:NF \g_aaaat_sender_detail_seq {\vspace{0.9em}}}
+          {\vspace{0.9em}}
+      }
       {\vspace{0.9em}}
   }
 

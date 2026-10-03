@@ -200,7 +200,8 @@ CREATE TABLE cover_letters (
   body_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(body_json)),
   closing TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  sender_json TEXT NOT NULL DEFAULT '{"name":"","headline":"","details":[]}' CHECK (json_valid(sender_json))
 ) STRICT;
 CREATE INDEX cover_letters_candidature_idx ON cover_letters(candidature_id, updated_at);
 

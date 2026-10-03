@@ -141,12 +141,57 @@ export type RenderedCvSnapshot = z.infer<typeof renderedCvSnapshotSchema>;
 export const renderedCvRecordSchema = z.object({ id: z.string().uuid(), workingCvId: optionalUuidSchema, sourceTemplateId: optionalUuidSchema, candidatureId: optionalUuidSchema, title: z.string().min(1), language: optionalLanguageSchema, snapshot: renderedCvSnapshotSchema, createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
 export type RenderedCvRecord = z.infer<typeof renderedCvRecordSchema>;
 
-export const coverLetterInputSchema = z.object({ candidatureId: optionalUuidSchema, title: z.string().trim().min(1).max(200), language: optionalLanguageSchema, recipient: z.string().max(300).optional(), subject: z.string().max(300).optional(), bodyParagraphs: z.array(z.string().max(5000)).max(20).default([]), closing: z.string().max(500).optional() }).strict();
+export const coverLetterSenderDetailSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().max(80),
+  value: z.string().max(500),
+}).strict();
+export type CoverLetterSenderDetail = z.infer<typeof coverLetterSenderDetailSchema>;
+
+export const coverLetterSenderSchema = z.object({
+  name: z.string().max(200),
+  headline: z.string().max(300),
+  details: z.array(coverLetterSenderDetailSchema).max(20),
+}).strict();
+export type CoverLetterSender = z.infer<typeof coverLetterSenderSchema>;
+
+const emptyCoverLetterSender: CoverLetterSender = { name: "", headline: "", details: [] };
+
+export const coverLetterInputSchema = z.object({
+  candidatureId: optionalUuidSchema,
+  title: z.string().trim().min(1).max(200),
+  language: optionalLanguageSchema,
+  sender: coverLetterSenderSchema.optional(),
+  recipient: z.string().max(300).optional(),
+  subject: z.string().max(300).optional(),
+  bodyParagraphs: z.array(z.string().max(5000)).max(20).default([]),
+  closing: z.string().max(500).optional(),
+}).strict();
 export type CoverLetterInput = z.infer<typeof coverLetterInputSchema>;
-export const coverLetterRecordSchema = coverLetterInputSchema.extend({ id: z.string().uuid(), createdAt: z.string().min(1), updatedAt: z.string().min(1) }).strict();
+
+export const coverLetterRecordSchema = coverLetterInputSchema
+  .omit({ sender: true })
+  .extend({
+    sender: coverLetterSenderSchema,
+    id: z.string().uuid(),
+    createdAt: z.string().min(1),
+    updatedAt: z.string().min(1),
+  })
+  .strict();
 export type CoverLetterRecord = z.infer<typeof coverLetterRecordSchema>;
-export const coverLetterUpdateSchema = coverLetterInputSchema.omit({ candidatureId: true }).extend({ id: z.string().uuid() }).strict();
+
+export const coverLetterUpdateSchema = coverLetterRecordSchema.pick({
+  id: true,
+  title: true,
+  language: true,
+  sender: true,
+  recipient: true,
+  subject: true,
+  bodyParagraphs: true,
+  closing: true,
+}).strict();
 export type CoverLetterUpdate = z.infer<typeof coverLetterUpdateSchema>;
+
 export const coverLetterSnapshotSchema = coverLetterRecordSchema.pick({
   candidatureId: true,
   title: true,
@@ -155,7 +200,9 @@ export const coverLetterSnapshotSchema = coverLetterRecordSchema.pick({
   subject: true,
   bodyParagraphs: true,
   closing: true,
-});
+}).extend({
+  sender: coverLetterSenderSchema.default(emptyCoverLetterSender),
+}).strict();
 export type CoverLetterSnapshot = z.infer<typeof coverLetterSnapshotSchema>;
 export const renderedCoverLetterRecordSchema = z.object({
   id: z.string().uuid(),

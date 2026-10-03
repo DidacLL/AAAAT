@@ -38,6 +38,45 @@ function contactLabel(item: ProfileItem): string {
   return item.subtitle?.trim() || "Contact";
 }
 
+function letterSenderFromProfile(profile: readonly ProfileItem[]): CoverLetterRecord["sender"] {
+  const identity = profile.find(
+    (item) => item.kind.trim().toLocaleLowerCase() === "identity" && item.title.trim(),
+  );
+  const details: CoverLetterRecord["sender"]["details"] = [];
+  if (identity?.url?.trim()) {
+    details.push({ id: crypto.randomUUID(), label: "Website", value: identity.url.trim() });
+  }
+  for (const item of profile) {
+    const kind = item.kind.trim().toLocaleLowerCase();
+    if (kind === "contact" && item.title.trim()) {
+      details.push({
+        id: crypto.randomUUID(),
+        label: contactLabel(item),
+        value: item.title.trim(),
+      });
+    } else if (kind === "link" && item.url?.trim()) {
+      details.push({
+        id: crypto.randomUUID(),
+        label: item.title.trim() || item.subtitle?.trim() || "Website",
+        value: item.url.trim(),
+      });
+    }
+  }
+  return {
+    name: identity?.title.trim() ?? "",
+    headline: identity?.subtitle?.trim() ?? "",
+    details,
+  };
+}
+
+function letterSenderHasContent(sender: CoverLetterRecord["sender"]): boolean {
+  return Boolean(
+    sender.name.trim()
+    || sender.headline.trim()
+    || sender.details.some((detail) => detail.label.trim() || detail.value.trim()),
+  );
+}
+
 function useBlueprintSelection(): {
   blueprints: BlueprintSummary[];
   selectedBlueprintId: string;
@@ -151,6 +190,8 @@ function dateRange(item: WorkingCvItem): string | null {
 }
 
 type OptionalCvDetail = "subtitle" | "description" | "startDate" | "endDate" | "url";
+type CvReuseTarget = "" | "profile" | "profile_variant" | "template";
+type CvTemplateReuseChoice = "" | "new" | "source";
 
 const optionalCvDetails: readonly { key: OptionalCvDetail; label: string }[] = [
   { key: "subtitle", label: "Subtitle" },
@@ -192,7 +233,9 @@ export function WorkingCvEditor({
   const [addingToSectionId, setAddingToSectionId] = useState<string | null>(null);
   const [sectionName, setSectionName] = useState("");
   const [templateName, setTemplateName] = useState("");
+  const [cvTemplateReuseChoice, setCvTemplateReuseChoice] = useState<CvTemplateReuseChoice>("");
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
+  const [reuseChoiceByItem, setReuseChoiceByItem] = useState<Record<string, CvReuseTarget>>({});
   const [tailoringNotes, setTailoringNotes] = useState<Record<string, string>>({});
   const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
   const tailoringTaskKey = `document:cv-tailoring:${document.id}`;
@@ -383,7 +426,9 @@ export function WorkingCvEditor({
     }
   };
 
-  const saveOwnership = async (item: WorkingCvItem, target: "template" | "profile_variant" | "profile") => {
+  const saveOwnership = async (item: WorkingCvItem, target: Exclude<CvReuseTarget, "">) => {
+    const variantName = variantNameByItem[item.id]?.trim() ?? "";
+    if (target === "profile_variant" && !variantName) return;
     setError(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
@@ -391,12 +436,14 @@ export function WorkingCvEditor({
         workingCvId: saved.id,
         itemId: item.id,
         target,
-        ...(target === "profile_variant" ? {
-          variantName: variantNameByItem[item.id]?.trim() || "CV wording",
-        } : {}),
+        ...(target === "profile_variant" ? { variantName } : {}),
       });
       setDraft(refreshed);
       onSaved(refreshed);
+      setReuseChoiceByItem((current) => ({ ...current, [item.id]: "" }));
+      if (target === "profile_variant") {
+        setVariantNameByItem((current) => ({ ...current, [item.id]: "" }));
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save that reusable value.");
     }
@@ -415,6 +462,7 @@ export function WorkingCvEditor({
         language: saved.language,
         sections: templateSections(saved),
       }));
+      setCvTemplateReuseChoice("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not update the template.");
     }
@@ -429,6 +477,7 @@ export function WorkingCvEditor({
       await window.aaaat.documentDomain.saveWorkingAsTemplate({ workingCvId: saved.id, name });
       onCollections(await window.aaaat.documentDomain.collections());
       setTemplateName("");
+      setCvTemplateReuseChoice("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save the new template.");
     }
@@ -547,17 +596,17 @@ export function WorkingCvEditor({
                       <summary aria-label={`${section.name} section options`}>•••</summary>
                       <div className="working-cv-compact-controls">
                         <label>
-                          Role
+                          Placement
                           <select
-                            aria-label={`${section.name} presentation role`}
+                            aria-label={`${section.name} placement`}
                             value={section.presentationRole}
                             onChange={(event) => updateSection(section.id, (current) => ({
                               ...current,
                               presentationRole: event.target.value === "secondary" ? "secondary" : "main",
                             }))}
                           >
-                            <option value="main">Main</option>
-                            <option value="secondary">Secondary</option>
+                            <option value="main">Main area</option>
+                            <option value="secondary">Side area</option>
                           </select>
                         </label>
                         <button type="button" className="compact-secondary" onClick={() => setRenamingSectionId((current) => current === section.id ? null : section.id)}>{renamingSectionId === section.id ? "Done" : "Rename"}</button>
@@ -609,30 +658,26 @@ export function WorkingCvEditor({
 
                               {editing ? (
                                 <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
-                                  {item.profileItemId ? (
-                                    item.sourceMode === "override" ? (
-                                      <div className="working-source-row working-source-override">
-                                        <span className="working-cv-source-chip">This CV only</span>
-                                        <div className="button-row">
-                                          <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
-                                          <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="working-source-row">
-                                        {itemVariants.length > 0 ? (
-                                          <label>
-                                            Use My information
-                                            <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
-                                              <option value="current">Current version</option>
-                                              {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}
-                                            </select>
-                                          </label>
-                                        ) : <span className="working-cv-source-chip">Uses My information</span>}
+                                  {item.profileItemId && item.sourceMode === "override" ? (
+                                    <div className="working-source-row working-source-override">
+                                      <span>Edits here apply only to this CV.</span>
+                                      <div className="button-row">
+                                        <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
                                         <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
                                       </div>
-                                    )
-                                  ) : <span className="working-cv-source-chip">This CV only</span>}
+                                    </div>
+                                  ) : item.profileItemId && itemVariants.length > 0 ? (
+                                    <div className="working-source-row">
+                                      <label>
+                                        Use My information
+                                        <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
+                                          <option value="current">Current version</option>
+                                          {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}
+                                        </select>
+                                      </label>
+                                      <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                                    </div>
+                                  ) : null}
 
                                   <div className="working-cv-edit-fields">
                                     <label>Title<input value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} /></label>
@@ -674,17 +719,55 @@ export function WorkingCvEditor({
 
                                   {item.profileItemId && item.sourceMode === "override" ? (
                                     <details className="ownership-actions">
-                                      <summary>Reuse these edits elsewhere</summary>
+                                      <summary>Save this edit for reuse</summary>
                                       <div>
-                                        <span>These changes are currently only in this CV.</span>
-                                        <div className="working-cv-ownership-buttons">
-                                          {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Update template</button> : null}
-                                          <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
-                                        </div>
-                                        <div className="working-cv-variant-save">
-                                          <label>Save alternate wording<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
-                                          <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save variation</button>
-                                        </div>
+                                        <span>This edit stays only in this CV unless you choose to reuse it.</span>
+                                        <label>
+                                          Reuse it as
+                                          <select
+                                            value={reuseChoiceByItem[item.id] ?? ""}
+                                            onChange={(event) => setReuseChoiceByItem((current) => ({
+                                              ...current,
+                                              [item.id]: event.target.value as CvReuseTarget,
+                                            }))}
+                                          >
+                                            <option value="">Choose…</option>
+                                            <option value="profile_variant">Another My information version</option>
+                                            <option value="profile">Replace the current My information version</option>
+                                            {draft.sourceTemplateId && item.templateItemId ? (
+                                              <option value="template">Update the CV template this came from</option>
+                                            ) : null}
+                                          </select>
+                                        </label>
+                                        {reuseChoiceByItem[item.id] === "profile_variant" ? (
+                                          <label>
+                                            Version name
+                                            <input
+                                              value={variantNameByItem[item.id] ?? ""}
+                                              onChange={(event) => setVariantNameByItem((current) => ({
+                                                ...current,
+                                                [item.id]: event.target.value,
+                                              }))}
+                                              placeholder="e.g. Leadership emphasis"
+                                            />
+                                          </label>
+                                        ) : null}
+                                        {reuseChoiceByItem[item.id] ? (
+                                          <button
+                                            type="button"
+                                            className="compact-secondary"
+                                            disabled={
+                                              reuseChoiceByItem[item.id] === "profile_variant"
+                                              && !(variantNameByItem[item.id]?.trim())
+                                            }
+                                            onClick={() => void saveOwnership(
+                                              item,
+                                              reuseChoiceByItem[item.id] as Exclude<CvReuseTarget, "">,
+                                            )}
+                                          >
+                                            Save for reuse
+                                          </button>
+                                        ) : null}
                                       </div>
                                     </details>
                                   ) : null}
@@ -769,22 +852,39 @@ export function WorkingCvEditor({
             />
           ) : null}
           <details className="document-reuse-disclosure">
-            <summary>Reuse this CV</summary>
+            <summary>Save this CV for reuse</summary>
             <div className="working-cv-reuse-body">
               {draft.sourceTemplateId ? (
-                <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>
-                  Update source template
-                </button>
+                <>
+                  <label>
+                    Reuse this CV as
+                    <select
+                      value={cvTemplateReuseChoice}
+                      onChange={(event) => setCvTemplateReuseChoice(event.target.value as CvTemplateReuseChoice)}
+                    >
+                      <option value="">Choose…</option>
+                      <option value="new">New reusable CV template</option>
+                      <option value="source">Update the template this CV started from</option>
+                    </select>
+                  </label>
+                  {cvTemplateReuseChoice === "source" ? (
+                    <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>
+                      Update template
+                    </button>
+                  ) : null}
+                </>
               ) : null}
-              <div className="working-cv-template-save">
-                <label>
-                  New template name
-                  <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" />
-                </label>
-                <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>
-                  Save as template
-                </button>
-              </div>
+              {!draft.sourceTemplateId || cvTemplateReuseChoice === "new" ? (
+                <div className="working-cv-template-save">
+                  <label>
+                    Template name
+                    <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" />
+                  </label>
+                  <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>
+                    Save template
+                  </button>
+                </div>
+              ) : null}
             </div>
           </details>
         </div>
@@ -823,15 +923,7 @@ function LetterEditor({
   const latestRendered = collections.renderedLetters.find(
     (candidate) => candidate.coverLetterId === document.id,
   ) ?? null;
-  const senderIdentity = profile.find(
-    (item) => item.kind.trim().toLocaleLowerCase() === "identity" && item.title.trim(),
-  ) ?? null;
-  const senderContacts = profile.filter(
-    (item) => item.kind.trim().toLocaleLowerCase() === "contact" && item.title.trim(),
-  );
-  const senderLinks = profile.filter(
-    (item) => item.kind.trim().toLocaleLowerCase() === "link" && item.url?.trim(),
-  );
+  const profileSenderDefaults = useMemo(() => letterSenderFromProfile(profile), [profile]);
   const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
 
@@ -858,6 +950,7 @@ function LetterEditor({
       id: draft.id,
       title: draft.title,
       language: draft.language,
+      sender: draft.sender,
       recipient: draft.recipient,
       subject: draft.subject,
       bodyParagraphs,
@@ -867,6 +960,54 @@ function LetterEditor({
     setBody(saved.bodyParagraphs.join("\n\n"));
     onSaved(saved);
     return saved;
+  };
+
+  const replaceSenderFromMyInformation = () => {
+    if (
+      letterSenderHasContent(draft.sender)
+      && !window.confirm("Replace this letter's sender information with current My information?")
+    ) {
+      return;
+    }
+    setDraft((current) => ({ ...current, sender: profileSenderDefaults }));
+  };
+
+  const addSenderDetail = () => {
+    setDraft((current) => ({
+      ...current,
+      sender: {
+        ...current.sender,
+        details: [
+          ...current.sender.details,
+          { id: crypto.randomUUID(), label: "", value: "" },
+        ],
+      },
+    }));
+  };
+
+  const updateSenderDetail = (
+    detailId: string,
+    patch: Partial<CoverLetterRecord["sender"]["details"][number]>,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      sender: {
+        ...current.sender,
+        details: current.sender.details.map((detail) =>
+          detail.id === detailId ? { ...detail, ...patch } : detail
+        ),
+      },
+    }));
+  };
+
+  const removeSenderDetail = (detailId: string) => {
+    setDraft((current) => ({
+      ...current,
+      sender: {
+        ...current.sender,
+        details: current.sender.details.filter((detail) => detail.id !== detailId),
+      },
+    }));
   };
 
   const save = async () => {
@@ -972,30 +1113,74 @@ function LetterEditor({
           <small>{draft.candidatureId ? "Application cover letter" : "Standalone cover letter"}</small>
         </header>
 
-        {(senderIdentity || senderContacts.length > 0 || senderLinks.length > 0) ? (
-          <div className="letter-sender-preview" aria-label="Sender information from My information">
-            <span>From My information</span>
-            {senderIdentity ? (
-              <div>
-                <strong>{senderIdentity.title}</strong>
-                {senderIdentity.subtitle ? <small>{senderIdentity.subtitle}</small> : null}
-              </div>
+        <section className="letter-sender-editor" aria-label="Sender information for this letter">
+          <div className="letter-sender-heading">
+            <span>From</span>
+            {letterSenderHasContent(profileSenderDefaults) ? (
+              <button
+                type="button"
+                className="working-cv-link-button"
+                onClick={replaceSenderFromMyInformation}
+              >
+                Replace with My information
+              </button>
             ) : null}
-            {senderIdentity?.url ? (
-              <p><span>Website</span><strong>{senderIdentity.url}</strong></p>
-            ) : null}
-            {senderContacts.map((item) => (
-              <p key={item.id}><span>{contactLabel(item)}</span><strong>{item.title}</strong></p>
-            ))}
-            {senderLinks.map((item) => (
-              <p key={item.id}><span>{item.title}</span><strong>{item.url}</strong></p>
-            ))}
           </div>
-        ) : (
-          <p className="letter-sender-empty">
-            Add your name and contact details in My information to include them in the PDF.
-          </p>
-        )}
+          <label className="letter-sender-name">
+            <span>Name</span>
+            <input
+              value={draft.sender.name}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                sender: { ...current.sender, name: event.target.value },
+              }))}
+              placeholder="Your name"
+            />
+          </label>
+          <label>
+            <span>Headline</span>
+            <input
+              value={draft.sender.headline}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                sender: { ...current.sender, headline: event.target.value },
+              }))}
+              placeholder="Optional"
+            />
+          </label>
+          {draft.sender.details.map((detail) => (
+            <div className="letter-sender-detail" key={detail.id}>
+              <label>
+                <span>Label</span>
+                <input
+                  value={detail.label}
+                  onChange={(event) => updateSenderDetail(detail.id, { label: event.target.value })}
+                  placeholder="Email, phone, website…"
+                />
+              </label>
+              <label>
+                <span>Value</span>
+                <input
+                  value={detail.value}
+                  onChange={(event) => updateSenderDetail(detail.id, { value: event.target.value })}
+                />
+              </label>
+              <button
+                type="button"
+                className="working-cv-link-button"
+                onClick={() => removeSenderDetail(detail.id)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button type="button" className="working-cv-link-button" onClick={addSenderDetail}>
+            ＋ Add sender detail
+          </button>
+          <small>
+            These fields belong to this letter only. AI access is controlled separately in My information.
+          </small>
+        </section>
 
         <div className="letter-address-block">
           <label>

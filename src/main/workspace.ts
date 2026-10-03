@@ -439,6 +439,20 @@ function createCurrentSchemaSignature(): string {
 
 const currentSchemaSignature = createCurrentSchemaSignature();
 
+function migrateCoverLetterSenderComposition(database: DatabaseSync): void {
+  const columns = database
+    .prepare(`SELECT name FROM pragma_table_xinfo('cover_letters') ORDER BY cid`)
+    .all() as unknown as ColumnNameRow[];
+  if (columns.some((column) => column.name === "sender_json")) return;
+
+  database.exec(
+    `ALTER TABLE cover_letters
+     ADD COLUMN sender_json TEXT NOT NULL
+     DEFAULT '{"name":"","headline":"","details":[]}'
+     CHECK (json_valid(sender_json))`,
+  );
+}
+
 function migrateLegacyApplicationPackets(database: DatabaseSync): void {
   const columns = database
     .prepare(`SELECT name FROM pragma_table_xinfo('application_packets') ORDER BY cid`)
@@ -561,6 +575,7 @@ function verifyExistingWorkspace(rootPath: string): void {
     database = new DatabaseSync(databasePath);
     configureDatabase(database);
     migrateLegacyApplicationPackets(database);
+    migrateCoverLetterSenderComposition(database);
     validateCurrentWorkspaceDatabase(database);
   } catch {
     throw new WorkspaceError(

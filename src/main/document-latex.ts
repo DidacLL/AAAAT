@@ -17,17 +17,6 @@ export interface DocumentPdfMetadata {
   readonly subject: string;
 }
 
-export interface DocumentLetterSenderDetail {
-  readonly label: string;
-  readonly value: string;
-}
-
-export interface DocumentLetterSender {
-  readonly name?: string;
-  readonly headline?: string;
-  readonly details: readonly DocumentLetterSenderDetail[];
-}
-
 const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
   "\\": "\\textbackslash{}",
   "{": "\\{",
@@ -134,15 +123,17 @@ function cvData(working: WorkingCvRecord, metadata?: DocumentPdfMetadata): strin
 
 function coverLetterData(
   letter: CoverLetterSnapshot,
-  sender: DocumentLetterSender,
   metadata?: DocumentPdfMetadata,
 ): string {
   const lines = documentDataHeader(letter.title, letter.language, metadata);
-  if (sender.name) lines.push(`\\AAAATSenderName{${encodeDocumentText(sender.name)}}`);
-  if (sender.headline) {
-    lines.push(`\\AAAATSenderHeadline{${encodeDocumentText(sender.headline)}}`);
+  if (letter.sender.name.trim()) {
+    lines.push(`\\AAAATSenderName{${encodeDocumentText(letter.sender.name)}}`);
   }
-  for (const detail of sender.details) {
+  if (letter.sender.headline.trim()) {
+    lines.push(`\\AAAATSenderHeadline{${encodeDocumentText(letter.sender.headline)}}`);
+  }
+  for (const detail of letter.sender.details) {
+    if (!detail.value.trim()) continue;
     lines.push(
       `\\AAAATSenderDetail{${encodeDocumentText(detail.label)}}{${encodeDocumentText(detail.value)}}`,
     );
@@ -195,17 +186,16 @@ export function writeCvLatexProject(
 export function writeCoverLetterLatexProject(
   projectPath: string,
   letter: CoverLetterSnapshot,
-  sender: DocumentLetterSender,
   metadata: DocumentPdfMetadata = {
     title: letter.title,
-    author: sender.name ?? "AAAAT",
+    author: letter.sender.name.trim() || "AAAAT",
     subject: letter.subject?.trim() || "Cover letter",
   },
 ): void {
   writePortableDocumentProject(
     projectPath,
     "letter",
-    coverLetterData(letter, sender, metadata),
+    coverLetterData(letter, metadata),
     letterBlueprintSource,
   );
 }
@@ -214,11 +204,10 @@ export function writeApplicationPacketLatexProject(
   projectPath: string,
   working: WorkingCvRecord,
   letter: CoverLetterSnapshot,
-  sender: DocumentLetterSender,
   blueprintSource: string,
   metadata: DocumentPdfMetadata = {
     title: `Application · ${working.title} + ${letter.title}`,
-    author: sender.name ?? "AAAAT",
+    author: letter.sender.name.trim() || "AAAAT",
     subject: "Application documents",
   },
 ): void {
@@ -226,7 +215,7 @@ export function writeApplicationPacketLatexProject(
   writeFileSync(path.join(projectPath, "main.tex"), applicationPacketTemplate, "utf8");
   writeFileSync(path.join(projectPath, "blueprint.tex"), blueprintSource, "utf8");
   writeFileSync(path.join(projectPath, "letter-blueprint.tex"), letterBlueprintSource, "utf8");
-  writeFileSync(path.join(projectPath, "letter-data.tex"), coverLetterData(letter, sender), "utf8");
+  writeFileSync(path.join(projectPath, "letter-data.tex"), coverLetterData(letter), "utf8");
   writeFileSync(path.join(projectPath, "cv-data.tex"), cvData(working), "utf8");
   writeFileSync(
     path.join(projectPath, "packet-metadata.tex"),

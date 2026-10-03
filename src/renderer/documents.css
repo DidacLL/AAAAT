@@ -548,8 +548,7 @@
 .working-cv-add-detail,
 .working-cv-add-row label,
 .working-cv-add-section label,
-.working-cv-template-save label,
-.working-cv-variant-save label {
+.working-cv-template-save label {
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -566,7 +565,6 @@
 .working-cv-add-row select,
 .working-cv-add-section input,
 .working-cv-template-save input,
-.working-cv-variant-save input,
 .working-cv-section-title input {
   width: 100%;
   min-width: 0;
@@ -796,29 +794,6 @@
   overflow-wrap: anywhere;
 }
 
-.working-cv-source-summary {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 10px;
-  color: var(--muted-ink);
-  font-size: 11px;
-}
-
-.working-cv-source-summary > span {
-  font-style: italic;
-}
-
-.working-cv-source-chip {
-  display: inline-flex;
-  width: fit-content;
-  padding: 2px 6px;
-  border: 1px solid var(--line-soft);
-  border-radius: 999px;
-  background: #eee4d5;
-}
-
 .working-cv-link-button {
   width: fit-content;
   padding: 2px 0;
@@ -899,17 +874,11 @@
   color: var(--ink);
 }
 
-.working-cv-ownership-buttons,
-.working-cv-variant-save {
-  display: flex;
-  align-items: end;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.working-cv-variant-save label {
-  width: min(320px, 100%);
-  flex: 1 1 220px;
+.ownership-actions label,
+.working-cv-reuse-body > label {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
 }
 
 .working-cv-section-empty {
@@ -1560,62 +1529,81 @@
 }
 
 
-.letter-sender-preview {
+.letter-sender-editor {
   display: grid;
-  gap: 4px;
+  gap: 8px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line-soft);
-}
-
-.letter-sender-preview > span,
-.letter-sender-empty {
-  color: var(--muted-ink);
   font-family: var(--ui-font);
-  font-size: 11px;
 }
 
-.letter-sender-preview > span {
+.letter-sender-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.letter-sender-heading > span {
+  color: var(--muted-ink);
+  font-size: 11px;
   font-weight: 750;
   text-transform: uppercase;
 }
 
-.letter-sender-preview > div {
+.letter-sender-editor > label,
+.letter-sender-detail label {
   display: grid;
-  gap: 1px;
-}
-
-.letter-sender-preview > div strong {
-  font-size: 18px;
-}
-
-.letter-sender-preview > div small {
-  color: var(--muted-ink);
-}
-
-.letter-sender-preview p {
-  display: grid;
-  grid-template-columns: minmax(74px, auto) minmax(0, 1fr);
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: baseline;
   gap: 8px;
-  margin: 0;
-  font-size: 12px;
 }
 
-.letter-sender-preview p span {
+.letter-sender-editor label > span {
   color: var(--muted-ink);
-  font-family: var(--ui-font);
+  font-size: 11px;
+  font-weight: 700;
 }
 
-.letter-sender-preview p strong {
-  overflow-wrap: anywhere;
-  font-weight: 500;
+.letter-sender-editor input {
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
 }
 
-.letter-sender-empty {
-  margin: 0;
-  padding: 10px 12px;
-  border-left: 3px solid var(--line-soft);
-  background: rgb(239 230 216 / 38%);
-  line-height: 1.45;
+.letter-sender-name input {
+  font-family: var(--document-font);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.letter-sender-editor input:hover,
+.letter-sender-editor input:focus {
+  border-bottom-color: #bea680;
+  outline: 0;
+}
+
+.letter-sender-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.letter-sender-detail label {
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.letter-sender-editor > small {
+  color: var(--muted-ink);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .letter-address-block {
@@ -1720,6 +1708,14 @@
     grid-column: auto;
   }
 
+  .letter-sender-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .letter-sender-editor > label,
+  .letter-sender-detail,
+  .letter-sender-detail label,
   .letter-address-block label {
     grid-template-columns: 1fr;
     gap: 2px;

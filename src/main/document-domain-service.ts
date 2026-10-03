@@ -13,6 +13,8 @@ import {
   coverLetterInputSchema,
   type CoverLetterRecord,
   coverLetterRecordSchema,
+  type CoverLetterSender,
+  coverLetterSenderSchema,
   type CoverLetterSnapshot,
   coverLetterSnapshotSchema,
   type CoverLetterUpdate,
@@ -49,7 +51,6 @@ import {
 } from '../shared/document-domain-contracts';
 
 import {
-  type DocumentLetterSender,
   type DocumentPdfMetadata,
   writeApplicationPacketLatexProject,
   writeCoverLetterLatexProject,
@@ -101,6 +102,7 @@ interface LetterRow {
   readonly closing: string|null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly senderJson: string;
 }
 interface RenderedLetterRow {
   readonly id: string;
@@ -214,6 +216,9 @@ function toLetter(row: LetterRow): CoverLetterRecord {
         row.bodyJson, (value) => coverLetterRecordSchema.shape.bodyParagraphs.parse(value),
         'Stored cover letter content is invalid.'),
     closing: optional(row.closing),
+    sender: parseJson(
+        row.senderJson, (value) => coverLetterSenderSchema.parse(value),
+        'Stored cover letter sender information is invalid.'),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   });
@@ -221,14 +226,14 @@ function toLetter(row: LetterRow): CoverLetterRecord {
 function readLetters(database: DatabaseSync): CoverLetterRecord[] {
   return (database
               .prepare(
-                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt FROM cover_letters ORDER BY updated_at DESC, id DESC`)
+                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt, sender_json AS senderJson FROM cover_letters ORDER BY updated_at DESC, id DESC`)
               .all() as unknown as LetterRow[])
       .map(toLetter);
 }
 function requireLetter(database: DatabaseSync, id: string): CoverLetterRecord {
   const row =
       database.prepare(
-                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt FROM cover_letters WHERE id = ?`)
+                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt, sender_json AS senderJson FROM cover_letters WHERE id = ?`)
               .get(id) as unknown as LetterRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The cover letter no longer exists.');
@@ -242,7 +247,8 @@ function snapshotCoverLetter(letter: CoverLetterRecord): CoverLetterSnapshot {
     recipient: letter.recipient,
     subject: letter.subject,
     bodyParagraphs: letter.bodyParagraphs,
-    closing: letter.closing
+    closing: letter.closing,
+    sender: letter.sender
   });
 }
 function managedProjectPath(
@@ -278,38 +284,46 @@ function retainedPdf(projectPath: string, title: string, fallback: string): stri
   if (existsSync(meaningful)) return meaningful;
   return path.join(projectPath, 'build', 'main.pdf');
 }
-function letterSender(rootPath: string): DocumentLetterSender {
+function defaultLetterSender(rootPath: string): CoverLetterSender {
   const items = getProfile(rootPath).items;
   const identity = items.find(
       (item) => item.kind.trim().toLocaleLowerCase() === 'identity' && item.title.trim());
-  const details: {label: string; value: string}[] = [];
-  if (identity?.url?.trim()) details.push({label: 'Website', value: identity.url.trim()});
+  const details: CoverLetterSender['details'][number][] = [];
+  if (identity?.url?.trim()) {
+    details.push({id: randomUUID(), label: 'Website', value: identity.url.trim()});
+  }
   for (const item of items) {
     const kind = item.kind.trim().toLocaleLowerCase();
     if (kind === 'contact' && item.title.trim()) {
       details.push({
+        id: randomUUID(),
         label: item.subtitle?.trim() || 'Contact',
         value: item.title.trim(),
       });
     } else if (kind === 'link' && item.url?.trim()) {
       details.push({
+        id: randomUUID(),
         label: item.title.trim() || item.subtitle?.trim() || 'Website',
         value: item.url.trim(),
       });
     }
   }
-  return {
-    ...(identity?.title.trim() ? {name: identity.title.trim()} : {}),
-    ...(identity?.subtitle?.trim() ? {headline: identity.subtitle.trim()} : {}),
+  return coverLetterSenderSchema.parse({
+    name: identity?.title.trim() ?? '',
+    headline: identity?.subtitle?.trim() ?? '',
     details,
-  };
+  });
 }
-function documentAuthor(rootPath: string): string {
-  return letterSender(rootPath).name ?? 'AAAAT';
+function cvDocumentAuthor(working: WorkingCvRecord): string {
+  return working.sections
+    .flatMap((section) => section.items)
+    .find((item) => item.content.kind.trim().toLocaleLowerCase() === 'identity' &&
+      item.content.title.trim())
+    ?.content.title.trim() ?? 'AAAAT';
 }
 function documentMetadata(
-    rootPath: string, title: string, subject: string): DocumentPdfMetadata {
-  return {title, author: documentAuthor(rootPath), subject};
+    title: string, subject: string, author: string): DocumentPdfMetadata {
+  return {title, author, subject};
 }
 function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
   return renderedCvRecordSchema.parse({
@@ -790,7 +804,7 @@ export async function renderWorkingCv(
   try {
     writeCvLatexProject(
         stagePath, working, blueprintSource,
-        documentMetadata(rootPath, working.title, 'Curriculum vitae'));
+        documentMetadata(working.title, 'Curriculum vitae', cvDocumentAuthor(working)));
     await compileProject(stagePath, working.title, 'cv', timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
@@ -888,17 +902,19 @@ export function exportRenderedCvProject(
 }
 export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
+  const sender = input.sender ?? defaultLetterSender(rootPath);
   return withWorkspaceDatabase(rootPath, (database) => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const id = randomUUID();
     const now = new Date().toISOString();
     database
         .prepare(
-            `INSERT INTO cover_letters(id, candidature_id, title, language, recipient, subject, body_json, closing, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            `INSERT INTO cover_letters(id, candidature_id, title, language, recipient, subject, body_json, closing, created_at, updated_at, sender_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(
             id, input.candidatureId, input.title, nullable(input.language),
             nullable(input.recipient), nullable(input.subject),
-            JSON.stringify(input.bodyParagraphs), nullable(input.closing), now, now);
+            JSON.stringify(input.bodyParagraphs), nullable(input.closing), now, now,
+            JSON.stringify(sender));
     return requireLetter(database, id);
   });
 }
@@ -909,11 +925,11 @@ export function updateCoverLetter(
     requireLetter(database, input.id);
     database
         .prepare(
-            `UPDATE cover_letters SET title = ?, language = ?, recipient = ?, subject = ?, body_json = ?, closing = ?, updated_at = ? WHERE id = ?`)
+            `UPDATE cover_letters SET title = ?, language = ?, recipient = ?, subject = ?, body_json = ?, closing = ?, updated_at = ?, sender_json = ? WHERE id = ?`)
         .run(
             input.title, nullable(input.language), nullable(input.recipient),
             nullable(input.subject), JSON.stringify(input.bodyParagraphs), nullable(input.closing),
-            new Date().toISOString(), input.id);
+            new Date().toISOString(), JSON.stringify(input.sender), input.id);
     return requireLetter(database, input.id);
   });
 }
@@ -946,10 +962,11 @@ export async function renderCoverLetter(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
-    const sender = letterSender(rootPath);
     writeCoverLetterLatexProject(
-        stagePath, snapshot, sender,
-        documentMetadata(rootPath, letter.title, letter.subject?.trim() || 'Cover letter'));
+        stagePath, snapshot,
+        documentMetadata(
+            letter.title, letter.subject?.trim() || 'Cover letter',
+            letter.sender.name.trim() || 'AAAAT'));
     await compileProject(stagePath, letter.title, 'cover-letter', timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
@@ -1022,12 +1039,13 @@ export async function createApplicationPacket(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   const letterSnapshot = snapshotCoverLetter(letter);
-  const sender = letterSender(rootPath);
   const title = input.title ?? `Application · ${working.title} + ${letter.title}`;
   try {
     writeApplicationPacketLatexProject(
-        stagePath, working, letterSnapshot, sender, blueprintSource,
-        documentMetadata(rootPath, title, 'Application documents'));
+        stagePath, working, letterSnapshot, blueprintSource,
+        documentMetadata(
+            title, 'Application documents',
+            letter.sender.name.trim() || cvDocumentAuthor(working)));
     await compileProject(stagePath, title, 'application-document', effectiveTimeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
