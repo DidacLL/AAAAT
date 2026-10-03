@@ -965,9 +965,15 @@ export function exportRenderedCoverLetterProject(
 }
 export async function createApplicationPacket(
     rootPath: string, rawInput: ApplicationPacketCreate,
-    blueprintSource = BUILTIN_BLUEPRINT_SOURCE,
+    blueprintSourceOrTimeout: string|number = BUILTIN_BLUEPRINT_SOURCE,
     timeoutMs = 30000): Promise<ApplicationPacketRecord> {
   const input = applicationPacketCreateSchema.parse(rawInput);
+  const blueprintSource =
+      typeof blueprintSourceOrTimeout === 'string' ?
+      blueprintSourceOrTimeout :
+      BUILTIN_BLUEPRINT_SOURCE;
+  const effectiveTimeoutMs =
+      typeof blueprintSourceOrTimeout === 'number' ? blueprintSourceOrTimeout : timeoutMs;
   const {working, letter} = withWorkspaceDatabase(rootPath, (database) => {
     requireCandidature(database, input.candidatureId);
     const currentWorking = input.workingCvId
@@ -996,7 +1002,7 @@ export async function createApplicationPacket(
     writeApplicationPacketLatexProject(
         stagePath, working, letterSnapshot, blueprintSource,
         documentMetadata(rootPath, title, 'Application documents'));
-    await compileProject(stagePath, title, 'application-document', timeoutMs);
+    await compileProject(stagePath, title, 'application-document', effectiveTimeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
