@@ -13,10 +13,12 @@ import {
 import { externalAssistantGuidance } from "./external-assistant-guidance";
 import {
   getSetupEnvironmentSnapshot,
+  initializeSetupEnvironmentSession,
   refreshSetupEnvironmentSnapshot,
 } from "./setup-environment-service";
 
 export function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
+  initializeSetupEnvironmentSession();
   for (const channel of Object.values(setupEnvironmentChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(setupEnvironmentChannels.current, async (event) => {
