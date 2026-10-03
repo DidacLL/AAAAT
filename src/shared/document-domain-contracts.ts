@@ -170,9 +170,23 @@ export const renderedCoverLetterRecordSchema = z.object({
 }).strict();
 export type RenderedCoverLetterRecord = z.infer<typeof renderedCoverLetterRecordSchema>;
 
-export const applicationPacketCreateSchema = z.object({ candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().trim().min(1).max(200).optional() }).strict();
+export const applicationPacketCreateSchema = z.object({
+  candidatureId: z.string().uuid(),
+  workingCvId: z.string().uuid(),
+  coverLetterId: z.string().uuid(),
+  blueprintId: blueprintIdSchema,
+  title: z.string().trim().min(1).max(200).optional(),
+}).strict();
 export type ApplicationPacketCreate = z.infer<typeof applicationPacketCreateSchema>;
-export const applicationPacketRecordSchema = z.object({ id: z.string().uuid(), candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().min(1), createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
+export const applicationPacketRecordSchema = z.object({
+  id: z.string().uuid(),
+  candidatureId: z.string().uuid(),
+  workingCvId: z.string().uuid(),
+  coverLetterId: z.string().uuid(),
+  title: z.string().min(1),
+  createdAt: z.string().min(1),
+  hasPdf: z.boolean(),
+}).strict();
 export type ApplicationPacketRecord = z.infer<typeof applicationPacketRecordSchema>;
 
 export const documentCollectionsSchema = z.object({
