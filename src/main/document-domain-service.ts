@@ -54,6 +54,7 @@ import {
   writeCoverLetterLatexProject,
   writeCvLatexProject,
 } from './document-latex';
+import {BUILTIN_BLUEPRINT_SOURCE} from './document-blueprints';
 import {LatexRunnerError, runPdfLatex} from './latex-runner';
 import {getProfile, getProfileItem, updateProfileItem} from './profile-service';
 import {createProfileVariant, getProfileVariant, listProfileVariants} from './profile-variant-service';
@@ -963,12 +964,21 @@ export function exportRenderedCoverLetterProject(
       renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent);
 }
 export async function createApplicationPacket(
-    rootPath: string, rawInput: ApplicationPacketCreate, blueprintSource: string,
+    rootPath: string, rawInput: ApplicationPacketCreate,
+    blueprintSource = BUILTIN_BLUEPRINT_SOURCE,
     timeoutMs = 30000): Promise<ApplicationPacketRecord> {
   const input = applicationPacketCreateSchema.parse(rawInput);
   const {working, letter} = withWorkspaceDatabase(rootPath, (database) => {
     requireCandidature(database, input.candidatureId);
-    const currentWorking = requireWorkingCv(database, input.workingCvId);
+    const currentWorking = input.workingCvId
+      ? requireWorkingCv(database, input.workingCvId)
+      : (() => {
+          const legacy = requireRenderedRow(database, input.renderedCvId!);
+          if (!legacy.workingCvId)
+            throw new DocumentDomainServiceError(
+                'The legacy Rendered CV is not linked to an editable CV source.');
+          return requireWorkingCv(database, legacy.workingCvId);
+        })();
     const currentLetter = requireLetter(database, input.coverLetterId);
     if (currentWorking.candidatureId !== input.candidatureId)
       throw new DocumentDomainServiceError('Choose a Working CV owned by this application.');
@@ -994,7 +1004,7 @@ export async function createApplicationPacket(
           .prepare(
               `INSERT INTO application_packets(id, candidature_id, working_cv_id, cover_letter_id, title, letter_snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
           .run(
-              id, input.candidatureId, input.workingCvId, input.coverLetterId, title,
+              id, input.candidatureId, working.id, input.coverLetterId, title,
               JSON.stringify(letterSnapshot), relativePath, createdAt);
     });
     return withWorkspaceDatabase(
