@@ -390,6 +390,16 @@ export function App() {
         setDocumentHandoff(null);
         setProductView("candidatures");
       },
+      returnToDocuments: () => {
+        if (documentDirty && !window.confirm("Discard unsaved document edits and return to Documents?")) return;
+        setDocumentDirty(false);
+        setSettingsOpen(false);
+        setSettingsHandoff(null);
+        setProfessionalInformationHandoff(null);
+        setDocumentHandoff(null);
+        setDocumentWorkspaceRevision((current) => current + 1);
+        setProductView("documents");
+      },
       openProfessionalInformationItem: (documentId: string, itemId: string) => {
         setSettingsOpen(false);
         setSettingsHandoff(null);
