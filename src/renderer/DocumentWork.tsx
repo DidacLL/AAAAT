@@ -171,7 +171,7 @@ export function WorkingCvEditor({
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature } = useContextualHandoffs();
+  const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -471,9 +471,13 @@ export function WorkingCvEditor({
     <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
       <header className="document-editor-toolbar">
         <div className="document-editor-context">
-          {documentHandoff?.candidatureId ? (
-            <button type="button" className="document-back-button" onClick={returnToCandidature}>← Application</button>
-          ) : null}
+          <button
+            type="button"
+            className="document-back-button"
+            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
+          >
+            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
+          </button>
           <div>
             <p className="eyebrow">CV</p>
             <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
@@ -758,7 +762,7 @@ function LetterEditor({
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, returnToCandidature } = useContextualHandoffs();
+  const { documentHandoff, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
