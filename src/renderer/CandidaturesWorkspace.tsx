@@ -1450,8 +1450,203 @@ export function CandidaturesWorkspace({
         ) : null}
       </section>
 
+      <section className="section-surface application-material-workbench" aria-label="Application documents">
+        <div className="candidature-editor-heading application-material-heading">
+          <div>
+            <p className="eyebrow">Application documents</p>
+            <h3>CV + cover letter</h3>
+            <p>Edit the two source documents separately. Create one application PDF when both are ready.</p>
+          </div>
+        </div>
+
+        <div className="application-document-pair">
+          <article className="application-document-source">
+            <div className="application-document-source-heading">
+              <div>
+                <span className="item-kind">CV</span>
+                <strong>
+                  {applicationWorkingCvs.find((document) => document.id === selectedPacketCvId)?.title ?? "No CV yet"}
+                </strong>
+              </div>
+              {selectedPacketCvId ? (
+                <button type="button" className="compact-secondary" onClick={() => openDocument(selectedPacketCvId)}>
+                  Edit CV
+                </button>
+              ) : null}
+            </div>
+
+            {applicationWorkingCvs.length > 1 ? (
+              <label className="application-document-choice">
+                Use for this application
+                <select
+                  value={selectedPacketCvId}
+                  onChange={(event) => setPacketWorkingCvId(event.target.value)}
+                >
+                  {applicationWorkingCvs.map((document) => (
+                    <option key={document.id} value={document.id}>{document.title}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <div className="application-document-create-row">
+              <label>
+                New CV from
+                <select
+                  value={applicationCvSource}
+                  onChange={(event) => setApplicationCvSource(event.target.value)}
+                >
+                  <option value="profile">My information</option>
+                  <option value="blank">Blank</option>
+                  {collections.templates.map((template) => (
+                    <option key={template.id} value={`template:${template.id}`}>{template.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="compact-secondary"
+                disabled={documentCreationBusy !== null}
+                onClick={() => void createApplicationCvFromSource()}
+              >
+                {documentCreationBusy === "cv" ? "Creating…" : applicationWorkingCvs.length > 0 ? "New CV" : "Create CV"}
+              </button>
+            </div>
+          </article>
+
+          <article className="application-document-source">
+            <div className="application-document-source-heading">
+              <div>
+                <span className="item-kind">Cover letter</span>
+                <strong>
+                  {applicationLetters.find((document) => document.id === selectedPacketLetterId)?.title ?? "No cover letter yet"}
+                </strong>
+              </div>
+              {selectedPacketLetterId ? (
+                <button type="button" className="compact-secondary" onClick={() => openDocument(selectedPacketLetterId)}>
+                  Edit letter
+                </button>
+              ) : null}
+            </div>
+
+            {applicationLetters.length > 1 ? (
+              <label className="application-document-choice">
+                Use for this application
+                <select
+                  value={selectedPacketLetterId}
+                  onChange={(event) => setPacketLetterId(event.target.value)}
+                >
+                  {applicationLetters.map((document) => (
+                    <option key={document.id} value={document.id}>{document.title}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <div className="application-document-create-row application-document-create-row-single">
+              <button
+                type="button"
+                className="compact-secondary"
+                disabled={documentCreationBusy !== null}
+                onClick={() => void createApplicationDocument("cover_letter")}
+              >
+                {documentCreationBusy === "cover_letter"
+                  ? "Creating…"
+                  : applicationLetters.length > 0
+                    ? "New cover letter"
+                    : "Create cover letter"}
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <div className="application-output-bar">
+          <div>
+            <span className="item-kind">Application PDF</span>
+            <strong>One file from the current CV and cover letter</strong>
+            <small>The editable source documents stay separate.</small>
+          </div>
+          {selectedPacketCvId && selectedPacketLetterId && selectedPacketBlueprintId ? (
+            <div className="application-output-actions">
+              {packetBlueprints.length > 1 ? (
+                <label>
+                  PDF style
+                  <select
+                    value={selectedPacketBlueprintId}
+                    onChange={(event) => setPacketBlueprintId(event.target.value)}
+                  >
+                    {packetBlueprints.map((blueprint) => (
+                      <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <button
+                type="button"
+                className="compact-primary"
+                disabled={packetBusy}
+                onClick={() => void createPacket()}
+              >
+                {packetBusy ? "Creating PDF…" : "Create application PDF"}
+              </button>
+            </div>
+          ) : (
+            <small>Add both a CV and a cover letter to create the combined PDF.</small>
+          )}
+        </div>
+
+        {(applicationRendered.length + applicationRenderedLetters.length + applicationPackets.length) > 0 ? (
+          <details className="application-generated-files">
+            <summary>
+              Generated files
+              <span>{applicationRendered.length + applicationRenderedLetters.length + applicationPackets.length}</span>
+            </summary>
+            <div className="document-intent-list">
+              {applicationPackets.map((packet) => (
+                <article key={packet.id} className="document-intent-row">
+                  <button type="button" onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}>
+                    <span className="item-kind">Application PDF</span>
+                    <strong>{packet.title}</strong>
+                    <small>Open PDF</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() => void window.aaaat.documentDomain.exportPacket(packet.id)}
+                  >
+                    Export source project
+                  </button>
+                </article>
+              ))}
+              {applicationRendered.map((document) => (
+                <button
+                  type="button"
+                  key={document.id}
+                  onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}
+                >
+                  <span className="item-kind">CV PDF</span>
+                  <strong>{document.title}</strong>
+                  <small>Open PDF</small>
+                </button>
+              ))}
+              {applicationRenderedLetters.map((document) => (
+                <button
+                  type="button"
+                  key={document.id}
+                  onClick={() => void window.aaaat.documentDomain.openRenderedLetter(document.id)}
+                >
+                  <span className="item-kind">Letter PDF</span>
+                  <strong>{document.title}</strong>
+                  <small>Open PDF</small>
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </section>
+
       <details className="candidature-more">
-        <summary>Sources, documents & history</summary>
+        <summary>Sources & history</summary>
         <div className="candidature-more-content">
           <CandidatureOfferPanel candidatureId={selected.id} />
           {sourceOwnsInitialContext ? null : (
@@ -1468,194 +1663,6 @@ export function CandidaturesWorkspace({
               contextDirty={taskContextDirty}
             />
           )}
-
-          <section className="section-surface" aria-label="Application documents">
-            <div className="candidature-editor-heading">
-              <div>
-                <p className="eyebrow">Application material</p>
-                <h3>CV, letter and retained output</h3>
-              </div>
-              <div className="button-row">
-                <label>
-                  New CV from
-                  <select
-                    value={applicationCvSource}
-                    onChange={(event) => setApplicationCvSource(event.target.value)}
-                  >
-                    <option value="profile">My information</option>
-                    <option value="blank">Blank</option>
-                    {collections.templates.map((template) => (
-                      <option key={template.id} value={`template:${template.id}`}>
-                        Template · {template.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  disabled={documentCreationBusy !== null}
-                  onClick={() => void createApplicationCvFromSource()}
-                >
-                  {documentCreationBusy === "cv" ? "Creating…" : "New CV"}
-                </button>
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  disabled={documentCreationBusy !== null}
-                  onClick={() => void createApplicationDocument("cover_letter")}
-                >
-                  {documentCreationBusy === "cover_letter" ? "Creating…" : "New cover letter"}
-                </button>
-              </div>
-            </div>
-            {applicationWorkingCvs.length +
-              applicationLetters.length +
-              applicationRendered.length +
-              applicationRenderedLetters.length +
-              applicationPackets.length ===
-            0 ? (
-              <p className="compact-empty">No application documents yet.</p>
-            ) : (
-              <div className="document-intent-list">
-                {applicationWorkingCvs.map((document) => (
-                  <button
-                    type="button"
-                    key={document.id}
-                    onClick={() => openDocument(document.id)}
-                  >
-                    <span className="item-kind">Working CV</span>
-                    <strong>{document.title}</strong>
-                    <small>Edit</small>
-                  </button>
-                ))}
-                {applicationLetters.map((document) => (
-                  <button
-                    type="button"
-                    key={document.id}
-                    onClick={() => openDocument(document.id)}
-                  >
-                    <span className="item-kind">Letter</span>
-                    <strong>{document.title}</strong>
-                    <small>Edit</small>
-                  </button>
-                ))}
-                {applicationRendered.map((document) => (
-                  <button
-                    type="button"
-                    key={document.id}
-                    onClick={() =>
-                      void window.aaaat.documentDomain.openRenderedCv(document.id)
-                    }
-                  >
-                    <span className="item-kind">Rendered CV</span>
-                    <strong>{document.title}</strong>
-                    <small>Open PDF</small>
-                  </button>
-                ))}
-                {applicationRenderedLetters.map((document) => (
-                  <article key={document.id} className="document-intent-row">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void window.aaaat.documentDomain.openRenderedLetter(document.id)
-                      }
-                    >
-                      <span className="item-kind">Rendered letter</span>
-                      <strong>{document.title}</strong>
-                      <small>Open PDF</small>
-                    </button>
-                    <button
-                      type="button"
-                      className="compact-secondary"
-                      onClick={() =>
-                        void window.aaaat.documentDomain.exportRenderedLetter(document.id)
-                      }
-                    >
-                      Export source project
-                    </button>
-                  </article>
-                ))}
-                {applicationPackets.map((packet) => (
-                  <article key={packet.id} className="document-intent-row">
-                    <button
-                      type="button"
-                      onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}
-                    >
-                      <span className="item-kind">Application PDF</span>
-                      <strong>{packet.title}</strong>
-                      <small>Open PDF</small>
-                    </button>
-                    <button
-                      type="button"
-                      className="compact-secondary"
-                      onClick={() => void window.aaaat.documentDomain.exportPacket(packet.id)}
-                    >
-                      Export source project
-                    </button>
-                  </article>
-                ))}
-              </div>
-            )}
-            {selectedPacketCvId && selectedPacketLetterId && selectedPacketBlueprintId ? (
-              <div
-                className="document-start-options-grid"
-                aria-label="Application packet composition"
-              >
-                <label>
-                  CV
-                  <select
-                    value={selectedPacketCvId}
-                    onChange={(event) => setPacketWorkingCvId(event.target.value)}
-                  >
-                    {applicationWorkingCvs.map((document) => (
-                      <option key={document.id} value={document.id}>
-                        {document.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Cover letter
-                  <select
-                    value={selectedPacketLetterId}
-                    onChange={(event) => setPacketLetterId(event.target.value)}
-                  >
-                    {applicationLetters.map((document) => (
-                      <option key={document.id} value={document.id}>
-                        {document.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {packetBlueprints.length > 1 ? (
-                  <label>
-                    Format
-                    <select
-                      value={selectedPacketBlueprintId}
-                      onChange={(event) => setPacketBlueprintId(event.target.value)}
-                    >
-                      {packetBlueprints.map((blueprint) => (
-                        <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                <button
-                  type="button"
-                  className="compact-secondary"
-                  disabled={packetBusy}
-                  onClick={() => void createPacket()}
-                >
-                  {packetBusy ? "Rendering…" : "Render combined application PDF"}
-                </button>
-              </div>
-            ) : (
-              <p className="compact-help">
-                Keep a CV and cover letter here to render them together as one application PDF.
-              </p>
-            )}
-          </section>
 
           <section
             className="section-surface candidature-secondary-controls"
