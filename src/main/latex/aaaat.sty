@@ -1,14 +1,37 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage{aaaat}{2026-09-27}{0.5.0}{AAAAT portable document package}
+\ProvidesExplPackage{aaaat}{2026-10-03}{0.6.0}{AAAAT portable document package}
+
+\newcommand{\AAAATPackageMode}{cv}
+\newcommand{\AAAATPackageRender}{\AAAATRenderCvDocument}
+\DeclareOption{cv}{
+  \renewcommand{\AAAATPackageMode}{cv}
+  \renewcommand{\AAAATPackageRender}{\AAAATRenderCvDocument}
+}
+\DeclareOption{letter}{
+  \renewcommand{\AAAATPackageMode}{letter}
+  \renewcommand{\AAAATPackageRender}{\AAAATRenderLetterDocument}
+}
+\DeclareOption{application}{
+  \renewcommand{\AAAATPackageMode}{application}
+  \renewcommand{\AAAATPackageRender}{
+    \PackageError{aaaat}
+      {Application~mode~has~no~single~standalone~document}
+      {Render~the~letter~and~CV~sources~inside~the~application~project.}
+  }
+}
+\ExecuteOptions{cv}
+\ProcessOptions\relax
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
-\RequirePackage[english]{babel}
+\RequirePackage[english,catalan,german,spanish,french,italian,portuguese]{babel}
+\RequirePackage[pdfencoding=auto,psdextra]{hyperref}
 
 \ExplSyntaxOn
 
 \tl_new:N \g_aaaat_document_kind_tl
 \tl_new:N \g_aaaat_document_title_tl
+\tl_new:N \g_aaaat_document_language_tl
 \seq_new:N \g_aaaat_metadata_seq
 \seq_new:N \g_aaaat_paragraph_seq
 \seq_new:N \g_aaaat_main_blocks_seq
@@ -28,9 +51,12 @@
   {\tl_if_eq:NnTF \g_aaaat_document_kind_tl {#1} {#2} {#3}}
 
 \NewDocumentCommand{\AAAATDocumentLanguage}{m}
+  {\tl_gset:Nn \g_aaaat_document_language_tl {#1}}
+
+\NewDocumentCommand{\AAAATSelectDocumentLanguage}{}
   {
-    \babelprovide[import]{#1}
-    \AtBeginDocument{\selectlanguage{#1}}
+    \tl_if_empty:NF \g_aaaat_document_language_tl
+      {\selectlanguage{\tl_use:N \g_aaaat_document_language_tl}}
   }
 
 \NewDocumentCommand{\AAAATLineBreak}{}
@@ -38,6 +64,27 @@
 
 \NewDocumentCommand{\AAAATDocumentTitle}{m}
   {\tl_gset:Nn \g_aaaat_document_title_tl {#1}}
+
+\NewDocumentCommand{\AAAATPdfMetadata}{mmm}
+  {
+    \hypersetup{
+      pdftitle={#1},
+      pdfauthor={#2},
+      pdfsubject={#3},
+      pdfcreator={AAAAT}
+    }
+  }
+
+\NewDocumentCommand{\AAAATResetDocumentData}{}
+  {
+    \tl_gclear:N \g_aaaat_document_kind_tl
+    \tl_gclear:N \g_aaaat_document_title_tl
+    \tl_gclear:N \g_aaaat_document_language_tl
+    \seq_gclear:N \g_aaaat_metadata_seq
+    \seq_gclear:N \g_aaaat_paragraph_seq
+    \seq_gclear:N \g_aaaat_main_blocks_seq
+    \seq_gclear:N \g_aaaat_secondary_blocks_seq
+  }
 
 \NewDocumentCommand{\AAAATMetadata}{mm}
   {
@@ -261,5 +308,14 @@
     \vspace{0.8em}
     \seq_map_inline:Nn \g_aaaat_paragraph_seq {##1}
   }
+
+\NewDocumentCommand{\AAAATRenderCvDocument}{}
+  {\AAAATApplyCvLayout\AAAATRenderCvBlueprint}
+
+\NewDocumentCommand{\AAAATRenderLetterDocument}{}
+  {\AAAATApplyLetterLayout\AAAATRenderLetterBlueprint}
+
+\NewDocumentCommand{\AAAATRenderStandaloneDocument}{}
+  {\AAAATPackageRender}
 
 \ExplSyntaxOff
