@@ -17,7 +17,9 @@
 \box_new:N \l_aaaat_default_main_body_box
 \box_new:N \l_aaaat_default_secondary_page_box
 \box_new:N \l_aaaat_default_main_page_box
+\box_new:N \l_aaaat_default_parser_summary_box
 \dim_new:N \l_aaaat_default_region_page_height_dim
+\dim_new:N \l_aaaat_default_saved_prevdepth_dim
 \bool_new:N \l_aaaat_default_header_pending_bool
 
 \RenewDocumentCommand{\AAAATRenderSection}{mm}
@@ -43,6 +45,26 @@
       {#5\par}
     \tl_if_blank:nF {#6}
       {{\footnotesize\ttfamily #6}\par}
+  }
+
+\cs_new_protected:Npn \aaaat_default_render_parser_summary_for_extraction:
+  {
+    \setbox\l_aaaat_default_parser_summary_box=\vbox
+      {
+        \hsize=\textwidth
+        \parindent=0pt
+        % PDF text rendering mode 3 keeps parser-facing text extractable while
+        % making it invisible in the built-in visual presentation.
+        \pdfliteral direct {q~3~Tr}
+        \AAAATRenderParserSummary
+        \pdfliteral direct {Q}
+      }
+    \box_set_ht:Nn \l_aaaat_default_parser_summary_box {0pt}
+    \box_set_dp:Nn \l_aaaat_default_parser_summary_box {0pt}
+    \dim_set:Nn \l_aaaat_default_saved_prevdepth_dim {\prevdepth}
+    \nointerlineskip
+    \box\l_aaaat_default_parser_summary_box
+    \prevdepth=\l_aaaat_default_saved_prevdepth_dim
   }
 
 \cs_new_protected:Npn \aaaat_default_prepare_two_region_body:
@@ -171,8 +193,7 @@
         \parindent=0pt
         \AAAATRenderDocumentTitle
         \vspace{0.4em}
-        % Parser summary remains package data; this built-in Blueprint does not
-        % present parser-facing text as ordinary visible CV narrative.
+        \aaaat_default_render_parser_summary_for_extraction:
         \AAAATRenderHeader
         \par
         \vspace{0.8em}
