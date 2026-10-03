@@ -468,43 +468,48 @@ export function WorkingCvEditor({
   };
 
   return (
-    <section className="document-work working-cv-editor" aria-label="Working CV">
-      <header className="document-console-heading working-cv-console-heading">
-        <div>
-          <p className="eyebrow">Working CV</p>
-          <h1>{draft.title}</h1>
-          <small>{draft.candidatureId ? "Owned by this application" : "Standalone CV"}</small>
-        </div>
-        <div className="button-row working-cv-primary-actions">
+    <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
+      <header className="document-editor-toolbar">
+        <div className="document-editor-context">
           {documentHandoff?.candidatureId ? (
-            <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button>
+            <button type="button" className="document-back-button" onClick={returnToCandidature}>← Application</button>
           ) : null}
+          <div>
+            <p className="eyebrow">CV</p>
+            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
+          </div>
+        </div>
+        <div className="document-editor-actions">
           {draft.candidatureId ? (
-            <button type="button" className="compact-secondary" disabled={busy || tailoringActive} onClick={() => void askAiToTailor()}>{tailoringActive ? "AI tailoring…" : "Ask AI to tailor"}</button>
+            <button type="button" className="compact-secondary" disabled={busy || tailoringActive} onClick={() => void askAiToTailor()}>
+              {tailoringActive ? "AI working…" : "Tailor with AI"}
+            </button>
           ) : null}
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
-          <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>Render PDF</button>
+          <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>
+            {busy ? "Creating PDF…" : "Create PDF"}
+          </button>
         </div>
       </header>
 
       {error ? (
-        <div className="button-row">
+        <div className="document-editor-message">
           <p className="error-message" role="alert">{error}</p>
-          {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Open Document settings</button> : null}
+          {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Document setup</button> : null}
         </div>
       ) : null}
-      {tailoringMessage ? <p className="compact-note" role="status">{tailoringMessage}</p> : null}
+      {tailoringMessage ? <p className="compact-note document-editor-message" role="status">{tailoringMessage}</p> : null}
 
-      <details className="working-cv-document-details">
-        <summary>Document details{draft.language ? ` · ${draft.language}` : ""}</summary>
-        <div className="document-metadata-grid">
-          <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
-          <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} placeholder="Optional" /></label>
-        </div>
-      </details>
-
-      <div className="working-cv-composition" aria-label="CV document outline">
+      <div className="working-cv-composition document-sheet" aria-label="CV document">
+        <header className="document-sheet-heading">
+          <input
+            className="document-sheet-title"
+            aria-label="CV title"
+            value={draft.title}
+            onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+          />
+          <small>{draft.candidatureId ? "Application CV" : "Standalone CV"}</small>
+        </header>
         {draft.sections.length === 0 ? <p className="compact-empty">This CV is blank. Add a section, then add My information or custom content.</p> : null}
         {draft.sections.length > 0 ? (
           <ol className="working-cv-sections" aria-label="CV sections">
@@ -519,10 +524,10 @@ export function WorkingCvEditor({
                           <input aria-label={`Rename ${section.name} section`} value={section.name} onChange={(event) => updateSection(section.id, (current) => ({ ...current, name: event.target.value }))} />
                         </label>
                       ) : <h2>{section.name}</h2>}
-                      <span>{section.items.length} {section.items.length === 1 ? "item" : "items"}</span>
+
                     </div>
                     <details className="working-cv-section-options">
-                      <summary aria-label={`${section.name} section options`}>Section options</summary>
+                      <summary aria-label={`${section.name} section options`}>•••</summary>
                       <div className="working-cv-compact-controls">
                         <label>
                           Role
@@ -694,16 +699,46 @@ export function WorkingCvEditor({
         </details>
       </div>
 
-      <details className="working-cv-reuse">
-        <summary>Reuse this CV</summary>
-        <div className="working-cv-reuse-body">
-          {draft.sourceTemplateId ? (
-            <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>Save current composition to source template</button>
+      <details className="document-editor-secondary">
+        <summary>Document options</summary>
+        <div className="document-editor-secondary-body">
+          <label>
+            Language
+            <input
+              value={draft.language ?? ""}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                language: event.target.value.trim() || undefined,
+              }))}
+              placeholder="Optional"
+            />
+          </label>
+          {blueprints.length > 1 ? (
+            <BlueprintRenderChoice
+              blueprints={blueprints}
+              selectedBlueprintId={selectedBlueprintId}
+              onChange={setSelectedBlueprintId}
+            />
           ) : null}
-          <div className="working-cv-template-save">
-            <label>Save as new template<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /></label>
-            <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>Save template</button>
-          </div>
+          <details className="document-reuse-disclosure">
+            <summary>Reuse this CV</summary>
+            <div className="working-cv-reuse-body">
+              {draft.sourceTemplateId ? (
+                <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>
+                  Update source template
+                </button>
+              ) : null}
+              <div className="working-cv-template-save">
+                <label>
+                  New template name
+                  <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" />
+                </label>
+                <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>
+                  Save as template
+                </button>
+              </div>
+            </div>
+          </details>
         </div>
       </details>
     </section>
