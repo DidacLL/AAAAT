@@ -883,6 +883,18 @@
   font-size: 12px;
 }
 
+.ownership-actions > summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ownership-actions > div {
+  display: grid;
+  gap: 7px;
+  padding-top: 7px;
+}
+
 .ownership-actions > strong {
   color: var(--ink);
 }
