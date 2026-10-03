@@ -876,37 +876,114 @@ function LetterEditor({
   };
 
   return (
-    <section className="document-work" aria-label="Cover letter">
-      <header className="document-console-heading">
-        <div>
-          <p className="eyebrow">Cover letter</p>
-          <h1>{draft.title}</h1>
-          <small>{draft.candidatureId ? "Owned by this application" : "Standalone letter"}</small>
-        </div>
-        <div className="button-row">
-          {documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}
-          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={() => void askAi()}>{draftingActive ? "AI drafting…" : "Ask AI to draft"}</button>
-          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
-          <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void renderLetter()}>Render PDF</button>
-          {latestRendered ? (
-            <>
-              <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>Open rendered PDF</button>
-              <button type="button" className="compact-secondary" onClick={() => void exportLatest()}>Export source project</button>
-            </>
+    <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
+      <header className="document-editor-toolbar">
+        <div className="document-editor-context">
+          {documentHandoff?.candidatureId ? (
+            <button type="button" className="document-back-button" onClick={returnToCandidature}>← Application</button>
           ) : null}
+          <div>
+            <p className="eyebrow">Cover letter</p>
+            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
+          </div>
+        </div>
+        <div className="document-editor-actions">
+          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={() => void askAi()}>
+            {draftingActive ? "AI working…" : "Draft with AI"}
+          </button>
+          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
+          <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void renderLetter()}>
+            {busy ? "Creating PDF…" : "Create PDF"}
+          </button>
         </div>
       </header>
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
-      {productionMessage ? <p className="compact-note" role="status">{productionMessage}</p> : null}
-      <div className="letter-editor">
-        <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
-        <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} /></label>
-        <label>Recipient<input value={draft.recipient ?? ""} onChange={(event) => setDraft((current) => ({ ...current, recipient: event.target.value || undefined }))} /></label>
-        <label>Subject<input value={draft.subject ?? ""} onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value || undefined }))} /></label>
-        <label>Body<textarea rows={18} value={body} onChange={(event) => setBody(event.target.value)} /></label>
-        <label>Closing<input value={draft.closing ?? ""} onChange={(event) => setDraft((current) => ({ ...current, closing: event.target.value || undefined }))} /></label>
-      </div>
+
+      {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
+      {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
+
+      <article className="document-sheet letter-document" aria-label="Cover letter page">
+        <header className="document-sheet-heading">
+          <input
+            className="document-sheet-title"
+            aria-label="Cover letter title"
+            value={draft.title}
+            onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+          />
+          <small>{draft.candidatureId ? "Application cover letter" : "Standalone cover letter"}</small>
+        </header>
+
+        <div className="letter-address-block">
+          <label>
+            <span>To</span>
+            <input
+              value={draft.recipient ?? ""}
+              onChange={(event) => setDraft((current) => ({ ...current, recipient: event.target.value || undefined }))}
+              placeholder="Hiring manager or team"
+            />
+          </label>
+          <label>
+            <span>Subject</span>
+            <input
+              value={draft.subject ?? ""}
+              onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value || undefined }))}
+              placeholder="Application for…"
+            />
+          </label>
+        </div>
+
+        <label className="letter-body-field">
+          <span className="visually-hidden">Letter body</span>
+          <textarea
+            rows={20}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Write the letter here…"
+          />
+        </label>
+
+        <label className="letter-closing-field">
+          <span className="visually-hidden">Closing</span>
+          <input
+            value={draft.closing ?? ""}
+            onChange={(event) => setDraft((current) => ({ ...current, closing: event.target.value || undefined }))}
+            placeholder="Closing"
+          />
+        </label>
+      </article>
+
+      <details className="document-editor-secondary">
+        <summary>Document options</summary>
+        <div className="document-editor-secondary-body">
+          <label>
+            Language
+            <input
+              value={draft.language ?? ""}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                language: event.target.value.trim() || undefined,
+              }))}
+              placeholder="Optional"
+            />
+          </label>
+          {blueprints.length > 1 ? (
+            <BlueprintRenderChoice
+              blueprints={blueprints}
+              selectedBlueprintId={selectedBlueprintId}
+              onChange={setSelectedBlueprintId}
+            />
+          ) : null}
+          {latestRendered ? (
+            <div className="document-generated-actions">
+              <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>
+                Open latest PDF
+              </button>
+              <button type="button" className="compact-secondary" onClick={() => void exportLatest()}>
+                Export source project
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </details>
     </section>
   );
 }
