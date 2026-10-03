@@ -11,7 +11,10 @@ import {
   setupEnvironmentSnapshotSchema,
 } from "../shared/setup-environment-contracts";
 import { externalAssistantGuidance } from "./external-assistant-guidance";
-import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
+import {
+  getSetupEnvironmentSnapshot,
+  refreshSetupEnvironmentSnapshot,
+} from "./setup-environment-service";
 
 export function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(setupEnvironmentChannels)) ipcMain.removeHandler(channel);
@@ -20,6 +23,13 @@ export function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return setupEnvironmentSnapshotSchema.parse(
       await getSetupEnvironmentSnapshot(requireWorkspaceRoot()),
+    );
+  });
+
+  ipcMain.handle(setupEnvironmentChannels.refresh, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return setupEnvironmentSnapshotSchema.parse(
+      await refreshSetupEnvironmentSnapshot(requireWorkspaceRoot()),
     );
   });
 
