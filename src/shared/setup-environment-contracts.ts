@@ -4,6 +4,7 @@ import { aiOperationSchema, aiOperations } from "./ai-connection-contracts";
 
 export const setupEnvironmentChannels = Object.freeze({
   current: "aaaat:setup-environment-current",
+  refresh: "aaaat:setup-environment-refresh",
   externalConnection: "aaaat:setup-environment-external-connection",
   externalGuidance: "aaaat:setup-environment-external-guidance",
   externalGuidanceCopy: "aaaat:setup-environment-external-guidance-copy",
@@ -122,6 +123,7 @@ export type SetupEnvironmentSnapshot = z.infer<typeof setupEnvironmentSnapshotSc
 export interface SetupEnvironmentDesktopApi {
   readonly setupEnvironment: {
     readonly current: () => Promise<SetupEnvironmentSnapshot>;
+    readonly refresh: () => Promise<SetupEnvironmentSnapshot>;
     readonly externalConnection: () => Promise<ExternalAssistantConnection>;
     readonly externalGuidance: () => Promise<ExternalAssistantGuidance>;
     readonly copyExternalGuidance: () => Promise<"copied">;
