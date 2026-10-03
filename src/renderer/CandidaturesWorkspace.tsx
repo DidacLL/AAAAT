@@ -9,7 +9,7 @@ import type {
   TagInput,
   TagRecord,
 } from "../shared/contracts";
-import type { DocumentCollections } from "../shared/document-domain-contracts";
+import type { BlueprintSummary, DocumentCollections } from "../shared/document-domain-contracts";
 import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
 import { CandidatureBulkAiReview } from "./CandidatureBulkAiReview";
 import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
@@ -221,8 +221,10 @@ export function CandidaturesWorkspace({
   const [selectedSources, setSelectedSources] = useState<CandidatureSource[]>([]);
   const [documentCreationBusy, setDocumentCreationBusy] = useState<"cv" | "cover_letter" | null>(null);
   const [applicationCvSource, setApplicationCvSource] = useState("profile");
-  const [packetRenderedCvId, setPacketRenderedCvId] = useState("");
+  const [packetWorkingCvId, setPacketWorkingCvId] = useState("");
   const [packetLetterId, setPacketLetterId] = useState("");
+  const [packetBlueprints, setPacketBlueprints] = useState<BlueprintSummary[]>([]);
+  const [packetBlueprintId, setPacketBlueprintId] = useState("");
   const [packetBusy, setPacketBusy] = useState(false);
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
@@ -284,7 +286,7 @@ export function CandidaturesWorkspace({
     setOpenFieldOptionsId(null); setBulkInferenceOpen(false); setBulkAiFeedback(null);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
-    setApplicationCvSource("profile"); setPacketRenderedCvId(""); setPacketLetterId("");
+    setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
   }, []);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
@@ -294,6 +296,24 @@ export function CandidaturesWorkspace({
   const refreshCollections = useCallback(async () => {
     try { setCollections(await window.aaaat.documentDomain.collections()); }
     catch { setError("AAAAT could not refresh application documents."); }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void window.aaaat.documentDomain.blueprints()
+      .then((available) => {
+        if (!active) return;
+        setPacketBlueprints(available);
+        setPacketBlueprintId((current) =>
+          available.some((blueprint) => blueprint.id === current)
+            ? current
+            : available[0]?.id ?? "",
+        );
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not load document formatting.");
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -895,29 +915,35 @@ export function CandidaturesWorkspace({
   const applicationPackets = collections.applicationPackets.filter(
     (item) => item.candidatureId === selected.id,
   );
-  const selectedPacketCvId = applicationRendered.some(
-    (item) => item.id === packetRenderedCvId,
+  const selectedPacketCvId = applicationWorkingCvs.some(
+    (item) => item.id === packetWorkingCvId,
   )
-    ? packetRenderedCvId
-    : applicationRendered[0]?.id ?? "";
+    ? packetWorkingCvId
+    : applicationWorkingCvs[0]?.id ?? "";
   const selectedPacketLetterId = applicationLetters.some(
     (item) => item.id === packetLetterId,
   )
     ? packetLetterId
     : applicationLetters[0]?.id ?? "";
+  const selectedPacketBlueprintId = packetBlueprints.some(
+    (blueprint) => blueprint.id === packetBlueprintId,
+  )
+    ? packetBlueprintId
+    : packetBlueprints[0]?.id ?? "";
   const selectedRecognition = candidatureRecognitionProjection(selected, fields, 1);
   const sourceOwnsInitialContext =
     initialTask !== undefined || selectedRecognition.retainedSourceCue !== null;
 
   const createPacket = async () => {
-    if (!selectedPacketCvId || !selectedPacketLetterId || packetBusy) return;
+    if (!selectedPacketCvId || !selectedPacketLetterId || !selectedPacketBlueprintId || packetBusy) return;
     setPacketBusy(true);
     setError(null);
     try {
       await window.aaaat.documentDomain.createPacket({
         candidatureId: selected.id,
-        renderedCvId: selectedPacketCvId,
+        workingCvId: selectedPacketCvId,
         coverLetterId: selectedPacketLetterId,
+        blueprintId: selectedPacketBlueprintId,
       });
       await refreshCollections();
     } catch (reason) {
@@ -1556,7 +1582,7 @@ export function CandidaturesWorkspace({
                       type="button"
                       onClick={() => void window.aaaat.documentDomain.openPacket(packet.id)}
                     >
-                      <span className="item-kind">Packet</span>
+                      <span className="item-kind">Application PDF</span>
                       <strong>{packet.title}</strong>
                       <small>Open PDF</small>
                     </button>
@@ -1571,18 +1597,18 @@ export function CandidaturesWorkspace({
                 ))}
               </div>
             )}
-            {selectedPacketCvId && selectedPacketLetterId ? (
+            {selectedPacketCvId && selectedPacketLetterId && selectedPacketBlueprintId ? (
               <div
                 className="document-start-options-grid"
                 aria-label="Application packet composition"
               >
                 <label>
-                  Rendered CV
+                  CV
                   <select
                     value={selectedPacketCvId}
-                    onChange={(event) => setPacketRenderedCvId(event.target.value)}
+                    onChange={(event) => setPacketWorkingCvId(event.target.value)}
                   >
-                    {applicationRendered.map((document) => (
+                    {applicationWorkingCvs.map((document) => (
                       <option key={document.id} value={document.id}>
                         {document.title}
                       </option>
@@ -1602,19 +1628,31 @@ export function CandidaturesWorkspace({
                     ))}
                   </select>
                 </label>
+                {packetBlueprints.length > 1 ? (
+                  <label>
+                    Format
+                    <select
+                      value={selectedPacketBlueprintId}
+                      onChange={(event) => setPacketBlueprintId(event.target.value)}
+                    >
+                      {packetBlueprints.map((blueprint) => (
+                        <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <button
                   type="button"
                   className="compact-secondary"
                   disabled={packetBusy}
                   onClick={() => void createPacket()}
                 >
-                  {packetBusy ? "Creating packet…" : "Create application packet"}
+                  {packetBusy ? "Rendering…" : "Render combined application PDF"}
                 </button>
               </div>
             ) : (
               <p className="compact-help">
-                Render an application CV and keep a cover letter here to create an application
-                packet.
+                Keep a CV and cover letter here to render them together as one application PDF.
               </p>
             )}
           </section>
