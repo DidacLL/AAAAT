@@ -62,9 +62,9 @@ function BlueprintRenderChoice({
 }) {
   return (
     <label className="blueprint-render-choice">
-      <span>Blueprint</span>
+      <span>PDF style</span>
       <select
-        aria-label="Blueprint"
+        aria-label="PDF style"
         value={selectedBlueprintId}
         disabled={blueprints.length === 0}
         onChange={(event) => onChange(event.target.value)}
