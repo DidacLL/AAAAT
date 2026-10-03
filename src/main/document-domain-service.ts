@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync} from 'node:fs';
+import {accessSync, constants, cpSync, existsSync, renameSync, rmSync, statSync} from 'node:fs';
 import path from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
 
@@ -49,7 +49,8 @@ import {
 } from '../shared/document-domain-contracts';
 
 import {
-  writeApplicationPacketEntrypoint,
+  type DocumentPdfMetadata,
+  writeApplicationPacketLatexProject,
   writeCoverLetterLatexProject,
   writeCvLatexProject,
 } from './document-latex';
@@ -112,7 +113,7 @@ interface RenderedLetterRow {
 interface PacketRow {
   readonly id: string;
   readonly candidatureId: string;
-  readonly renderedCvId: string;
+  readonly workingCvId: string;
   readonly coverLetterId: string;
   readonly title: string;
   readonly projectRelativePath: string;
@@ -259,14 +260,30 @@ function renderedLetterProjectPath(rootPath: string, row: RenderedLetterRow): st
 function packetProjectPath(rootPath: string, row: PacketRow): string {
   return managedProjectPath(rootPath, 'application-packets', row.id, row.projectRelativePath);
 }
-function retainedPdf(projectPath: string): string {
+function safePdfStem(title: string, fallback: string): string {
+  const stem =
+      title.normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 72);
+  return stem || fallback;
+}
+function retainedPdf(projectPath: string, title: string, fallback: string): string {
+  const meaningful =
+      path.join(projectPath, 'build', `${safePdfStem(title, fallback)}.pdf`);
+  if (existsSync(meaningful)) return meaningful;
   return path.join(projectPath, 'build', 'main.pdf');
 }
-function retainedBlueprintSource(projectPath: string): string {
-  const blueprintPath = path.join(projectPath, 'blueprint.tex');
-  if (!existsSync(blueprintPath))
-    throw new DocumentDomainServiceError('The retained document Blueprint source is missing.');
-  return readFileSync(blueprintPath, 'utf8');
+function documentAuthor(rootPath: string): string {
+  return getProfile(rootPath).items.find(
+      (item) => item.kind.trim().toLocaleLowerCase() === 'identity' && item.title.trim())
+      ?.title.trim() ?? 'AAAAT';
+}
+function documentMetadata(
+    rootPath: string, title: string, subject: string): DocumentPdfMetadata {
+  return {title, author: documentAuthor(rootPath), subject};
 }
 function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
   return renderedCvRecordSchema.parse({
@@ -280,7 +297,7 @@ function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
         row.snapshotJson, (value) => renderedCvSnapshotSchema.parse(value),
         'Stored Rendered CV snapshot is invalid.'),
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(renderedProjectPath(rootPath, row)))
+    hasPdf: existsSync(retainedPdf(renderedProjectPath(rootPath, row), row.title, 'cv'))
   });
 }
 function readRenderedCvs(rootPath: string, database: DatabaseSync): RenderedCvRecord[] {
@@ -301,7 +318,8 @@ function toRenderedLetter(rootPath: string, row: RenderedLetterRow): RenderedCov
         row.snapshotJson, (value) => coverLetterSnapshotSchema.parse(value),
         'Stored Rendered cover-letter snapshot is invalid.'),
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(renderedLetterProjectPath(rootPath, row)))
+    hasPdf: existsSync(retainedPdf(
+        renderedLetterProjectPath(rootPath, row), row.title, 'cover-letter'))
   });
 }
 function readRenderedLetters(
@@ -334,24 +352,25 @@ function toPacket(rootPath: string, row: PacketRow): ApplicationPacketRecord {
   return applicationPacketRecordSchema.parse({
     id: row.id,
     candidatureId: row.candidatureId,
-    renderedCvId: row.renderedCvId,
+    workingCvId: row.workingCvId,
     coverLetterId: row.coverLetterId,
     title: row.title,
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(packetProjectPath(rootPath, row)))
+    hasPdf: existsSync(retainedPdf(
+        packetProjectPath(rootPath, row), row.title, 'application-document'))
   });
 }
 function readPackets(rootPath: string, database: DatabaseSync): ApplicationPacketRecord[] {
   return (database
               .prepare(
-                  `SELECT id, candidature_id AS candidatureId, rendered_cv_id AS renderedCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets ORDER BY created_at DESC, id DESC`)
+                  `SELECT id, candidature_id AS candidatureId, working_cv_id AS workingCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets ORDER BY created_at DESC, id DESC`)
               .all() as unknown as PacketRow[])
       .map((row) => toPacket(rootPath, row));
 }
 function requirePacketRow(database: DatabaseSync, id: string): PacketRow {
   const row =
       database.prepare(
-                  `SELECT id, candidature_id AS candidatureId, rendered_cv_id AS renderedCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets WHERE id = ?`)
+                  `SELECT id, candidature_id AS candidatureId, working_cv_id AS workingCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets WHERE id = ?`)
               .get(id) as unknown as PacketRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The Application packet no longer exists.');
@@ -713,16 +732,18 @@ export function saveWorkingCvAsTemplate(
     return created;
   });
 }
-async function compileProject(projectPath: string, timeoutMs: number): Promise<void> {
+async function compileProject(
+    projectPath: string, title: string, fallback: string, timeoutMs: number): Promise<void> {
+  const outputBaseName = safePdfStem(title, fallback);
   try {
-    await runPdfLatex(projectPath, timeoutMs);
+    await runPdfLatex(projectPath, timeoutMs, outputBaseName);
   } catch (error) {
     if (error instanceof LatexRunnerError)
       throw new DocumentDomainServiceError(
           `${error.message} Check that pdflatex is installed and compatible.`);
     throw error;
   }
-  if (!existsSync(path.join(projectPath, 'build', 'main.pdf')))
+  if (!existsSync(retainedPdf(projectPath, title, fallback)))
     throw new DocumentDomainServiceError('TeX rendering did not produce a PDF.');
 }
 export async function renderWorkingCv(
@@ -742,8 +763,10 @@ export async function renderWorkingCv(
     sections: working.sections
   });
   try {
-    writeCvLatexProject(stagePath, working, blueprintSource);
-    await compileProject(stagePath, timeoutMs);
+    writeCvLatexProject(
+        stagePath, working, blueprintSource,
+        documentMetadata(rootPath, working.title, 'Curriculum vitae'));
+    await compileProject(stagePath, working.title, 'cv', timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
@@ -764,8 +787,8 @@ export async function renderWorkingCv(
 }
 export function renderedCvPdfPath(rootPath: string, renderedCvId: string): string {
   return withWorkspaceDatabase(rootPath, (database) => {
-    const pdf =
-        retainedPdf(renderedProjectPath(rootPath, requireRenderedRow(database, renderedCvId)));
+    const row = requireRenderedRow(database, renderedCvId);
+    const pdf = retainedPdf(renderedProjectPath(rootPath, row), row.title, 'cv');
     if (!existsSync(pdf))
       throw new DocumentDomainServiceError('The retained Rendered CV PDF is missing.');
     return pdf;
@@ -898,8 +921,10 @@ export async function renderCoverLetter(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
-    writeCoverLetterLatexProject(stagePath, snapshot, blueprintSource);
-    await compileProject(stagePath, timeoutMs);
+    writeCoverLetterLatexProject(
+        stagePath, snapshot, blueprintSource,
+        documentMetadata(rootPath, letter.title, letter.subject?.trim() || 'Cover letter'));
+    await compileProject(stagePath, letter.title, 'cover-letter', timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
@@ -922,8 +947,9 @@ export async function renderCoverLetter(
 export function renderedCoverLetterPdfPath(
     rootPath: string, renderedLetterId: string): string {
   return withWorkspaceDatabase(rootPath, (database) => {
+    const row = requireRenderedLetterRow(database, renderedLetterId);
     const pdf = retainedPdf(
-        renderedLetterProjectPath(rootPath, requireRenderedLetterRow(database, renderedLetterId)));
+        renderedLetterProjectPath(rootPath, row), row.title, 'cover-letter');
     if (!existsSync(pdf))
       throw new DocumentDomainServiceError('The retained cover-letter PDF is missing.');
     return pdf;
@@ -937,44 +963,38 @@ export function exportRenderedCoverLetterProject(
       renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent);
 }
 export async function createApplicationPacket(
-    rootPath: string, rawInput: ApplicationPacketCreate,
+    rootPath: string, rawInput: ApplicationPacketCreate, blueprintSource: string,
     timeoutMs = 30000): Promise<ApplicationPacketRecord> {
   const input = applicationPacketCreateSchema.parse(rawInput);
-  const {cvRow, letter} = withWorkspaceDatabase(rootPath, (database) => {
+  const {working, letter} = withWorkspaceDatabase(rootPath, (database) => {
     requireCandidature(database, input.candidatureId);
-    const rendered = requireRenderedRow(database, input.renderedCvId);
+    const currentWorking = requireWorkingCv(database, input.workingCvId);
     const currentLetter = requireLetter(database, input.coverLetterId);
-    if (rendered.candidatureId !== input.candidatureId)
-      throw new DocumentDomainServiceError('Choose a Rendered CV owned by this application.');
+    if (currentWorking.candidatureId !== input.candidatureId)
+      throw new DocumentDomainServiceError('Choose a Working CV owned by this application.');
     if (currentLetter.candidatureId !== input.candidatureId)
       throw new DocumentDomainServiceError('Choose a cover letter owned by this application.');
-    return {cvRow: rendered, letter: currentLetter};
+    return {working: currentWorking, letter: currentLetter};
   });
-  const blueprintSource = retainedBlueprintSource(renderedProjectPath(rootPath, cvRow));
   const id = randomUUID();
   const relativePath = path.join('application-packets', id);
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
+  const letterSnapshot = snapshotCoverLetter(letter);
+  const title = input.title ?? `Application · ${working.title} + ${letter.title}`;
   try {
-    mkdirSync(stagePath, {recursive: true});
-    const letterSnapshot = snapshotCoverLetter(letter);
-    const letterPath = path.join(stagePath, 'cover-letter');
-    writeCoverLetterLatexProject(letterPath, letterSnapshot, blueprintSource);
-    await compileProject(letterPath, timeoutMs);
-    cpSync(
-        renderedProjectPath(rootPath, cvRow), path.join(stagePath, 'cv'),
-        {recursive: true, errorOnExist: true});
-    writeApplicationPacketEntrypoint(stagePath);
-    await compileProject(stagePath, timeoutMs);
+    writeApplicationPacketLatexProject(
+        stagePath, working, letterSnapshot, blueprintSource,
+        documentMetadata(rootPath, title, 'Application documents'));
+    await compileProject(stagePath, title, 'application-document', timeoutMs);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
-    const title = input.title ?? `Application packet · ${letter.title} + ${cvRow.title}`;
     withWorkspaceDatabase(rootPath, (database) => {
       database
           .prepare(
-              `INSERT INTO application_packets(id, candidature_id, rendered_cv_id, cover_letter_id, title, letter_snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+              `INSERT INTO application_packets(id, candidature_id, working_cv_id, cover_letter_id, title, letter_snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
           .run(
-              id, input.candidatureId, input.renderedCvId, input.coverLetterId, title,
+              id, input.candidatureId, input.workingCvId, input.coverLetterId, title,
               JSON.stringify(letterSnapshot), relativePath, createdAt);
     });
     return withWorkspaceDatabase(
@@ -987,7 +1007,9 @@ export async function createApplicationPacket(
 }
 export function applicationPacketPdfPath(rootPath: string, packetId: string): string {
   return withWorkspaceDatabase(rootPath, (database) => {
-    const pdf = retainedPdf(packetProjectPath(rootPath, requirePacketRow(database, packetId)));
+    const row = requirePacketRow(database, packetId);
+    const pdf = retainedPdf(
+        packetProjectPath(rootPath, row), row.title, 'application-document');
     if (!existsSync(pdf))
       throw new DocumentDomainServiceError('The retained Application packet PDF is missing.');
     return pdf;
