@@ -1,5 +1,5 @@
 \documentclass[10pt]{article}
-\usepackage{aaaat}
+\usepackage[__AAAAT_DOCUMENT_MODE__]{aaaat}
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
 \setlength{\headheight}{0pt}
@@ -9,7 +9,5 @@
 \input{data.tex}
 
 \begin{document}
-\AAAATIfDocumentKindTF{cv}
-  {\AAAATApplyCvLayout\AAAATRenderCvBlueprint}
-  {\AAAATApplyLetterLayout\AAAATRenderLetterBlueprint}
+\AAAATRenderStandaloneDocument
 \end{document}
