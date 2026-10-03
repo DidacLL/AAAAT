@@ -242,7 +242,7 @@ export async function discoverCandidatureFieldFromSources(
 }
 
 function isDocumentEvidence(kind: string): boolean {
-  return kind !== "identity" && kind !== "contact" && kind !== "link";
+  return kind.trim().length > 0;
 }
 interface AiCvItem {
   readonly id: string;
