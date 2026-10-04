@@ -16,15 +16,15 @@
     "test:watch": "vitest",
     "test:desktop": "playwright test --config playwright.config.ts",
     "eval:ai": "node scripts/ai-journey-eval.mjs",
-    "verify": "npm run typecheck && npm run lint && npm test",
-    "verify:package": "npm run build && npm run test:desktop",
     "eval:ai:core": "node scripts/ai-journey-eval.mjs --mode core",
     "eval:ai:external": "node scripts/ai-journey-eval.mjs --mode external",
     "eval:ai:direct": "node scripts/ai-journey-eval.mjs --mode direct",
     "eval:ai:chat": "node scripts/ai-journey-eval.mjs --mode chat",
     "eval:ai:mcp": "node scripts/ai-journey-eval.mjs --mode mcp",
     "eval:ai:host:llama": "node scripts/ai-journey-eval.mjs --mode host",
-    "eval:ai:all": "node scripts/ai-journey-eval.mjs --mode all"
+    "eval:ai:all": "node scripts/ai-journey-eval.mjs --mode all",
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "verify:package": "npm run build && npm run test:desktop"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.0.0",
