@@ -74,10 +74,12 @@ type Scenario = {
 
 const enabled = process.env.AAAAT_AI_EVAL === "1";
 const evalDescribe = enabled ? describe : describe.skip;
-const endpoint = requiredEnv("AAAAT_AI_EVAL_ENDPOINT");
-const model = requiredEnv("AAAAT_AI_EVAL_MODEL");
+const endpoint = enabled
+  ? requiredEnv("AAAAT_AI_EVAL_ENDPOINT")
+  : "http://127.0.0.1:1/v1";
+const model = enabled ? requiredEnv("AAAAT_AI_EVAL_MODEL") : "disabled";
 const credential = process.env.AAAAT_AI_EVAL_CREDENTIAL?.trim() ?? "";
-const repetitions = boundedInt(process.env.AAAAT_AI_EVAL_REPETITIONS, 3, 2, 20);
+const repetitions = boundedInt(process.env.AAAAT_AI_EVAL_REPETITIONS, 5, 2, 20);
 const timeoutMs = boundedInt(process.env.AAAAT_AI_EVAL_TIMEOUT_MS, 120_000, 10_000, 900_000);
 const nativeFetch = globalThis.fetch.bind(globalThis);
 let capture: Array<{
@@ -193,6 +195,10 @@ function exchangeView(item: NonNullable<typeof capture>[number]): Exchange {
     rawModelResponse,
     transportError: item.error,
   };
+}
+
+function currentExchanges(): Exchange[] {
+  return (capture ?? []).map(exchangeView);
 }
 
 function installCredentialProtection(): void {
@@ -483,7 +489,7 @@ function review(input: {
         ...result.uncertainties,
         ...result.questions,
       ].join(" ");
-      const checks = input.anchors.map((anchor, index) => ({
+      const checks: Check[] = input.anchors.map((anchor, index) => ({
         name: "use supplied review evidence " + String(index + 1),
         passed: containsAny(text, anchor),
         detail: anchor.join(" | "),
@@ -607,7 +613,7 @@ function letter(input: {
         ...result.bodyParagraphs,
         result.closing,
       ].join(" ");
-      const checks = input.anchors.map((anchor, index) => ({
+      const checks: Check[] = input.anchors.map((anchor, index) => ({
         name: "use supplied letter evidence " + String(index + 1),
         passed: containsAny(text, anchor),
         detail: anchor.join(" | "),
@@ -1014,7 +1020,7 @@ evalDescribe("local AI journey evaluation", () => {
                 output: result.output,
                 errorCategory: "",
                 errorMessage: "",
-                exchanges: capture.map(exchangeView),
+                exchanges: currentExchanges(),
               };
             } finally {
               clearTimeout(timer);
@@ -1033,7 +1039,7 @@ evalDescribe("local AI journey evaluation", () => {
               output: null,
               errorCategory: error.category,
               errorMessage: error.message,
-              exchanges: capture.map(exchangeView),
+              exchanges: currentExchanges(),
             };
           } finally {
             capture = null;
