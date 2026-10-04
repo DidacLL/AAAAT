@@ -104,7 +104,7 @@ async function main() {
   try {
     repetitions = integer(
       await second.question("Repetitions per scenario [5]: "),
-      3,
+      5,
       2,
       20,
       "Repetitions",
