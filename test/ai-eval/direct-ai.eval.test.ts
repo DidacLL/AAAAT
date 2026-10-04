@@ -358,7 +358,7 @@ function extraction(input: {
     operation: "job_extraction",
     async run({ root, signal }) {
       const targets = [
-        field(root, "candidature.organisation"),
+        field(root, "candidature.organization"),
         field(root, "candidature.role"),
         field(root, "candidature.location"),
         field(root, "candidature.compensation"),
@@ -525,7 +525,7 @@ function cv(input: {
     async run({ root, provider, signal }) {
       seedProfile(root);
       const candidature = application(root, input.title, input.source, {
-        "candidature.organisation": input.organisation,
+        "candidature.organization": input.organisation,
         "candidature.role": input.role,
       });
       const working = createWorkingCv(root, {
@@ -592,7 +592,7 @@ function letter(input: {
       seedProfile(root);
       const candidature = input.application
         ? application(root, input.title, input.application.source, {
-            "candidature.organisation": input.application.organisation,
+            "candidature.organization": input.application.organisation,
             "candidature.role": input.application.role,
           })
         : null;
@@ -723,7 +723,7 @@ const scenarios: Scenario[] = [
     id: "review-platform",
     title: "Review platform opportunity",
     values: {
-      "candidature.organisation": "Northstar Robotics",
+      "candidature.organization": "Northstar Robotics",
       "candidature.role": "Platform Engineer",
       "candidature.location": "Barcelona",
     },
@@ -737,7 +737,7 @@ const scenarios: Scenario[] = [
     id: "review-analytics",
     title: "Review analytics opportunity",
     values: {
-      "candidature.organisation": "Lumen Salud",
+      "candidature.organization": "Lumen Salud",
       "candidature.role": "Data Analyst",
       "candidature.location": "Madrid",
     },
@@ -966,7 +966,9 @@ evalDescribe("local AI journey evaluation", () => {
     installCredentialProtection();
     globalThis.fetch = recordingFetch;
 
-    const stamp = new Date().toISOString().replace(/[:.]/gu, "-");
+    const stamp =
+      process.env.AAAAT_AI_EVAL_RUN_ID?.trim() ||
+      new Date().toISOString().replace(/[:.]/gu, "-");
     const safeModel = model.replace(/[^a-z0-9._-]+/giu, "-").slice(0, 80) || "model";
     const reportDir = path.resolve("ai-eval-results", stamp + "-" + safeModel);
     mkdirSync(reportDir, { recursive: true });
