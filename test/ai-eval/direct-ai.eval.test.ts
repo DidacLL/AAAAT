@@ -414,7 +414,7 @@ function historical(input: {
   title: string;
   fieldKey: string;
   expected: readonly string[];
-  sources: readonly Array<{ title: string; text: string; kind?: CandidatureSourceKind }>;
+  sources: ReadonlyArray<{ title: string; text: string; kind?: CandidatureSourceKind }>;
 }): Scenario {
   return {
     id: input.id,
