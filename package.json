@@ -9,7 +9,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "build": "electron-forge package",
+    "build": "eslint test/ai-eval scripts/ai-journey-eval.mjs src/shared/external-ai-task-templates.ts src/main/candidature-opportunity-research-access-service.ts src/renderer/CandidatureOpportunityResearchAccessPanel.tsx --max-warnings 0 && npm run package",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
