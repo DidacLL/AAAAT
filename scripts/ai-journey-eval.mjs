@@ -233,6 +233,10 @@ async function hostConnection() {
     ),
     "GGUF model path",
   );
+  stdout.write(
+    "\nHost mode starts its own llama-server with a temporary AAAAT MCP configuration.\n" +
+      "Do not pre-start another server on the selected port; llama.cpp logs will be streamed in this terminal.\n\n",
+  );
   const port = integer(
     await question(
       "llama.cpp evaluation port [" +
@@ -360,11 +364,20 @@ async function main() {
       stderr.write((reason instanceof Error ? reason.message : String(reason)) + "\n");
       code = 1;
     }
-    results.push({ mode: item, harnessExitCode: code });
+    const diagnosticFile =
+      item === "host" && existsSync(path.join(reportDir, "llama-host.json"))
+        ? path.join(reportDir, "llama-host.json")
+        : null;
+    results.push({
+      mode: item,
+      harnessExitCode: code,
+      ...(diagnosticFile ? { diagnosticFile } : {}),
+    });
     if (code !== 0) {
       stdout.write(
         "\n" + item +
-          " had a harness/configuration failure. Remaining selected modes will still run.\n",
+          " had a harness/configuration failure. Remaining selected modes will still run.\n" +
+          (diagnosticFile ? "Diagnostic: " + diagnosticFile + "\n" : ""),
       );
     }
   }
