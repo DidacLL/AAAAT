@@ -508,12 +508,20 @@ export function WorkingCvEditor({
       const saved = dirty ? await persistDraft() : draft;
       startAiTask<CvTailoringResult>(
         tailoringTaskKey,
-        async (updateDetail) => {
+        async (updateDetail, signal) => {
           updateDetail("Reviewing application context and CV content…");
-          return window.aaaat.ai.tailorCv({
-            candidatureId: saved.candidatureId!,
-            workingCvId: saved.id,
-          });
+          const cancelProvider = () => {
+            void window.aaaat.aiTasks.cancelCvTailoring(tailoringTaskKey).catch(() => undefined);
+          };
+          signal.addEventListener("abort", cancelProvider, { once: true });
+          try {
+            return await window.aaaat.aiTasks.tailorCv(tailoringTaskKey, {
+              candidatureId: saved.candidatureId!,
+              workingCvId: saved.id,
+            });
+          } finally {
+            signal.removeEventListener("abort", cancelProvider);
+          }
         },
         "Tailor CV",
         (result) =>
@@ -1103,9 +1111,19 @@ function LetterEditor({
       const saved = dirty ? await persistDraft() : draft;
       startAiTask<CoverLetterDraft>(
         draftingTaskKey,
-        async (updateDetail) => {
+        async (updateDetail, signal) => {
           updateDetail("Drafting from the application and allowed My information…");
-          return window.aaaat.ai.draftCoverLetter({ coverLetterId: saved.id });
+          const cancelProvider = () => {
+            void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey).catch(() => undefined);
+          };
+          signal.addEventListener("abort", cancelProvider, { once: true });
+          try {
+            return await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, {
+              coverLetterId: saved.id,
+            });
+          } finally {
+            signal.removeEventListener("abort", cancelProvider);
+          }
         },
         "Draft cover letter",
         () => "Draft ready",

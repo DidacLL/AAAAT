@@ -281,6 +281,7 @@ export async function tailorCv(
   rootPath: string,
   rawRequest: CvTailoringRequest,
   provider: ModelProvider = createWorkspaceAiProvider(rootPath),
+  signal?: AbortSignal,
 ): Promise<CvTailoringResult> {
   const request = cvTailoringRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cv_tailoring");
@@ -290,7 +291,7 @@ export async function tailorCv(
   if (workingCv.candidatureId && workingCv.candidatureId !== request.candidatureId) throw new AiServiceError("This Working CV belongs to a different application.");
   const context = projectDocumentContext(rootPath, projectCandidature(rootPath, request.candidatureId, true), workingCv.sections.flatMap((section) => section.items));
   const providerContext = providerDocumentContext(rootPath, context, "cv");
-  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(stored, providerContext.context));
+  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(stored, providerContext.context, signal));
   const allowed = new Set(context.items.map((item) => item.id));
   const recommendations = result.recommendations.map((item) => ({ itemId: providerContext.itemIds.get(item.itemRef) ?? "", rationale: item.rationale }));
   if (recommendations.some((item) => !allowed.has(item.itemId))) throw new AiServiceError("The model recommended CV content that is not available to AI.");
@@ -301,6 +302,7 @@ export async function draftCoverLetter(
   rootPath: string,
   rawRequest: CoverLetterDraftRequest,
   provider: ModelProvider = createWorkspaceAiProvider(rootPath),
+  signal?: AbortSignal,
 ): Promise<CoverLetterDraft> {
   const request = coverLetterDraftRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cover_letter_draft");
@@ -312,5 +314,9 @@ export async function draftCoverLetter(
     .filter((item) => isDocumentEvidence(item.kind) && (permissions.get(item.id) ?? true))
     .map((item) => ({ id: item.id, profileItemId: item.id, content: { kind: item.kind, title: item.title, ...(item.subtitle ? { subtitle: item.subtitle } : {}), ...(item.description ? { description: item.description } : {}), ...(item.startDate ? { startDate: item.startDate } : {}), ...(item.endDate ? { endDate: item.endDate } : {}), ...(item.url ? { url: item.url } : {}) } }));
   const context = projectDocumentContext(rootPath, candidature, items);
-  return coverLetterDraftSchema.parse(await provider.draftCoverLetter(stored, providerDocumentContext(rootPath, context, "coverletter").context));
+  return coverLetterDraftSchema.parse(await provider.draftCoverLetter(
+    stored,
+    providerDocumentContext(rootPath, context, "coverletter").context,
+    signal,
+  ));
 }

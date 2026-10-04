@@ -23,6 +23,10 @@ import {
   aiTaskIdSchema,
   cancellableAiConnectionValidationRequestSchema,
   cancellableAiConnectionValidationResultSchema,
+  cancellableCoverLetterDraftRequestSchema,
+  cancellableCoverLetterDraftResultSchema,
+  cancellableCvTailoringRequestSchema,
+  cancellableCvTailoringResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
 } from "../shared/ai-task-cancellation-contracts";
@@ -80,8 +84,12 @@ import {
 } from "./ai-service";
 import {
   cancelCancellableAiConnectionValidation,
+  cancelCancellableCoverLetterDraft,
+  cancelCancellableCvTailoring,
   cancelCancellableJobExtraction,
   runCancellableAiConnectionValidation,
+  runCancellableCoverLetterDraft,
+  runCancellableCvTailoring,
   runCancellableJobExtraction,
 } from "./ai-task-cancellation";
 import {
@@ -513,10 +521,36 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
       ),
     );
   });
+  ipcMain.handle(aiTaskCancellationChannels.cvTailor, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const parsed = cancellableCvTailoringRequestSchema.parse(input);
+    return cancellableCvTailoringResultSchema.parse(
+      await runCancellableCvTailoring(requireWorkspaceRoot(), parsed.taskId, parsed.request),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.cvTailorCancel, (event, taskId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiTaskCancellationResultSchema.parse(
+      cancelCancellableCvTailoring(aiTaskIdSchema.parse(taskId)),
+    );
+  });
   ipcMain.handle(aiChannels.cvTailor, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return cvTailoringResultSchema.parse(
       await tailorCv(requireWorkspaceRoot(), cvTailoringRequestSchema.parse(input)),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.coverLetterDraft, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const parsed = cancellableCoverLetterDraftRequestSchema.parse(input);
+    return cancellableCoverLetterDraftResultSchema.parse(
+      await runCancellableCoverLetterDraft(requireWorkspaceRoot(), parsed.taskId, parsed.request),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.coverLetterDraftCancel, (event, taskId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiTaskCancellationResultSchema.parse(
+      cancelCancellableCoverLetterDraft(aiTaskIdSchema.parse(taskId)),
     );
   });
   ipcMain.handle(aiChannels.coverLetterDraft, async (event, input: unknown) => {

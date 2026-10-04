@@ -20,6 +20,10 @@ import {
   aiTaskIdSchema,
   cancellableAiConnectionValidationRequestSchema,
   cancellableAiConnectionValidationResultSchema,
+  cancellableCoverLetterDraftRequestSchema,
+  cancellableCoverLetterDraftResultSchema,
+  cancellableCvTailoringRequestSchema,
+  cancellableCvTailoringResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
   type AiTaskCancellationDesktopApi,
@@ -255,6 +259,37 @@ export function createDesktopApi(
     cancelJobExtraction: async (taskId: string) =>
       aiTaskCancellationResultSchema.parse(
         await invoke(aiTaskCancellationChannels.jobExtractCancel, aiTaskIdSchema.parse(taskId)),
+      ),
+    tailorCv: async (
+      taskId: string,
+      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["tailorCv"]>[1],
+    ) =>
+      cancellableCvTailoringResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.cvTailor,
+          cancellableCvTailoringRequestSchema.parse({ taskId, request }),
+        ),
+      ),
+    cancelCvTailoring: async (taskId: string) =>
+      aiTaskCancellationResultSchema.parse(
+        await invoke(aiTaskCancellationChannels.cvTailorCancel, aiTaskIdSchema.parse(taskId)),
+      ),
+    draftCoverLetter: async (
+      taskId: string,
+      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["draftCoverLetter"]>[1],
+    ) =>
+      cancellableCoverLetterDraftResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.coverLetterDraft,
+          cancellableCoverLetterDraftRequestSchema.parse({ taskId, request }),
+        ),
+      ),
+    cancelCoverLetterDraft: async (taskId: string) =>
+      aiTaskCancellationResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.coverLetterDraftCancel,
+          aiTaskIdSchema.parse(taskId),
+        ),
       ),
   });
 
