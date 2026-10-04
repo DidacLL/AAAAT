@@ -103,7 +103,7 @@ async function main() {
   let timeoutSeconds;
   try {
     repetitions = integer(
-      await second.question("Repetitions per scenario [3]: "),
+      await second.question("Repetitions per scenario [5]: "),
       3,
       2,
       20,
