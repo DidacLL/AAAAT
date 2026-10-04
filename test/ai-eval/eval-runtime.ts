@@ -323,12 +323,7 @@ export function writeEvalReport(input: {
   readonly promptArtifacts?: Readonly<Record<string, string>>;
   readonly extra?: unknown;
 }): string {
-  const safeModel =
-    evalModel.replace(/[^a-z0-9._-]+/giu, "-").slice(0, 80) || "model";
-  const directory = path.resolve(
-    "ai-eval-results",
-    evalRunId + "-" + safeModel,
-  );
+  const directory = path.resolve("ai-eval-results", evalRunId);
   mkdirSync(directory, { recursive: true });
   const report = {
     generatedAt: new Date().toISOString(),
