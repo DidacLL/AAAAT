@@ -969,8 +969,7 @@ evalDescribe("local AI journey evaluation", () => {
     const stamp =
       process.env.AAAAT_AI_EVAL_RUN_ID?.trim() ||
       new Date().toISOString().replace(/[:.]/gu, "-");
-    const safeModel = model.replace(/[^a-z0-9._-]+/giu, "-").slice(0, 80) || "model";
-    const reportDir = path.resolve("ai-eval-results", stamp + "-" + safeModel);
+    const reportDir = path.resolve("ai-eval-results", stamp);
     mkdirSync(reportDir, { recursive: true });
     const trials: Trial[] = [];
 
