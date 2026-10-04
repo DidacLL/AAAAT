@@ -680,6 +680,8 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
           host: "llama.cpp",
           llamaServer,
           llamaModel,
+          llamaPreflight,
+          packagedMcpToolNames,
           toolNames: tools.map((tool) => tool.tool),
           recentHostLogs: logs.slice(-50),
         },
