@@ -358,10 +358,18 @@ try {
   const localCard=page.locator("article.document-card").filter({has:page.getByRole("heading",{name:"Local acceptance"})});
   const validateButton=localCard.getByRole("button",{name:/Check all AI features|Check remaining AI features/}).first();
   if(await validateButton.count()){
-    await validateButton.click();await page.waitForTimeout(500);
+    await validateButton.click();await page.waitForTimeout(150);
     const trail=await screenshot(page,"ai-task-trail-1280x800.png");
     note("aiRuntime","validationTrailVisible",trail.bodyText.includes("Validate Local acceptance"));
     note("shell","tagsBeforeAiTask",trail.bodyText.indexOf("Tags")>=0 && trail.bodyText.indexOf("AI tasks")>trail.bodyText.indexOf("Tags"));
+    await clickNav(page,"Documents");
+    await page.waitForTimeout(100);
+    const away=await screenshot(page,"ai-task-away-from-settings-1280x800.png");
+    note("shell","aiTaskVisibleAwayFromSettings",away.bodyText.includes("AI tasks"));
+    await clickNav(page,"Settings");
+    const aiAgain=page.getByRole("button",{name:"AI",exact:true});
+    if(await aiAgain.count()) await aiAgain.click();
+    await page.waitForTimeout(100);
     note("aiRuntime","localValidationCompleted",await waitText(localCard,"5/5 checked",30000));
   }
 
