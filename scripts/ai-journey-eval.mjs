@@ -1,29 +1,55 @@
 import { spawn } from "node:child_process";
+import { existsSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
+import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 
+const modeFiles = Object.freeze({
+  direct: "test/ai-eval/direct-ai.eval.test.ts",
+  chat: "test/ai-eval/external-chat.eval.test.ts",
+  mcp: "test/ai-eval/mcp-agent.eval.test.ts",
+  host: "test/ai-eval/llama-host.eval.test.ts",
+});
+
+const modeSets = Object.freeze({
+  direct: ["direct"],
+  chat: ["chat"],
+  mcp: ["mcp"],
+  host: ["host"],
+  core: ["direct", "chat", "mcp"],
+  external: ["chat", "mcp", "host"],
+  all: ["direct", "chat", "mcp", "host"],
+});
+
 function required(value, label) {
   const trimmed = value.trim();
-  if (!trimmed) throw new Error(`${label} is required.`);
+  if (!trimmed) throw new Error(label + " is required.");
   return trimmed;
 }
 
 function integer(value, fallback, minimum, maximum, label) {
   const parsed = value.trim() ? Number(value) : fallback;
   if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
-    throw new Error(`${label} must be an integer between ${minimum} and ${maximum}.`);
+    throw new Error(
+      label + " must be an integer between " + minimum + " and " + maximum + ".",
+    );
   }
   return parsed;
 }
 
+async function question(prompt, fallback = "") {
+  const rl = createInterface({ input: stdin, output: stdout });
+  try {
+    const value = (await rl.question(prompt)).trim();
+    return value || fallback;
+  } finally {
+    rl.close();
+  }
+}
+
 async function askSecret(prompt) {
   if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
-    const rl = createInterface({ input: stdin, output: stdout });
-    try {
-      return (await rl.question(prompt)).trim();
-    } finally {
-      rl.close();
-    }
+    return question(prompt);
   }
 
   return new Promise((resolve, reject) => {
@@ -77,85 +103,301 @@ async function askSecret(prompt) {
   });
 }
 
-async function main() {
-  stdout.write("\nAAAAT local AI journey evaluation\n");
-  stdout.write("Uses synthetic career/application data and the real configured AI endpoint.\n");
-  stdout.write("Model misses are recorded; they do not stop the remaining journeys.\n\n");
+function argument(name) {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return null;
+  return process.argv[index + 1] ?? null;
+}
 
-  const first = createInterface({ input: stdin, output: stdout });
-  let endpoint;
-  let model;
-  try {
-    endpoint = required(
-      await first.question("OpenAI-compatible base URL (for example http://127.0.0.1:11434/v1): "),
-      "Endpoint",
-    );
-    new URL(endpoint);
-    model = required(await first.question("Model name: "), "Model");
-  } finally {
-    first.close();
+async function chooseMode() {
+  const supplied = argument("--mode");
+  if (supplied) {
+    if (!(supplied in modeSets)) {
+      throw new Error("Unknown evaluation mode: " + supplied);
+    }
+    return supplied;
   }
 
-  const credential = await askSecret("API key / Bearer credential (optional): ");
+  stdout.write("Choose what to evaluate:\n");
+  stdout.write("  1. Core — direct AAAAT AI + external chat + model-driven MCP\n");
+  stdout.write("  2. External — Send to my AI + MCP + real llama.cpp host\n");
+  stdout.write("  3. Direct AAAAT → AI only\n");
+  stdout.write("  4. External chat / Send to my AI only\n");
+  stdout.write("  5. Model-driven MCP only\n");
+  stdout.write("  6. Real llama.cpp local-agent host only\n");
+  stdout.write("  7. All — every mode above\n");
+  const selected = await question("Selection [1]: ", "1");
+  const mapping = {
+    "1": "core",
+    "2": "external",
+    "3": "direct",
+    "4": "chat",
+    "5": "mcp",
+    "6": "host",
+    "7": "all",
+  };
+  const mode = mapping[selected];
+  if (!mode) throw new Error("Choose a number from 1 to 7.");
+  return mode;
+}
 
-  const second = createInterface({ input: stdin, output: stdout });
-  let repetitions;
-  let timeoutSeconds;
-  try {
-    repetitions = integer(
-      await second.question("Repetitions per scenario [5]: "),
-      5,
-      2,
-      20,
-      "Repetitions",
-    );
-    timeoutSeconds = integer(
-      await second.question("Maximum seconds per model request [120]: "),
-      120,
-      10,
-      900,
-      "Request timeout",
-    );
-  } finally {
-    second.close();
+async function run(command, args, options = {}) {
+  const child = spawn(command, args, {
+    cwd: process.cwd(),
+    stdio: "inherit",
+    ...options,
+  });
+  return new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (status) => resolve(status ?? 1));
+  });
+}
+
+function packagedExecutable() {
+  const root = path.resolve("out", "AAAAT-" + process.platform + "-" + process.arch);
+  if (!existsSync(root)) return null;
+  if (process.platform === "darwin") {
+    const bundle = readdirSync(root).find((entry) => entry.endsWith(".app"));
+    if (!bundle) return null;
+    const directory = path.join(root, bundle, "Contents", "MacOS");
+    if (!existsSync(directory)) return null;
+    const executable = readdirSync(directory)[0];
+    return executable ? path.join(directory, executable) : null;
   }
-
-  const scenarioCount = 15;
-  stdout.write(
-    `\nRunning ${scenarioCount} scenarios × ${repetitions} repetitions = ${scenarioCount * repetitions} journey trials.\n`,
+  const candidate = path.join(
+    root,
+    process.platform === "win32" ? "aaaat.exe" : "aaaat",
   );
-  stdout.write("Results will be written under ai-eval-results/.\n\n");
+  return existsSync(candidate) ? candidate : null;
+}
 
+async function ensurePackagedExecutable() {
+  const supplied = process.env.AAAAT_PACKAGED_EXECUTABLE?.trim();
+  if (supplied) return supplied;
+  let executable = packagedExecutable();
+  if (executable) return executable;
+
+  const answer = (await question(
+    "A packaged AAAAT executable is required for the real local-host fixture. Build it now? [Y/n]: ",
+    "y",
+  )).toLocaleLowerCase();
+  if (answer !== "y" && answer !== "yes") {
+    throw new Error("Real local-host evaluation needs a packaged AAAAT executable.");
+  }
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+  const code = await run(npm, ["run", "package"]);
+  if (code !== 0) throw new Error("AAAAT packaging failed.");
+  executable = packagedExecutable();
+  if (!executable) throw new Error("AAAAT packaged executable was not found after packaging.");
+  return executable;
+}
+
+async function normalConnection() {
+  const defaultEndpoint = process.env.AAAAT_AI_EVAL_ENDPOINT?.trim() ?? "";
+  const defaultModel = process.env.AAAAT_AI_EVAL_MODEL?.trim() ?? "";
+  const endpoint = required(
+    await question(
+      "OpenAI-compatible base URL" +
+        (defaultEndpoint ? " [" + defaultEndpoint + "]" : "") +
+        ": ",
+      defaultEndpoint,
+    ),
+    "Endpoint",
+  );
+  new URL(endpoint);
+  const model = required(
+    await question(
+      "Model name" + (defaultModel ? " [" + defaultModel + "]" : "") + ": ",
+      defaultModel,
+    ),
+    "Model",
+  );
+  const credential =
+    process.env.AAAAT_AI_EVAL_CREDENTIAL?.trim() ??
+    await askSecret("API key / Bearer credential (optional): ");
+  return { endpoint, model, credential };
+}
+
+async function hostConnection() {
+  const serverDefault = process.env.AAAAT_LLAMA_SERVER?.trim() || "llama-server";
+  const modelDefault = process.env.AAAAT_LLAMA_MODEL?.trim() || "";
+  const server = required(
+    await question("llama-server executable [" + serverDefault + "]: ", serverDefault),
+    "llama-server executable",
+  );
+  const modelPath = required(
+    await question(
+      "GGUF model path" + (modelDefault ? " [" + modelDefault + "]" : "") + ": ",
+      modelDefault,
+    ),
+    "GGUF model path",
+  );
+  const port = integer(
+    await question(
+      "llama.cpp evaluation port [" +
+        (process.env.AAAAT_LLAMA_PORT?.trim() || "18080") +
+        "]: ",
+      process.env.AAAAT_LLAMA_PORT?.trim() || "18080",
+    ),
+    18080,
+    1024,
+    65535,
+    "llama.cpp port",
+  );
+  const executable = await ensurePackagedExecutable();
+  return {
+    server,
+    modelPath,
+    endpoint: "http://127.0.0.1:" + port + "/v1",
+    model: path.basename(modelPath),
+    credential: "",
+    executable,
+  };
+}
+
+async function runVitest(file, environment) {
   const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-  const child = spawn(
+  return run(
     npx,
     [
       "vitest",
       "run",
-      "tools/ai-eval/ai-journeys.eval.test.ts",
+      file,
       "--reporter=verbose",
       "--testTimeout=14400000",
     ],
     {
-      cwd: process.cwd(),
-      stdio: "inherit",
       env: {
         ...process.env,
-        AAAAT_AI_EVAL: "1",
-        AAAAT_AI_EVAL_ENDPOINT: endpoint,
-        AAAAT_AI_EVAL_MODEL: model,
-        AAAAT_AI_EVAL_CREDENTIAL: credential,
-        AAAAT_AI_EVAL_REPETITIONS: String(repetitions),
-        AAAAT_AI_EVAL_TIMEOUT_MS: String(timeoutSeconds * 1000),
+        ...environment,
       },
     },
   );
+}
 
-  const code = await new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.once("exit", (status) => resolve(status ?? 1));
-  });
-  process.exitCode = code;
+async function main() {
+  stdout.write("\nAAAAT local AI journey evaluation\n");
+  stdout.write(
+    "This evaluates direct inference, external chat, model-driven MCP and an optional real local-agent host as distinct journeys.\n",
+  );
+  stdout.write(
+    "Stochastic model misses are recorded and never stop the remaining scheduled trials.\n\n",
+  );
+
+  const mode = await chooseMode();
+  const selected = modeSets[mode];
+  const needsNormal = selected.some((item) => item !== "host");
+  const needsHost = selected.includes("host");
+  const normal = needsNormal ? await normalConnection() : null;
+
+  const repetitions = integer(
+    await question(
+      "Repetitions per scenario [" +
+        (process.env.AAAAT_AI_EVAL_REPETITIONS?.trim() || "5") +
+        "]: ",
+      process.env.AAAAT_AI_EVAL_REPETITIONS?.trim() || "5",
+    ),
+    5,
+    2,
+    20,
+    "Repetitions",
+  );
+  const timeoutSeconds = integer(
+    await question(
+      "Maximum seconds per model request [" +
+        (process.env.AAAAT_AI_EVAL_TIMEOUT_SECONDS?.trim() || "120") +
+        "]: ",
+      process.env.AAAAT_AI_EVAL_TIMEOUT_SECONDS?.trim() || "120",
+    ),
+    120,
+    10,
+    900,
+    "Request timeout",
+  );
+  const host = needsHost ? await hostConnection() : null;
+  const runId = new Date().toISOString().replace(/[:.]/gu, "-");
+  const reportDir = path.resolve("ai-eval-results", runId);
+  mkdirSync(reportDir, { recursive: true });
+
+  const scenarioCounts = { direct: 15, chat: 8, mcp: 8, host: 4 };
+  const totalScenarios = selected.reduce(
+    (sum, item) => sum + scenarioCounts[item],
+    0,
+  );
+  stdout.write(
+    "\nRunning " + totalScenarios + " scenario definitions × " + repetitions +
+      " repetitions = " + totalScenarios * repetitions + " scheduled trials.\n",
+  );
+  stdout.write("Modes: " + selected.join(", ") + "\n");
+  stdout.write("Report directory: " + reportDir + "\n\n");
+
+  const results = [];
+  for (const item of selected) {
+    stdout.write("\n=== " + item.toUpperCase() + " ===\n");
+    const connection = item === "host" ? host : normal;
+    if (!connection) throw new Error("Missing connection configuration for " + item + ".");
+    const environment = {
+      AAAAT_AI_EVAL: "1",
+      AAAAT_AI_EVAL_ENDPOINT: connection.endpoint,
+      AAAAT_AI_EVAL_MODEL: connection.model,
+      AAAAT_AI_EVAL_CREDENTIAL: connection.credential,
+      AAAAT_AI_EVAL_REPETITIONS: String(repetitions),
+      AAAAT_AI_EVAL_TIMEOUT_MS: String(timeoutSeconds * 1000),
+      AAAAT_AI_EVAL_RUN_ID: runId,
+      ...(item === "host"
+        ? {
+            AAAAT_LLAMA_SERVER: host.server,
+            AAAAT_LLAMA_MODEL: host.modelPath,
+            AAAAT_PACKAGED_EXECUTABLE: host.executable,
+          }
+        : {}),
+    };
+    let code = 1;
+    try {
+      code = await runVitest(modeFiles[item], environment);
+    } catch (reason) {
+      console.error(reason instanceof Error ? reason.message : String(reason));
+      code = 1;
+    }
+    results.push({ mode: item, harnessExitCode: code });
+    if (code !== 0) {
+      stdout.write(
+        "\n" + item +
+          " had a harness/configuration failure. Remaining selected modes will still run.\n",
+      );
+    }
+  }
+
+  writeFileSync(
+    path.join(reportDir, "run.json"),
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        requestedMode: mode,
+        selectedModes: selected,
+        repetitions,
+        timeoutSeconds,
+        results,
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf8",
+  );
+
+  stdout.write("\nEvaluation run complete.\n");
+  for (const result of results) {
+    stdout.write(
+      "- " + result.mode + ": " +
+        (result.harnessExitCode === 0 ? "completed" : "harness/configuration failure") +
+        "\n",
+    );
+  }
+  stdout.write("Reports: " + reportDir + "\n");
+  stdout.write(
+    "Pass/weak/fail model outcomes remain evidence in the reports; they do not set the process exit code.\n",
+  );
+  process.exitCode = results.some((result) => result.harnessExitCode !== 0) ? 1 : 0;
 }
 
 main().catch((reason) => {
