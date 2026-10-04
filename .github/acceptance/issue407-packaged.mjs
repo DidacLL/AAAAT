@@ -72,8 +72,8 @@ function initWorkspace() {
     db.prepare("INSERT INTO workspace_metadata(key,value) VALUES (?,?)").run("workspace.initialized_at", now);
     db.prepare("INSERT INTO candidatures(id, archived, opportunity_research_selected, created_at, updated_at) VALUES (?,0,0,?,?)").run(candidatureId, now, now);
     const insert = db.prepare("INSERT INTO profile_items(id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_use_allowed, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
-    insert.run(identityId, "identity", "Alex Acceptance", "Platform engineer", "", null, null, "https://alex.example.test", 0, 1, now, now);
-    insert.run(contactId, "contact", "alex@example.test", "Email", "", null, null, "", 1, 1, now, now);
+    insert.run(identityId, "identity", "Alex Acceptance", "Platform engineer", null, null, null, "https://alex.example.test", 0, 1, now, now);
+    insert.run(contactId, "contact", "alex@example.test", "Email", null, null, null, null, 1, 1, now, now);
     insert.run(experienceId, "experience", "Senior Platform Engineer", "Example Systems", "Built reliable provider-agnostic developer tooling and desktop workflows.", "2022", "2026", "https://example.test/work", 2, 1, now, now);
     db.exec("COMMIT");
   } catch (e) {
@@ -285,6 +285,40 @@ try {
   },{localEndpoint,httpsEndpoint,secretOriginal});
   note("aiRuntime","savedConnectionProjection",conns);
 
+  const cancellationEvidence=await page.evaluate(async ({candidatureId,cvId,letterId,localEndpoint})=>{
+    const slowConnections=await window.aaaat.aiConnections.save({name:"Slow cancellation",endpoint:localEndpoint,model:"slow-acceptance-model"});
+    const slow=slowConnections.find(x=>x.name==="Slow cancellation");
+    if(!slow) throw new Error("Slow cancellation connection was not saved.");
+    const run=async(start,cancel)=>{
+      const began=Date.now();
+      const promise=start();
+      await new Promise(r=>setTimeout(r,450));
+      const cancelReturned=await cancel();
+      let outcome="resolved";
+      let error="";
+      try{await promise;}catch(e){outcome="rejected";error=e instanceof Error?e.message:String(e);}
+      return {cancelReturned,outcome,error,elapsedMs:Date.now()-began};
+    };
+    const validation=await run(
+      ()=>window.aaaat.aiTasks.validateConnection("cancel-validation",{connectionId:slow.id,operation:"opportunity_review"}),
+      ()=>window.aaaat.aiTasks.cancelConnectionValidation("cancel-validation")
+    );
+    const extraction=await run(
+      ()=>window.aaaat.aiTasks.extractJob("cancel-extraction",{sourceTitle:"Slow acceptance",sourceUrl:"",sourceText:"SLOW_ACCEPTANCE platform role"}),
+      ()=>window.aaaat.aiTasks.cancelJobExtraction("cancel-extraction")
+    );
+    const tailoring=await run(
+      ()=>window.aaaat.aiTasks.tailorCv("cancel-tailoring",{candidatureId,workingCvId:cvId}),
+      ()=>window.aaaat.aiTasks.cancelCvTailoring("cancel-tailoring")
+    );
+    const drafting=await run(
+      ()=>window.aaaat.aiTasks.draftCoverLetter("cancel-drafting",{coverLetterId:letterId}),
+      ()=>window.aaaat.aiTasks.cancelCoverLetterDraft("cancel-drafting")
+    );
+    return {validation,extraction,tailoring,drafting};
+  },{candidatureId,cvId:seeded.cv.id,letterId:seeded.appLetter.id,localEndpoint});
+  note("aiRuntime","cancellationEvidence",cancellationEvidence);
+
   await page.reload();await page.waitForFunction(()=>Boolean(window.aaaat));await page.waitForTimeout(700);await clickNav(page,"Settings");
   const aiTab=page.getByRole("button",{name:"AI",exact:true});if(await aiTab.count())await aiTab.click();await page.waitForTimeout(500);
   const aiShot=await screenshot(page,"ai-settings-1280x800.png");
@@ -378,6 +412,7 @@ try {
 } catch (e) {
   observations.harness.push(e instanceof Error ? e.stack || e.message : String(e));
   save();
+  throw e;
 } finally {
   if(app) await stopApp(app);
   provider.child.kill();
