@@ -1,64 +1,92 @@
 # Local AI journey evaluation
 
-This is a local evaluation tool for AAAAT's real AI-assisted user journeys. It is deliberately not a CI gate.
+AAAAT's local evaluator is a stochastic product-evaluation harness, not a CI/release gate.
 
-Run:
+Run the interactive launcher:
 
-    npm install
     npm run eval:ai
 
-The launcher asks for:
+It separates the product's AI interaction directions instead of treating direct provider calls as the whole AI surface.
 
-- an OpenAI-compatible base URL;
-- model name;
-- optional API key / Bearer credential;
-- repetitions per scenario (default 5);
-- a per-request timeout (default 120 seconds).
+## Run modes
 
-The suite uses temporary AAAAT workspaces and synthetic application/career data. It exercises the production AI paths for:
+    npm run eval:ai:direct
+    npm run eval:ai:chat
+    npm run eval:ai:mcp
+    npm run eval:ai:host:llama
+    npm run eval:ai:core
+    npm run eval:ai:external
+    npm run eval:ai:all
 
-- Source/job extraction;
-- historical field recovery from retained Sources;
-- opportunity review;
-- CV tailoring;
-- cover-letter drafting.
+direct evaluates AAAAT -> AI operations.
 
-There are three materially different scenarios for each operation. Every scenario is repeated, so the default run is 15 scenarios x 5 repetitions = 75 real model trials.
+chat evaluates no-local-computer / chat-driven journeys through the production reusable host guidance, Send to my AI task carrier, returned-result retention and the external application-handoff entrance.
 
-## Evaluation behavior
+mcp gives the real model the production MCP tool definitions and lets the model decide which AAAAT tools to call. Tool calls execute against the real AAAAT MCP server and temporary workspace. This is useful for refining tool descriptions, schemas and host guidance. It does not by itself prove third-party-host compatibility.
 
-A stochastic model miss does not stop the suite and does not make the evaluation process fail. Each trial is classified as pass, weak, fail, or error and the remaining trials continue.
+host:llama is representative third-party-host evidence. It starts a user-supplied llama-server, configures packaged AAAAT as a stdio MCP server, reads the host's actual registered tool definitions, lets the real model choose tools, and executes those calls through llama.cpp's MCP/tool path.
 
-Before the suite starts, AAAAT performs its normal connection probe. A bad endpoint/credential stops immediately because that is configuration failure, not model variance.
+core runs direct + chat + MCP. external runs chat + MCP + the real llama.cpp host. all runs every mode.
 
-Reports are written under:
+## Repetition and failures
 
-    ai-eval-results/<timestamp>-<model>/
+The default is five repetitions per scenario. A model miss, malformed model output, weak answer or wrong tool choice is evidence and does not stop later trials.
 
-The Markdown summary includes operation success rates, scenario stability, repeated failure signals, and current prompt size.
+A mode exits unsuccessfully only for a harness/configuration failure such as an unreachable endpoint, missing required local-host executable, or evaluator crash. The launcher still continues with other selected modes.
 
-The JSON report additionally retains, for each real provider call:
+The current scenario counts are:
 
-- the effective system instruction;
-- user payload sent by AAAAT;
-- raw model response;
-- structured-output mode;
-- HTTP status and timing;
-- local semantic checks and error category.
+- direct AAAAT -> AI: 15;
+- external chat / Send to my AI: 8;
+- model-driven MCP: 8;
+- representative llama.cpp local host: 4.
 
-Credentials and Authorization headers are not written to the report.
+Thus the external-AI surfaces receive more scenario coverage in all than the direct inference surface.
 
-## Purpose
+## Connection prompts
 
-Use repeated outcomes to find systematic prompt/contract problems rather than treating one lucky success or one stochastic miss as truth.
+Direct, chat and model-driven MCP modes ask for an OpenAI-compatible endpoint, model and optional Bearer/API credential.
 
-Typical signals worth acting on include:
+The llama.cpp host fixture additionally asks for:
 
-- the model repeatedly putting field facts into Tags instead of field proposals;
-- frequent schema/JSON failures on otherwise capable models;
-- unsupported facts appearing in letters;
-- weak evidence selection in CV tailoring;
-- verbose prompts whose constraints do not improve repeated outcomes;
-- regressions that appear only with lightweight/local models.
+- the llama-server executable;
+- a GGUF model path;
+- a local port;
+- a packaged AAAAT executable.
 
-Prompt changes should be based on repeated evidence across scenarios/models. This evaluator does not make its expectations product authority and is not part of the merge/release gate.
+If no packaged AAAAT executable is found under out/, the launcher can build one before the host run.
+
+Environment variables can prefill automation/local scripts:
+
+    AAAAT_AI_EVAL_ENDPOINT
+    AAAAT_AI_EVAL_MODEL
+    AAAAT_AI_EVAL_CREDENTIAL
+    AAAAT_AI_EVAL_REPETITIONS
+    AAAAT_LLAMA_SERVER
+    AAAAT_LLAMA_MODEL
+    AAAAT_LLAMA_PORT
+    AAAAT_PACKAGED_EXECUTABLE
+
+## What is evaluated
+
+Direct mode repeatedly exercises the production AAAAT provider/service paths for Source extraction, historical field discovery, opportunity review, CV tailoring and cover-letter drafting.
+
+External-chat mode exercises production Send to my AI context construction and reusable host guidance with opportunity research, interview preparation, one-off edited tasks, sparse context, privacy-hidden information, hostile/instruction-like context text and returned-result retention. It also measures whether current host guidance is sufficient for an external chat to produce the documented application-handoff format; failure is retained as evidence rather than patched around in the evaluator.
+
+MCP mode evaluates model tool choice and round trips including application + document creation, Source-only candidature creation, selected-application research return, Career-context reads, setup-status reads, denied setup authority and requests for unsupported generic database/shell access.
+
+The llama.cpp host mode repeats representative application/document creation, selected-application return, Career-context use and bounded-authority journeys through a real third-party MCP host.
+
+## Reports
+
+All modes in one launcher run write into:
+
+    ai-eval-results/<run-id>/
+
+Each mode writes Markdown and JSON. run.json records which modes completed or had harness/configuration failures.
+
+JSON evidence retains the effective reusable guidance, task text or MCP tool definitions, model requests/responses, tool selections and arguments, tool results, retained workspace outcome, timings, semantic checks and error categories. Credentials and Authorization headers are not written.
+
+Use repeated patterns across models and scenarios to decide whether a prompt, task template, tool description, response contract or carrier boundary should change. One lucky success is not acceptance and one stochastic miss is not a reason to stop testing.
+
+Host/model fixtures are evidence fixtures, not AAAAT architecture.
