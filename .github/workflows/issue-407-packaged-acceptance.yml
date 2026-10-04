@@ -1,0 +1,146 @@
+name: Issue 407 packaged acceptance evidence
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  packaged-windows-evidence:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact acceptance base plus evidence harness
+        uses: actions/checkout@v5
+        with:
+          ref: evidence/407-packaged-acceptance-fc046165
+
+      - name: Verify product base
+        shell: pwsh
+        run: |
+          $parent = git rev-parse HEAD^
+          if ($parent -ne "fc04616543e3746970437e120458ab50046a1c32") {
+            Write-Host "Evidence commits are stacked above the requested product base."
+            git log --oneline -4
+          }
+          git diff --exit-code fc04616543e3746970437e120458ab50046a1c32 -- . ":(exclude).github/acceptance/issue407-packaged.mjs" ":(exclude).github/workflows/issue-407-packaged-acceptance.yml"
+
+      - name: Use Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install and warm MiKTeX
+        shell: pwsh
+        run: |
+          choco install miktex -y --params "/Set:basic" --no-progress
+          $pdf = Get-ChildItem "C:\Program Files\MiKTeX" -Filter pdflatex.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $pdf) { throw "pdflatex.exe was not installed" }
+          $bin = Split-Path $pdf.FullName -Parent
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          $env:Path = "$bin;$env:Path"
+          & (Join-Path $bin "initexmf.exe") --set-config-value=[MPM]AutoInstall=yes
+          $warm = Join-Path $env:RUNNER_TEMP "aaaat-warm.tex"
+          @'
+          \documentclass{article}
+          \usepackage[T1]{fontenc}
+          \usepackage[utf8]{inputenc}
+          \usepackage[english,catalan,german,spanish,french,italian,portuguese]{babel}
+          \usepackage[pdfencoding=auto,psdextra]{hyperref}
+          \usepackage{geometry}
+          \begin{document}warm\end{document}
+          '@ | Set-Content -Path $warm -Encoding utf8
+          Push-Location $env:RUNNER_TEMP
+          & $pdf.FullName -interaction=nonstopmode -halt-on-error $warm
+          Pop-Location
+          & $pdf.FullName --version | Select-Object -First 2
+          python -m pip install --disable-pip-version-check pypdf pymupdf
+
+      - name: Package Windows application
+        shell: pwsh
+        run: npm run package
+
+      - name: Create timeout pdflatex fixture
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "aaaat-timeout-tool"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $src = @'
+          using System;
+          using System.Diagnostics;
+          using System.IO;
+          public class Program {
+            public static int Main(string[] args) {
+              if (args.Length > 0 && args[0] == "--version") {
+                Console.WriteLine("pdfTeX timeout fixture 1.0");
+                return 0;
+              }
+              var psi = new ProcessStartInfo();
+              psi.FileName = "cmd.exe";
+              psi.Arguments = "/c ping 127.0.0.1 -n 300 >nul";
+              psi.UseShellExecute = false;
+              var child = Process.Start(psi);
+              var marker = Environment.GetEnvironmentVariable("AAAT_TIMEOUT_CHILD_PID_FILE");
+              if (child != null && !String.IsNullOrWhiteSpace(marker)) {
+                File.WriteAllText(marker, child.Id.ToString());
+                child.WaitForExit();
+              }
+              return 0;
+            }
+          }
+          '@
+          Add-Type -TypeDefinition $src -OutputAssembly (Join-Path $dir "pdflatex.exe") -OutputType ConsoleApplication
+
+      - name: Generate local HTTPS provider certificate
+        shell: pwsh
+        run: |
+          $openssl = "C:\Program Files\Git\usr\bin\openssl.exe"
+          if (-not (Test-Path $openssl)) { throw "Git OpenSSL not found" }
+          & $openssl req -x509 -newkey rsa:2048 -nodes -keyout "$env:RUNNER_TEMP\aaaat-provider-key.pem" -out "$env:RUNNER_TEMP\aaaat-provider-cert.pem" -days 1 -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+      - name: Exercise packaged product
+        shell: pwsh
+        run: node .github/acceptance/issue407-packaged.mjs
+
+      - name: Inspect generated PDFs
+        if: always()
+        shell: pwsh
+        run: |
+          @'
+          import json, os, glob
+          from pypdf import PdfReader
+          import fitz
+          root=os.path.abspath("acceptance-evidence")
+          rows=[]
+          rendered_image=False
+          for pdf in glob.glob(os.path.join(root,"workspace","**","*.pdf"),recursive=True):
+              try:
+                  r=PdfReader(pdf)
+                  meta={str(k):str(v) for k,v in (r.metadata or {}).items()}
+                  text="\n".join((p.extract_text() or "") for p in r.pages)
+                  rows.append({"path":os.path.relpath(pdf,root),"metadata":meta,"text":text[:12000],"hasParserSentinel":"PARSER SUMMARY SENTINEL" in text})
+                  if not rendered_image and "rendered-cvs" in pdf:
+                      d=fitz.open(pdf)
+                      page=d.load_page(0)
+                      pix=page.get_pixmap(matrix=fitz.Matrix(1.4,1.4))
+                      pix.save(os.path.join(root,"cv-first-page.png"))
+                      rendered_image=True
+              except Exception as e:
+                  rows.append({"path":os.path.relpath(pdf,root),"error":str(e)})
+          os.makedirs(root,exist_ok=True)
+          with open(os.path.join(root,"pdf-inspection.json"),"w",encoding="utf-8") as f:
+              json.dump(rows,f,indent=2,ensure_ascii=False)
+          '@ | python -
+
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-407-packaged-windows-evidence
+          path: acceptance-evidence
+          if-no-files-found: warn
