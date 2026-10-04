@@ -106,9 +106,9 @@ function providerSource() {
     'const slow=String(body.model||"").includes("slow") || raw.includes("SLOW_ACCEPTANCE"); if(slow) await new Promise(r=>setTimeout(r,5000)); else await new Promise(r=>setTimeout(r,350));',
     'if(res.destroyed) return; res.writeHead(200,{"content-type":"application/json"}); sent=true; res.end(JSON.stringify({choices:[{message:{content:JSON.stringify(payload)}}]})); append({event:"request",url:req.url,auth,accepted:true,kind:"chat",system:system.slice(0,80),model:body.model||""});',
     '});};}',
-    'const hs=http.createServer(handler(false)); const ss=https.createServer({cert:fs.readFileSync(cert),key:fs.readFileSync(key)},handler(true));',
-    'hs.listen(0,"127.0.0.1",()=>ss.listen(0,"127.0.0.1",()=>{const data={http:hs.address().port,https:ss.address().port};fs.writeFileSync(info,JSON.stringify(data));}));',
-    'process.on("SIGTERM",()=>{hs.close();ss.close();});'
+    'const hs=http.createServer(handler(false)); const ahs=http.createServer(handler(true)); const ss=https.createServer({cert:fs.readFileSync(cert),key:fs.readFileSync(key)},handler(true));',
+    'hs.listen(0,"127.0.0.1",()=>ahs.listen(0,"127.0.0.1",()=>ss.listen(0,"127.0.0.1",()=>{const data={http:hs.address().port,authHttp:ahs.address().port,https:ss.address().port};fs.writeFileSync(info,JSON.stringify(data));})));',
+    'process.on("SIGTERM",()=>{hs.close();ahs.close();ss.close();});'
   ].join("\n");
 }
 async function startProvider() {
@@ -123,6 +123,22 @@ async function startProvider() {
     await new Promise(r=>setTimeout(r,100));
   }
   throw new Error("Provider did not start: " + err);
+}
+async function startTunnel(localPort) {
+  const cloudflared = path.join(process.env.RUNNER_TEMP, "cloudflared.exe");
+  if (!existsSync(cloudflared)) throw new Error("cloudflared fixture is missing");
+  const child = spawn(cloudflared, ["tunnel","--no-autoupdate","--url","http://127.0.0.1:"+localPort], { stdio:["ignore","pipe","pipe"] });
+  let output="";
+  const append=(chunk)=>{output+=chunk.toString();};
+  child.stdout.on("data",append); child.stderr.on("data",append);
+  for(let i=0;i<300;i++){
+    const match=output.match(/https:\/\/[-a-z0-9]+\.trycloudflare\.com/iu);
+    if(match) return {child,url:match[0],output:()=>output};
+    if(child.exitCode!==null) throw new Error("cloudflared exited "+child.exitCode+": "+output);
+    await new Promise(r=>setTimeout(r,100));
+  }
+  child.kill();
+  throw new Error("cloudflared did not expose the authenticated provider: "+output);
 }
 async function waitDebugger(endpoint, child, err) {
   for (let i=0;i<160;i++) {
@@ -176,7 +192,8 @@ mkdirSync(root,{recursive:true}); mkdirSync(screenshots,{recursive:true});
 initWorkspace();
 note("environment","harnessPdflatex",{path:process.env.PATH ?? "",where:spawnSync("where.exe",["pdflatex"],{encoding:"utf8"}).stdout?.trim() ?? "",version:spawnSync("pdflatex",["--version"],{encoding:"utf8"}).stdout?.split(/\\r?\\n/u).slice(0,2).join(" | ") ?? ""});
 const provider = await startProvider();
-note("aiRuntime","providerEndpoints",{http:"http://127.0.0.1:"+provider.info.http+"/v1",https:"https://localhost:"+provider.info.https+"/v1"});
+const tunnel = await startTunnel(provider.info.authHttp);
+note("aiRuntime","providerEndpoints",{http:"http://127.0.0.1:"+provider.info.http+"/v1",https:tunnel.url+"/v1",localSelfSignedHttps:"https://localhost:"+provider.info.https+"/v1"});
 let app;
 try {
   app = await startApp();
@@ -278,7 +295,7 @@ try {
   }
 
   const localEndpoint="http://127.0.0.1:"+provider.info.http+"/v1";
-  const httpsEndpoint="https://localhost:"+provider.info.https+"/v1";
+  const httpsEndpoint=tunnel.url+"/v1";
   const conns=await page.evaluate(async ({localEndpoint,httpsEndpoint,secretOriginal})=>{
     let c=await window.aaaat.aiConnections.save({name:"Local acceptance",endpoint:localEndpoint,model:"acceptance-model"});
     c=await window.aaaat.aiConnections.save({name:"Authenticated HTTPS",endpoint:httpsEndpoint,model:"acceptance-model",credential:secretOriginal});
@@ -349,7 +366,7 @@ try {
 
   const promptSummary=page.locator("section.ai-prompt-transparency details.document-card").first();
   if(await promptSummary.count()){
-    await promptSummary.locator("summary").click();
+    await promptSummary.locator(":scope > summary").click();
     await page.waitForTimeout(150);
     const pshot=await screenshot(page,"ai-instructions-open-1280x800.png");
     note("aiUx","instructionsOpenText",pshot.bodyText.slice(0,4500));
@@ -417,5 +434,6 @@ try {
 } finally {
   if(app) await stopApp(app);
   provider.child.kill();
+  tunnel.child.kill();
   save();
 }
