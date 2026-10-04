@@ -2,7 +2,8 @@ import { spawn } from "node:child_process";
 import { existsSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import process, { stdin, stderr, stdout } from "node:process";
+import { URL } from "node:url";
 
 const modeFiles = Object.freeze({
   direct: "test/ai-eval/direct-ai.eval.test.ts",
@@ -352,11 +353,11 @@ async function main() {
           }
         : {}),
     };
-    let code = 1;
+    let code;
     try {
       code = await runVitest(modeFiles[item], environment);
     } catch (reason) {
-      console.error(reason instanceof Error ? reason.message : String(reason));
+      stderr.write((reason instanceof Error ? reason.message : String(reason)) + "\n");
       code = 1;
     }
     results.push({ mode: item, harnessExitCode: code });
@@ -401,6 +402,6 @@ async function main() {
 }
 
 main().catch((reason) => {
-  console.error(reason instanceof Error ? reason.message : String(reason));
+  stderr.write((reason instanceof Error ? reason.message : String(reason)) + "\n");
   process.exitCode = 1;
 });
