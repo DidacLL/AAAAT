@@ -168,7 +168,7 @@ export async function chatCompletion(input: {
     );
   }
 
-  let raw = "";
+  let raw: string;
   try {
     raw = await response.text();
   } finally {
