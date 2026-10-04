@@ -12,7 +12,7 @@ The launcher asks for:
 - an OpenAI-compatible base URL;
 - model name;
 - optional API key / Bearer credential;
-- repetitions per scenario (default 3);
+- repetitions per scenario (default 5);
 - a per-request timeout (default 120 seconds).
 
 The suite uses temporary AAAAT workspaces and synthetic application/career data. It exercises the production AI paths for:
@@ -23,7 +23,7 @@ The suite uses temporary AAAAT workspaces and synthetic application/career data.
 - CV tailoring;
 - cover-letter drafting.
 
-There are three materially different scenarios for each operation. Every scenario is repeated, so the default run is 15 scenarios x 3 repetitions = 45 real model trials.
+There are three materially different scenarios for each operation. Every scenario is repeated, so the default run is 15 scenarios x 5 repetitions = 75 real model trials.
 
 ## Evaluation behavior
 
