@@ -24,7 +24,8 @@
     "eval:ai:host:llama": "node scripts/ai-journey-eval.mjs --mode host",
     "eval:ai:all": "node scripts/ai-journey-eval.mjs --mode all",
     "verify": "npm run typecheck && npm run lint && npm test",
-    "verify:package": "npm run build && npm run test:desktop"
+    "verify:package": "npm run build && npm run test:desktop",
+    "__trigger_verify__": "node -e \"process.exit(0)\""
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.0.0",
