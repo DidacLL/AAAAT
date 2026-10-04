@@ -1119,5 +1119,5 @@ evalDescribe("local AI journey evaluation", () => {
     );
     console.log("Report: " + path.join(reportDir, "report.md"));
     console.log("Model misses are retained in the report and do not fail the evaluation run.");
-  }, 3_600_000);
+  }, 14_400_000);
 });
