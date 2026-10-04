@@ -1,10 +1,12 @@
 // @vitest-environment node
 
-import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { describe, it } from "vitest";
 
 import {
@@ -103,6 +105,79 @@ function createApplication(
       value,
     })),
   });
+}
+
+function childEnvironment(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
+function llamaBinaryPreflight(): {
+  readonly version: string;
+  readonly supportsMcpConfig: boolean;
+} {
+  const versionRun = spawnSync(llamaServer, ["--version"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (versionRun.error) {
+    throw new Error(
+      "Cannot start llama-server executable '" + llamaServer + "': " +
+        versionRun.error.message,
+    );
+  }
+
+  const helpRun = spawnSync(llamaServer, ["--help"], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (helpRun.error) {
+    throw new Error(
+      "Cannot inspect llama-server capabilities: " + helpRun.error.message,
+    );
+  }
+  const help = (helpRun.stdout ?? "") + "\n" + (helpRun.stderr ?? "");
+  const supportsMcpConfig = help.includes("--mcp-servers-config");
+  if (!supportsMcpConfig) {
+    throw new Error(
+      "This llama-server build does not support --mcp-servers-config. " +
+        "AAAAT host evaluation needs a llama.cpp build with MCP server integration.",
+    );
+  }
+
+  return {
+    version:
+      ((versionRun.stdout ?? "") + "\n" + (versionRun.stderr ?? "")).trim(),
+    supportsMcpConfig,
+  };
+}
+
+async function packagedAaaatMcpPreflight(root: string): Promise<readonly string[]> {
+  const transport = new StdioClientTransport({
+    command: aaaatExecutable,
+    args: ["--mcp", "--workspace", root],
+    env: childEnvironment(),
+  });
+  const client = new Client({
+    name: "aaaat-llama-host-preflight",
+    version: "1.0.0",
+  });
+  try {
+    await client.connect(transport);
+    const tools = await client.listTools();
+    const names = tools.tools.map((tool) => tool.name);
+    if (!names.includes("application_documents_create")) {
+      throw new Error(
+        "Packaged AAAAT MCP started, but its expected application_documents_create tool is missing.",
+      );
+    }
+    return names;
+  } finally {
+    await client.close().catch(() => undefined);
+  }
 }
 
 function hostRoot(): string {
@@ -428,6 +503,8 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
     let stage = "initializing";
     let tools: LlamaToolEntry[] = [];
     let launchCommand: readonly string[] = [];
+    let llamaPreflight: ReturnType<typeof llamaBinaryPreflight> | null = null;
+    let packagedMcpToolNames: readonly string[] = [];
     const trials: EvalTrial[] = [];
     const mcpConfig = {
       mcpServers: {
@@ -440,9 +517,30 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
     };
 
     try {
+      stage = "checking llama.cpp binary";
+      llamaPreflight = llamaBinaryPreflight();
+      process.stdout.write(
+        "llama.cpp capability preflight: MCP config supported" +
+          (llamaPreflight.version ? " (" + llamaPreflight.version + ")" : "") +
+          "\n",
+      );
+
+      stage = "checking GGUF model path";
+      if (!existsSync(llamaModel)) {
+        throw new Error("GGUF model file does not exist: " + llamaModel);
+      }
+
       stage = "creating temporary AAAAT workspace";
       createOrOpenWorkspace(root);
       writeFileSync(configPath, JSON.stringify(mcpConfig), "utf8");
+
+      stage = "checking packaged AAAAT MCP";
+      packagedMcpToolNames = await packagedAaaatMcpPreflight(root);
+      process.stdout.write(
+        "Packaged AAAAT MCP preflight: " +
+          packagedMcpToolNames.length +
+          " tools available\n",
+      );
 
       stage = "checking llama.cpp evaluation port";
       try {
@@ -619,6 +717,8 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
           aaaatExecutable,
           launchCommand,
           mcpConfig,
+          llamaPreflight,
+          packagedMcpToolNames,
           toolNames: tools.map((tool) => tool.tool),
           recentHostLogs: logs.slice(-100),
         },
