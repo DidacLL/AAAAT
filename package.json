@@ -15,9 +15,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:desktop": "playwright test --config playwright.config.ts",
+    "eval:ai": "node scripts/ai-journey-eval.mjs",
     "verify": "npm run typecheck && npm run lint && npm test",
-    "verify:package": "npm run build && npm run test:desktop",
-    "eval:ai": "node scripts/ai-journey-eval.mjs"
+    "verify:package": "npm run build && npm run test:desktop"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.0.0",
