@@ -38,3 +38,4 @@ Thumbs.db
 local/
 tmp/
 outputs/
+ai-eval-results/
