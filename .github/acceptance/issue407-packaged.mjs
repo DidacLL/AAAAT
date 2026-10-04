@@ -179,7 +179,7 @@ async function screenshot(page,name,width=1280,height=800) {
   };
 }
 async function clickNav(page,name) {
-  await page.getByRole("button",{name,exact:true}).click();
+  await page.getByRole("navigation",{name:"Primary work areas"}).getByRole("button",{name,exact:true}).click();
   await page.waitForTimeout(250);
 }
 async function waitText(locator,text,ms=30000) {
