@@ -9,7 +9,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "build": "npm run typecheck && electron-forge package",
+    "build": "npm run typecheck && npm run package",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
