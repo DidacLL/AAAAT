@@ -15,13 +15,13 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: evidence/407-packaged-acceptance-fc046165
-          fetch-depth: 3
+          fetch-depth: 10
 
       - name: Verify product base
         shell: pwsh
         run: |
-          $product = git rev-parse "HEAD~2"
-          if ($product -ne "fc04616543e3746970437e120458ab50046a1c32") { throw "Evidence branch is not stacked directly above the requested product base." }
+          git cat-file -e "fc04616543e3746970437e120458ab50046a1c32^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw "Requested product base was not fetched." }
           git diff --exit-code fc04616543e3746970437e120458ab50046a1c32 HEAD -- . ":(exclude).github/acceptance/issue407-packaged.mjs" ":(exclude).github/workflows/issue-407-packaged-acceptance.yml"
 
       - name: Use Node 24
