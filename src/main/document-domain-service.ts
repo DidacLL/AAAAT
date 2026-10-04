@@ -292,6 +292,11 @@ function safePdfStem(title: string, fallback: string): string {
           .slice(0, 72);
   return stem || fallback;
 }
+function retainedPdfExists(projectPath: string, title: string, fallback: string): boolean {
+  const buildPath = path.join(projectPath, 'build');
+  return existsSync(path.join(buildPath, `${safePdfStem(title, fallback)}.pdf`)) ||
+      existsSync(path.join(buildPath, 'main.pdf'));
+}
 function retainedPdf(projectPath: string, title: string, fallback: string): string {
   const meaningful =
       path.join(projectPath, 'build', `${safePdfStem(title, fallback)}.pdf`);
@@ -370,7 +375,7 @@ function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
         row.snapshotJson, (value) => renderedCvSnapshotSchema.parse(value),
         'Stored Rendered CV snapshot is invalid.'),
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(renderedProjectPath(rootPath, row), row.title, 'cv'))
+    hasPdf: retainedPdfExists(renderedProjectPath(rootPath, row), row.title, 'cv')
   });
 }
 function readRenderedCvs(rootPath: string, database: DatabaseSync): RenderedCvRecord[] {
@@ -391,8 +396,8 @@ function toRenderedLetter(rootPath: string, row: RenderedLetterRow): RenderedCov
         row.snapshotJson, (value) => coverLetterSnapshotSchema.parse(value),
         'Stored Rendered cover-letter snapshot is invalid.'),
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(
-        renderedLetterProjectPath(rootPath, row), row.title, 'cover-letter'))
+    hasPdf: retainedPdfExists(
+        renderedLetterProjectPath(rootPath, row), row.title, 'cover-letter')
   });
 }
 function readRenderedLetters(
@@ -429,8 +434,8 @@ function toPacket(rootPath: string, row: PacketRow): ApplicationPacketRecord {
     coverLetterId: row.coverLetterId,
     title: row.title,
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(
-        packetProjectPath(rootPath, row), row.title, 'application-document'))
+    hasPdf: retainedPdfExists(
+        packetProjectPath(rootPath, row), row.title, 'application-document')
   });
 }
 function readPackets(rootPath: string, database: DatabaseSync): ApplicationPacketRecord[] {
