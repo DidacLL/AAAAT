@@ -257,7 +257,7 @@ try {
   if(await card.count()){
     await card.click();
     await page.waitForTimeout(200);
-    const openEdit=page.getByRole("button",{name:"Open / Edit",exact:true});
+    const openEdit=page.getByRole("button",{name:"Open application",exact:true});
     if(await openEdit.count()) await openEdit.click();
     await page.waitForTimeout(350);
     const sel=await screenshot(page,"application-selected-1280x800.png");
