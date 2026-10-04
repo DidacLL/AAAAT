@@ -172,9 +172,11 @@ function exchangeView(item: NonNullable<typeof capture>[number]): Exchange {
     structuredMode = body.response_format ? "json_schema" : "plain_json_fallback";
     systemInstruction = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
     userPayload = String(body.messages?.find((message) => message.role === "user")?.content ?? "");
-  } catch {}
+  } catch {
+    structuredMode = "plain_json_fallback";
+  }
 
-  let rawModelResponse = "";
+  let rawModelResponse: string;
   try {
     const body = JSON.parse(item.responseBody) as {
       choices?: Array<{ message?: { content?: unknown } }>;
