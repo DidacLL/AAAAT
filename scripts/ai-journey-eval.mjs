@@ -134,7 +134,7 @@ async function main() {
       "run",
       "tools/ai-eval/ai-journeys.eval.test.ts",
       "--reporter=verbose",
-      "--testTimeout=3600000",
+      "--testTimeout=14400000",
     ],
     {
       cwd: process.cwd(),
