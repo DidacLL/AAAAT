@@ -124,7 +124,9 @@ async function waitForHealth(process: ChildProcess, logs: string[]): Promise<voi
     try {
       const response = await fetch(root + "/health");
       if (response.ok) return;
-    } catch {}
+    } catch (reason) {
+      logs.push(reason instanceof Error ? reason.message : String(reason));
+    }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(
@@ -167,8 +169,12 @@ async function invokeHostTool(
     }),
   });
   const raw = await response.text();
-  let parsed: unknown = raw;
-  try { parsed = JSON.parse(raw) as unknown; } catch {}
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    parsed = raw;
+  }
   return {
     result: parsed,
     isError:
