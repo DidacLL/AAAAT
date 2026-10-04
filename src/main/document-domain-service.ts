@@ -295,8 +295,14 @@ function safePdfStem(title: string, fallback: string): string {
 function retainedPdf(projectPath: string, title: string, fallback: string): string {
   const meaningful =
       path.join(projectPath, 'build', `${safePdfStem(title, fallback)}.pdf`);
-  if (existsSync(meaningful)) return meaningful;
-  return path.join(projectPath, 'build', 'main.pdf');
+  const legacy = path.join(projectPath, 'build', 'main.pdf');
+  if (meaningful === legacy) return meaningful;
+  if (existsSync(meaningful)) {
+    rmSync(legacy, {force: true});
+    return meaningful;
+  }
+  if (existsSync(legacy)) renameSync(legacy, meaningful);
+  return meaningful;
 }
 function defaultLetterSender(rootPath: string): CoverLetterSender {
   const items = getProfile(rootPath).items;
@@ -920,7 +926,8 @@ function safeProjectName(title: string, id: string): string {
   return `${slug}-${id.slice(0, 8)}`;
 }
 function exportPortableProject(
-    source: string, title: string, id: string, targetParent: string): string {
+    source: string, title: string, id: string, targetParent: string,
+    fallback: string): string {
   try {
     if (!statSync(targetParent).isDirectory()) throw new Error('not directory');
     accessSync(targetParent, constants.R_OK | constants.W_OK);
@@ -930,6 +937,7 @@ function exportPortableProject(
   const destination = path.join(targetParent, safeProjectName(title, id));
   if (existsSync(destination))
     throw new DocumentDomainServiceError('A portable project with that name already exists.');
+  retainedPdf(source, title, fallback);
   cpSync(source, destination, {recursive: true, errorOnExist: true});
   return destination;
 }
@@ -938,7 +946,7 @@ export function exportRenderedCvProject(
   const row =
       withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
   return exportPortableProject(
-      renderedProjectPath(rootPath, row), row.title, row.id, targetParent);
+      renderedProjectPath(rootPath, row), row.title, row.id, targetParent, 'cv');
 }
 export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
@@ -1044,7 +1052,8 @@ export function exportRenderedCoverLetterProject(
   const row = withWorkspaceDatabase(
       rootPath, (database) => requireRenderedLetterRow(database, renderedLetterId));
   return exportPortableProject(
-      renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent);
+      renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent,
+      'cover-letter');
 }
 export async function createApplicationPacket(
     rootPath: string, rawInput: ApplicationPacketCreate,
@@ -1123,5 +1132,6 @@ export function exportApplicationPacketProject(
   const row = withWorkspaceDatabase(
       rootPath, (database) => requirePacketRow(database, packetId));
   return exportPortableProject(
-      packetProjectPath(rootPath, row), row.title, row.id, targetParent);
+      packetProjectPath(rootPath, row), row.title, row.id, targetParent,
+      'application-document');
 }
