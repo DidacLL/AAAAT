@@ -115,14 +115,17 @@ function hostRoot(): string {
 
 async function waitForHealth(process: ChildProcess, logs: string[]): Promise<void> {
   const root = hostRoot();
-  let spawnError: Error | null = null;
+  const spawnState: { error: Error | null } = { error: null };
   process.once("error", (reason) => {
-    spawnError = reason instanceof Error ? reason : new Error(String(reason));
-    logs.push("spawn error: " + spawnError.message);
+    spawnState.error =
+      reason instanceof Error ? reason : new Error(String(reason));
+    logs.push("spawn error: " + spawnState.error.message);
   });
   for (let attempt = 0; attempt < 240; attempt += 1) {
-    if (spawnError) {
-      throw new Error("llama-server could not be started: " + spawnError.message);
+    if (spawnState.error) {
+      throw new Error(
+        "llama-server could not be started: " + spawnState.error.message,
+      );
     }
     if (process.exitCode !== null) {
       throw new Error(
