@@ -254,7 +254,20 @@ try {
   const appShot=await screenshot(page,"applications-1280x800.png");
   note("documentUx","applications1280",{horizontalOverflow:appShot.horizontalOverflow,text:appShot.bodyText.slice(0,2200)});
   const card=page.locator(".candidature-corpus-card").first();
-  if(await card.count()){await card.click();await page.waitForTimeout(350);const sel=await screenshot(page,"application-selected-1280x800.png");note("documentUx","applicationSelected",{horizontalOverflow:sel.horizontalOverflow,text:sel.bodyText.slice(0,3500)});}
+  if(await card.count()){
+    await card.click();
+    await page.waitForTimeout(200);
+    const openEdit=page.getByRole("button",{name:"Open / Edit",exact:true});
+    if(await openEdit.count()) await openEdit.click();
+    await page.waitForTimeout(350);
+    const sel=await screenshot(page,"application-selected-1280x800.png");
+    note("documentUx","applicationSelected",{horizontalOverflow:sel.horizontalOverflow,text:sel.bodyText.slice(0,6500)});
+    const materials=page.locator(".application-material-workbench");
+    if(await materials.count()){
+      await materials.screenshot({path:path.join(screenshots,"application-documents.png")});
+      note("documentUx","applicationDocumentsText",(await materials.innerText()).slice(0,5000));
+    }
+  }
   await clickNav(page,"My information");
   const infoShot=await screenshot(page,"my-information-1280x800.png");
   note("documentUx","myInformation",{horizontalOverflow:infoShot.horizontalOverflow,text:infoShot.bodyText.slice(0,3000)});
