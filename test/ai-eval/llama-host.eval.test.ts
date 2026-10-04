@@ -432,6 +432,7 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
         llamaServer,
         [
           "-m", llamaModel,
+          "--alias", path.basename(llamaModel),
           "--host", "127.0.0.1",
           "--port", port,
           "--jinja",
