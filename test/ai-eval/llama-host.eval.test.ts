@@ -115,7 +115,15 @@ function hostRoot(): string {
 
 async function waitForHealth(process: ChildProcess, logs: string[]): Promise<void> {
   const root = hostRoot();
+  let spawnError: Error | null = null;
+  process.once("error", (reason) => {
+    spawnError = reason instanceof Error ? reason : new Error(String(reason));
+    logs.push("spawn error: " + spawnError.message);
+  });
   for (let attempt = 0; attempt < 240; attempt += 1) {
+    if (spawnError) {
+      throw new Error("llama-server could not be started: " + spawnError.message);
+    }
     if (process.exitCode !== null) {
       throw new Error(
         "llama-server exited during startup. " + logs.slice(-10).join("\n"),
@@ -414,50 +422,86 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
     const configPath = path.join(configDir, "mcp.json");
     const logs: string[] = [];
     let child: ChildProcess | null = null;
+    let stage = "initializing";
+    let tools: LlamaToolEntry[] = [];
+    let launchCommand: readonly string[] = [];
     const trials: EvalTrial[] = [];
+    const mcpConfig = {
+      mcpServers: {
+        aaaat: {
+          command: aaaatExecutable,
+          args: ["--mcp", "--workspace", root],
+          timeout_ms: 60_000,
+        },
+      },
+    };
 
     try {
+      stage = "creating temporary AAAAT workspace";
       createOrOpenWorkspace(root);
-      writeFileSync(
-        configPath,
-        JSON.stringify({
-          mcpServers: {
-            aaaat: {
-              command: aaaatExecutable,
-              args: ["--mcp", "--workspace", root],
-              timeout_ms: 60_000,
-            },
-          },
-        }),
-        "utf8",
-      );
+      writeFileSync(configPath, JSON.stringify(mcpConfig), "utf8");
+
+      stage = "checking llama.cpp evaluation port";
+      try {
+        const existing = await fetch(hostRoot() + "/health");
+        if (existing.ok) {
+          throw new Error(
+            "The selected evaluation port already has a running server. " +
+              "This host mode must start llama-server itself so it can inject the temporary AAAAT MCP workspace. " +
+              "Stop the server using that port or choose another port.",
+          );
+        }
+      } catch (reason) {
+        if (
+          reason instanceof Error &&
+          reason.message.includes("selected evaluation port already has")
+        ) {
+          throw reason;
+        }
+      }
 
       const endpointUrl = new URL(evalEndpoint);
       const port = endpointUrl.port || "8080";
+      const launchArgs = [
+        "-m", llamaModel,
+        "--alias", path.basename(llamaModel),
+        "--host", "127.0.0.1",
+        "--port", port,
+        "--jinja",
+        "--no-webui",
+        "--mcp-servers-config", configPath,
+        "-c", "8192",
+      ];
+      launchCommand = [llamaServer, ...launchArgs];
+      process.stdout.write(
+        "\nStarting evaluator-owned llama.cpp host:\n  " +
+          launchCommand.map((part) => JSON.stringify(part)).join(" ") +
+          "\n\n",
+      );
+
+      stage = "starting llama-server";
       child = spawn(
         llamaServer,
-        [
-          "-m", llamaModel,
-          "--alias", path.basename(llamaModel),
-          "--host", "127.0.0.1",
-          "--port", port,
-          "--jinja",
-          "--no-webui",
-          "--mcp-servers-config", configPath,
-          "-c", "8192",
-        ],
-        { stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
+        launchArgs,
+        { stdio: ["ignore", "pipe", "pipe"], windowsHide: false },
       );
-      const recordLog = (chunk: Buffer | string) => {
-        const lines = String(chunk).split(/\r?\n/u).filter(Boolean);
-        logs.push(...lines);
-        if (logs.length > 200) logs.splice(0, logs.length - 200);
-      };
-      child.stdout?.on("data", recordLog);
-      child.stderr?.on("data", recordLog);
+      const recordLog = (stream: "stdout" | "stderr") =>
+        (chunk: Buffer | string) => {
+          const lines = String(chunk).split(/\r?\n/u).filter(Boolean);
+          for (const line of lines) {
+            logs.push(stream + ": " + line);
+            process.stdout.write("[llama.cpp " + stream + "] " + line + "\n");
+          }
+          if (logs.length > 200) logs.splice(0, logs.length - 200);
+        };
+      child.stdout?.on("data", recordLog("stdout"));
+      child.stderr?.on("data", recordLog("stderr"));
+
+      stage = "waiting for llama-server health";
       await waitForHealth(child, logs);
 
-      const tools = await listHostTools();
+      stage = "discovering AAAAT MCP tools";
+      tools = await listHostTools();
       if (!tools.some((tool) => tool.tool.endsWith("_application_documents_create"))) {
         throw new Error(
           "llama.cpp did not register the packaged AAAAT MCP tools. " +
@@ -515,6 +559,7 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
       if (trials.length !== expected) {
         throw new Error("llama.cpp host evaluator stopped before all trials ran.");
       }
+      stage = "writing completed host report";
       const directory = writeEvalReport({
         mode: "llama-host",
         description:
@@ -539,6 +584,49 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
         },
       });
       console.log("llama.cpp host report: " + path.join(directory, "llama-host.md"));
+    } catch (reason) {
+      const failure = errorInfo(reason);
+      const directory = writeEvalReport({
+        mode: "llama-host",
+        description:
+          "llama.cpp local-agent-host evaluation failed before completing the scheduled journeys. " +
+          "The report preserves startup, MCP discovery and host diagnostics.",
+        scenarios,
+        trials,
+        promptArtifacts: {
+          "reusable host guidance": externalAssistantGuidance.content,
+          ...(tools.length > 0
+            ? {
+                "host MCP tool definitions": tools
+                  .map((tool) =>
+                    tool.tool + ": " + tool.definition.function.description +
+                    "\n" + JSON.stringify(tool.definition.function.parameters),
+                  )
+                  .join("\n\n"),
+              }
+            : {}),
+        },
+        extra: {
+          host: "llama.cpp",
+          stage,
+          failure,
+          endpoint: hostRoot(),
+          llamaServer,
+          llamaModel,
+          aaaatExecutable,
+          launchCommand,
+          mcpConfig,
+          toolNames: tools.map((tool) => tool.tool),
+          recentHostLogs: logs.slice(-100),
+        },
+      });
+      process.stderr.write(
+        "\nllama.cpp host evaluation failed during: " + stage +
+          "\nReason: " + failure.message +
+          "\nDiagnostic report: " + path.join(directory, "llama-host.json") +
+          "\n",
+      );
+      throw reason;
     } finally {
       if (child && child.exitCode === null) {
         child.kill();
