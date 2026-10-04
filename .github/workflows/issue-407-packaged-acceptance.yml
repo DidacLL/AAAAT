@@ -115,6 +115,12 @@ jobs:
           if (-not (Test-Path $openssl)) { throw "Git OpenSSL not found" }
           & $openssl req -x509 -newkey rsa:2048 -nodes -keyout "$env:RUNNER_TEMP\aaaat-provider-key.pem" -out "$env:RUNNER_TEMP\aaaat-provider-cert.pem" -days 1 -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 
+      - name: Install HTTPS tunnel fixture
+        shell: pwsh
+        run: |
+          Invoke-WebRequest "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "$env:RUNNER_TEMP\cloudflared.exe"
+          & "$env:RUNNER_TEMP\cloudflared.exe" --version
+
       - name: Exercise packaged product
         shell: pwsh
         run: node .github/acceptance/issue407-packaged.mjs
