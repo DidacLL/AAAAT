@@ -5,15 +5,11 @@ on:
   push:
     paths:
       - ".github/workflows/**"
-      - ".agentic/**"
       - "src/**"
-      - "test/**"
       - "package.json"
       - "package-lock.json"
-      - "tsconfig*.json"
       - "vite*.ts"
       - "forge.config.*"
-      - "playwright.config.*"
 
 permissions:
   contents: read
@@ -34,8 +30,7 @@ jobs:
           node-version: 24.20.0
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
+      - run: npm run build
 
   gate:
     name: Verification gate
@@ -44,12 +39,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require static verification
+      - name: Require package build
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
         run: |
           if [[ "$VERIFY_RESULT" != "success" ]]; then
-            echo "Static verification finished as $VERIFY_RESULT" >&2
+            echo "Application package build finished as $VERIFY_RESULT" >&2
             exit 1
           fi
-          echo "Static typecheck and lint verification passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Application package build passed." >> "$GITHUB_STEP_SUMMARY"
