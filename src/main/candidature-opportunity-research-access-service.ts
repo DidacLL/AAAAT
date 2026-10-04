@@ -16,6 +16,7 @@ import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
+import { opportunityResearchTaskInstruction } from "../shared/external-ai-task-templates";
 import {
   externalCandidatureSourceAddInputSchema,
   externalOpportunityResearchContextSchema,
@@ -341,7 +342,7 @@ export function addSourceToSelectedOpportunityResearchCandidature(
 export const maxOpportunityResearchPortableResultBytes = 64 * 1024;
 
 export const defaultOpportunityResearchTaskInstruction =
-  "Research this opportunity and produce a concise application brief with relevant verified facts and source links, positioning ideas supported by the supplied context, important unknowns or questions, and concrete preparation points. If key details are missing, state them instead of guessing.";
+  opportunityResearchTaskInstruction;
 
 function portableValue(value: CandidatureRuntimeValue): string {
   if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
