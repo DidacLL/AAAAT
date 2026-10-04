@@ -74,7 +74,7 @@ function initWorkspace() {
     const insert = db.prepare("INSERT INTO profile_items(id, kind, title, subtitle, description, start_date, end_date, url, sort_order, ai_use_allowed, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
     insert.run(identityId, "identity", "Alex Acceptance", "Platform engineer", null, null, null, "https://alex.example.test", 0, 1, now, now);
     insert.run(contactId, "contact", "alex@example.test", "Email", null, null, null, null, 1, 1, now, now);
-    insert.run(experienceId, "experience", "Senior Platform Engineer", "Example Systems", "Built reliable provider-agnostic developer tooling and desktop workflows.", "2022", "2026", "https://example.test/work", 2, 1, now, now);
+    insert.run(experienceId, "experience", "Senior Platform Engineer", "Example Systems", "Built reliable provider-agnostic developer tooling and desktop workflows.", "2022", "2026", "https://example.com/work", 2, 1, now, now);
     db.exec("COMMIT");
   } catch (e) {
     db.exec("ROLLBACK");
@@ -135,7 +135,7 @@ async function waitDebugger(endpoint, child, err) {
 async function startApp(extraEnv={}) {
   const p = await port();
   const endpoint = "http://127.0.0.1:" + p;
-  const env = { ...process.env, APPDATA: appData, LOCALAPPDATA: appData, USERPROFILE: appData, NODE_EXTRA_CA_CERTS: cert, ...extraEnv };
+  const env = { ...process.env, NODE_EXTRA_CA_CERTS: cert, ...extraEnv };
   const child = spawn(exe, ["--user-data-dir="+userData, "--remote-debugging-port="+p], { env, stdio:["ignore","ignore","pipe"] });
   let err="";
   child.stderr.on("data", c=>err+=c.toString());
@@ -174,6 +174,7 @@ async function waitText(locator,text,ms=30000) {
 
 mkdirSync(root,{recursive:true}); mkdirSync(screenshots,{recursive:true});
 initWorkspace();
+note("environment","harnessPdflatex",{path:process.env.PATH ?? "",where:spawnSync("where.exe",["pdflatex"],{encoding:"utf8"}).stdout?.trim() ?? "",version:spawnSync("pdflatex",["--version"],{encoding:"utf8"}).stdout?.split(/\\r?\\n/u).slice(0,2).join(" | ") ?? ""});
 const provider = await startProvider();
 note("aiRuntime","providerEndpoints",{http:"http://127.0.0.1:"+provider.info.http+"/v1",https:"https://localhost:"+provider.info.https+"/v1"});
 let app;
@@ -199,7 +200,7 @@ try {
       fieldId:field.definition.id,favourite:true,favouriteOrder:0,presentationSize:"wide",aiUseAllowed:true
     });
     await window.aaaat.candidatures.setFieldValue({candidatureId,fieldId:field.definition.id,value:"Example Systems"});
-    await window.aaaat.candidatures.addSource({candidatureId,kind:"job_posting",title:"Senior Platform Engineer",url:"https://example.test/job",sourceText:"SLOW_ACCEPTANCE Senior Platform Engineer at Example Systems. Remote role."});
+    await window.aaaat.candidatures.addSource({candidatureId,kind:"job_posting",title:"Senior Platform Engineer",url:"https://example.com/job",sourceText:"SLOW_ACCEPTANCE Senior Platform Engineer at Example Systems. Remote role."});
     const tag=await window.aaaat.candidatures.createTag({name:"Platform",definition:"Platform engineering opportunity",aliases:["infra"]});
     await window.aaaat.candidatures.setTags({candidatureId,tagIds:[tag.id]});
     const blueprints=await window.aaaat.documentDomain.blueprints();
