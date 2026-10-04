@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
   CoverLetterRecord,
+  CvSectionPresentationRole,
   CvTemplateItem,
   CvTemplateSection,
   DocumentCollections,
@@ -12,6 +14,7 @@ import type {
   WorkingCvSection,
 } from "../shared/document-domain-contracts";
 import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
+import { startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import "./documents.css";
 
@@ -23,6 +26,57 @@ const emptyCollections: DocumentCollections = {
   renderedLetters: [],
   applicationPackets: [],
 };
+
+function readableDocumentError(reason: unknown, fallback: string): string {
+  if (!(reason instanceof Error) || !reason.message.trim()) return fallback;
+  return reason.message
+    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
+    .replace(/^Error:\s*/u, "")
+    .trim() || fallback;
+}
+
+function contactLabel(item: ProfileItem): string {
+  return item.subtitle?.trim() || "Contact";
+}
+
+function letterSenderFromProfile(profile: readonly ProfileItem[]): CoverLetterRecord["sender"] {
+  const identity = profile.find(
+    (item) => item.kind.trim().toLocaleLowerCase() === "identity" && item.title.trim(),
+  );
+  const details: CoverLetterRecord["sender"]["details"] = [];
+  if (identity?.url?.trim()) {
+    details.push({ id: crypto.randomUUID(), label: "Website", value: identity.url.trim() });
+  }
+  for (const item of profile) {
+    const kind = item.kind.trim().toLocaleLowerCase();
+    if (kind === "contact" && item.title.trim()) {
+      details.push({
+        id: crypto.randomUUID(),
+        label: contactLabel(item),
+        value: item.title.trim(),
+      });
+    } else if (kind === "link" && item.url?.trim()) {
+      details.push({
+        id: crypto.randomUUID(),
+        label: item.title.trim() || item.subtitle?.trim() || "Website",
+        value: item.url.trim(),
+      });
+    }
+  }
+  return {
+    name: identity?.title.trim() ?? "",
+    headline: identity?.subtitle?.trim() ?? "",
+    details,
+  };
+}
+
+function letterSenderHasContent(sender: CoverLetterRecord["sender"]): boolean {
+  return Boolean(
+    sender.name.trim()
+    || sender.headline.trim()
+    || sender.details.some((detail) => detail.label.trim() || detail.value.trim()),
+  );
+}
 
 function useBlueprintSelection(): {
   blueprints: BlueprintSummary[];
@@ -60,9 +114,9 @@ function BlueprintRenderChoice({
 }) {
   return (
     <label className="blueprint-render-choice">
-      <span>Blueprint</span>
+      <span>PDF style</span>
       <select
-        aria-label="Blueprint"
+        aria-label="PDF style"
         value={selectedBlueprintId}
         disabled={blueprints.length === 0}
         onChange={(event) => onChange(event.target.value)}
@@ -131,19 +185,14 @@ function move<T>(items: readonly T[], index: number, offset: -1 | 1): T[] {
   return next;
 }
 
-function sourceLabel(item: WorkingCvItem, variants: readonly ProfileVariantRecord[]): string {
-  if (item.sourceMode === "custom" || item.sourceMode === "override") return "This CV only";
-  if (item.sourceMode === "current") return "My information — current";
-  const variant = variants.find((candidate) => candidate.id === item.profileVariantId);
-  return variant ? `Saved variation — ${variant.name}` : "Saved variation";
-}
-
 function dateRange(item: WorkingCvItem): string | null {
   if (item.content.startDate && item.content.endDate) return `${item.content.startDate} – ${item.content.endDate}`;
   return item.content.startDate ?? item.content.endDate ?? null;
 }
 
 type OptionalCvDetail = "subtitle" | "description" | "startDate" | "endDate" | "url";
+type CvReuseTarget = "" | "profile" | "profile_variant" | "template";
+type CvTemplateReuseChoice = "" | "new" | "source";
 
 const optionalCvDetails: readonly { key: OptionalCvDetail; label: string }[] = [
   { key: "subtitle", label: "Subtitle" },
@@ -176,7 +225,7 @@ export function WorkingCvEditor({
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature } = useContextualHandoffs();
+  const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -185,18 +234,70 @@ export function WorkingCvEditor({
   const [addingToSectionId, setAddingToSectionId] = useState<string | null>(null);
   const [sectionName, setSectionName] = useState("");
   const [templateName, setTemplateName] = useState("");
+  const [cvTemplateReuseChoice, setCvTemplateReuseChoice] = useState<CvTemplateReuseChoice>("");
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
+  const [reuseChoiceByItem, setReuseChoiceByItem] = useState<Record<string, CvReuseTarget>>({});
   const [tailoringNotes, setTailoringNotes] = useState<Record<string, string>>({});
   const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
+  const tailoringTaskKey = `document:cv-tailoring:${document.id}`;
+  const tailoringTask = useAiTask<CvTailoringResult>(tailoringTaskKey);
+  const handledTailoringResult = useRef<CvTailoringResult | null>(null);
+  const tailoringActive =
+    tailoringTask?.status === "queued" || tailoringTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
-  const dirty = JSON.stringify({ title: draft.title, language: draft.language, sections: draft.sections }) !== JSON.stringify({ title: document.title, language: document.language, sections: document.sections });
+  const dirty = JSON.stringify({
+    title: draft.title,
+    language: draft.language,
+    pdfMetadata: draft.pdfMetadata,
+    parserSummary: draft.parserSummary,
+    sections: draft.sections,
+  }) !== JSON.stringify({
+    title: document.title,
+    language: document.language,
+    pdfMetadata: document.pdfMetadata,
+    parserSummary: document.parserSummary,
+    sections: document.sections,
+  });
 
   useEffect(() => {
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    const result = tailoringTask?.status === "completed" ? tailoringTask.result : undefined;
+    if (!result || handledTailoringResult.current === result) return;
+    handledTailoringResult.current = result;
+    const rank = new Map(
+      result.recommendations.map((recommendation, index) => [recommendation.itemId, index]),
+    );
+    setDraft((current) => ({
+      ...current,
+      sections: current.sections.map((section) => ({
+        ...section,
+        items: [...section.items].sort(
+          (left, right) =>
+            (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+            (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+        ),
+      })),
+    }));
+    setTailoringNotes(
+      Object.fromEntries(
+        result.recommendations.map((recommendation) => [
+          recommendation.itemId,
+          recommendation.rationale,
+        ]),
+      ),
+    );
+    setTailoringMessage(
+      result.recommendations.length > 0
+        ? "AI suggestions are ready in this CV draft. Review them, then Save or keep editing."
+        : "AI did not recommend a different emphasis for this CV.",
+    );
+  }, [tailoringTask]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -236,6 +337,8 @@ export function WorkingCvEditor({
       id: draft.id,
       title: draft.title,
       language: draft.language,
+      pdfMetadata: draft.pdfMetadata,
+      parserSummary: draft.parserSummary,
       sections: draft.sections,
     });
     setDraft(saved);
@@ -249,7 +352,7 @@ export function WorkingCvEditor({
     try {
       return await persistDraft();
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "AAAAT could not save this Working CV.";
+      const message = reason instanceof Error ? reason.message : "AAAAT could not save this CV.";
       setError(message);
       throw reason;
     } finally {
@@ -338,7 +441,9 @@ export function WorkingCvEditor({
     }
   };
 
-  const saveOwnership = async (item: WorkingCvItem, target: "template" | "profile_variant" | "profile") => {
+  const saveOwnership = async (item: WorkingCvItem, target: Exclude<CvReuseTarget, "">) => {
+    const variantName = variantNameByItem[item.id]?.trim() ?? "";
+    if (target === "profile_variant" && !variantName) return;
     setError(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
@@ -346,12 +451,14 @@ export function WorkingCvEditor({
         workingCvId: saved.id,
         itemId: item.id,
         target,
-        ...(target === "profile_variant" ? {
-          variantName: variantNameByItem[item.id]?.trim() || "CV wording",
-        } : {}),
+        ...(target === "profile_variant" ? { variantName } : {}),
       });
       setDraft(refreshed);
       onSaved(refreshed);
+      setReuseChoiceByItem((current) => ({ ...current, [item.id]: "" }));
+      if (target === "profile_variant") {
+        setVariantNameByItem((current) => ({ ...current, [item.id]: "" }));
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save that reusable value.");
     }
@@ -368,8 +475,11 @@ export function WorkingCvEditor({
         id: template.id,
         name: template.name,
         language: saved.language,
+        pdfMetadata: saved.pdfMetadata,
+        parserSummary: saved.parserSummary,
         sections: templateSections(saved),
       }));
+      setCvTemplateReuseChoice("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not update the template.");
     }
@@ -384,41 +494,41 @@ export function WorkingCvEditor({
       await window.aaaat.documentDomain.saveWorkingAsTemplate({ workingCvId: saved.id, name });
       onCollections(await window.aaaat.documentDomain.collections());
       setTemplateName("");
+      setCvTemplateReuseChoice("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not save the new template.");
     }
   };
 
   const askAiToTailor = async () => {
-    if (!draft.candidatureId || busy) return;
-    setBusy(true);
+    if (!draft.candidatureId || tailoringActive) return;
     setError(null);
     setTailoringMessage(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
-      const result = await window.aaaat.ai.tailorCv({
-        candidatureId: saved.candidatureId!,
-        workingCvId: saved.id,
-      });
-      const rank = new Map(result.recommendations.map((recommendation, index) => [recommendation.itemId, index]));
-      const notes = Object.fromEntries(result.recommendations.map((recommendation) => [recommendation.itemId, recommendation.rationale]));
-      const sections = saved.sections.map((section) => ({
-        ...section,
-        items: [...section.items].sort(
-          (left, right) => (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
-        ),
-      }));
-      setDraft({ ...saved, sections });
-      setTailoringNotes(notes);
-      setTailoringMessage(
-        result.recommendations.length > 0
-          ? "AI suggestions changed only this Working CV draft. Review them, then Save or keep editing."
-          : "AI did not recommend a different emphasis for this Working CV.",
+      startAiTask<CvTailoringResult>(
+        tailoringTaskKey,
+        async (updateDetail, signal) => {
+          updateDetail("Reviewing application context and CV content…");
+          const cancelProvider = () => {
+            void window.aaaat.aiTasks.cancelCvTailoring(tailoringTaskKey).catch(() => undefined);
+          };
+          signal.addEventListener("abort", cancelProvider, { once: true });
+          try {
+            return await window.aaaat.aiTasks.tailorCv(tailoringTaskKey, {
+              candidatureId: saved.candidatureId!,
+              workingCvId: saved.id,
+            });
+          } finally {
+            signal.removeEventListener("abort", cancelProvider);
+          }
+        },
+        "Tailor CV",
+        (result) =>
+          result.recommendations.length > 0 ? "Suggestions ready" : "No changes suggested",
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not tailor this Working CV with AI.");
-    } finally {
-      setBusy(false);
+      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this CV for AI.");
     }
   };
 
@@ -436,51 +546,61 @@ export function WorkingCvEditor({
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedCv(rendered.id);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not render this CV.");
-      setRenderSettingsSuggested(true);
+      const message = readableDocumentError(reason, "AAAAT could not render this CV.");
+      setError(message);
+      setRenderSettingsSuggested(/pdflatex was not found/iu.test(message));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="document-work working-cv-editor" aria-label="Working CV">
-      <header className="document-console-heading working-cv-console-heading">
-        <div>
-          <p className="eyebrow">Working CV</p>
-          <h1>{draft.title}</h1>
-          <small>{draft.candidatureId ? "Owned by this application" : "Standalone CV"}</small>
+    <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
+      <header className="document-editor-toolbar">
+        <div className="document-editor-context">
+          <button
+            type="button"
+            className="document-back-button"
+            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
+          >
+            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
+          </button>
+          <div>
+            <p className="eyebrow">CV</p>
+            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
+          </div>
         </div>
-        <div className="button-row working-cv-primary-actions">
-          {documentHandoff?.candidatureId ? (
-            <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button>
-          ) : null}
+        <div className="document-editor-actions">
           {draft.candidatureId ? (
-            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAiToTailor()}>Ask AI to tailor</button>
+            <button type="button" className="compact-secondary" disabled={busy || tailoringActive} onClick={() => void askAiToTailor()}>
+              {tailoringActive ? "AI working…" : "Tailor with AI"}
+            </button>
           ) : null}
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
-          <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>Render PDF</button>
+          <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>
+            {busy ? "Creating PDF…" : "Create PDF"}
+          </button>
         </div>
       </header>
 
       {error ? (
-        <div className="button-row">
+        <div className="document-editor-message">
           <p className="error-message" role="alert">{error}</p>
-          {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Open Document settings</button> : null}
+          {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Document setup</button> : null}
         </div>
       ) : null}
-      {tailoringMessage ? <p className="compact-note" role="status">{tailoringMessage}</p> : null}
+      {tailoringMessage ? <p className="compact-note document-editor-message" role="status">{tailoringMessage}</p> : null}
 
-      <details className="working-cv-document-details">
-        <summary>Document details{draft.language ? ` · ${draft.language}` : ""}</summary>
-        <div className="document-metadata-grid">
-          <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
-          <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} placeholder="Optional" /></label>
-        </div>
-      </details>
-
-      <div className="working-cv-composition" aria-label="CV document outline">
+      <div className="working-cv-composition document-sheet" aria-label="CV document">
+        <header className="document-sheet-heading">
+          <input
+            className="document-sheet-title"
+            aria-label="CV title"
+            value={draft.title}
+            onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+          />
+          <small>{draft.candidatureId ? "Application CV" : "Standalone CV"}</small>
+        </header>
         {draft.sections.length === 0 ? <p className="compact-empty">This CV is blank. Add a section, then add My information or custom content.</p> : null}
         {draft.sections.length > 0 ? (
           <ol className="working-cv-sections" aria-label="CV sections">
@@ -495,23 +615,25 @@ export function WorkingCvEditor({
                           <input aria-label={`Rename ${section.name} section`} value={section.name} onChange={(event) => updateSection(section.id, (current) => ({ ...current, name: event.target.value }))} />
                         </label>
                       ) : <h2>{section.name}</h2>}
-                      <span>{section.items.length} {section.items.length === 1 ? "item" : "items"}</span>
+
                     </div>
                     <details className="working-cv-section-options">
-                      <summary aria-label={`${section.name} section options`}>Section options</summary>
+                      <summary aria-label={`${section.name} section options`}>•••</summary>
                       <div className="working-cv-compact-controls">
                         <label>
-                          Role
+                          Placement
                           <select
-                            aria-label={`${section.name} presentation role`}
+                            aria-label={`${section.name} placement`}
                             value={section.presentationRole}
                             onChange={(event) => updateSection(section.id, (current) => ({
                               ...current,
-                              presentationRole: event.target.value === "secondary" ? "secondary" : "main",
+                              presentationRole: event.target.value as CvSectionPresentationRole,
                             }))}
                           >
-                            <option value="main">Main</option>
-                            <option value="secondary">Secondary</option>
+                            <option value="header">Header</option>
+                            <option value="main">Main body</option>
+                            <option value="secondary">Secondary body</option>
+                            <option value="footer">Footer</option>
                           </select>
                         </label>
                         <button type="button" className="compact-secondary" onClick={() => setRenamingSectionId((current) => current === section.id ? null : section.id)}>{renamingSectionId === section.id ? "Done" : "Rename"}</button>
@@ -559,36 +681,30 @@ export function WorkingCvEditor({
 
                               {item.content.description ? <p className="working-cv-description">{item.content.description}</p> : null}
                               {item.content.url ? <p className="working-cv-link">{item.content.url}</p> : null}
-                              <div className="working-cv-source-summary">
-                                <span>{sourceLabel(item, variants)}</span>
-                                {item.profileItemId && !editing ? <button type="button" className="working-cv-link-button" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button> : null}
-                              </div>
                               {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
 
                               {editing ? (
                                 <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
-                                  {item.profileItemId ? (
-                                    item.sourceMode === "override" ? (
-                                      <div className="working-source-row working-source-override">
-                                        <span className="working-cv-source-chip">This CV only</span>
-                                        <div className="button-row">
-                                          <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
-                                          <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="working-source-row">
-                                        <label>
-                                          Wording source
-                                          <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
-                                            <option value="current">My information — current</option>
-                                            {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>Saved variation — {variant.name}</option>)}
-                                          </select>
-                                        </label>
+                                  {item.profileItemId && item.sourceMode === "override" ? (
+                                    <div className="working-source-row working-source-override">
+                                      <span>Edits here apply only to this CV.</span>
+                                      <div className="button-row">
+                                        <button type="button" className="compact-secondary" onClick={() => chooseSource(section.id, item, "current")}>Reset from My information</button>
                                         <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
                                       </div>
-                                    )
-                                  ) : <span className="working-cv-source-chip">This CV only</span>}
+                                    </div>
+                                  ) : item.profileItemId && itemVariants.length > 0 ? (
+                                    <div className="working-source-row">
+                                      <label>
+                                        Use My information
+                                        <select value={item.sourceMode === "variant" ? item.profileVariantId ?? "current" : "current"} onChange={(event) => chooseSource(section.id, item, event.target.value)}>
+                                          <option value="current">Current version</option>
+                                          {itemVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}
+                                        </select>
+                                      </label>
+                                      <button type="button" className="compact-secondary" onClick={() => openProfessionalInformationItem(draft.id, item.profileItemId!)}>Open My information</button>
+                                    </div>
+                                  ) : null}
 
                                   <div className="working-cv-edit-fields">
                                     <label>Title<input value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} /></label>
@@ -599,7 +715,18 @@ export function WorkingCvEditor({
                                     {editingOptionalDetails.includes("url") ? <label className="working-cv-wide-field">Link<input value={item.content.url ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { url: event.target.value || undefined })} /></label> : null}
                                   </div>
 
-                                  {availableOptionalDetails.length > 0 ? (
+                                  {availableOptionalDetails.length === 1 ? (
+                                    <button
+                                      type="button"
+                                      className="compact-secondary working-cv-add-detail-button"
+                                      onClick={() => {
+                                        const key = availableOptionalDetails[0]?.key;
+                                        if (key) setEditingOptionalDetails((current) => current.includes(key) ? current : [...current, key]);
+                                      }}
+                                    >
+                                      + {availableOptionalDetails[0]?.label}
+                                    </button>
+                                  ) : availableOptionalDetails.length > 1 ? (
                                     <label className="working-cv-add-detail">
                                       <span>Add detail</span>
                                       <select
@@ -618,18 +745,58 @@ export function WorkingCvEditor({
                                   ) : null}
 
                                   {item.profileItemId && item.sourceMode === "override" ? (
-                                    <div className="ownership-actions">
-                                      <strong>These changes are only in this CV.</strong>
-                                      <span>Keep them here, or deliberately reuse this wording elsewhere.</span>
-                                      <div className="working-cv-ownership-buttons">
-                                        {draft.sourceTemplateId && item.templateItemId ? <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "template")}>Save to template</button> : null}
-                                        <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile")}>Update My information</button>
+                                    <details className="ownership-actions">
+                                      <summary>Save this edit for reuse</summary>
+                                      <div>
+                                        <span>This edit stays only in this CV unless you choose to reuse it.</span>
+                                        <label>
+                                          Reuse it as
+                                          <select
+                                            value={reuseChoiceByItem[item.id] ?? ""}
+                                            onChange={(event) => setReuseChoiceByItem((current) => ({
+                                              ...current,
+                                              [item.id]: event.target.value as CvReuseTarget,
+                                            }))}
+                                          >
+                                            <option value="">Choose…</option>
+                                            <option value="profile_variant">Another My information version</option>
+                                            <option value="profile">Replace the current My information version</option>
+                                            {draft.sourceTemplateId && item.templateItemId ? (
+                                              <option value="template">Update the CV template this came from</option>
+                                            ) : null}
+                                          </select>
+                                        </label>
+                                        {reuseChoiceByItem[item.id] === "profile_variant" ? (
+                                          <label>
+                                            Version name
+                                            <input
+                                              value={variantNameByItem[item.id] ?? ""}
+                                              onChange={(event) => setVariantNameByItem((current) => ({
+                                                ...current,
+                                                [item.id]: event.target.value,
+                                              }))}
+                                              placeholder="e.g. Leadership emphasis"
+                                            />
+                                          </label>
+                                        ) : null}
+                                        {reuseChoiceByItem[item.id] ? (
+                                          <button
+                                            type="button"
+                                            className="compact-secondary"
+                                            disabled={
+                                              reuseChoiceByItem[item.id] === "profile_variant"
+                                              && !(variantNameByItem[item.id]?.trim())
+                                            }
+                                            onClick={() => void saveOwnership(
+                                              item,
+                                              reuseChoiceByItem[item.id] as Exclude<CvReuseTarget, "">,
+                                            )}
+                                          >
+                                            Save for reuse
+                                          </button>
+                                        ) : null}
                                       </div>
-                                      <div className="working-cv-variant-save">
-                                        <label>Variation name<input value={variantNameByItem[item.id] ?? ""} onChange={(event) => setVariantNameByItem((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. Leadership emphasis" /></label>
-                                        <button type="button" className="compact-secondary" onClick={() => void saveOwnership(item, "profile_variant")}>Save as profile variant</button>
-                                      </div>
-                                    </div>
+                                    </details>
                                   ) : null}
                                 </div>
                               ) : null}
@@ -642,13 +809,33 @@ export function WorkingCvEditor({
 
                   {addingToSectionId === section.id ? (
                     <div className="working-cv-add-row">
-                      <label>
-                        From My information
-                        <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
-                          <option value="">Choose…</option>
-                          {profile.filter((item) => !section.items.some((current) => current.profileItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-                        </select>
-                      </label>
+                      {(() => {
+                        const available = profile.filter(
+                          (item) => !section.items.some((current) => current.profileItemId === item.id),
+                        );
+                        if (available.length === 0) return null;
+                        if (available.length === 1) {
+                          const item = available[0]!;
+                          return (
+                            <button
+                              type="button"
+                              className="compact-secondary"
+                              onClick={() => addProfileItem(section.id, item.id)}
+                            >
+                              Add {item.title} from My information
+                            </button>
+                          );
+                        }
+                        return (
+                          <label>
+                            From My information
+                            <select defaultValue="" onChange={(event) => { if (event.target.value) addProfileItem(section.id, event.target.value); event.target.value = ""; }}>
+                              <option value="">Choose…</option>
+                              {available.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+                            </select>
+                          </label>
+                        );
+                      })()}
                       <button type="button" className="compact-secondary" onClick={() => addCustomItem(section.id)}>Add custom content</button>
                       <button type="button" className="working-cv-link-button" onClick={() => setAddingToSectionId(null)}>Cancel</button>
                     </div>
@@ -670,16 +857,118 @@ export function WorkingCvEditor({
         </details>
       </div>
 
-      <details className="working-cv-reuse">
-        <summary>Reuse this CV</summary>
-        <div className="working-cv-reuse-body">
-          {draft.sourceTemplateId ? (
-            <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>Save current composition to source template</button>
+      <details className="document-editor-secondary">
+        <summary>Document options</summary>
+        <div className="document-editor-secondary-body">
+          <label>
+            Language
+            <input
+              value={draft.language ?? ""}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                language: event.target.value.trim() || undefined,
+              }))}
+              placeholder="Optional"
+            />
+          </label>
+          <fieldset>
+            <legend>PDF metadata</legend>
+            <label>
+              Title
+              <input
+                value={draft.pdfMetadata.title}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, title: event.target.value },
+                }))}
+              />
+            </label>
+            <label>
+              Author
+              <input
+                value={draft.pdfMetadata.author}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, author: event.target.value },
+                }))}
+              />
+            </label>
+            <label>
+              Subject
+              <input
+                value={draft.pdfMetadata.subject}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, subject: event.target.value },
+                }))}
+              />
+            </label>
+            <label>
+              Keywords
+              <input
+                value={draft.pdfMetadata.keywords}
+                onChange={(event) => setDraft((current) => ({
+                  ...current,
+                  pdfMetadata: { ...current.pdfMetadata, keywords: event.target.value },
+                }))}
+              />
+            </label>
+          </fieldset>
+          <label>
+            Parser summary
+            <textarea
+              rows={4}
+              value={draft.parserSummary}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                parserSummary: event.target.value,
+              }))}
+              placeholder="Optional plain-text summary for parsers"
+            />
+          </label>
+          {blueprints.length > 1 ? (
+            <BlueprintRenderChoice
+              blueprints={blueprints}
+              selectedBlueprintId={selectedBlueprintId}
+              onChange={setSelectedBlueprintId}
+            />
           ) : null}
-          <div className="working-cv-template-save">
-            <label>Save as new template<input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" /></label>
-            <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>Save template</button>
-          </div>
+          <details className="document-reuse-disclosure">
+            <summary>Save this CV for reuse</summary>
+            <div className="working-cv-reuse-body">
+              {draft.sourceTemplateId ? (
+                <>
+                  <label>
+                    Reuse this CV as
+                    <select
+                      value={cvTemplateReuseChoice}
+                      onChange={(event) => setCvTemplateReuseChoice(event.target.value as CvTemplateReuseChoice)}
+                    >
+                      <option value="">Choose…</option>
+                      <option value="new">New reusable CV template</option>
+                      <option value="source">Update the template this CV started from</option>
+                    </select>
+                  </label>
+                  {cvTemplateReuseChoice === "source" ? (
+                    <button type="button" className="compact-secondary" onClick={() => void saveCompositionToTemplate()}>
+                      Update template
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+              {!draft.sourceTemplateId || cvTemplateReuseChoice === "new" ? (
+                <div className="working-cv-template-save">
+                  <label>
+                    Template name
+                    <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" />
+                  </label>
+                  <button type="button" className="compact-secondary" disabled={!templateName.trim()} onClick={() => void saveAsTemplate()}>
+                    Save template
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </details>
         </div>
       </details>
     </section>
@@ -688,21 +977,27 @@ export function WorkingCvEditor({
 
 function LetterEditor({
   document,
+  profile,
   collections,
   onSaved,
   onCollections,
   onDirtyChange,
 }: {
   readonly document: CoverLetterRecord;
+  readonly profile: readonly ProfileItem[];
   readonly collections: DocumentCollections;
   readonly onSaved: (document: CoverLetterRecord) => void;
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, returnToCandidature } = useContextualHandoffs();
-  const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
+  const { documentHandoff, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
+  const draftingTaskKey = `document:cover-letter-draft:${document.id}`;
+  const draftingTask = useAiTask<CoverLetterDraft>(draftingTaskKey);
+  const handledDraftResult = useRef<CoverLetterDraft | null>(null);
+  const draftingActive =
+    draftingTask?.status === "queued" || draftingTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productionMessage, setProductionMessage] = useState<string | null>(null);
@@ -710,6 +1005,7 @@ function LetterEditor({
   const latestRendered = collections.renderedLetters.find(
     (candidate) => candidate.coverLetterId === document.id,
   ) ?? null;
+  const profileSenderDefaults = useMemo(() => letterSenderFromProfile(profile), [profile]);
   const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
   const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
 
@@ -718,11 +1014,25 @@ function LetterEditor({
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
+  useEffect(() => {
+    const suggestion = draftingTask?.status === "completed" ? draftingTask.result : undefined;
+    if (!suggestion || handledDraftResult.current === suggestion) return;
+    handledDraftResult.current = suggestion;
+    setDraft((current) => ({
+      ...current,
+      recipient: suggestion.recipient || undefined,
+      subject: suggestion.subject || undefined,
+      closing: suggestion.closing || undefined,
+    }));
+    setBody(suggestion.bodyParagraphs.join("\n\n"));
+  }, [draftingTask]);
+
   const persistDraft = async (): Promise<CoverLetterRecord> => {
     const saved = await window.aaaat.documentDomain.updateLetter({
       id: draft.id,
       title: draft.title,
       language: draft.language,
+      sender: draft.sender,
       recipient: draft.recipient,
       subject: draft.subject,
       bodyParagraphs,
@@ -732,6 +1042,54 @@ function LetterEditor({
     setBody(saved.bodyParagraphs.join("\n\n"));
     onSaved(saved);
     return saved;
+  };
+
+  const replaceSenderFromMyInformation = () => {
+    if (
+      letterSenderHasContent(draft.sender)
+      && !window.confirm("Replace this letter's sender information with current My information?")
+    ) {
+      return;
+    }
+    setDraft((current) => ({ ...current, sender: profileSenderDefaults }));
+  };
+
+  const addSenderDetail = () => {
+    setDraft((current) => ({
+      ...current,
+      sender: {
+        ...current.sender,
+        details: [
+          ...current.sender.details,
+          { id: crypto.randomUUID(), label: "", value: "" },
+        ],
+      },
+    }));
+  };
+
+  const updateSenderDetail = (
+    detailId: string,
+    patch: Partial<CoverLetterRecord["sender"]["details"][number]>,
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      sender: {
+        ...current.sender,
+        details: current.sender.details.map((detail) =>
+          detail.id === detailId ? { ...detail, ...patch } : detail
+        ),
+      },
+    }));
+  };
+
+  const removeSenderDetail = (detailId: string) => {
+    setDraft((current) => ({
+      ...current,
+      sender: {
+        ...current.sender,
+        details: current.sender.details.filter((detail) => detail.id !== detailId),
+      },
+    }));
   };
 
   const save = async () => {
@@ -747,27 +1105,35 @@ function LetterEditor({
   };
 
   const askAi = async () => {
-    setBusy(true);
+    if (draftingActive) return;
     setError(null);
     try {
       const saved = dirty ? await persistDraft() : draft;
-      const suggestion = await window.aaaat.ai.draftCoverLetter({ coverLetterId: saved.id });
-      setDraft((current) => ({
-        ...current,
-        recipient: suggestion.recipient || undefined,
-        subject: suggestion.subject || undefined,
-        closing: suggestion.closing || undefined,
-      }));
-      setBody(suggestion.bodyParagraphs.join("\n\n"));
+      startAiTask<CoverLetterDraft>(
+        draftingTaskKey,
+        async (updateDetail, signal) => {
+          updateDetail("Drafting from the application and allowed My information…");
+          const cancelProvider = () => {
+            void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey).catch(() => undefined);
+          };
+          signal.addEventListener("abort", cancelProvider, { once: true });
+          try {
+            return await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, {
+              coverLetterId: saved.id,
+            });
+          } finally {
+            signal.removeEventListener("abort", cancelProvider);
+          }
+        },
+        "Draft cover letter",
+        () => "Draft ready",
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not draft this cover letter with AI.");
-    } finally {
-      setBusy(false);
+      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this cover letter for AI.");
     }
   };
 
   const renderLetter = async () => {
-    if (!selectedBlueprintId) return;
     setBusy(true);
     setError(null);
     setProductionMessage(null);
@@ -775,13 +1141,12 @@ function LetterEditor({
       const saved = dirty ? await persistDraft() : draft;
       const rendered = await window.aaaat.documentDomain.renderLetter({
         letterId: saved.id,
-        blueprintId: selectedBlueprintId,
       });
       onCollections(await window.aaaat.documentDomain.collections());
       await window.aaaat.documentDomain.openRenderedLetter(rendered.id);
       setProductionMessage("Rendered cover letter retained.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not render this cover letter.");
+      setError(readableDocumentError(reason, "AAAAT could not render this cover letter."));
     } finally {
       setBusy(false);
     }
@@ -800,37 +1165,180 @@ function LetterEditor({
   };
 
   return (
-    <section className="document-work" aria-label="Cover letter">
-      <header className="document-console-heading">
-        <div>
-          <p className="eyebrow">Cover letter</p>
-          <h1>{draft.title}</h1>
-          <small>{draft.candidatureId ? "Owned by this application" : "Standalone letter"}</small>
+    <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
+      <header className="document-editor-toolbar">
+        <div className="document-editor-context">
+          <button
+            type="button"
+            className="document-back-button"
+            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
+          >
+            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
+          </button>
+          <div>
+            <p className="eyebrow">Cover letter</p>
+            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
+          </div>
         </div>
-        <div className="button-row">
-          {documentHandoff?.candidatureId ? <button type="button" className="compact-secondary" onClick={returnToCandidature}>Return to application</button> : null}
-          <button type="button" className="compact-secondary" disabled={busy} onClick={() => void askAi()}>Ask AI to draft</button>
+        <div className="document-editor-actions">
+          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={() => void askAi()}>
+            {draftingActive ? "AI working…" : "Draft with AI"}
+          </button>
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <BlueprintRenderChoice blueprints={blueprints} selectedBlueprintId={selectedBlueprintId} onChange={setSelectedBlueprintId} />
-          <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void renderLetter()}>Render PDF</button>
-          {latestRendered ? (
-            <>
-              <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>Open rendered PDF</button>
-              <button type="button" className="compact-secondary" onClick={() => void exportLatest()}>Export source project</button>
-            </>
-          ) : null}
+          <button type="button" className="compact-primary" disabled={busy} onClick={() => void renderLetter()}>
+            {busy ? "Creating PDF…" : "Create PDF"}
+          </button>
         </div>
       </header>
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
-      {productionMessage ? <p className="compact-note" role="status">{productionMessage}</p> : null}
-      <div className="letter-editor">
-        <label>Title<input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
-        <label>Language<input value={draft.language ?? ""} onChange={(event) => setDraft((current) => ({ ...current, language: event.target.value.trim() || undefined }))} /></label>
-        <label>Recipient<input value={draft.recipient ?? ""} onChange={(event) => setDraft((current) => ({ ...current, recipient: event.target.value || undefined }))} /></label>
-        <label>Subject<input value={draft.subject ?? ""} onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value || undefined }))} /></label>
-        <label>Body<textarea rows={18} value={body} onChange={(event) => setBody(event.target.value)} /></label>
-        <label>Closing<input value={draft.closing ?? ""} onChange={(event) => setDraft((current) => ({ ...current, closing: event.target.value || undefined }))} /></label>
-      </div>
+
+      {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
+      {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
+
+      <article className="document-sheet letter-document" aria-label="Cover letter page">
+        <header className="document-sheet-heading">
+          <input
+            className="document-sheet-title"
+            aria-label="Cover letter title"
+            value={draft.title}
+            onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
+          />
+          <small>{draft.candidatureId ? "Application cover letter" : "Standalone cover letter"}</small>
+        </header>
+
+        <section className="letter-sender-editor" aria-label="Sender information for this letter">
+          <div className="letter-sender-heading">
+            <span>From</span>
+            {letterSenderHasContent(profileSenderDefaults) ? (
+              <button
+                type="button"
+                className="working-cv-link-button"
+                onClick={replaceSenderFromMyInformation}
+              >
+                Replace with My information
+              </button>
+            ) : null}
+          </div>
+          <label className="letter-sender-name">
+            <span>Name</span>
+            <input
+              value={draft.sender.name}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                sender: { ...current.sender, name: event.target.value },
+              }))}
+              placeholder="Your name"
+            />
+          </label>
+          <label>
+            <span>Headline</span>
+            <input
+              value={draft.sender.headline}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                sender: { ...current.sender, headline: event.target.value },
+              }))}
+              placeholder="Optional"
+            />
+          </label>
+          {draft.sender.details.map((detail) => (
+            <div className="letter-sender-detail" key={detail.id}>
+              <label>
+                <span>Label</span>
+                <input
+                  value={detail.label}
+                  onChange={(event) => updateSenderDetail(detail.id, { label: event.target.value })}
+                  placeholder="Email, phone, website…"
+                />
+              </label>
+              <label>
+                <span>Value</span>
+                <input
+                  value={detail.value}
+                  onChange={(event) => updateSenderDetail(detail.id, { value: event.target.value })}
+                />
+              </label>
+              <button
+                type="button"
+                className="working-cv-link-button"
+                onClick={() => removeSenderDetail(detail.id)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button type="button" className="working-cv-link-button" onClick={addSenderDetail}>
+            ＋ Add sender detail
+          </button>
+          <small>
+            These fields belong to this letter only. AI access is controlled separately in My information.
+          </small>
+        </section>
+
+        <div className="letter-address-block">
+          <label>
+            <span>To</span>
+            <input
+              value={draft.recipient ?? ""}
+              onChange={(event) => setDraft((current) => ({ ...current, recipient: event.target.value || undefined }))}
+              placeholder="Hiring manager or team"
+            />
+          </label>
+          <label>
+            <span>Subject</span>
+            <input
+              value={draft.subject ?? ""}
+              onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value || undefined }))}
+              placeholder="Application for…"
+            />
+          </label>
+        </div>
+
+        <label className="letter-body-field">
+          <span className="visually-hidden">Letter body</span>
+          <textarea
+            rows={20}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Write the letter here…"
+          />
+        </label>
+
+        <label className="letter-closing-field">
+          <span className="visually-hidden">Closing</span>
+          <input
+            value={draft.closing ?? ""}
+            onChange={(event) => setDraft((current) => ({ ...current, closing: event.target.value || undefined }))}
+            placeholder="Closing"
+          />
+        </label>
+      </article>
+
+      <details className="document-editor-secondary">
+        <summary>Document options</summary>
+        <div className="document-editor-secondary-body">
+          <label>
+            Language
+            <input
+              value={draft.language ?? ""}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                language: event.target.value.trim() || undefined,
+              }))}
+              placeholder="Optional"
+            />
+          </label>
+          {latestRendered ? (
+            <div className="document-generated-actions">
+              <button type="button" className="compact-secondary" onClick={() => void window.aaaat.documentDomain.openRenderedLetter(latestRendered.id)}>
+                Open latest PDF
+              </button>
+              <button type="button" className="compact-secondary" onClick={() => void exportLatest()}>
+                Export source project
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </details>
     </section>
   );
 }
@@ -874,8 +1382,8 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
   }));
 
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
-  if (!id) return <section className="document-work"><p className="compact-empty">Choose a Working CV or letter to edit.</p></section>;
+  if (!id) return <section className="document-work"><p className="compact-empty">Choose a CV or cover letter to edit.</p></section>;
   if (working) return <WorkingCvEditor key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
-  if (letter) return <LetterEditor key={letter.id} document={letter} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (letter) return <LetterEditor key={letter.id} document={letter} profile={profile} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
 }

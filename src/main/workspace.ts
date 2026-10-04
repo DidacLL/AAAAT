@@ -76,6 +76,14 @@ interface WorkspaceSettings {
   readonly lastWorkspacePath?: string;
 }
 
+interface ColumnNameRow {
+  readonly name: string;
+}
+
+interface CountRow {
+  readonly count: number;
+}
+
 const workspaceDatabaseName = "workspace.sqlite";
 
 class WorkspaceError extends Error {
@@ -431,6 +439,122 @@ function createCurrentSchemaSignature(): string {
 
 const currentSchemaSignature = createCurrentSchemaSignature();
 
+function migrateCoverLetterSenderComposition(database: DatabaseSync): void {
+  const columns = database
+    .prepare(`SELECT name FROM pragma_table_xinfo('cover_letters') ORDER BY cid`)
+    .all() as unknown as ColumnNameRow[];
+  if (columns.some((column) => column.name === "sender_json")) return;
+
+  database.exec(
+    `ALTER TABLE cover_letters
+     ADD COLUMN sender_json TEXT NOT NULL
+     DEFAULT '{"name":"","headline":"","details":[]}'
+     CHECK (json_valid(sender_json))`,
+  );
+}
+
+function migrateCvDocumentMetadata(database: DatabaseSync): void {
+  const templateColumns = new Set(
+    (database
+      .prepare(`SELECT name FROM pragma_table_xinfo('cv_templates') ORDER BY cid`)
+      .all() as unknown as ColumnNameRow[]).map((column) => column.name),
+  );
+  const workingColumns = new Set(
+    (database
+      .prepare(`SELECT name FROM pragma_table_xinfo('working_cvs') ORDER BY cid`)
+      .all() as unknown as ColumnNameRow[]).map((column) => column.name),
+  );
+
+  transact(database, () => {
+    if (!templateColumns.has("pdf_metadata_json")) {
+      database.exec(
+        `ALTER TABLE cv_templates
+         ADD COLUMN pdf_metadata_json TEXT NOT NULL
+         DEFAULT '{"title":"","author":"","subject":""}'
+         CHECK (json_valid(pdf_metadata_json))`,
+      );
+    }
+    if (!templateColumns.has("parser_summary")) {
+      database.exec(
+        `ALTER TABLE cv_templates
+         ADD COLUMN parser_summary TEXT NOT NULL DEFAULT ''`,
+      );
+    }
+    if (!workingColumns.has("pdf_metadata_json")) {
+      database.exec(
+        `ALTER TABLE working_cvs
+         ADD COLUMN pdf_metadata_json TEXT NOT NULL
+         DEFAULT '{"title":"","author":"","subject":""}'
+         CHECK (json_valid(pdf_metadata_json))`,
+      );
+    }
+    if (!workingColumns.has("parser_summary")) {
+      database.exec(
+        `ALTER TABLE working_cvs
+         ADD COLUMN parser_summary TEXT NOT NULL DEFAULT ''`,
+      );
+    }
+  });
+}
+
+function migrateLegacyApplicationPackets(database: DatabaseSync): void {
+  const columns = database
+    .prepare(`SELECT name FROM pragma_table_xinfo('application_packets') ORDER BY cid`)
+    .all() as unknown as ColumnNameRow[];
+  const names = new Set(columns.map((column) => column.name));
+  if (!names.has("rendered_cv_id") || names.has("working_cv_id")) return;
+
+  const unresolved = database
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM application_packets AS packet
+       LEFT JOIN rendered_cvs AS rendered ON rendered.id = packet.rendered_cv_id
+       WHERE rendered.working_cv_id IS NULL`,
+    )
+    .get() as CountRow | undefined;
+  if ((unresolved?.count ?? 0) > 0) {
+    throw new WorkspaceError(
+      "A retained application document cannot be linked back to its editable CV source.",
+    );
+  }
+
+  database.exec("PRAGMA foreign_keys = OFF");
+  try {
+    transact(database, () => {
+      database.exec(`
+        CREATE TABLE application_packets_next (
+          id TEXT PRIMARY KEY,
+          candidature_id TEXT NOT NULL REFERENCES candidatures(id) ON DELETE CASCADE,
+          working_cv_id TEXT NOT NULL REFERENCES working_cvs(id) ON DELETE RESTRICT,
+          cover_letter_id TEXT NOT NULL REFERENCES cover_letters(id) ON DELETE RESTRICT,
+          title TEXT NOT NULL,
+          letter_snapshot_json TEXT NOT NULL CHECK (json_valid(letter_snapshot_json)),
+          project_relative_path TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        ) STRICT;
+
+        INSERT INTO application_packets_next(
+          id, candidature_id, working_cv_id, cover_letter_id, title,
+          letter_snapshot_json, project_relative_path, created_at
+        )
+        SELECT
+          packet.id, packet.candidature_id, rendered.working_cv_id,
+          packet.cover_letter_id, packet.title, packet.letter_snapshot_json,
+          packet.project_relative_path, packet.created_at
+        FROM application_packets AS packet
+        JOIN rendered_cvs AS rendered ON rendered.id = packet.rendered_cv_id;
+
+        DROP TABLE application_packets;
+        ALTER TABLE application_packets_next RENAME TO application_packets;
+        CREATE INDEX application_packets_candidature_idx
+          ON application_packets(candidature_id, created_at);
+      `);
+    });
+  } finally {
+    database.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
 export function validateCurrentWorkspaceDatabase(database: DatabaseSync): void {
   const integrity = database.prepare("PRAGMA quick_check").get() as
     | Record<string, unknown>
@@ -492,7 +616,11 @@ function verifyExistingWorkspace(rootPath: string): void {
 
   let database: DatabaseSync | undefined;
   try {
-    database = new DatabaseSync(databasePath, { readOnly: true });
+    database = new DatabaseSync(databasePath);
+    configureDatabase(database);
+    migrateLegacyApplicationPackets(database);
+    migrateCoverLetterSenderComposition(database);
+    migrateCvDocumentMetadata(database);
     validateCurrentWorkspaceDatabase(database);
   } catch {
     throw new WorkspaceError(

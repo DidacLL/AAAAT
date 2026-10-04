@@ -32,6 +32,10 @@ const providerResponseSchema = z
 
 export const AI_PROVIDER_SAFETY_CEILING_MS = 15 * 60 * 1000;
 
+export interface AiProviderConnection extends AiConnectionStatus {
+  readonly credential?: string;
+}
+
 interface NodeDispatcherLike {
   dispatch(options: Record<string, unknown>, handler: unknown): boolean;
 }
@@ -103,22 +107,25 @@ export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Ob
 
 export interface ModelProvider {
   reviewOpportunity(
-    connection: AiConnectionStatus,
+    connection: AiProviderConnection,
     context: ProviderOpportunityReviewContext,
+    signal?: AbortSignal,
   ): Promise<OpportunityReviewResult>;
   extractJob(
-    connection: AiConnectionStatus,
+    connection: AiProviderConnection,
     request: ProviderJobExtractionRequest,
     signal?: AbortSignal,
     operation?: "job_extraction" | "historical_field_discovery",
   ): Promise<z.input<typeof providerJobExtractionEnvelopeSchema>>;
   tailorCv(
-    connection: AiConnectionStatus,
+    connection: AiProviderConnection,
     context: ProviderDocumentAiContext,
+    signal?: AbortSignal,
   ): Promise<ProviderCvTailoringResult>;
   draftCoverLetter(
-    connection: AiConnectionStatus,
+    connection: AiProviderConnection,
     context: ProviderDocumentAiContext,
+    signal?: AbortSignal,
   ): Promise<CoverLetterDraft>;
 }
 
@@ -221,7 +228,7 @@ function outputMode(profile: RequestProfile): AiStructuredOutputMode {
 
 async function requestContent<T>(
   fetchImpl: typeof fetch,
-  connection: AiConnectionStatus,
+  connection: AiProviderConnection,
   operation: AiOperation,
   instruction: string,
   context: unknown,
@@ -243,7 +250,10 @@ async function requestContent<T>(
     try {
       const init: NodeFetchRequestInit = {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(connection.credential ? { authorization: `Bearer ${connection.credential}` } : {}),
+        },
         redirect: "error",
         signal,
         body: JSON.stringify(requestBody(connection, operation, instruction, userPayload, schema, profile)),
@@ -357,7 +367,7 @@ function parseJson<T>(
 
 async function runStructuredOperation<T>(
   fetchImpl: typeof fetch,
-  connection: AiConnectionStatus,
+  connection: AiProviderConnection,
   operation: AiOperation,
   instruction: string,
   context: unknown,
@@ -381,17 +391,17 @@ export function createOpenAiCompatibleProvider(
       : AI_DEFAULT_INSTRUCTIONS[operation];
 
   const provider: ModelProvider = {
-    async reviewOpportunity(connection, context) {
-      return runStructuredOperation(fetchImpl, connection, "opportunity_review", instructionFor("opportunity_review"), context, opportunityReviewResultSchema, timeout);
+    async reviewOpportunity(connection, context, signal) {
+      return runStructuredOperation(fetchImpl, connection, "opportunity_review", instructionFor("opportunity_review"), context, opportunityReviewResultSchema, timeout, signal);
     },
     async extractJob(connection, request, signal, operation = "job_extraction") {
       return runStructuredOperation(fetchImpl, connection, operation, instructionFor(operation), request, providerJobExtractionEnvelopeSchema, timeout, signal);
     },
-    async tailorCv(connection, context) {
-      return runStructuredOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, providerCvTailoringResultSchema, timeout);
+    async tailorCv(connection, context, signal) {
+      return runStructuredOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, providerCvTailoringResultSchema, timeout, signal);
     },
-    async draftCoverLetter(connection, context) {
-      return runStructuredOperation(fetchImpl, connection, "cover_letter_draft", instructionFor("cover_letter_draft"), context, coverLetterDraftSchema, timeout);
+    async draftCoverLetter(connection, context, signal) {
+      return runStructuredOperation(fetchImpl, connection, "cover_letter_draft", instructionFor("cover_letter_draft"), context, coverLetterDraftSchema, timeout, signal);
     },
   };
   return Object.freeze(provider);

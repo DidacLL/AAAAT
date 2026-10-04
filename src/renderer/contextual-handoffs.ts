@@ -21,6 +21,7 @@ export interface ContextualHandoffApi {
   readonly settingsHandoff: SettingsHandoff | null;
   readonly openDocumentFromCandidature: (candidatureId: string, documentId?: string) => void;
   readonly returnToCandidature: () => void;
+  readonly returnToDocuments: () => void;
   readonly openProfessionalInformationItem: (documentId: string, itemId: string) => void;
   readonly returnToDocument: () => void;
   readonly openSettingsFor: (
@@ -36,6 +37,7 @@ const noHandoffs: ContextualHandoffApi = {
   settingsHandoff: null,
   openDocumentFromCandidature: () => undefined,
   returnToCandidature: () => undefined,
+  returnToDocuments: () => undefined,
   openProfessionalInformationItem: () => undefined,
   returnToDocument: () => undefined,
   openSettingsFor: () => undefined,

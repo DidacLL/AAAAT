@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync} from 'node:fs';
+import {accessSync, constants, cpSync, existsSync, renameSync, rmSync, statSync} from 'node:fs';
 import path from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
 
@@ -13,11 +13,15 @@ import {
   coverLetterInputSchema,
   type CoverLetterRecord,
   coverLetterRecordSchema,
+  type CoverLetterSender,
+  coverLetterSenderSchema,
   type CoverLetterSnapshot,
   coverLetterSnapshotSchema,
   type CoverLetterUpdate,
   coverLetterUpdateSchema,
   type CvContent,
+  type CvPdfMetadata,
+  cvPdfMetadataSchema,
   type CvTemplateInput,
   cvTemplateInputSchema,
   type CvTemplateItem,
@@ -49,10 +53,12 @@ import {
 } from '../shared/document-domain-contracts';
 
 import {
-  writeApplicationPacketEntrypoint,
+  type DocumentPdfMetadata,
+  writeApplicationPacketLatexProject,
   writeCoverLetterLatexProject,
   writeCvLatexProject,
 } from './document-latex';
+import {BUILTIN_BLUEPRINT_SOURCE} from './document-blueprints';
 import {LatexRunnerError, runPdfLatex} from './latex-runner';
 import {getProfile, getProfileItem, updateProfileItem} from './profile-service';
 import {createProfileVariant, getProfileVariant, listProfileVariants} from './profile-variant-service';
@@ -62,6 +68,8 @@ interface TemplateRow {
   readonly id: string;
   readonly name: string;
   readonly language: string|null;
+  readonly pdfMetadataJson: string;
+  readonly parserSummary: string;
   readonly compositionJson: string;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -72,6 +80,8 @@ interface WorkingRow {
   readonly language: string|null;
   readonly sourceTemplateId: string|null;
   readonly candidatureId: string|null;
+  readonly pdfMetadataJson: string;
+  readonly parserSummary: string;
   readonly compositionJson: string;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -98,6 +108,7 @@ interface LetterRow {
   readonly closing: string|null;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly senderJson: string;
 }
 interface RenderedLetterRow {
   readonly id: string;
@@ -112,7 +123,7 @@ interface RenderedLetterRow {
 interface PacketRow {
   readonly id: string;
   readonly candidatureId: string;
-  readonly renderedCvId: string;
+  readonly workingCvId: string;
   readonly coverLetterId: string;
   readonly title: string;
   readonly projectRelativePath: string;
@@ -146,6 +157,10 @@ function toTemplate(row: TemplateRow): CvTemplateRecord {
     id: row.id,
     name: row.name,
     language: optional(row.language),
+    pdfMetadata: parseJson(
+        row.pdfMetadataJson, (value) => cvPdfMetadataSchema.parse(value),
+        'Stored CV template PDF metadata is invalid.'),
+    parserSummary: row.parserSummary,
     sections: parseJson(
         row.compositionJson, (value) => cvTemplateSectionSchema.array().parse(value),
         'Stored CV template composition is invalid.'),
@@ -156,14 +171,14 @@ function toTemplate(row: TemplateRow): CvTemplateRecord {
 function readTemplates(database: DatabaseSync): CvTemplateRecord[] {
   return (database
               .prepare(
-                  `SELECT id, name, language, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates ORDER BY name COLLATE NOCASE, id`)
+                  `SELECT id, name, language, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates ORDER BY name COLLATE NOCASE, id`)
               .all() as unknown as TemplateRow[])
       .map(toTemplate);
 }
 function requireTemplate(database: DatabaseSync, id: string): CvTemplateRecord {
   const row =
       database.prepare(
-                  `SELECT id, name, language, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates WHERE id = ?`)
+                  `SELECT id, name, language, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates WHERE id = ?`)
               .get(id) as unknown as TemplateRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The CV template no longer exists.');
@@ -176,9 +191,13 @@ function toWorking(row: WorkingRow): WorkingCvRecord {
     language: optional(row.language),
     sourceTemplateId: row.sourceTemplateId,
     candidatureId: row.candidatureId,
+    pdfMetadata: parseJson(
+        row.pdfMetadataJson, (value) => cvPdfMetadataSchema.parse(value),
+        'Stored CV PDF metadata is invalid.'),
+    parserSummary: row.parserSummary,
     sections: parseJson(
         row.compositionJson, (value) => workingCvRecordSchema.shape.sections.parse(value),
-        'Stored Working CV composition is invalid.'),
+        'Stored CV composition is invalid.'),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   });
@@ -186,17 +205,17 @@ function toWorking(row: WorkingRow): WorkingCvRecord {
 function readWorkingCvs(database: DatabaseSync): WorkingCvRecord[] {
   return (database
               .prepare(
-                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs ORDER BY updated_at DESC, id DESC`)
+                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs ORDER BY updated_at DESC, id DESC`)
               .all() as unknown as WorkingRow[])
       .map(toWorking);
 }
 function requireWorkingCv(database: DatabaseSync, id: string): WorkingCvRecord {
   const row =
       database.prepare(
-                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs WHERE id = ?`)
+                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs WHERE id = ?`)
               .get(id) as unknown as WorkingRow |
       undefined;
-  if (!row) throw new DocumentDomainServiceError('The Working CV no longer exists.');
+  if (!row) throw new DocumentDomainServiceError('The CV no longer exists.');
   return toWorking(row);
 }
 function toLetter(row: LetterRow): CoverLetterRecord {
@@ -211,6 +230,9 @@ function toLetter(row: LetterRow): CoverLetterRecord {
         row.bodyJson, (value) => coverLetterRecordSchema.shape.bodyParagraphs.parse(value),
         'Stored cover letter content is invalid.'),
     closing: optional(row.closing),
+    sender: parseJson(
+        row.senderJson, (value) => coverLetterSenderSchema.parse(value),
+        'Stored cover letter sender information is invalid.'),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   });
@@ -218,14 +240,14 @@ function toLetter(row: LetterRow): CoverLetterRecord {
 function readLetters(database: DatabaseSync): CoverLetterRecord[] {
   return (database
               .prepare(
-                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt FROM cover_letters ORDER BY updated_at DESC, id DESC`)
+                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt, sender_json AS senderJson FROM cover_letters ORDER BY updated_at DESC, id DESC`)
               .all() as unknown as LetterRow[])
       .map(toLetter);
 }
 function requireLetter(database: DatabaseSync, id: string): CoverLetterRecord {
   const row =
       database.prepare(
-                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt FROM cover_letters WHERE id = ?`)
+                  `SELECT id, candidature_id AS candidatureId, title, language, recipient, subject, body_json AS bodyJson, closing, created_at AS createdAt, updated_at AS updatedAt, sender_json AS senderJson FROM cover_letters WHERE id = ?`)
               .get(id) as unknown as LetterRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The cover letter no longer exists.');
@@ -239,7 +261,8 @@ function snapshotCoverLetter(letter: CoverLetterRecord): CoverLetterSnapshot {
     recipient: letter.recipient,
     subject: letter.subject,
     bodyParagraphs: letter.bodyParagraphs,
-    closing: letter.closing
+    closing: letter.closing,
+    sender: letter.sender
   });
 }
 function managedProjectPath(
@@ -259,14 +282,86 @@ function renderedLetterProjectPath(rootPath: string, row: RenderedLetterRow): st
 function packetProjectPath(rootPath: string, row: PacketRow): string {
   return managedProjectPath(rootPath, 'application-packets', row.id, row.projectRelativePath);
 }
-function retainedPdf(projectPath: string): string {
-  return path.join(projectPath, 'build', 'main.pdf');
+function safePdfStem(title: string, fallback: string): string {
+  const stem =
+      title.normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 72);
+  return stem || fallback;
 }
-function retainedBlueprintSource(projectPath: string): string {
-  const blueprintPath = path.join(projectPath, 'blueprint.tex');
-  if (!existsSync(blueprintPath))
-    throw new DocumentDomainServiceError('The retained document Blueprint source is missing.');
-  return readFileSync(blueprintPath, 'utf8');
+function retainedPdfExists(projectPath: string, title: string, fallback: string): boolean {
+  const buildPath = path.join(projectPath, 'build');
+  return existsSync(path.join(buildPath, `${safePdfStem(title, fallback)}.pdf`)) ||
+      existsSync(path.join(buildPath, 'main.pdf'));
+}
+function retainedPdf(projectPath: string, title: string, fallback: string): string {
+  const meaningful =
+      path.join(projectPath, 'build', `${safePdfStem(title, fallback)}.pdf`);
+  const legacy = path.join(projectPath, 'build', 'main.pdf');
+  if (meaningful === legacy) return meaningful;
+  if (existsSync(meaningful)) {
+    rmSync(legacy, {force: true});
+    return meaningful;
+  }
+  if (existsSync(legacy)) renameSync(legacy, meaningful);
+  return meaningful;
+}
+function defaultLetterSender(rootPath: string): CoverLetterSender {
+  const items = getProfile(rootPath).items;
+  const identity = items.find(
+      (item) => item.kind.trim().toLocaleLowerCase() === 'identity' && item.title.trim());
+  const details: CoverLetterSender['details'][number][] = [];
+  if (identity?.url?.trim()) {
+    details.push({id: randomUUID(), label: 'Website', value: identity.url.trim()});
+  }
+  for (const item of items) {
+    const kind = item.kind.trim().toLocaleLowerCase();
+    if (kind === 'contact' && item.title.trim()) {
+      details.push({
+        id: randomUUID(),
+        label: item.subtitle?.trim() || 'Contact',
+        value: item.title.trim(),
+      });
+    } else if (kind === 'link' && item.url?.trim()) {
+      details.push({
+        id: randomUUID(),
+        label: item.title.trim() || item.subtitle?.trim() || 'Website',
+        value: item.url.trim(),
+      });
+    }
+  }
+  return coverLetterSenderSchema.parse({
+    name: identity?.title.trim() ?? '',
+    headline: identity?.subtitle?.trim() ?? '',
+    details,
+  });
+}
+function cvDocumentAuthorFromSections(sections: readonly WorkingCvSection[]): string {
+  return sections
+    .flatMap((section) => section.items)
+    .find((item) => item.content.kind.trim().toLocaleLowerCase() === 'identity' &&
+      item.content.title.trim())
+    ?.content.title.trim() ?? 'AAAAT';
+}
+function defaultCvPdfMetadata(
+    title: string, sections: readonly WorkingCvSection[]): CvPdfMetadata {
+  return {
+    title,
+    author: cvDocumentAuthorFromSections(sections),
+    subject: 'Curriculum vitae',
+    keywords: ''
+  };
+}
+function cvDocumentAuthor(working: WorkingCvRecord): string {
+  return working.pdfMetadata.author.trim() || cvDocumentAuthorFromSections(working.sections);
+}
+function documentMetadata(
+    title: string, subject: string, author: string,
+    keywords = ''): DocumentPdfMetadata {
+  return {title, author, subject, keywords};
 }
 function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
   return renderedCvRecordSchema.parse({
@@ -280,7 +375,7 @@ function toRendered(rootPath: string, row: RenderedRow): RenderedCvRecord {
         row.snapshotJson, (value) => renderedCvSnapshotSchema.parse(value),
         'Stored Rendered CV snapshot is invalid.'),
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(renderedProjectPath(rootPath, row)))
+    hasPdf: retainedPdfExists(renderedProjectPath(rootPath, row), row.title, 'cv')
   });
 }
 function readRenderedCvs(rootPath: string, database: DatabaseSync): RenderedCvRecord[] {
@@ -301,7 +396,8 @@ function toRenderedLetter(rootPath: string, row: RenderedLetterRow): RenderedCov
         row.snapshotJson, (value) => coverLetterSnapshotSchema.parse(value),
         'Stored Rendered cover-letter snapshot is invalid.'),
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(renderedLetterProjectPath(rootPath, row)))
+    hasPdf: retainedPdfExists(
+        renderedLetterProjectPath(rootPath, row), row.title, 'cover-letter')
   });
 }
 function readRenderedLetters(
@@ -334,24 +430,25 @@ function toPacket(rootPath: string, row: PacketRow): ApplicationPacketRecord {
   return applicationPacketRecordSchema.parse({
     id: row.id,
     candidatureId: row.candidatureId,
-    renderedCvId: row.renderedCvId,
+    workingCvId: row.workingCvId,
     coverLetterId: row.coverLetterId,
     title: row.title,
     createdAt: row.createdAt,
-    hasPdf: existsSync(retainedPdf(packetProjectPath(rootPath, row)))
+    hasPdf: retainedPdfExists(
+        packetProjectPath(rootPath, row), row.title, 'application-document')
   });
 }
 function readPackets(rootPath: string, database: DatabaseSync): ApplicationPacketRecord[] {
   return (database
               .prepare(
-                  `SELECT id, candidature_id AS candidatureId, rendered_cv_id AS renderedCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets ORDER BY created_at DESC, id DESC`)
+                  `SELECT id, candidature_id AS candidatureId, working_cv_id AS workingCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets ORDER BY created_at DESC, id DESC`)
               .all() as unknown as PacketRow[])
       .map((row) => toPacket(rootPath, row));
 }
 function requirePacketRow(database: DatabaseSync, id: string): PacketRow {
   const row =
       database.prepare(
-                  `SELECT id, candidature_id AS candidatureId, rendered_cv_id AS renderedCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets WHERE id = ?`)
+                  `SELECT id, candidature_id AS candidatureId, working_cv_id AS workingCvId, cover_letter_id AS coverLetterId, title, project_relative_path AS projectRelativePath, created_at AS createdAt FROM application_packets WHERE id = ?`)
               .get(id) as unknown as PacketRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The Application packet no longer exists.');
@@ -496,8 +593,10 @@ export function createCvTemplate(rootPath: string, rawInput: CvTemplateInput): D
     const now = new Date().toISOString();
     database
         .prepare(
-            `INSERT INTO cv_templates(id, name, language, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
-        .run(id, input.name, nullable(input.language), JSON.stringify(input.sections), now, now);
+            `INSERT INTO cv_templates(id, name, language, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(
+            id, input.name, nullable(input.language), JSON.stringify(input.pdfMetadata),
+            input.parserSummary, JSON.stringify(input.sections), now, now);
     return documentCollectionsSchema.parse({
       templates: readTemplates(database),
       workingCvs: readWorkingCvs(database),
@@ -516,10 +615,10 @@ export function updateCvTemplate(
     requireTemplate(database, input.id);
     database
         .prepare(
-            `UPDATE cv_templates SET name = ?, language = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
+            `UPDATE cv_templates SET name = ?, language = ?, pdf_metadata_json = ?, parser_summary = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
         .run(
-            input.name, nullable(input.language), JSON.stringify(input.sections),
-            new Date().toISOString(), input.id);
+            input.name, nullable(input.language), JSON.stringify(input.pdfMetadata),
+            input.parserSummary, JSON.stringify(input.sections), new Date().toISOString(), input.id);
     return documentCollectionsSchema.parse({
       templates: readTemplates(database),
       workingCvs: readWorkingCvs(database),
@@ -548,6 +647,8 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
   const input = workingCvCreateSchema.parse(rawInput);
   let sourceTemplateId: string|null = null;
   let language = input.language;
+  let pdfMetadata: CvPdfMetadata|undefined;
+  let parserSummary = '';
   let sections: WorkingCvSection[] = [];
   if (input.source.kind === 'profile')
     sections = sectionsFromProfile(getProfile(rootPath).items);
@@ -558,6 +659,8 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
     validateTemplateItems(rootPath, template.sections);
     sourceTemplateId = template.id;
     language ??= template.language;
+    pdfMetadata = template.pdfMetadata;
+    parserSummary = template.parserSummary;
     sections = template.sections.map(
         (section) => ({
           id: randomUUID(),
@@ -566,16 +669,17 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
           items: section.items.map((item) => resolveTemplateItem(rootPath, item))
         }));
   }
+  pdfMetadata ??= defaultCvPdfMetadata(input.title, sections);
   return withWorkspaceDatabase(rootPath, (database) => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const id = randomUUID();
     const now = new Date().toISOString();
     database
         .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(
             id, input.title, nullable(language), sourceTemplateId, input.candidatureId,
-            JSON.stringify(sections), now, now);
+            JSON.stringify(pdfMetadata), parserSummary, JSON.stringify(sections), now, now);
     return requireWorkingCv(database, id);
   });
 }
@@ -585,10 +689,10 @@ export function updateWorkingCv(rootPath: string, rawInput: WorkingCvUpdate): Wo
     requireWorkingCv(database, input.id);
     database
         .prepare(
-            `UPDATE working_cvs SET title = ?, language = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
+            `UPDATE working_cvs SET title = ?, language = ?, pdf_metadata_json = ?, parser_summary = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
         .run(
-            input.title, nullable(input.language), JSON.stringify(input.sections),
-            new Date().toISOString(), input.id);
+            input.title, nullable(input.language), JSON.stringify(input.pdfMetadata),
+            input.parserSummary, JSON.stringify(input.sections), new Date().toISOString(), input.id);
     return requireWorkingCv(database, input.id);
   });
 }
@@ -611,7 +715,7 @@ function findWorkingItem(working: WorkingCvRecord, itemId: string): WorkingCvIte
     const item = section.items.find((candidate) => candidate.id === itemId);
     if (item) return item;
   }
-  throw new DocumentDomainServiceError('The Working CV item no longer exists.');
+  throw new DocumentDomainServiceError('The CV item no longer exists.');
 }
 export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem): WorkingCvRecord {
   const input = workingCvSaveItemSchema.parse(rawInput);
@@ -628,8 +732,8 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
   } else if (input.target === 'profile_variant') {
     if (!item.profileItemId)
       throw new DocumentDomainServiceError(
-          'Custom CV content cannot become a profile variant without a My information item.');
-    if (!input.variantName) throw new DocumentDomainServiceError('Name the new profile variant.');
+          'Custom CV content needs a My information item before it can be saved as a variation.');
+    if (!input.variantName) throw new DocumentDomainServiceError('Name the new variation.');
     createProfileVariant(rootPath, {
       itemId: item.profileItemId,
       name: input.variantName,
@@ -637,7 +741,7 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
     });
   } else {
     if (!working.sourceTemplateId || !item.templateItemId)
-      throw new DocumentDomainServiceError('This Working CV item was not derived from a template.');
+      throw new DocumentDomainServiceError('This CV item was not created from a reusable template.');
     const template = withWorkspaceDatabase(
         rootPath, (database) => requireTemplate(database, working.sourceTemplateId ?? ''));
     const sections = template.sections.map(
@@ -661,6 +765,8 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
       id: template.id,
       name: template.name,
       ...(template.language ? {language: template.language} : {}),
+      pdfMetadata: template.pdfMetadata,
+      parserSummary: template.parserSummary,
       sections
     });
   }
@@ -704,6 +810,8 @@ export function saveWorkingCvAsTemplate(
   createCvTemplate(rootPath, {
     name: input.name,
     ...(working.language ? {language: working.language} : {}),
+    pdfMetadata: working.pdfMetadata,
+    parserSummary: working.parserSummary,
     sections: templateSectionsFromWorking(working)
   });
   return withWorkspaceDatabase(rootPath, (database) => {
@@ -713,16 +821,18 @@ export function saveWorkingCvAsTemplate(
     return created;
   });
 }
-async function compileProject(projectPath: string, timeoutMs: number): Promise<void> {
+async function compileProject(
+    projectPath: string, title: string, fallback: string, timeoutMs: number,
+    sourceFileName: string): Promise<void> {
+  const outputBaseName = safePdfStem(title, fallback);
   try {
-    await runPdfLatex(projectPath, timeoutMs);
+    await runPdfLatex(projectPath, timeoutMs, outputBaseName, sourceFileName);
   } catch (error) {
     if (error instanceof LatexRunnerError)
-      throw new DocumentDomainServiceError(
-          `${error.message} Check that pdflatex is installed and compatible.`);
+      throw new DocumentDomainServiceError(error.message);
     throw error;
   }
-  if (!existsSync(path.join(projectPath, 'build', 'main.pdf')))
+  if (!existsSync(retainedPdf(projectPath, title, fallback)))
     throw new DocumentDomainServiceError('TeX rendering did not produce a PDF.');
 }
 export async function renderWorkingCv(
@@ -739,11 +849,13 @@ export async function renderWorkingCv(
     ...(working.language ? {language: working.language} : {}),
     sourceTemplateId: working.sourceTemplateId,
     candidatureId: working.candidatureId,
+    pdfMetadata: working.pdfMetadata,
+    parserSummary: working.parserSummary,
     sections: working.sections
   });
   try {
-    writeCvLatexProject(stagePath, working, blueprintSource);
-    await compileProject(stagePath, timeoutMs);
+    const sourceFileName = writeCvLatexProject(stagePath, working, blueprintSource);
+    await compileProject(stagePath, working.title, 'cv', timeoutMs, sourceFileName);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
@@ -764,8 +876,8 @@ export async function renderWorkingCv(
 }
 export function renderedCvPdfPath(rootPath: string, renderedCvId: string): string {
   return withWorkspaceDatabase(rootPath, (database) => {
-    const pdf =
-        retainedPdf(renderedProjectPath(rootPath, requireRenderedRow(database, renderedCvId)));
+    const row = requireRenderedRow(database, renderedCvId);
+    const pdf = retainedPdf(renderedProjectPath(rootPath, row), row.title, 'cv');
     if (!existsSync(pdf))
       throw new DocumentDomainServiceError('The retained Rendered CV PDF is missing.');
     return pdf;
@@ -804,10 +916,11 @@ export function duplicateRenderedCv(rootPath: string, renderedCvId: string): Wor
         }));
     database
         .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(
             id, `${snapshot.title} copy`, nullable(snapshot.language), row.sourceTemplateId,
-            row.candidatureId, JSON.stringify(sections), now, now);
+            row.candidatureId, JSON.stringify(snapshot.pdfMetadata), snapshot.parserSummary,
+            JSON.stringify(sections), now, now);
     return requireWorkingCv(database, id);
   });
 }
@@ -818,7 +931,8 @@ function safeProjectName(title: string, id: string): string {
   return `${slug}-${id.slice(0, 8)}`;
 }
 function exportPortableProject(
-    source: string, title: string, id: string, targetParent: string): string {
+    source: string, title: string, id: string, targetParent: string,
+    fallback: string): string {
   try {
     if (!statSync(targetParent).isDirectory()) throw new Error('not directory');
     accessSync(targetParent, constants.R_OK | constants.W_OK);
@@ -828,6 +942,7 @@ function exportPortableProject(
   const destination = path.join(targetParent, safeProjectName(title, id));
   if (existsSync(destination))
     throw new DocumentDomainServiceError('A portable project with that name already exists.');
+  retainedPdf(source, title, fallback);
   cpSync(source, destination, {recursive: true, errorOnExist: true});
   return destination;
 }
@@ -836,21 +951,23 @@ export function exportRenderedCvProject(
   const row =
       withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
   return exportPortableProject(
-      renderedProjectPath(rootPath, row), row.title, row.id, targetParent);
+      renderedProjectPath(rootPath, row), row.title, row.id, targetParent, 'cv');
 }
 export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
+  const sender = input.sender ?? defaultLetterSender(rootPath);
   return withWorkspaceDatabase(rootPath, (database) => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const id = randomUUID();
     const now = new Date().toISOString();
     database
         .prepare(
-            `INSERT INTO cover_letters(id, candidature_id, title, language, recipient, subject, body_json, closing, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            `INSERT INTO cover_letters(id, candidature_id, title, language, recipient, subject, body_json, closing, created_at, updated_at, sender_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(
             id, input.candidatureId, input.title, nullable(input.language),
             nullable(input.recipient), nullable(input.subject),
-            JSON.stringify(input.bodyParagraphs), nullable(input.closing), now, now);
+            JSON.stringify(input.bodyParagraphs), nullable(input.closing), now, now,
+            JSON.stringify(sender));
     return requireLetter(database, id);
   });
 }
@@ -861,11 +978,11 @@ export function updateCoverLetter(
     requireLetter(database, input.id);
     database
         .prepare(
-            `UPDATE cover_letters SET title = ?, language = ?, recipient = ?, subject = ?, body_json = ?, closing = ?, updated_at = ? WHERE id = ?`)
+            `UPDATE cover_letters SET title = ?, language = ?, recipient = ?, subject = ?, body_json = ?, closing = ?, updated_at = ?, sender_json = ? WHERE id = ?`)
         .run(
             input.title, nullable(input.language), nullable(input.recipient),
             nullable(input.subject), JSON.stringify(input.bodyParagraphs), nullable(input.closing),
-            new Date().toISOString(), input.id);
+            new Date().toISOString(), JSON.stringify(input.sender), input.id);
     return requireLetter(database, input.id);
   });
 }
@@ -888,7 +1005,7 @@ export function removeCoverLetter(rootPath: string, letterId: string): DocumentC
   });
 }
 export async function renderCoverLetter(
-    rootPath: string, coverLetterId: string, blueprintSource: string,
+    rootPath: string, coverLetterId: string,
     timeoutMs = 30000): Promise<RenderedCoverLetterRecord> {
   const letter =
       withWorkspaceDatabase(rootPath, (database) => requireLetter(database, coverLetterId));
@@ -898,8 +1015,13 @@ export async function renderCoverLetter(
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   try {
-    writeCoverLetterLatexProject(stagePath, snapshot, blueprintSource);
-    await compileProject(stagePath, timeoutMs);
+    const sourceFileName = writeCoverLetterLatexProject(
+        stagePath, snapshot,
+        documentMetadata(
+            letter.title, letter.subject?.trim() || 'Cover letter',
+            letter.sender.name.trim() || 'AAAAT'));
+    await compileProject(
+        stagePath, letter.title, 'cover-letter', timeoutMs, sourceFileName);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
     withWorkspaceDatabase(rootPath, (database) => {
@@ -922,8 +1044,9 @@ export async function renderCoverLetter(
 export function renderedCoverLetterPdfPath(
     rootPath: string, renderedLetterId: string): string {
   return withWorkspaceDatabase(rootPath, (database) => {
+    const row = requireRenderedLetterRow(database, renderedLetterId);
     const pdf = retainedPdf(
-        renderedLetterProjectPath(rootPath, requireRenderedLetterRow(database, renderedLetterId)));
+        renderedLetterProjectPath(rootPath, row), row.title, 'cover-letter');
     if (!existsSync(pdf))
       throw new DocumentDomainServiceError('The retained cover-letter PDF is missing.');
     return pdf;
@@ -934,47 +1057,61 @@ export function exportRenderedCoverLetterProject(
   const row = withWorkspaceDatabase(
       rootPath, (database) => requireRenderedLetterRow(database, renderedLetterId));
   return exportPortableProject(
-      renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent);
+      renderedLetterProjectPath(rootPath, row), row.title, row.id, targetParent,
+      'cover-letter');
 }
 export async function createApplicationPacket(
     rootPath: string, rawInput: ApplicationPacketCreate,
+    blueprintSourceOrTimeout: string|number = BUILTIN_BLUEPRINT_SOURCE,
     timeoutMs = 30000): Promise<ApplicationPacketRecord> {
   const input = applicationPacketCreateSchema.parse(rawInput);
-  const {cvRow, letter} = withWorkspaceDatabase(rootPath, (database) => {
+  const blueprintSource =
+      typeof blueprintSourceOrTimeout === 'string' ?
+      blueprintSourceOrTimeout :
+      BUILTIN_BLUEPRINT_SOURCE;
+  const effectiveTimeoutMs =
+      typeof blueprintSourceOrTimeout === 'number' ? blueprintSourceOrTimeout : timeoutMs;
+  const {working, letter} = withWorkspaceDatabase(rootPath, (database) => {
     requireCandidature(database, input.candidatureId);
-    const rendered = requireRenderedRow(database, input.renderedCvId);
+    const currentWorking = input.workingCvId
+      ? requireWorkingCv(database, input.workingCvId)
+      : (() => {
+          const legacy = requireRenderedRow(database, input.renderedCvId!);
+          if (!legacy.workingCvId)
+            throw new DocumentDomainServiceError(
+                'The legacy Rendered CV is not linked to an editable CV source.');
+          return requireWorkingCv(database, legacy.workingCvId);
+        })();
     const currentLetter = requireLetter(database, input.coverLetterId);
-    if (rendered.candidatureId !== input.candidatureId)
-      throw new DocumentDomainServiceError('Choose a Rendered CV owned by this application.');
+    if (currentWorking.candidatureId !== input.candidatureId)
+      throw new DocumentDomainServiceError('Choose a CV owned by this application.');
     if (currentLetter.candidatureId !== input.candidatureId)
       throw new DocumentDomainServiceError('Choose a cover letter owned by this application.');
-    return {cvRow: rendered, letter: currentLetter};
+    return {working: currentWorking, letter: currentLetter};
   });
-  const blueprintSource = retainedBlueprintSource(renderedProjectPath(rootPath, cvRow));
   const id = randomUUID();
   const relativePath = path.join('application-packets', id);
   const projectPath = path.join(rootPath, relativePath);
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
+  const letterSnapshot = snapshotCoverLetter(letter);
+  const title = input.title ?? `Application · ${working.title} + ${letter.title}`;
   try {
-    mkdirSync(stagePath, {recursive: true});
-    const letterSnapshot = snapshotCoverLetter(letter);
-    const letterPath = path.join(stagePath, 'cover-letter');
-    writeCoverLetterLatexProject(letterPath, letterSnapshot, blueprintSource);
-    await compileProject(letterPath, timeoutMs);
-    cpSync(
-        renderedProjectPath(rootPath, cvRow), path.join(stagePath, 'cv'),
-        {recursive: true, errorOnExist: true});
-    writeApplicationPacketEntrypoint(stagePath);
-    await compileProject(stagePath, timeoutMs);
+    const sourceFileName = writeApplicationPacketLatexProject(
+        stagePath, working, letterSnapshot, blueprintSource,
+        documentMetadata(
+            title, 'Application documents',
+            letter.sender.name.trim() || cvDocumentAuthor(working),
+            working.pdfMetadata.keywords));
+    await compileProject(
+        stagePath, title, 'application-document', effectiveTimeoutMs, sourceFileName);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
-    const title = input.title ?? `Application packet · ${letter.title} + ${cvRow.title}`;
     withWorkspaceDatabase(rootPath, (database) => {
       database
           .prepare(
-              `INSERT INTO application_packets(id, candidature_id, rendered_cv_id, cover_letter_id, title, letter_snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+              `INSERT INTO application_packets(id, candidature_id, working_cv_id, cover_letter_id, title, letter_snapshot_json, project_relative_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
           .run(
-              id, input.candidatureId, input.renderedCvId, input.coverLetterId, title,
+              id, input.candidatureId, working.id, input.coverLetterId, title,
               JSON.stringify(letterSnapshot), relativePath, createdAt);
     });
     return withWorkspaceDatabase(
@@ -987,7 +1124,9 @@ export async function createApplicationPacket(
 }
 export function applicationPacketPdfPath(rootPath: string, packetId: string): string {
   return withWorkspaceDatabase(rootPath, (database) => {
-    const pdf = retainedPdf(packetProjectPath(rootPath, requirePacketRow(database, packetId)));
+    const row = requirePacketRow(database, packetId);
+    const pdf = retainedPdf(
+        packetProjectPath(rootPath, row), row.title, 'application-document');
     if (!existsSync(pdf))
       throw new DocumentDomainServiceError('The retained Application packet PDF is missing.');
     return pdf;
@@ -998,5 +1137,6 @@ export function exportApplicationPacketProject(
   const row = withWorkspaceDatabase(
       rootPath, (database) => requirePacketRow(database, packetId));
   return exportPortableProject(
-      packetProjectPath(rootPath, row), row.title, row.id, targetParent);
+      packetProjectPath(rootPath, row), row.title, row.id, targetParent,
+      'application-document');
 }

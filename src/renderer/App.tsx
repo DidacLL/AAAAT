@@ -390,6 +390,16 @@ export function App() {
         setDocumentHandoff(null);
         setProductView("candidatures");
       },
+      returnToDocuments: () => {
+        if (documentDirty && !window.confirm("Discard unsaved document edits and return to Documents?")) return;
+        setDocumentDirty(false);
+        setSettingsOpen(false);
+        setSettingsHandoff(null);
+        setProfessionalInformationHandoff(null);
+        setDocumentHandoff(null);
+        setDocumentWorkspaceRevision((current) => current + 1);
+        setProductView("documents");
+      },
       openProfessionalInformationItem: (documentId: string, itemId: string) => {
         setSettingsOpen(false);
         setSettingsHandoff(null);
@@ -518,7 +528,7 @@ export function App() {
                 <nav className="primary-work-nav" aria-label="Primary work areas">
                   <button type="button" className={welcomeOpen ? "active-work-destination" : ""} aria-current={welcomeOpen ? "page" : undefined} onClick={openHome}>Home</button>
                   <button type="button" className={applicationContextActive ? "active-work-destination" : ""} aria-current={applicationContextActive ? "page" : undefined} onClick={() => selectProductView("candidatures")}>Applications</button>
-                  <button type="button" className={cvContextActive ? "active-work-destination" : ""} aria-current={cvContextActive ? "page" : undefined} onClick={() => selectProductView("documents")}>CVs</button>
+                  <button type="button" className={cvContextActive ? "active-work-destination" : ""} aria-current={cvContextActive ? "page" : undefined} onClick={() => selectProductView("documents")}>Documents</button>
                   <button type="button" className={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                   <button type="button" className={settingsOpen ? "active-work-destination" : ""} aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings</button>
                 </nav>
@@ -528,8 +538,8 @@ export function App() {
                   refreshRevision={railStatusRevision}
                   attentionConnectionName={aiAttentionConnectionName}
                 />
-                <AiTaskStatus />
                 <TagVisor applicationContext={applicationContextActive ? applicationTagContext : null} />
+                <AiTaskStatus />
               </aside>
 
               <section className="work-surface">

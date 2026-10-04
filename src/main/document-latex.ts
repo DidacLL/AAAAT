@@ -3,12 +3,13 @@ import path from "node:path";
 
 import type {
   CoverLetterSnapshot,
+  CvPdfMetadata,
   WorkingCvRecord,
 } from "../shared/document-domain-contracts";
 
 import aaatStyle from "./latex/aaaat.sty?raw";
-import applicationPacketTemplate from "./latex/application-packet.tex?raw";
-import documentEntrypoint from "./latex/document.tex?raw";
+
+export type DocumentPdfMetadata = CvPdfMetadata;
 
 const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
   "\\": "\\textbackslash{}",
@@ -60,6 +61,10 @@ export function encodeDocumentText(value: string): string {
     .replace(/\n/g, "\\AAAATLineBreak{}");
 }
 
+function encodeMetadataText(value: string): string {
+  return encodeDocumentText(value.replace(/\s+/gu, " ").trim());
+}
+
 export function resolveDocumentBabelLanguage(language: string | undefined): string {
   if (language === undefined) return "english";
   const normalizedLanguage = language.trim().toLowerCase();
@@ -70,87 +75,219 @@ export function resolveDocumentBabelLanguage(language: string | undefined): stri
   const babelLanguage = primaryCode ? babelLanguageByPrimaryCode[primaryCode] : undefined;
   if (babelLanguage) return babelLanguage;
   throw new Error(
-    `Unsupported document language "${language}". AAAAT currently supports these Latin-script languages through Babel: ${supportedLanguageNames.join(", ")}. Use a supported language name, primary ISO code, or region variant.`,
+    "Unsupported document language \"" + language
+      + "\". AAAAT currently supports these Latin-script languages through Babel: "
+      + supportedLanguageNames.join(", ")
+      + ". Use a supported language name, primary ISO code, or region variant.",
   );
+}
+
+function pdfMetadataSource(metadata: DocumentPdfMetadata): string {
+  return "\\AAAATPdfMetadata{" + encodeMetadataText(metadata.title) + "}{"
+    + encodeMetadataText(metadata.author) + "}{"
+    + encodeMetadataText(metadata.subject) + "}{"
+    + encodeMetadataText(metadata.keywords) + "}";
 }
 
 function documentDataHeader(
   kind: "cv" | "letter",
   title: string,
   language: string | undefined,
+  metadata: DocumentPdfMetadata,
 ): string[] {
   return [
-    `\\AAAATDocumentKind{${kind}}`,
-    `\\AAAATDocumentLanguage{${resolveDocumentBabelLanguage(language)}}`,
-    `\\AAAATDocumentTitle{${encodeDocumentText(title)}}`,
+    "\\AAAATDocumentKind{" + kind + "}",
+    pdfMetadataSource(metadata),
+    "\\AAAATDocumentLanguage{" + resolveDocumentBabelLanguage(language) + "}",
+    "\\AAAATDocumentTitle{" + encodeDocumentText(title) + "}",
   ];
 }
 
-function cvData(working: WorkingCvRecord): string {
-  const lines = documentDataHeader("cv", working.title, working.language);
+function cvData(working: WorkingCvRecord): string[] {
+  const lines = documentDataHeader(
+    "cv",
+    working.title,
+    working.language,
+    working.pdfMetadata,
+  );
+  lines.push("\\AAAATParserSummary{" + encodeDocumentText(working.parserSummary) + "}");
   for (const section of working.sections) {
     lines.push(
-      `\\AAAATBlock{${section.presentationRole}}{${encodeDocumentText(section.name)}}{`,
+      "\\AAAATBlock{" + section.presentationRole + "}{"
+        + encodeDocumentText(section.name) + "}{",
     );
     for (const item of section.items) {
       const dates =
         item.content.startDate && item.content.endDate
-          ? `${item.content.startDate} – ${item.content.endDate}`
+          ? item.content.startDate + " – " + item.content.endDate
           : (item.content.startDate ?? item.content.endDate ?? "");
       lines.push(
-        `\\AAAATEntry{${encodeDocumentText(item.content.title)}}{${encodeDocumentText(item.content.subtitle ?? "")}}{${encodeDocumentText(dates)}}{${encodeDocumentText(item.content.description ?? "")}}{${encodeDocumentText(item.content.url ?? "")}}`,
+        "\\AAAATEntry{" + encodeDocumentText(item.content.kind) + "}{"
+          + encodeDocumentText(item.content.title) + "}{"
+          + encodeDocumentText(item.content.subtitle ?? "") + "}{"
+          + encodeDocumentText(dates) + "}{"
+          + encodeDocumentText(item.content.description ?? "") + "}{"
+          + encodeDocumentText(item.content.url ?? "") + "}",
       );
     }
     lines.push("}");
   }
-  return `${lines.join("\n")}\n`;
+  return lines;
 }
 
-function coverLetterData(letter: CoverLetterSnapshot): string {
-  const lines = documentDataHeader("letter", letter.title, letter.language);
+function coverLetterData(
+  letter: CoverLetterSnapshot,
+  metadata: DocumentPdfMetadata,
+): string[] {
+  const lines = documentDataHeader("letter", letter.title, letter.language, metadata);
+  if (letter.sender.name.trim()) {
+    lines.push("\\AAAATSenderName{" + encodeDocumentText(letter.sender.name) + "}");
+  }
+  if (letter.sender.headline.trim()) {
+    lines.push("\\AAAATSenderHeadline{" + encodeDocumentText(letter.sender.headline) + "}");
+  }
+  for (const detail of letter.sender.details) {
+    if (!detail.value.trim()) continue;
+    lines.push(
+      "\\AAAATSenderDetail{" + encodeDocumentText(detail.label) + "}{"
+        + encodeDocumentText(detail.value) + "}",
+    );
+  }
   if (letter.recipient) {
-    lines.push(`\\AAAATMetadata{To}{${encodeDocumentText(letter.recipient)}}`);
+    lines.push("\\AAAATMetadata{To}{" + encodeDocumentText(letter.recipient) + "}");
   }
   if (letter.subject) {
-    lines.push(`\\AAAATMetadata{Subject}{${encodeDocumentText(letter.subject)}}`);
+    lines.push("\\AAAATMetadata{Subject}{" + encodeDocumentText(letter.subject) + "}");
   }
   for (const paragraph of letter.bodyParagraphs) {
-    lines.push(`\\AAAATParagraph{${encodeDocumentText(paragraph)}}`);
+    lines.push("\\AAAATParagraph{" + encodeDocumentText(paragraph) + "}");
   }
   if (letter.closing) {
-    lines.push(`\\AAAATParagraph{${encodeDocumentText(letter.closing)}}`);
+    lines.push("\\AAAATParagraph{" + encodeDocumentText(letter.closing) + "}");
   }
-  return `${lines.join("\n")}\n`;
+  return lines;
 }
 
-function writePortableDocumentProject(
+type RenderDocumentInput =
+  | {
+      readonly mode: "cv";
+      readonly cv: WorkingCvRecord;
+      readonly blueprintSource: string;
+    }
+  | {
+      readonly mode: "letter";
+      readonly letter: CoverLetterSnapshot;
+      readonly metadata: DocumentPdfMetadata;
+    }
+  | {
+      readonly mode: "combined";
+      readonly cv: WorkingCvRecord;
+      readonly letter: CoverLetterSnapshot;
+      readonly blueprintSource: string;
+      readonly metadata: DocumentPdfMetadata;
+    };
+
+function letterMetadata(letter: CoverLetterSnapshot): DocumentPdfMetadata {
+  return {
+    title: letter.title,
+    author: letter.sender.name.trim() || "AAAAT",
+    subject: letter.subject?.trim() || "Cover letter",
+    keywords: "",
+  };
+}
+
+function serializeLatexDocument(input: RenderDocumentInput): string {
+  const packageMode = input.mode === "combined" ? "combined" : input.mode;
+  const lines = [
+    "\\documentclass[11pt,a4paper]{article}",
+    "\\usepackage[" + packageMode + "]{aaaat}",
+  ];
+
+  if (input.mode !== "letter" && input.blueprintSource.trim()) {
+    lines.push(
+      "",
+      "% Selected AAAAT CV Blueprint. It owns presentation only.",
+      input.blueprintSource.trim(),
+    );
+  }
+
+  lines.push("", "\\begin{document}");
+
+  if (input.mode === "cv") {
+    lines.push("\\AAAATResetDocumentData", ...cvData(input.cv), "\\AAAATRenderCvDocument");
+  } else if (input.mode === "letter") {
+    lines.push(
+      "\\AAAATResetDocumentData",
+      ...coverLetterData(input.letter, input.metadata),
+      "\\AAAATRenderLetterDocument",
+    );
+  } else {
+    lines.push(
+      pdfMetadataSource(input.metadata),
+      "\\AAAATCombinedLetterData{",
+      ...coverLetterData(input.letter, letterMetadata(input.letter)),
+      "}",
+      "\\AAAATCombinedCvData{",
+      ...cvData(input.cv),
+      "}",
+      "\\AAAATRenderCombinedDocument",
+    );
+  }
+
+  lines.push("\\end{document}", "");
+  return lines.join("\n");
+}
+
+function writeLatexDocumentProject(
   projectPath: string,
-  dataSource: string,
-  blueprintSource: string,
-): void {
+  sourceFileName: string,
+  input: RenderDocumentInput,
+): string {
   mkdirSync(projectPath, { recursive: true });
-  writeFileSync(path.join(projectPath, "main.tex"), documentEntrypoint, "utf8");
-  writeFileSync(path.join(projectPath, "blueprint.tex"), blueprintSource, "utf8");
-  writeFileSync(path.join(projectPath, "data.tex"), dataSource, "utf8");
+  writeFileSync(path.join(projectPath, sourceFileName), serializeLatexDocument(input), "utf8");
   writeFileSync(path.join(projectPath, "aaaat.sty"), aaatStyle, "utf8");
+  return sourceFileName;
 }
 
 export function writeCvLatexProject(
   projectPath: string,
   working: WorkingCvRecord,
   blueprintSource: string,
-): void {
-  writePortableDocumentProject(projectPath, cvData(working), blueprintSource);
+): string {
+  return writeLatexDocumentProject(
+    projectPath,
+    "cv.tex",
+    { mode: "cv", cv: working, blueprintSource },
+  );
 }
 
 export function writeCoverLetterLatexProject(
   projectPath: string,
   letter: CoverLetterSnapshot,
-  blueprintSource: string,
-): void {
-  writePortableDocumentProject(projectPath, coverLetterData(letter), blueprintSource);
+  metadata: DocumentPdfMetadata = letterMetadata(letter),
+): string {
+  return writeLatexDocumentProject(
+    projectPath,
+    "cover-letter.tex",
+    { mode: "letter", letter, metadata },
+  );
 }
 
-export function writeApplicationPacketEntrypoint(projectPath: string): void {
-  writeFileSync(path.join(projectPath, "main.tex"), applicationPacketTemplate, "utf8");
+export function writeApplicationPacketLatexProject(
+  projectPath: string,
+  working: WorkingCvRecord,
+  letter: CoverLetterSnapshot,
+  blueprintSource: string,
+  metadata: DocumentPdfMetadata = {
+    title: "Application · " + working.title + " + " + letter.title,
+    author: letter.sender.name.trim() || working.pdfMetadata.author.trim() || "AAAAT",
+    subject: "Application documents",
+    keywords: working.pdfMetadata.keywords,
+  },
+): string {
+  return writeLatexDocumentProject(
+    projectPath,
+    "application-document.tex",
+    { mode: "combined", cv: working, letter, blueprintSource, metadata },
+  );
 }

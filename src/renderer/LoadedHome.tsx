@@ -77,7 +77,7 @@ export function LoadedHome({
     ...data.documents.workingCvs.map((document) => ({
       id: document.id,
       title: document.title,
-      kind: "Working CV" as const,
+      kind: "CV" as const,
       updatedAt: document.updatedAt,
     })),
     ...data.documents.letters.map((document) => ({
@@ -169,8 +169,8 @@ export function LoadedHome({
           {loading ? <p className="loaded-home-load-note">Reading recent local work…</p> : null}
           {!loading && recentDocuments.length === 0 ? (
             <div className="loaded-home-empty">
-              <p>No Working CVs or editable letters yet.</p>
-              <button type="button" onClick={onOpenDocuments}>Open CVs</button>
+              <p>No CVs or cover letters yet.</p>
+              <button type="button" onClick={onOpenDocuments}>Open Documents</button>
             </div>
           ) : null}
           <div className="loaded-home-recent-list">

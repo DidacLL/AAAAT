@@ -11,15 +11,27 @@ import {
   setupEnvironmentSnapshotSchema,
 } from "../shared/setup-environment-contracts";
 import { externalAssistantGuidance } from "./external-assistant-guidance";
-import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
+import {
+  getSetupEnvironmentSnapshot,
+  initializeSetupEnvironmentSession,
+  refreshSetupEnvironmentSnapshot,
+} from "./setup-environment-service";
 
 export function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
+  initializeSetupEnvironmentSession();
   for (const channel of Object.values(setupEnvironmentChannels)) ipcMain.removeHandler(channel);
 
   ipcMain.handle(setupEnvironmentChannels.current, async (event) => {
     assertTrustedSender(event, mainWindow);
     return setupEnvironmentSnapshotSchema.parse(
       await getSetupEnvironmentSnapshot(requireWorkspaceRoot()),
+    );
+  });
+
+  ipcMain.handle(setupEnvironmentChannels.refresh, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    return setupEnvironmentSnapshotSchema.parse(
+      await refreshSetupEnvironmentSnapshot(requireWorkspaceRoot()),
     );
   });
 

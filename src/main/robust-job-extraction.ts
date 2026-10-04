@@ -1,5 +1,4 @@
 import {
-  aiConnectionStatusSchema,
   jobExtractionNewFieldSchema,
   jobExtractionNewTagSchema,
   providerJobExtractionRequestSchema,
@@ -24,7 +23,7 @@ import {
   type TagRecord,
 } from "../shared/contracts";
 import { compactSourceText } from "../shared/source-text";
-import { requireAiConnectionForOperation } from "./ai-connection-service";
+import { requireAiProviderConnectionForOperation } from "./ai-connection-service";
 import { AiProviderError } from "./ai-provider";
 import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import {
@@ -511,7 +510,7 @@ export async function extractJobWithPartialOutcomes(
   signal?: AbortSignal,
   targetFieldIds?: readonly string[],
 ): Promise<PartialJobExtractionResult> {
-  const connection = aiConnectionStatusSchema.parse(requireAiConnectionForOperation(rootPath, "job_extraction"));
+  const connection = requireAiProviderConnectionForOperation(rootPath, "job_extraction");
   const targetSet = targetFieldIds ? new Set(targetFieldIds) : null;
   const allFields = listCandidatureFields(rootPath);
   const fields = allFields.filter((field) => field.definition.enabled && field.preferences.aiUseAllowed && (!targetSet || targetSet.has(field.definition.id)));

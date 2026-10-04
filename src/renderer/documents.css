@@ -548,8 +548,7 @@
 .working-cv-add-detail,
 .working-cv-add-row label,
 .working-cv-add-section label,
-.working-cv-template-save label,
-.working-cv-variant-save label {
+.working-cv-template-save label {
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -566,7 +565,6 @@
 .working-cv-add-row select,
 .working-cv-add-section input,
 .working-cv-template-save input,
-.working-cv-variant-save input,
 .working-cv-section-title input {
   width: 100%;
   min-width: 0;
@@ -796,29 +794,6 @@
   overflow-wrap: anywhere;
 }
 
-.working-cv-source-summary {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 10px;
-  color: var(--muted-ink);
-  font-size: 11px;
-}
-
-.working-cv-source-summary > span {
-  font-style: italic;
-}
-
-.working-cv-source-chip {
-  display: inline-flex;
-  width: fit-content;
-  padding: 2px 6px;
-  border: 1px solid var(--line-soft);
-  border-radius: 999px;
-  background: #eee4d5;
-}
-
 .working-cv-link-button {
   width: fit-content;
   padding: 2px 0;
@@ -883,21 +858,27 @@
   font-size: 12px;
 }
 
+.ownership-actions > summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ownership-actions > div {
+  display: grid;
+  gap: 7px;
+  padding-top: 7px;
+}
+
 .ownership-actions > strong {
   color: var(--ink);
 }
 
-.working-cv-ownership-buttons,
-.working-cv-variant-save {
-  display: flex;
-  align-items: end;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.working-cv-variant-save label {
-  width: min(320px, 100%);
-  flex: 1 1 220px;
+.ownership-actions label,
+.working-cv-reuse-body > label {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
 }
 
 .working-cv-section-empty {
@@ -1126,4 +1107,617 @@
 .working-cv-reuse > summary,
 .working-cv-add-section > summary {
   font-family: var(--machine-font);
+}
+
+
+/* #407: document journey is writing-first. Creation, writing and generated files are distinct surfaces. */
+.document-hub {
+  display: grid;
+  width: min(100%, 1180px);
+  gap: 18px;
+  margin: 0 auto;
+}
+
+.document-hub-heading {
+  align-items: end;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.document-hub-heading h1 {
+  max-width: 24ch;
+  margin: 2px 0 4px;
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+  line-height: 1.12;
+}
+
+.document-hub-heading p:last-child {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--muted-ink);
+}
+
+.document-hub-create {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.document-create-card {
+  display: grid;
+  min-height: 250px;
+  align-content: space-between;
+  gap: 22px;
+  padding: 22px;
+  border: 1px solid #aa9a82;
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 52%), transparent 32%),
+    var(--paper-sheet);
+  box-shadow: var(--paper-shadow);
+}
+
+.document-create-card h2 {
+  margin: 5px 0 7px;
+  font-family: var(--document-font);
+  font-size: 1.35rem;
+}
+
+.document-create-card p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted-ink);
+  line-height: 1.45;
+}
+
+.document-create-card-controls {
+  display: grid;
+  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.document-create-card-controls > label,
+.document-create-card-controls details label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.document-create-card-controls select,
+.document-create-card-controls input {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid #a9967e;
+  border-radius: 3px;
+  color: var(--ink);
+  background: var(--paper-strong);
+  font: inherit;
+}
+
+.document-create-card-controls details {
+  grid-column: 1 / -1;
+}
+
+.document-create-card-controls details > summary {
+  width: fit-content;
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.document-create-card-controls details[open] label {
+  margin-top: 7px;
+}
+
+.document-hub-continue {
+  display: grid;
+  gap: 10px;
+}
+
+.document-editable-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+}
+
+.document-hub-secondary {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 6px;
+}
+
+.document-library-disclosure {
+  border-bottom: 1px solid var(--line-soft);
+  padding: 3px 0 8px;
+}
+
+.document-library-disclosure > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  color: var(--muted-ink);
+  cursor: pointer;
+  font-family: var(--machine-font);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.document-library-disclosure > summary span {
+  font-variant-numeric: tabular-nums;
+}
+
+.document-library-disclosure[open] > .document-intent-list,
+.document-library-disclosure[open] > .document-intent-empty {
+  margin-top: 6px;
+}
+
+/* Editors behave like a document with a compact utility bar, not an admin form. */
+.document-page-editor {
+  display: grid;
+  width: min(100%, 1180px);
+  gap: 12px;
+  margin: 0 auto;
+}
+
+.document-editor-toolbar {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--machine-edge);
+  border-radius: 5px;
+  color: var(--machine-text);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 44%),
+    var(--machine);
+  box-shadow: var(--machine-shadow);
+}
+
+.document-editor-context,
+.document-editor-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-editor-context > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.document-editor-context .eyebrow {
+  margin: 0;
+  color: var(--machine-text);
+}
+
+.document-save-state {
+  color: var(--machine-muted);
+  font-size: 11px;
+}
+
+.document-back-button {
+  padding: 5px 7px;
+  border: 0;
+  color: var(--machine-text);
+  background: transparent;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.document-back-button:hover,
+.document-back-button:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.document-editor-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.document-editor-message {
+  width: min(100%, 860px);
+  margin: 0 auto;
+}
+
+.document-sheet {
+  width: min(100%, 860px);
+  margin-inline: auto;
+  border: 1px solid #aaa18e;
+  border-radius: 2px;
+  color: #202724;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 46%), transparent 18%),
+    var(--paper-sheet);
+  box-shadow: var(--paper-shadow);
+}
+
+.working-cv-composition.document-sheet {
+  width: min(100%, 860px);
+  padding: clamp(28px, 4vw, 52px) clamp(28px, 5vw, 62px);
+  border-left: 1px solid #aaa18e;
+}
+
+.document-sheet-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #c7b9a4;
+}
+
+.document-sheet-title {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--ink);
+  background: transparent;
+  font-family: var(--document-font) !important;
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.document-sheet-title:hover,
+.document-sheet-title:focus {
+  border-bottom-color: #b89d79;
+  outline: 0;
+}
+
+.document-sheet-heading small {
+  color: var(--muted-ink);
+  font-family: var(--ui-font);
+  font-size: 11px;
+}
+
+.working-cv-section {
+  position: relative;
+  gap: 9px;
+  padding-block: 16px 18px;
+}
+
+.working-cv-section-title h2 {
+  font-family: var(--document-font);
+  font-size: 1.08rem;
+}
+
+.working-cv-section-options > summary {
+  width: 28px;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  line-height: 1;
+  list-style: none;
+  text-align: center;
+}
+
+.working-cv-section-options > summary::-webkit-details-marker {
+  display: none;
+}
+
+.working-cv-section-options > summary:hover,
+.working-cv-section-options > summary:focus-visible {
+  border-color: var(--line-soft);
+  background: rgb(239 230 216 / 72%);
+}
+
+.working-cv-section-options {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.working-cv-item-controls,
+.working-cv-add-information {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.working-cv-section:hover > .working-cv-section-heading .working-cv-section-options,
+.working-cv-section:focus-within > .working-cv-section-heading .working-cv-section-options,
+.working-cv-section-options[open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.working-cv-item {
+  padding-block: 10px 11px;
+}
+
+.working-cv-item-copy strong {
+  font-family: var(--document-font);
+  font-size: 14.5px;
+}
+
+.working-cv-item-controls .compact-secondary {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.working-cv-item-controls .compact-secondary:hover,
+.working-cv-item-controls .compact-secondary:focus-visible {
+  border-color: var(--line-soft);
+  background: #f0e6d8;
+}
+
+.working-cv-item-editing {
+  padding: 12px;
+  border: 1px solid #b7a489;
+  border-left: 3px solid var(--focus);
+  background: #fffaf0;
+}
+
+.document-editor-secondary {
+  width: min(100%, 860px);
+  margin-inline: auto;
+  padding: 1px 0;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted-ink);
+}
+
+.document-editor-secondary > summary,
+.document-reuse-disclosure > summary {
+  width: fit-content;
+  padding: 7px 0;
+  cursor: pointer;
+  font-family: var(--machine-font);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.document-editor-secondary-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr);
+  gap: 10px 14px;
+  padding: 7px 0 4px;
+}
+
+.document-editor-secondary-body > label,
+.blueprint-render-choice {
+  display: grid;
+  gap: 4px;
+  color: var(--muted-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.document-editor-secondary-body input,
+.document-editor-secondary-body select {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid #a9967e;
+  border-radius: 3px;
+  color: var(--ink);
+  background: var(--paper-strong);
+  font: inherit;
+}
+
+.document-reuse-disclosure,
+.document-generated-actions {
+  grid-column: 1 / -1;
+}
+
+.document-reuse-disclosure {
+  border-top: 1px dashed var(--line-soft);
+  padding-top: 3px;
+}
+
+.document-generated-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* The letter is a letter page. Metadata is inline and writing receives the space. */
+.letter-document {
+  display: grid;
+  gap: 22px;
+  padding: clamp(34px, 5vw, 62px) clamp(30px, 6vw, 72px);
+  font-family: var(--document-font);
+}
+
+
+.letter-sender-editor {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--ui-font);
+}
+
+.letter-sender-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.letter-sender-heading > span {
+  color: var(--muted-ink);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.letter-sender-editor > label,
+.letter-sender-detail label {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+.letter-sender-editor label > span {
+  color: var(--muted-ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.letter-sender-editor input {
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+}
+
+.letter-sender-name input {
+  font-family: var(--document-font);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.letter-sender-editor input:hover,
+.letter-sender-editor input:focus {
+  border-bottom-color: #bea680;
+  outline: 0;
+}
+
+.letter-sender-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.letter-sender-detail label {
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.letter-sender-editor > small {
+  color: var(--muted-ink);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.letter-address-block {
+  display: grid;
+  gap: 8px;
+}
+
+.letter-address-block label {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+}
+
+.letter-address-block label > span {
+  color: var(--muted-ink);
+  font-family: var(--ui-font);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.letter-address-block input,
+.letter-closing-field input,
+.letter-body-field textarea {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+}
+
+.letter-address-block input {
+  padding: 4px 0;
+}
+
+.letter-body-field textarea {
+  min-height: 420px;
+  padding: 4px 0;
+  resize: vertical;
+  line-height: 1.65;
+}
+
+.letter-closing-field input {
+  max-width: 320px;
+  padding: 5px 0;
+}
+
+.letter-address-block input:hover,
+.letter-address-block input:focus,
+.letter-closing-field input:hover,
+.letter-closing-field input:focus,
+.letter-body-field textarea:hover,
+.letter-body-field textarea:focus {
+  border-bottom-color: #bea680;
+  outline: 0;
+}
+
+@media (max-width: 760px) {
+  .document-hub-create {
+    grid-template-columns: 1fr;
+  }
+
+  .document-create-card {
+    min-height: 0;
+  }
+
+  .document-create-card-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .document-editor-toolbar {
+    position: static;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-editor-actions {
+    justify-content: flex-start;
+  }
+
+  .working-cv-composition.document-sheet,
+  .letter-document {
+    padding: 22px 18px;
+  }
+
+  .working-cv-section-options,
+  .working-cv-item-controls,
+  .working-cv-add-information {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .document-editor-secondary-body {
+    grid-template-columns: 1fr;
+  }
+
+  .document-reuse-disclosure,
+  .document-generated-actions {
+    grid-column: auto;
+  }
+
+  .letter-sender-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .letter-sender-editor > label,
+  .letter-sender-detail,
+  .letter-sender-detail label,
+  .letter-address-block label {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }

@@ -6,19 +6,23 @@ import {
   providerJobExtractionRequestSchema,
   providerJobExtractionEnvelopeSchema,
   providerOpportunityReviewContextSchema,
-  type AiConnectionStatus,
 } from "../shared/ai-contracts";
 import type { AiOperation } from "../shared/ai-connection-contracts";
 import { aiExchangeDiagnosticSchema } from "../shared/ai-diagnostics";
-import { AiProviderError, type ModelProvider } from "./ai-provider";
+import {
+  AiProviderError,
+  type AiProviderConnection,
+  type ModelProvider,
+} from "./ai-provider";
 
 const fieldRef = "aaaat_validation_field";
 const itemRef = "aaaat_validation_item";
 const candidature = { label: "Validation opportunity", information: [], sources: [] };
 
 async function validateExtraction(
-  connection: AiConnectionStatus,
+  connection: AiProviderConnection,
   provider: ModelProvider,
+  signal?: AbortSignal,
 ): Promise<void> {
   const request = providerJobExtractionRequestSchema.parse({
     sourceText: "Validation source: the role title is Validation Engineer.",
@@ -36,7 +40,9 @@ async function validateExtraction(
     ],
     tags: [],
   });
-  const result = providerJobExtractionEnvelopeSchema.parse(await provider.extractJob(connection, request));
+  const result = providerJobExtractionEnvelopeSchema.parse(
+    await provider.extractJob(connection, request, signal),
+  );
   for (const proposal of result.proposals) {
     if (!proposal || typeof proposal !== "object") continue;
     const candidate = proposal as { fieldRef?: unknown };
@@ -70,20 +76,23 @@ async function runValidation(check: () => Promise<void>): Promise<void> {
 }
 
 export async function validateAiOperation(
-  connection: AiConnectionStatus,
+  connection: AiProviderConnection,
   operation: AiOperation,
   provider: ModelProvider,
+  signal?: AbortSignal,
 ): Promise<void> {
   await runValidation(async () => {
     switch (operation) {
       case "opportunity_review": {
         const context = providerOpportunityReviewContextSchema.parse({ candidature, profileItems: [] });
-        opportunityReviewResultSchema.parse(await provider.reviewOpportunity(connection, context));
+        opportunityReviewResultSchema.parse(
+          await provider.reviewOpportunity(connection, context, signal),
+        );
         return;
       }
       case "job_extraction":
       case "historical_field_discovery":
-        await validateExtraction(connection, provider);
+        await validateExtraction(connection, provider, signal);
         return;
       case "cv_tailoring": {
         const context = providerDocumentAiContextSchema.parse({
@@ -97,7 +106,9 @@ export async function validateAiOperation(
             },
           ],
         });
-        const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(connection, context));
+        const result = providerCvTailoringResultSchema.parse(
+          await provider.tailorCv(connection, context, signal),
+        );
         if (result.recommendations.some((recommendation) => recommendation.itemRef !== itemRef)) {
           throw new Error("The configured provider returned an out-of-scope validation item reference.");
         }
@@ -115,7 +126,9 @@ export async function validateAiOperation(
             },
           ],
         });
-        coverLetterDraftSchema.parse(await provider.draftCoverLetter(connection, context));
+        coverLetterDraftSchema.parse(
+          await provider.draftCoverLetter(connection, context, signal),
+        );
         return;
       }
     }

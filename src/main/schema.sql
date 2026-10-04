@@ -175,7 +175,9 @@ CREATE TABLE cv_templates (
   language TEXT,
   composition_json TEXT NOT NULL CHECK (json_valid(composition_json)),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  pdf_metadata_json TEXT NOT NULL DEFAULT '{"title":"","author":"","subject":""}' CHECK (json_valid(pdf_metadata_json)),
+  parser_summary TEXT NOT NULL DEFAULT ''
 ) STRICT;
 
 CREATE TABLE working_cvs (
@@ -186,7 +188,9 @@ CREATE TABLE working_cvs (
   candidature_id TEXT REFERENCES candidatures(id) ON DELETE CASCADE,
   composition_json TEXT NOT NULL CHECK (json_valid(composition_json)),
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  pdf_metadata_json TEXT NOT NULL DEFAULT '{"title":"","author":"","subject":""}' CHECK (json_valid(pdf_metadata_json)),
+  parser_summary TEXT NOT NULL DEFAULT ''
 ) STRICT;
 CREATE INDEX working_cvs_candidature_idx ON working_cvs(candidature_id, updated_at);
 
@@ -200,7 +204,8 @@ CREATE TABLE cover_letters (
   body_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(body_json)),
   closing TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  sender_json TEXT NOT NULL DEFAULT '{"name":"","headline":"","details":[]}' CHECK (json_valid(sender_json))
 ) STRICT;
 CREATE INDEX cover_letters_candidature_idx ON cover_letters(candidature_id, updated_at);
 
@@ -233,7 +238,7 @@ CREATE INDEX rendered_cvs_candidature_idx ON rendered_cvs(candidature_id, create
 CREATE TABLE application_packets (
   id TEXT PRIMARY KEY,
   candidature_id TEXT NOT NULL REFERENCES candidatures(id) ON DELETE CASCADE,
-  rendered_cv_id TEXT NOT NULL REFERENCES rendered_cvs(id) ON DELETE RESTRICT,
+  working_cv_id TEXT NOT NULL REFERENCES working_cvs(id) ON DELETE RESTRICT,
   cover_letter_id TEXT NOT NULL REFERENCES cover_letters(id) ON DELETE RESTRICT,
   title TEXT NOT NULL,
   letter_snapshot_json TEXT NOT NULL CHECK (json_valid(letter_snapshot_json)),

@@ -276,12 +276,25 @@ export function SettingsWorkspace({
               onEnvironmentChange={onEnvironmentChange}
               onValidationState={onAiValidationState}
             />
-            <ExternalAssistantGuidancePanel />
-            <details className="settings-advanced-disclosure">
-              <summary>Advanced: connect a local tool-capable assistant</summary>
-              <ExternalAssistantConnectionPanel />
+            <section className="profile-column" aria-label="Connect another AI to AAAAT">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">External AI</p>
+                  <h2>Connect another AI to AAAAT</h2>
+                </div>
+              </div>
+              <p>
+                A compatible local or tool-capable AI can connect directly to AAAAT's bounded local tools.
+                AAAAT uses a local MCP connection for this; the existing privacy projections and explicit
+                action controls still apply.
+              </p>
+              <details>
+                <summary>Connection setup</summary>
+                <ExternalAssistantConnectionPanel />
+              </details>
               <SetupActionAuthorityPanel />
-            </details>
+            </section>
+            <ExternalAssistantGuidancePanel />
           </>
         ) : null}
 

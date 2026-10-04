@@ -45,7 +45,6 @@ export const renderCvRequestSchema = z.object({
 export type RenderCvRequest = z.infer<typeof renderCvRequestSchema>;
 export const renderLetterRequestSchema = z.object({
   letterId: z.string().uuid(),
-  blueprintId: blueprintIdSchema,
 }).strict().readonly();
 export type RenderLetterRequest = z.infer<typeof renderLetterRequestSchema>;
 
@@ -53,6 +52,21 @@ export const cvContentSchema = profileItemContentSchema
   .extend({ kind: profileItemKindSchema })
   .strict();
 export type CvContent = z.infer<typeof cvContentSchema>;
+
+export const cvPdfMetadataSchema = z.object({
+  title: z.string().max(500),
+  author: z.string().max(500),
+  subject: z.string().max(500),
+  keywords: z.string().max(500).default(""),
+}).strict();
+export type CvPdfMetadata = z.infer<typeof cvPdfMetadataSchema>;
+export const emptyCvPdfMetadata: CvPdfMetadata = Object.freeze({
+  title: "",
+  author: "",
+  subject: "",
+  keywords: "",
+});
+export const cvParserSummarySchema = z.string().max(8_000);
 
 const templateCurrentItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("current"), profileItemId: z.string().uuid() }).strict();
 const templateVariantItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("variant"), profileItemId: z.string().uuid(), profileVariantId: z.string().uuid() }).strict();
@@ -66,7 +80,7 @@ export const cvTemplateItemSchema = z.discriminatedUnion("sourceMode", [
   templateCustomItemSchema,
 ]);
 export type CvTemplateItem = z.infer<typeof cvTemplateItemSchema>;
-export const cvSectionPresentationRoleSchema = z.enum(["main", "secondary"]);
+export const cvSectionPresentationRoleSchema = z.enum(["header", "main", "secondary", "footer"]);
 export type CvSectionPresentationRole = z.infer<typeof cvSectionPresentationRoleSchema>;
 export const cvTemplateSectionSchema = z.object({
   id: z.string().uuid(),
@@ -75,12 +89,22 @@ export const cvTemplateSectionSchema = z.object({
   items: z.array(cvTemplateItemSchema).max(100),
 }).strict();
 export type CvTemplateSection = z.infer<typeof cvTemplateSectionSchema>;
-export const cvTemplateInputSchema = z.object({ name: z.string().trim().min(1).max(200), language: optionalLanguageSchema, sections: z.array(cvTemplateSectionSchema).max(40) }).strict();
-export type CvTemplateInput = z.infer<typeof cvTemplateInputSchema>;
-export const cvTemplateRecordSchema = cvTemplateInputSchema.extend({ id: z.string().uuid(), createdAt: z.string().min(1), updatedAt: z.string().min(1) }).strict();
+export const cvTemplateInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  language: optionalLanguageSchema,
+  pdfMetadata: cvPdfMetadataSchema.default(emptyCvPdfMetadata),
+  parserSummary: cvParserSummarySchema.default(""),
+  sections: z.array(cvTemplateSectionSchema).max(40),
+}).strict();
+export type CvTemplateInput = z.input<typeof cvTemplateInputSchema>;
+export const cvTemplateRecordSchema = cvTemplateInputSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+}).strict();
 export type CvTemplateRecord = z.infer<typeof cvTemplateRecordSchema>;
 export const cvTemplateUpdateSchema = cvTemplateInputSchema.extend({ id: z.string().uuid() }).strict();
-export type CvTemplateUpdate = z.infer<typeof cvTemplateUpdateSchema>;
+export type CvTemplateUpdate = z.input<typeof cvTemplateUpdateSchema>;
 
 export const workingCvItemSchema = z.object({
   id: z.string().uuid(),
@@ -91,8 +115,8 @@ export const workingCvItemSchema = z.object({
   content: cvContentSchema,
 }).strict().superRefine((item, context) => {
   if (item.sourceMode === "custom" && (item.profileItemId !== null || item.profileVariantId !== null)) context.addIssue({ code: "custom", message: "Custom CV content cannot point to My information." });
-  if (item.sourceMode !== "custom" && item.profileItemId === null) context.addIssue({ code: "custom", message: "Profile-backed CV content needs a My information item." });
-  if (item.sourceMode === "variant" && item.profileVariantId === null) context.addIssue({ code: "custom", message: "Variant CV content needs a saved item variant." });
+  if (item.sourceMode !== "custom" && item.profileItemId === null) context.addIssue({ code: "custom", message: "CV content linked to My information needs that information item." });
+  if (item.sourceMode === "variant" && item.profileVariantId === null) context.addIssue({ code: "custom", message: "This CV variation is no longer available." });
 });
 export type WorkingCvItem = z.infer<typeof workingCvItemSchema>;
 export const workingCvSectionSchema = z.object({
@@ -122,12 +146,21 @@ export const workingCvRecordSchema = z.object({
   language: optionalLanguageSchema,
   sourceTemplateId: optionalUuidSchema,
   candidatureId: optionalUuidSchema,
+  pdfMetadata: cvPdfMetadataSchema,
+  parserSummary: cvParserSummarySchema,
   sections: z.array(workingCvSectionSchema).max(40),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 }).strict();
 export type WorkingCvRecord = z.infer<typeof workingCvRecordSchema>;
-export const workingCvUpdateSchema = workingCvRecordSchema.pick({ id: true, title: true, language: true, sections: true }).strict();
+export const workingCvUpdateSchema = workingCvRecordSchema.pick({
+  id: true,
+  title: true,
+  language: true,
+  pdfMetadata: true,
+  parserSummary: true,
+  sections: true,
+}).strict();
 export type WorkingCvUpdate = z.infer<typeof workingCvUpdateSchema>;
 
 export const workingCvOwnershipTargetSchema = z.enum(["template", "profile_variant", "profile"]);
@@ -137,17 +170,70 @@ export type WorkingCvSaveItem = z.infer<typeof workingCvSaveItemSchema>;
 export const workingCvSaveTemplateSchema = z.object({ workingCvId: z.string().uuid(), name: z.string().trim().min(1).max(200) }).strict();
 export type WorkingCvSaveTemplate = z.infer<typeof workingCvSaveTemplateSchema>;
 
-export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({ title: true, language: true, sourceTemplateId: true, candidatureId: true, sections: true });
+export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({
+  title: true,
+  language: true,
+  sourceTemplateId: true,
+  candidatureId: true,
+  pdfMetadata: true,
+  parserSummary: true,
+  sections: true,
+});
 export type RenderedCvSnapshot = z.infer<typeof renderedCvSnapshotSchema>;
 export const renderedCvRecordSchema = z.object({ id: z.string().uuid(), workingCvId: optionalUuidSchema, sourceTemplateId: optionalUuidSchema, candidatureId: optionalUuidSchema, title: z.string().min(1), language: optionalLanguageSchema, snapshot: renderedCvSnapshotSchema, createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
 export type RenderedCvRecord = z.infer<typeof renderedCvRecordSchema>;
 
-export const coverLetterInputSchema = z.object({ candidatureId: optionalUuidSchema, title: z.string().trim().min(1).max(200), language: optionalLanguageSchema, recipient: z.string().max(300).optional(), subject: z.string().max(300).optional(), bodyParagraphs: z.array(z.string().max(5000)).max(20).default([]), closing: z.string().max(500).optional() }).strict();
+export const coverLetterSenderDetailSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().max(80),
+  value: z.string().max(500),
+}).strict();
+export type CoverLetterSenderDetail = z.infer<typeof coverLetterSenderDetailSchema>;
+
+export const coverLetterSenderSchema = z.object({
+  name: z.string().max(200),
+  headline: z.string().max(300),
+  details: z.array(coverLetterSenderDetailSchema).max(20),
+}).strict();
+export type CoverLetterSender = z.infer<typeof coverLetterSenderSchema>;
+
+const emptyCoverLetterSender: CoverLetterSender = { name: "", headline: "", details: [] };
+
+export const coverLetterInputSchema = z.object({
+  candidatureId: optionalUuidSchema,
+  title: z.string().trim().min(1).max(200),
+  language: optionalLanguageSchema,
+  sender: coverLetterSenderSchema.optional(),
+  recipient: z.string().max(300).optional(),
+  subject: z.string().max(300).optional(),
+  bodyParagraphs: z.array(z.string().max(5000)).max(20).default([]),
+  closing: z.string().max(500).optional(),
+}).strict();
 export type CoverLetterInput = z.infer<typeof coverLetterInputSchema>;
-export const coverLetterRecordSchema = coverLetterInputSchema.extend({ id: z.string().uuid(), createdAt: z.string().min(1), updatedAt: z.string().min(1) }).strict();
+
+export const coverLetterRecordSchema = coverLetterInputSchema
+  .omit({ sender: true })
+  .extend({
+    sender: coverLetterSenderSchema,
+    id: z.string().uuid(),
+    createdAt: z.string().min(1),
+    updatedAt: z.string().min(1),
+  })
+  .strict();
 export type CoverLetterRecord = z.infer<typeof coverLetterRecordSchema>;
-export const coverLetterUpdateSchema = coverLetterInputSchema.omit({ candidatureId: true }).extend({ id: z.string().uuid() }).strict();
+
+export const coverLetterUpdateSchema = coverLetterRecordSchema.pick({
+  id: true,
+  title: true,
+  language: true,
+  sender: true,
+  recipient: true,
+  subject: true,
+  bodyParagraphs: true,
+  closing: true,
+}).strict();
 export type CoverLetterUpdate = z.infer<typeof coverLetterUpdateSchema>;
+
 export const coverLetterSnapshotSchema = coverLetterRecordSchema.pick({
   candidatureId: true,
   title: true,
@@ -156,7 +242,9 @@ export const coverLetterSnapshotSchema = coverLetterRecordSchema.pick({
   subject: true,
   bodyParagraphs: true,
   closing: true,
-});
+}).extend({
+  sender: coverLetterSenderSchema.default(emptyCoverLetterSender),
+}).strict();
 export type CoverLetterSnapshot = z.infer<typeof coverLetterSnapshotSchema>;
 export const renderedCoverLetterRecordSchema = z.object({
   id: z.string().uuid(),
@@ -170,9 +258,31 @@ export const renderedCoverLetterRecordSchema = z.object({
 }).strict();
 export type RenderedCoverLetterRecord = z.infer<typeof renderedCoverLetterRecordSchema>;
 
-export const applicationPacketCreateSchema = z.object({ candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().trim().min(1).max(200).optional() }).strict();
-export type ApplicationPacketCreate = z.infer<typeof applicationPacketCreateSchema>;
-export const applicationPacketRecordSchema = z.object({ id: z.string().uuid(), candidatureId: z.string().uuid(), renderedCvId: z.string().uuid(), coverLetterId: z.string().uuid(), title: z.string().min(1), createdAt: z.string().min(1), hasPdf: z.boolean() }).strict();
+export const applicationPacketCreateSchema = z.object({
+  candidatureId: z.string().uuid(),
+  workingCvId: z.string().uuid().optional(),
+  renderedCvId: z.string().uuid().optional(),
+  coverLetterId: z.string().uuid(),
+  blueprintId: blueprintIdSchema.default("builtin:default"),
+  title: z.string().trim().min(1).max(200).optional(),
+}).strict().superRefine((input, context) => {
+  if ((input.workingCvId ? 1 : 0) + (input.renderedCvId ? 1 : 0) !== 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Choose exactly one editable or legacy CV source.",
+    });
+  }
+});
+export type ApplicationPacketCreate = z.input<typeof applicationPacketCreateSchema>;
+export const applicationPacketRecordSchema = z.object({
+  id: z.string().uuid(),
+  candidatureId: z.string().uuid(),
+  workingCvId: z.string().uuid(),
+  coverLetterId: z.string().uuid(),
+  title: z.string().min(1),
+  createdAt: z.string().min(1),
+  hasPdf: z.boolean(),
+}).strict();
 export type ApplicationPacketRecord = z.infer<typeof applicationPacketRecordSchema>;
 
 export const documentCollectionsSchema = z.object({

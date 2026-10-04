@@ -142,9 +142,8 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(documentDomainChannels.renderLetter, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     const request = renderLetterRequestSchema.parse(input);
-    const blueprintSource = resolveBlueprintSource(app.getPath("userData"), request.blueprintId);
     return renderedCoverLetterRecordSchema.parse(
-      await renderCoverLetter(requireWorkspaceRoot(), request.letterId, blueprintSource),
+      await renderCoverLetter(requireWorkspaceRoot(), request.letterId),
     );
   });
   ipcMain.handle(documentDomainChannels.openRenderedLetter, async (event, renderedLetterId: unknown) => {
@@ -175,8 +174,10 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   });
   ipcMain.handle(documentDomainChannels.packetCreate, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
+    const request = applicationPacketCreateSchema.parse(input);
+    const blueprintSource = resolveBlueprintSource(app.getPath("userData"), request.blueprintId);
     return applicationPacketRecordSchema.parse(
-      await createApplicationPacket(requireWorkspaceRoot(), applicationPacketCreateSchema.parse(input)),
+      await createApplicationPacket(requireWorkspaceRoot(), request, blueprintSource),
     );
   });
   ipcMain.handle(documentDomainChannels.packetOpen, async (event, packetId: unknown) => {
