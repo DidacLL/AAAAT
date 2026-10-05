@@ -46,6 +46,7 @@ const operationDefaultsSchema = z
   .object({
     opportunity_review: aiConnectionIdSchema.optional(),
     job_extraction: aiConnectionIdSchema.optional(),
+    tag_inference: aiConnectionIdSchema.optional(),
     historical_field_discovery: aiConnectionIdSchema.optional(),
     cv_tailoring: aiConnectionIdSchema.optional(),
     cover_letter_draft: aiConnectionIdSchema.optional(),
