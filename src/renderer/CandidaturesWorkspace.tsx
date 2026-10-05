@@ -1700,7 +1700,7 @@ export function CandidaturesWorkspace({
           targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
           taskId={`candidature-inference:${selected.id}:missing`}
           title="Fill missing information"
-          allowNewFields
+          includeTagInference
           onChanged={() => void refreshInformation()}
         />
       ) : null}
