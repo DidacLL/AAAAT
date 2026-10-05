@@ -11,7 +11,7 @@
     "make": "electron-forge make",
     "build": "electron-forge package",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "eslint src scripts forge.config.ts vite.main.config.mts vite.preload.config.mts vite.renderer.config.mts --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:desktop": "playwright test --config playwright.config.ts",
