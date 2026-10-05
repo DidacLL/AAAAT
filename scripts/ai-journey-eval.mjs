@@ -121,11 +121,11 @@ async function chooseMode() {
 
   stdout.write("Choose what to evaluate:\n");
   stdout.write("  1. Core — direct AAAAT AI + external chat + model-driven MCP\n");
-  stdout.write("  2. External — Send to my AI + MCP + real llama.cpp host\n");
+  stdout.write("  2. External — Send to my AI + MCP + llama.cpp-backed local agent\n");
   stdout.write("  3. Direct AAAAT → AI only\n");
   stdout.write("  4. External chat / Send to my AI only\n");
   stdout.write("  5. Model-driven MCP only\n");
-  stdout.write("  6. Real llama.cpp local-agent host only\n");
+  stdout.write("  6. llama.cpp-backed local-agent host only\n");
   stdout.write("  7. All — every mode above\n");
   const selected = await question("Selection [1]: ", "1");
   const mapping = {
@@ -220,42 +220,15 @@ async function normalConnection() {
 }
 
 async function hostConnection() {
-  const serverDefault = process.env.AAAAT_LLAMA_SERVER?.trim() || "llama-server";
-  const modelDefault = process.env.AAAAT_LLAMA_MODEL?.trim() || "";
-  const server = required(
-    await question("llama-server executable [" + serverDefault + "]: ", serverDefault),
-    "llama-server executable",
-  );
-  const modelPath = required(
-    await question(
-      "GGUF model path" + (modelDefault ? " [" + modelDefault + "]" : "") + ": ",
-      modelDefault,
-    ),
-    "GGUF model path",
-  );
   stdout.write(
-    "\nHost mode starts its own llama-server with a temporary AAAAT MCP configuration.\n" +
-      "Do not pre-start another server on the selected port; llama.cpp logs will be streamed in this terminal.\n\n",
+    "\nHost mode uses a llama.cpp/OpenAI-compatible server that is already running.\n" +
+      "The evaluator sends model requests to that server and connects directly to packaged AAAAT over stdio MCP.\n" +
+      "No second llama-server is started and no experimental llama.cpp MCP feature is required.\n\n",
   );
-  const port = integer(
-    await question(
-      "llama.cpp evaluation port [" +
-        (process.env.AAAAT_LLAMA_PORT?.trim() || "18080") +
-        "]: ",
-      process.env.AAAAT_LLAMA_PORT?.trim() || "18080",
-    ),
-    18080,
-    1024,
-    65535,
-    "llama.cpp port",
-  );
+  const connection = await normalConnection();
   const executable = await ensurePackagedExecutable();
   return {
-    server,
-    modelPath,
-    endpoint: "http://127.0.0.1:" + port + "/v1",
-    model: path.basename(modelPath),
-    credential: "",
+    ...connection,
     executable,
   };
 }
@@ -283,7 +256,7 @@ async function runVitest(file, environment) {
 async function main() {
   stdout.write("\nAAAAT local AI journey evaluation\n");
   stdout.write(
-    "This evaluates direct inference, external chat, model-driven MCP and an optional real local-agent host as distinct journeys.\n",
+    "This evaluates direct inference, external chat, model-driven MCP and a packaged-AAAAT local-agent boundary backed by a running llama.cpp/OpenAI-compatible model server.\n",
   );
   stdout.write(
     "Stochastic model misses are recorded and never stop the remaining scheduled trials.\n\n",
@@ -351,8 +324,6 @@ async function main() {
       AAAAT_AI_EVAL_RUN_ID: runId,
       ...(item === "host"
         ? {
-            AAAAT_LLAMA_SERVER: host.server,
-            AAAAT_LLAMA_MODEL: host.modelPath,
             AAAAT_PACKAGED_EXECUTABLE: host.executable,
           }
         : {}),
