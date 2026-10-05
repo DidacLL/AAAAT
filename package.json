@@ -10,8 +10,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "build": "electron-forge package",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "lint": "eslint src scripts forge.config.ts vite.main.config.mts vite.preload.config.mts vite.renderer.config.mts --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:desktop": "playwright test --config playwright.config.ts",
@@ -23,8 +23,8 @@
     "eval:ai:mcp": "node scripts/ai-journey-eval.mjs --mode mcp",
     "eval:ai:host:llama": "node scripts/ai-journey-eval.mjs --mode host",
     "eval:ai:all": "node scripts/ai-journey-eval.mjs --mode all",
-    "verify": "npm run typecheck && npm run lint && npm test",
-    "verify:package": "npm run build && npm run test:desktop"
+    "verify": "npm run typecheck && npm run lint",
+    "verify:package": "npm run make"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.0.0",

@@ -2,7 +2,7 @@
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `b4a747832d10c309057d3fe5cfc4217733310bf5`.
+Base main: `9f34eea8a1551cd96f12bb05df6f7e406dc0af98`.
 
 ## PLAN state
 
@@ -13,25 +13,24 @@ Base main: `b4a747832d10c309057d3fe5cfc4217733310bf5`.
 - PLAN[4] — COMPLETE
 - PLAN[5] — COMPLETE
 
-PLAN[5] completed through the integrated acceptance sequence under #314, ending with:
-- #395 / PR #402: Applications recognize/filter/inspect/collapse/Open flow, contextual Tags, continuous selected-application editing, AI field-action/failure handling, document-first CV work, wide-screen composition and compact navigation.
-- #398 / PR #405: AAAAT visual-identity recovery using retained logo/background/loading artwork, machine/chassis versus paper/dossier material hierarchy, and final rendered-product review.
+PLAN[5] completed through the integrated acceptance sequence under #314. The current release-readiness work does not reopen completed product work unless running/package evidence exposes a concrete defect.
 
-Final #398 implementation merged as `b4a747832d10c309057d3fe5cfc4217733310bf5`.
-
-Rendered evidence for the final visual pass came from temporary evidence run `37059329405`, artifact `11249898139`, digest `sha256:d5ef8f45823c8f4ef53cf2734467cb74991b1e732fb5bc15955fdfad5ad61707`. The evidence branch is not product code and must not be merged.
+PR #414 / `9f34eea` added bounded llama.cpp and packaged-AAAAT MCP preflights so the remaining real local-host evaluation fails at the actual missing boundary instead of stalling opaquely. Superseded PR #413 is closed.
 
 ## Current objective
 
-Prepare/deploy v2 from current `main` without reopening completed PLAN work unless release inspection exposes a concrete product or packaging defect.
+Prepare/deploy v2 from current `main` while the remaining real llama.cpp owner-run evidence continues independently.
 
-Keep the release path small:
-- no feature expansion;
-- no test-generation phase;
-- no architecture cleanup programme;
-- no compatibility/migration ceremony without a real obligation;
-- no reopening #373, which remains a non-blocking future document-source enhancement.
-
-Required engineering hygiene remains static typecheck + lint. Product acceptance is already based on independent production-code review and real rendered-product inspection.
+Release-readiness boundary:
+- one native release path for Windows, macOS and Linux;
+- x64 and ARM64 release targets where native GitHub runners exist;
+- unsigned alpha artifacts are acceptable; do not add signing/notarization/updater machinery without a separate concrete requirement;
+- tests and CI do not define AAAAT, product behavior, acceptance, or requirements; they are subordinate/disposable engineering machinery only;
+- static typecheck + lint are lightweight hygiene checks, not product evidence;
+- package/release automation proves only that a native distributable can be produced, not product acceptance or model usefulness;
+- remove obsolete prototype releases/tags from the public product surface while preserving their commits in Git history;
+- clean stale working branches without making historical commits unreachable: retain one archive ref for branch-tip history before deleting old branch refs;
+- no feature expansion, test-generation phase, architecture cleanup programme or compatibility/migration ceremony;
+- do not reopen #373, which remains a non-blocking future document-source enhancement.
 
 The Product Owner is not routine QA or a prompt courier.
