@@ -5,6 +5,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { describe, it } from "vitest";
 
 import {
@@ -103,6 +105,115 @@ function createApplication(
       value,
     })),
   });
+}
+
+function childEnvironment(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
+async function runCaptured(
+  command: string,
+  args: readonly string[],
+  timeoutMs: number,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, [...args], {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stdoutText = "";
+    let stderrText = "";
+    let settled = false;
+    const finish = (result: { code: number | null; stdout: string; stderr: string }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    child.stdout?.on("data", (chunk: Buffer | string) => {
+      stdoutText += String(chunk);
+    });
+    child.stderr?.on("data", (chunk: Buffer | string) => {
+      stderrText += String(chunk);
+    });
+    child.once("error", (reason) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(reason);
+    });
+    child.once("exit", (code) => {
+      finish({ code, stdout: stdoutText, stderr: stderrText });
+    });
+    const timer = setTimeout(() => {
+      child.kill();
+      finish({
+        code: null,
+        stdout: stdoutText,
+        stderr: stderrText + "\nCommand timed out.",
+      });
+    }, timeoutMs);
+  });
+}
+
+async function preflightLlamaServer(): Promise<{
+  versionText: string;
+  helpText: string;
+}> {
+  const version = await runCaptured(llamaServer, ["--version"], 10_000).catch(
+    (reason) => {
+      throw new Error(
+        "Could not execute llama-server. " +
+          (reason instanceof Error ? reason.message : String(reason)),
+      );
+    },
+  );
+  const help = await runCaptured(llamaServer, ["--help"], 15_000);
+  const helpText = [help.stdout, help.stderr].filter(Boolean).join("\n");
+  if (!helpText.includes("--mcp-servers-config")) {
+    throw new Error(
+      "This llama-server build does not support --mcp-servers-config. " +
+        "Install/update llama.cpp to a build with MCP server support before running the host evaluation.",
+    );
+  }
+  if (!helpText.includes("--jinja")) {
+    throw new Error(
+      "This llama-server build does not expose --jinja, which the host evaluator needs for tool-capable chat templates.",
+    );
+  }
+  return {
+    versionText: [version.stdout, version.stderr].filter(Boolean).join("\n").trim(),
+    helpText,
+  };
+}
+
+async function preflightPackagedAaaat(root: string): Promise<readonly string[]> {
+  const transport = new StdioClientTransport({
+    command: aaaatExecutable,
+    args: ["--mcp", "--workspace", root],
+    env: childEnvironment(),
+  });
+  const client = new Client({
+    name: "aaaat-llama-host-preflight",
+    version: "1.0.0",
+  });
+  try {
+    await client.connect(transport);
+    const listed = await client.listTools();
+    const names = listed.tools.map((tool) => tool.name);
+    if (!names.includes("application_documents_create")) {
+      throw new Error(
+        "Packaged AAAAT MCP started, but application_documents_create was not exposed.",
+      );
+    }
+    return names;
+  } finally {
+    await client.close().catch(() => undefined);
+  }
 }
 
 function hostRoot(): string {
@@ -428,6 +539,8 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
     let stage = "initializing";
     let tools: LlamaToolEntry[] = [];
     let launchCommand: readonly string[] = [];
+    let llamaVersion = "";
+    let directAaaatToolNames: readonly string[] = [];
     const trials: EvalTrial[] = [];
     const mcpConfig = {
       mcpServers: {
@@ -443,6 +556,23 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
       stage = "creating temporary AAAAT workspace";
       createOrOpenWorkspace(root);
       writeFileSync(configPath, JSON.stringify(mcpConfig), "utf8");
+
+      stage = "checking llama-server capabilities";
+      const llamaPreflight = await preflightLlamaServer();
+      llamaVersion = llamaPreflight.versionText;
+      process.stdout.write(
+        "llama-server preflight: " +
+          (llamaVersion || "version command succeeded") +
+          "\n",
+      );
+
+      stage = "checking packaged AAAAT MCP directly";
+      directAaaatToolNames = await preflightPackagedAaaat(root);
+      process.stdout.write(
+        "Packaged AAAAT MCP preflight: " +
+          directAaaatToolNames.length +
+          " tools exposed\n",
+      );
 
       stage = "checking llama.cpp evaluation port";
       try {
@@ -583,6 +713,8 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
           llamaServer,
           llamaModel,
           toolNames: tools.map((tool) => tool.tool),
+          llamaVersion,
+          directAaaatToolNames,
           recentHostLogs: logs.slice(-50),
         },
       });
@@ -619,6 +751,8 @@ evalDescribe("real llama.cpp local-agent host evaluation", () => {
           aaaatExecutable,
           launchCommand,
           mcpConfig,
+          llamaVersion,
+          directAaaatToolNames,
           toolNames: tools.map((tool) => tool.tool),
           recentHostLogs: logs.slice(-100),
         },
