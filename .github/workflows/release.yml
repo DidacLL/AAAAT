@@ -1,0 +1,141 @@
+name: Cross-platform release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v2*"
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "forge.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/collect-release-artifacts.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm install --global npm@11.19.0
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Require tag to match package version
+        if: startsWith(github.ref, 'refs/tags/v2')
+        shell: bash
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [[ "$GITHUB_REF_NAME" != "$expected" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match package version $expected" >&2
+            exit 1
+          fi
+
+  build:
+    name: ${{ matrix.label }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            runner: windows-latest
+            platform: win32
+            arch: x64
+            artifact: windows-x64
+          - label: Windows ARM64
+            runner: windows-11-arm
+            platform: win32
+            arch: arm64
+            artifact: windows-arm64
+          - label: macOS Intel
+            runner: macos-15-intel
+            platform: darwin
+            arch: x64
+            artifact: macos-x64
+          - label: macOS Apple Silicon
+            runner: macos-15
+            platform: darwin
+            arch: arm64
+            artifact: macos-arm64
+          - label: Linux x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            artifact: linux-x64
+          - label: Linux ARM64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            artifact: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm install --global npm@11.19.0
+      - run: npm ci
+      - name: Build native distributables
+        run: npm run make -- --arch=${{ matrix.arch }}
+      - name: Normalize release artifacts
+        run: node scripts/collect-release-artifacts.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AAAAT-${{ matrix.artifact }}
+          path: release-artifacts/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    name: Publish tagged v2 release
+    if: startsWith(github.ref, 'refs/tags/v2')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: AAAAT-*
+          path: release-artifacts
+          merge-multiple: true
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t assets < <(find release-artifacts -maxdepth 1 -type f -print | sort)
+          if [[ ${#assets[@]} -eq 0 ]]; then
+            echo "No release artifacts were downloaded." >&2
+            exit 1
+          fi
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+            exit 0
+          fi
+
+          args=(--verify-tag --title "AAAAT $GITHUB_REF_NAME" --generate-notes)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" "${args[@]}"

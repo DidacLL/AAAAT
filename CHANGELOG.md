@@ -3,9 +3,10 @@
 ## 2.0.0 — In development
 
 - Began the clean AAAAT v2 restart under the canonical specification and GitHub-first engineering harness.
-- Preserved the final v1 prototype through Git history and the `v1-prototype-final` tag.
-- Started M0 to prove the secure Electron, React, TypeScript, SQLite, verification, and native packaging foundation.
+- Kept the discarded prototype recoverable through ordinary Git history without retaining it as an active release surface.
+- Established the Electron/React/TypeScript/SQLite desktop foundation and native packaging.
+- Prepared one native release path for Windows, macOS and Linux across x64 and ARM64 release targets.
 
-## 1.0.0 — Prototype history
+## Prototype history
 
-The Python/wxPython implementation and its detailed history remain available through the `v1.0.0` and `v1-prototype-final` tags. V1 is research evidence rather than an active v2 contract.
+The earlier Python/wxPython implementation is historical research evidence only. It remains recoverable through Git history and is not an active AAAAT release or compatibility contract.

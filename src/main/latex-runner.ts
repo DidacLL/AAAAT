@@ -58,6 +58,7 @@ function conciseLatexReason(diagnostics: LatexRunnerDiagnostics): string | null 
     const selected = [lines[bangIndex]];
     for (let index = bangIndex + 1; index < lines.length && selected.length < 3; index += 1) {
       const line = lines[index];
+      if (!line) continue;
       if (/^(?:l\.\d+|Type\s+H\s+<return>|See\s+the\s+LaTeX)/iu.test(line)) selected.push(line);
       else if (line.startsWith("!")) break;
     }
