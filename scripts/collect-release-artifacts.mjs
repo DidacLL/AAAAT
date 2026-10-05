@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import process from "node:process";
 
 function argument(name) {
   const index = process.argv.indexOf("--" + name);
