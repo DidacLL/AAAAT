@@ -54,6 +54,8 @@ The llama.cpp host fixture additionally asks for:
 - a local port;
 - a packaged AAAAT executable.
 
+Before loading the model, host mode now verifies that the selected llama-server build supports MCP configuration and that the packaged AAAAT executable can independently start as a stdio MCP server and expose its expected tools. This keeps host-version or packaged-MCP failures separate from model/tool-choice failures.
+
 If no packaged AAAAT executable is found under out/, the launcher can build one before the host run.
 
 Environment variables can prefill automation/local scripts:
