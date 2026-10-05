@@ -1,0 +1,153 @@
+name: Windows MCP spawn evidence
+
+on:
+  push:
+    branches:
+      - fix/windows-local-host-spawn-recovery
+    paths:
+      - ".github/workflows/windows-mcp-spawn-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm install --global npm@11.19.0
+      - run: npm ci
+      - name: Package AAAAT
+        run: npm run package
+      - name: Reproduce direct spawn and MCP transport
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'out/AAAAT-win32-x64/aaaat.exe').Path
+          $env:AAAAT_PACKAGED_EXECUTABLE = $exe
+          $diagnostic = @'
+          // @vitest-environment node
+          import { spawn } from "node:child_process";
+          import { existsSync, mkdtempSync, rmSync } from "node:fs";
+          import { tmpdir } from "node:os";
+          import path from "node:path";
+          import { Client } from "@modelcontextprotocol/client";
+          import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+          import { describe, it } from "vitest";
+          import { createOrOpenWorkspace } from "../../src/main/workspace";
+
+          function envCopy(): Record<string, string> {
+            return Object.fromEntries(
+              Object.entries(process.env).filter(
+                (entry): entry is [string, string] => typeof entry[1] === "string",
+              ),
+            );
+          }
+
+          function errorShape(reason: unknown) {
+            if (!(reason instanceof Error)) return { value: String(reason) };
+            const error = reason as NodeJS.ErrnoException & {
+              path?: string;
+              spawnargs?: string[];
+            };
+            return {
+              name: error.name,
+              message: error.message,
+              code: error.code ?? null,
+              errno: error.errno ?? null,
+              syscall: error.syscall ?? null,
+              path: error.path ?? null,
+              spawnargs: error.spawnargs ?? null,
+              stack: error.stack ?? null,
+            };
+          }
+
+          describe("Windows packaged AAAAT spawn evidence", () => {
+            it("compares raw spawn with MCP stdio transport", async () => {
+              const command = process.env.AAAAT_PACKAGED_EXECUTABLE ?? "";
+              const root = mkdtempSync(path.join(tmpdir(), "aaaat-windows-spawn-evidence-"));
+              const args = ["--mcp", "--workspace", root];
+              const env = envCopy();
+              try {
+                createOrOpenWorkspace(root);
+                console.log("SPAWN_INPUT", JSON.stringify({
+                  command,
+                  commandExists: existsSync(command),
+                  args,
+                  cwd: process.cwd(),
+                  envKeyCount: Object.keys(env).length,
+                  envKeys: Object.keys(env).sort(),
+                  commandHasOuterQuotes:
+                    (command.startsWith('"') && command.endsWith('"')) ||
+                    (command.startsWith("'") && command.endsWith("'")),
+                }));
+
+                await new Promise<void>((resolve, reject) => {
+                  let spawned = false;
+                  const child = spawn(command, args, {
+                    cwd: process.cwd(),
+                    env,
+                    stdio: ["pipe", "pipe", "pipe"],
+                    windowsHide: true,
+                  });
+                  child.once("spawn", () => {
+                    spawned = true;
+                    console.log("RAW_SPAWN", JSON.stringify({
+                      succeeded: true,
+                      pid: child.pid ?? null,
+                    }));
+                    setTimeout(() => child.kill(), 500);
+                  });
+                  child.once("error", (reason) => {
+                    console.log("RAW_SPAWN", JSON.stringify({
+                      succeeded: false,
+                      error: errorShape(reason),
+                    }));
+                    reject(reason);
+                  });
+                  child.once("exit", (code, signal) => {
+                    if (spawned) {
+                      console.log("RAW_EXIT", JSON.stringify({ code, signal }));
+                      resolve();
+                    }
+                  });
+                });
+
+                const transport = new StdioClientTransport({ command, args, env });
+                const client = new Client({
+                  name: "aaaat-windows-spawn-evidence",
+                  version: "1.0.0",
+                });
+                try {
+                  await client.connect(transport);
+                  console.log("MCP_CONNECT", JSON.stringify({ succeeded: true }));
+                  const listed = await client.listTools();
+                  const names = listed.tools.map((tool) => tool.name);
+                  console.log("MCP_LIST_TOOLS", JSON.stringify({
+                    succeeded: true,
+                    toolCount: names.length,
+                    names,
+                    hasApplicationDocumentsCreate:
+                      names.includes("application_documents_create"),
+                  }));
+                } catch (reason) {
+                  console.log("MCP_FAILURE", JSON.stringify({
+                    error: errorShape(reason),
+                  }));
+                  throw reason;
+                } finally {
+                  await client.close().catch(() => undefined);
+                }
+              } finally {
+                rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+              }
+            }, 60_000);
+          });
+          '@
+          Set-Content -LiteralPath 'test/ai-eval/_windows-spawn-evidence.test.ts' -Value $diagnostic -Encoding utf8
+          npx vitest run test/ai-eval/_windows-spawn-evidence.test.ts --reporter=verbose
