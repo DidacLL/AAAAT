@@ -154,6 +154,19 @@ async function run(command, args, options = {}) {
   });
 }
 
+async function runNpm(args) {
+  const npmCli = process.env.npm_execpath?.trim();
+  if (npmCli && existsSync(npmCli)) {
+    return run(process.execPath, [npmCli, ...args]);
+  }
+  if (process.platform === "win32") {
+    throw new Error(
+      "Cannot locate npm's JavaScript CLI entrypoint. Run the evaluator through npm run eval:ai.",
+    );
+  }
+  return run("npm", args);
+}
+
 function packagedExecutable() {
   const root = path.resolve("out", "AAAAT-" + process.platform + "-" + process.arch);
   if (!existsSync(root)) return null;
@@ -185,8 +198,7 @@ async function ensurePackagedExecutable() {
   if (answer !== "y" && answer !== "yes") {
     throw new Error("Real local-host evaluation needs a packaged AAAAT executable.");
   }
-  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  const code = await run(npm, ["run", "package"]);
+  const code = await runNpm(["run", "package"]);
   if (code !== 0) throw new Error("AAAAT packaging failed.");
   executable = packagedExecutable();
   if (!executable) throw new Error("AAAAT packaged executable was not found after packaging.");
@@ -234,11 +246,16 @@ async function hostConnection() {
 }
 
 async function runVitest(file, environment) {
-  const npx = process.platform === "win32" ? "npx.cmd" : "npx";
+  const vitestEntrypoint = path.resolve("node_modules", "vitest", "vitest.mjs");
+  if (!existsSync(vitestEntrypoint)) {
+    throw new Error(
+      "Local Vitest entrypoint was not found. Run npm ci before the evaluator.",
+    );
+  }
   return run(
-    npx,
+    process.execPath,
     [
-      "vitest",
+      vitestEntrypoint,
       "run",
       file,
       "--reporter=verbose",
