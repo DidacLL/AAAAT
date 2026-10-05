@@ -293,32 +293,18 @@ jobs:
             $env:AAAAT_AI_EVAL_TIMEOUT_SECONDS = '30'
             $env:AAAAT_PACKAGED_EXECUTABLE = $exe
 
-            $driver = @'
-            const { spawn } = require("node:child_process");
-            const child = spawn(
-              process.execPath,
-              ["scripts/ai-journey-eval.mjs", "--mode", "host"],
-              { env: process.env, stdio: ["pipe", "inherit", "inherit"] },
-            );
-            let sent = 0;
-            const timer = setInterval(() => {
-              if (sent >= 5) {
-                clearInterval(timer);
-                return;
-              }
-              child.stdin.write("\n");
-              sent += 1;
-            }, 350);
-            child.once("error", (error) => {
-              clearInterval(timer);
-              console.error(error);
-              process.exit(1);
-            });
-            child.once("exit", (code) => {
-              clearInterval(timer);
-              process.exit(code ?? 1);
-            });
-            '@
+            $driver = @(
+              'const { spawn } = require("node:child_process");',
+              'const child = spawn(process.execPath, ["scripts/ai-journey-eval.mjs", "--mode", "host"], { env: process.env, stdio: ["pipe", "inherit", "inherit"] });',
+              'let sent = 0;',
+              'const timer = setInterval(() => {',
+              '  if (sent >= 5) { clearInterval(timer); return; }',
+              '  child.stdin.write("\\n");',
+              '  sent += 1;',
+              '}, 350);',
+              'child.once("error", (error) => { clearInterval(timer); console.error(error); process.exit(1); });',
+              'child.once("exit", (code) => { clearInterval(timer); process.exit(code ?? 1); });'
+            ) -join "`n"
             node -e $driver
             if ($LASTEXITCODE -ne 0) {
               throw "Host launcher exited with code $LASTEXITCODE"
