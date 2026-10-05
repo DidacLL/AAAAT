@@ -25,8 +25,9 @@ Release-readiness boundary:
 - one native release path for Windows, macOS and Linux;
 - x64 and ARM64 release targets where native GitHub runners exist;
 - unsigned alpha artifacts are acceptable; do not add signing/notarization/updater machinery without a separate concrete requirement;
-- required engineering hygiene is static typecheck + lint;
-- package/release evidence proves packaging only, not product acceptance or model usefulness;
+- tests and CI do not define AAAAT, product behavior, acceptance, or requirements; they are subordinate/disposable engineering machinery only;
+- static typecheck + lint are lightweight hygiene checks, not product evidence;
+- package/release automation proves only that a native distributable can be produced, not product acceptance or model usefulness;
 - remove obsolete prototype releases/tags from the public product surface while preserving their commits in Git history;
 - clean stale working branches without making historical commits unreachable: retain one archive ref for branch-tip history before deleting old branch refs;
 - no feature expansion, test-generation phase, architecture cleanup programme or compatibility/migration ceremony;
