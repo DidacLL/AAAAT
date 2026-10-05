@@ -7,6 +7,7 @@ import {
   opportunityReviewResultSchema,
   providerCvTailoringResultSchema,
   providerJobExtractionEnvelopeSchema,
+  providerTagInferenceEnvelopeSchema,
   type AiConnectionStatus,
   type CoverLetterDraft,
   type OpportunityReviewResult,
@@ -14,6 +15,7 @@ import {
   type ProviderDocumentAiContext,
   type ProviderJobExtractionRequest,
   type ProviderOpportunityReviewContext,
+  type ProviderTagInferenceRequest,
 } from "../shared/ai-contracts";
 import { aiOperationLabels, type AiOperation } from "../shared/ai-connection-contracts";
 import {
@@ -85,20 +87,27 @@ export class AiProviderError extends Error {
 }
 
 const jobExtractionInstruction = [
-  "Extract only facts supported by the supplied Source.",
-  'Return one JSON object with arrays proposals, newFields, existingTags and newTags. A proposal is {"fieldRef":"...","value":...}.',
-  "Use supplied fieldRef and tagRef values when available. Prefer existing fields and Tags; omit unsupported facts.",
-  "For existing choice fields, prefer the supplied choiceRef; AAAAT validates types, dates, choices and cardinality locally.",
-  "Use newFields only for useful facts that do not fit an existing field, at most 8. New Tags need a concise name and non-empty reusable definition.",
-  "Do not include reasoning or persist anything. Use empty arrays when nothing is supported.",
+  "Propose values only for the supplied application fields using facts supported by the supplied context.",
+  'Return one JSON object with a proposals array. Each proposal is {"fieldRef":"...","value":...}.',
+  "Use only supplied fieldRef values and supplied choiceRef values where relevant. Omit unsupported fields.",
+  "Do not define fields, classify Tags, create Tags, or include reasoning.",
+].join(" ");
+
+const tagInferenceInstruction = [
+  "Suggest only useful reusable Tags supported by the supplied context.",
+  'Return one JSON object with existingTags and newTags arrays. Existing matches use {"tagRef":"..."}.',
+  "Strongly prefer a supplied Tag when its name, alias, or definition fits. Propose at most 3 new Tags only when the glossary genuinely lacks a reusable category.",
+  "Do not suggest Tags for information represented by the supplied fieldTitles, including tech stack, remote work, compensation, or location when those fields exist. Do not create a Tag for every fact.",
+  "Do not include reasoning or persist anything.",
 ].join(" ");
 
 export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Object.freeze({
   opportunity_review:
     "Review one opportunity using only the supplied context. Return only the final JSON object with keys summary, relevantEvidence, uncertainties, questions. Do not expose chain-of-thought or reasoning. Do not rate, score, rank, choose a winner, prescribe next actions, or define a career workflow. Missing candidature information is normal; do not invent facts.",
   job_extraction: jobExtractionInstruction,
+  tag_inference: tagInferenceInstruction,
   historical_field_discovery:
-    "Extract only the requested information from the retained Sources explicitly selected by the user. Return the same fixed extraction JSON contract, using only the supplied target fieldRef. Do not expose chain-of-thought or reasoning. Do not infer unrelated fields or invent facts.",
+    'Extract only the requested information from the retained Sources explicitly selected by the user. Return one JSON object with a proposals array using only the supplied target fieldRef. Do not expose reasoning, infer unrelated fields, or invent facts.',
   cv_tailoring:
     "Recommend the strongest supplied CV items for this application. Return only the final JSON object with key recommendations, an array of objects with itemRef and rationale. Do not expose chain-of-thought or reasoning. Use only itemRef values supplied in context. Do not rewrite or invent professional facts.",
   cover_letter_draft:
@@ -117,6 +126,11 @@ export interface ModelProvider {
     signal?: AbortSignal,
     operation?: "job_extraction" | "historical_field_discovery",
   ): Promise<z.input<typeof providerJobExtractionEnvelopeSchema>>;
+  inferTags(
+    connection: AiProviderConnection,
+    request: ProviderTagInferenceRequest,
+    signal?: AbortSignal,
+  ): Promise<z.input<typeof providerTagInferenceEnvelopeSchema>>;
   tailorCv(
     connection: AiProviderConnection,
     context: ProviderDocumentAiContext,
@@ -396,6 +410,9 @@ export function createOpenAiCompatibleProvider(
     },
     async extractJob(connection, request, signal, operation = "job_extraction") {
       return runStructuredOperation(fetchImpl, connection, operation, instructionFor(operation), request, providerJobExtractionEnvelopeSchema, timeout, signal);
+    },
+    async inferTags(connection, request, signal) {
+      return runStructuredOperation(fetchImpl, connection, "tag_inference", instructionFor("tag_inference"), request, providerTagInferenceEnvelopeSchema, timeout, signal);
     },
     async tailorCv(connection, context, signal) {
       return runStructuredOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, providerCvTailoringResultSchema, timeout, signal);
