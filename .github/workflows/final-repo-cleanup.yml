@@ -1,0 +1,60 @@
+name: Final repository ref cleanup
+
+on:
+  push:
+    branches:
+      - chore/final-repo-cleanup
+    paths:
+      - ".github/workflows/final-repo-cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ARCHIVE_BRANCH: archive/pre-v2-cleanup-2026-10-05
+      RELEASE_BRANCH: chore/v2-release-readiness
+      CLEANUP_BRANCH: chore/final-repo-cleanup
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Wait until this cleanup commit and release history are archived
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in {1..24}; do
+            git fetch origin "+refs/heads/$ARCHIVE_BRANCH:refs/remotes/origin/$ARCHIVE_BRANCH"               "+refs/heads/$RELEASE_BRANCH:refs/remotes/origin/$RELEASE_BRANCH"               "+refs/heads/$CLEANUP_BRANCH:refs/remotes/origin/$CLEANUP_BRANCH"
+            if git merge-base --is-ancestor "origin/$RELEASE_BRANCH" "origin/$ARCHIVE_BRANCH"               && git merge-base --is-ancestor "$GITHUB_SHA" "origin/$ARCHIVE_BRANCH"; then
+              ready=1
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$ready" != "1" ]]; then
+            echo "Archive ref does not yet preserve release and cleanup branch history." >&2
+            exit 1
+          fi
+
+      - name: Create non-branch archive ref and remove working branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive_sha="$(git rev-parse "origin/$ARCHIVE_BRANCH")"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/archive/pre-v2-cleanup-2026-10-05" >/dev/null 2>&1; then
+            gh api --method PATCH               "repos/$GITHUB_REPOSITORY/git/refs/archive/pre-v2-cleanup-2026-10-05"               -f sha="$archive_sha" -F force=false >/dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs"               -f ref="refs/archive/pre-v2-cleanup-2026-10-05"               -f sha="$archive_sha" >/dev/null
+          fi
+
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/archive/pre-v2-cleanup-2026-10-05" >/dev/null
+
+          for branch in "$RELEASE_BRANCH" "$ARCHIVE_BRANCH" "$CLEANUP_BRANCH"; do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+          done
