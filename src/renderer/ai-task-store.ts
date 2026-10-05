@@ -271,7 +271,7 @@ export function cancelAiTask(key: string): void {
     detail: "Cancelled",
     error: undefined,
     exchange: undefined,
-    completedExchange: undefined,
+    completedExchanges: undefined,
     result: undefined,
   });
   emit();
