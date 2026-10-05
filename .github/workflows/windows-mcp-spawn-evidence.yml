@@ -197,3 +197,140 @@ jobs:
           '@
           Set-Content -LiteralPath 'test/ai-eval/_windows-spawn-evidence.test.ts' -Value $diagnostic -Encoding utf8
           npx vitest run test/ai-eval/_windows-spawn-evidence.test.ts --reporter=verbose
+      - name: Exercise actual host launcher with local compatible stub
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'out/AAAAT-win32-x64/aaaat.exe').Path
+          $server = @'
+          import http from "node:http";
+          import fs from "node:fs";
+
+          const logPath = process.env.AAAAT_STUB_LOG;
+          const server = http.createServer(async (req, res) => {
+            const chunks = [];
+            for await (const chunk of req) chunks.push(chunk);
+            const raw = Buffer.concat(chunks).toString("utf8");
+            fs.appendFileSync(
+              logPath,
+              JSON.stringify({ method: req.method, url: req.url, body: raw }) + "\n",
+              "utf8",
+            );
+
+            if (req.method === "GET" && req.url === "/v1/models") {
+              res.writeHead(200, { "content-type": "application/json" });
+              res.end(JSON.stringify({ object: "list", data: [{ id: "aaaat-eval" }] }));
+              return;
+            }
+
+            if (req.method === "POST" && req.url === "/v1/chat/completions") {
+              const body = JSON.parse(raw);
+              const messages = Array.isArray(body.messages) ? body.messages : [];
+              const hasToolResult = messages.some((message) => message?.role === "tool");
+              const userText = messages
+                .filter((message) => message?.role === "user")
+                .map((message) => String(message.content ?? ""))
+                .join("\n");
+
+              let message;
+              if (!hasToolResult && userText.includes("Northstar Robotics")) {
+                message = {
+                  role: "assistant",
+                  content: null,
+                  tool_calls: [{
+                    id: "stub-call-1",
+                    type: "function",
+                    function: {
+                      name: "application_documents_create",
+                      arguments: JSON.stringify({
+                        sourceText:
+                          "Northstar Robotics is hiring a Platform Engineer in Barcelona to build TypeScript services and operate Kubernetes workloads.",
+                        outputs: ["cv", "cover_letter"],
+                      }),
+                    },
+                  }],
+                };
+              } else {
+                message = {
+                  role: "assistant",
+                  content: "Stub response: no additional tool selected.",
+                };
+              }
+
+              res.writeHead(200, { "content-type": "application/json" });
+              res.end(JSON.stringify({
+                id: "stub-completion",
+                object: "chat.completion",
+                choices: [{ index: 0, message, finish_reason: "stop" }],
+              }));
+              return;
+            }
+
+            res.writeHead(404, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "not found" }));
+          });
+
+          server.listen(18080, "127.0.0.1", () => {
+            fs.writeFileSync(process.env.AAAAT_STUB_READY, "ready", "utf8");
+          });
+          '@
+          Set-Content -LiteralPath 'stub-openai-server.mjs' -Value $server -Encoding utf8
+          $env:AAAAT_STUB_LOG = (Join-Path $PWD 'stub-requests.jsonl')
+          $env:AAAAT_STUB_READY = (Join-Path $PWD 'stub-ready.txt')
+          $serverProcess = Start-Process node -ArgumentList 'stub-openai-server.mjs' -PassThru -NoNewWindow
+          try {
+            for ($i = 0; $i -lt 50 -and -not (Test-Path $env:AAAAT_STUB_READY); $i++) {
+              Start-Sleep -Milliseconds 100
+            }
+            if (-not (Test-Path $env:AAAAT_STUB_READY)) {
+              throw 'OpenAI-compatible stub did not start.'
+            }
+
+            $env:AAAAT_AI_EVAL_ENDPOINT = 'http://127.0.0.1:18080/v1'
+            $env:AAAAT_AI_EVAL_MODEL = 'aaaat-eval'
+            $env:AAAAT_AI_EVAL_CREDENTIAL = ''
+            $env:AAAAT_AI_EVAL_REPETITIONS = '2'
+            $env:AAAAT_AI_EVAL_TIMEOUT_SECONDS = '30'
+            $env:AAAAT_PACKAGED_EXECUTABLE = $exe
+
+            $answers = @('', '', '', '', '')
+            $answers | node scripts/ai-journey-eval.mjs --mode host
+            if ($LASTEXITCODE -ne 0) {
+              throw "Host launcher exited with code $LASTEXITCODE"
+            }
+
+            $requestLines = @(Get-Content -LiteralPath $env:AAAAT_STUB_LOG)
+            $chatRequests = @($requestLines | Where-Object { $_ -match '/v1/chat/completions' })
+            if ($chatRequests.Count -lt 8) {
+              throw "Expected repeated model requests, observed only $($chatRequests.Count)."
+            }
+
+            $report = Get-ChildItem -Path 'ai-eval-results' -Recurse -Filter 'llama-host.json' |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
+            if (-not $report) { throw 'llama-host.json was not produced.' }
+            $json = Get-Content -Raw -LiteralPath $report.FullName | ConvertFrom-Json
+            if ($json.trials.Count -ne 8) {
+              throw "Expected 8 scheduled trials, found $($json.trials.Count)."
+            }
+            $firstScenario = @($json.trials | Where-Object { $_.scenarioId -eq 'llama-create-documents' })
+            if (-not ($firstScenario.evidence.toolCalls.name -contains 'application_documents_create')) {
+              throw 'Integrated stub journey did not call application_documents_create.'
+            }
+            if (-not $json.extra.packagedMcp.directSpawnSucceeded) {
+              throw 'Report did not preserve successful direct packaged spawn evidence.'
+            }
+            if (-not $json.extra.packagedMcp.mcpInitializationSucceeded) {
+              throw 'Report did not preserve successful MCP initialization evidence.'
+            }
+            if (-not $json.extra.packagedMcp.mcpListToolsSucceeded) {
+              throw 'Report did not preserve successful MCP listTools evidence.'
+            }
+            Write-Host "HOST_LAUNCHER_EVIDENCE trials=$($json.trials.Count) chatRequests=$($chatRequests.Count)"
+            Write-Host "HOST_LAUNCHER_EVIDENCE firstScenarioToolCall=application_documents_create"
+          }
+          finally {
+            if ($serverProcess -and -not $serverProcess.HasExited) {
+              Stop-Process -Id $serverProcess.Id -Force
+            }
+          }
