@@ -14,7 +14,7 @@ on:
       - "vite*.ts"
       - "vite*.mts"
       - "forge.config.*"
-      - "tsconfig.json"
+      - "tsconfig*.json"
       - "eslint.config.mjs"
   pull_request:
     paths:
