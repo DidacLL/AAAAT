@@ -1,0 +1,91 @@
+name: One-shot repository cleanup
+
+on:
+  push:
+    branches:
+      - chore/v2-release-readiness
+    paths:
+      - ".github/workflows/repository-cleanup.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ARCHIVE_BRANCH: archive/pre-v2-cleanup-2026-10-05
+      ACTIVE_BRANCH: chore/v2-release-readiness
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch every branch ref
+        shell: bash
+        run: git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+
+      - name: Prove stale branch history is archived
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse "origin/$ARCHIVE_BRANCH" >/dev/null
+
+          mapfile -t branches < <(
+            gh api "repos/$GITHUB_REPOSITORY/branches?per_page=100" --paginate --jq '.[].name'
+          )
+
+          checked=0
+          for branch in "${branches[@]}"; do
+            case "$branch" in
+              main|"$ACTIVE_BRANCH"|"$ARCHIVE_BRANCH")
+                continue
+                ;;
+            esac
+            if ! git merge-base --is-ancestor "origin/$branch" "origin/$ARCHIVE_BRANCH"; then
+              echo "Refusing cleanup: $branch is not preserved by $ARCHIVE_BRANCH" >&2
+              exit 1
+            fi
+            checked=$((checked + 1))
+          done
+          echo "Verified $checked stale branch refs are reachable from $ARCHIVE_BRANCH."
+
+      - name: Delete stale working branch refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t branches < <(
+            gh api "repos/$GITHUB_REPOSITORY/branches?per_page=100" --paginate --jq '.[].name'
+          )
+
+          deleted=0
+          for branch in "${branches[@]}"; do
+            case "$branch" in
+              main|"$ACTIVE_BRANCH"|"$ARCHIVE_BRANCH")
+                continue
+                ;;
+            esac
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+            echo "Deleted branch ref: $branch"
+            deleted=$((deleted + 1))
+          done
+          echo "Deleted $deleted stale branch refs."
+
+      - name: Remove obsolete prototype releases and tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tag in v0.1.0 v1.0.0 v1-prototype-final; do
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
+              echo "Deleted release: $tag"
+            fi
+
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
+              echo "Deleted tag ref: $tag"
+            fi
+          done
