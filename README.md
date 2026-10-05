@@ -28,8 +28,10 @@ npm run verify
 npm start
 ```
 
-Packaging evidence is separate:
+Native packaging for the current machine is separate:
 
 ```text
 npm run verify:package
 ```
+
+The release workflow builds native v2 artifacts for Windows, macOS and Linux on x64 and ARM64 runners. Windows and macOS publish portable ZIPs; Linux publishes a portable ZIP and a DEB. Tagged `v2*` releases are published only when the tag exactly matches the version in `package.json`.
