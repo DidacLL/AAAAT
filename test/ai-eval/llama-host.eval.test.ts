@@ -25,6 +25,7 @@ import { createOrOpenWorkspace } from "../../src/main/workspace";
 import type { CandidatureRuntimeValue } from "../../src/shared/contracts";
 import {
   chatCompletion,
+  cleanEndpoint,
   containsAny,
   errorInfo,
   evalCredential,
@@ -692,7 +693,7 @@ evalDescribe("llama.cpp-backed local-agent evaluation", () => {
               : stage,
           failure,
           packagedMcp: packagedFailure,
-          modelServer: evalEndpoint,
+          modelServer: cleanEndpoint(evalEndpoint),
           model: evalModel,
         },
       });
@@ -797,7 +798,7 @@ evalDescribe("llama.cpp-backed local-agent evaluation", () => {
       },
       extra: {
         stage,
-        modelServer: evalEndpoint,
+        modelServer: cleanEndpoint(evalEndpoint),
         model: evalModel,
         aaaatExecutable,
         packagedMcp: packagedPreflight,
