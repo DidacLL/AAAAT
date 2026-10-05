@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-mcp-spawn-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   reproduce:
     runs-on: windows-latest
@@ -295,15 +299,21 @@ jobs:
 
             $driver = @(
               'const { spawn } = require("node:child_process");',
-              'const child = spawn(process.execPath, ["scripts/ai-journey-eval.mjs", "--mode", "host"], { env: process.env, stdio: ["pipe", "inherit", "inherit"] });',
-              'let sent = 0;',
-              'const timer = setInterval(() => {',
-              '  if (sent >= 5) { clearInterval(timer); return; }',
-              '  child.stdin.write("\\n");',
-              '  sent += 1;',
-              '}, 350);',
-              'child.once("error", (error) => { clearInterval(timer); console.error(error); process.exit(1); });',
-              'child.once("exit", (code) => { clearInterval(timer); process.exit(code ?? 1); });'
+              'const prompts = ["Repetitions per scenario", "Maximum seconds per model request", "OpenAI-compatible base URL", "Model name", "API key / Bearer credential"];',
+              'const child = spawn(process.execPath, ["scripts/ai-journey-eval.mjs", "--mode", "host"], { env: process.env, stdio: ["pipe", "pipe", "inherit"] });',
+              'let nextPrompt = 0;',
+              'let buffer = "";',
+              'child.stdout.on("data", (chunk) => {',
+              '  process.stdout.write(chunk);',
+              '  buffer += String(chunk);',
+              '  if (nextPrompt < prompts.length && buffer.includes(prompts[nextPrompt])) {',
+              '    child.stdin.write("\\n");',
+              '    nextPrompt += 1;',
+              '    buffer = "";',
+              '  }',
+              '});',
+              'child.once("error", (error) => { console.error(error); process.exit(1); });',
+              'child.once("exit", (code) => { process.exit(code ?? 1); });'
             ) -join "`n"
             node -e $driver
             if ($LASTEXITCODE -ne 0) {
