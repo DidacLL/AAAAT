@@ -6,9 +6,9 @@ import {
   type AiExchangeDiagnostic,
 } from "../shared/ai-diagnostics";
 import {
-  jobExtractionExchangeSchema,
+  inspectableAiExchangeSchema,
   jobExtractionProposalIssueSchema,
-  type JobExtractionExchange,
+  type InspectableAiExchange,
   type JobExtractionProposalIssue,
 } from "../shared/ai-proposal-outcomes";
 import { recordAiReachabilityEvidence } from "./ai-reachability-store";
@@ -23,7 +23,7 @@ export interface AiTaskSnapshot<T = unknown> {
   readonly result?: T;
   readonly error?: string;
   readonly exchange?: AiExchangeDiagnostic;
-  readonly completedExchange?: JobExtractionExchange;
+  readonly completedExchanges?: readonly InspectableAiExchange[];
   readonly handledFieldIds?: readonly string[];
   readonly appliedFieldIds?: readonly string[];
   readonly scopeFieldIds?: readonly string[];
@@ -112,12 +112,19 @@ function preAppliedFieldIds(result: unknown): string[] {
   return values.filter((value): value is string => typeof value === "string");
 }
 
-function resultExchange(result: unknown): JobExtractionExchange | undefined {
-  if (!result || typeof result !== "object" || !("exchange" in result)) return undefined;
-  const parsed = jobExtractionExchangeSchema.safeParse(
-    (result as { exchange?: unknown }).exchange,
-  );
-  return parsed.success ? parsed.data : undefined;
+function resultExchanges(result: unknown): InspectableAiExchange[] {
+  if (!result || typeof result !== "object") return [];
+  const candidate = result as {
+    exchange?: unknown;
+    tagInference?: { exchange?: unknown };
+  };
+  const exchanges: InspectableAiExchange[] = [];
+  for (const raw of [candidate.exchange, candidate.tagInference?.exchange]) {
+    if (raw === undefined) continue;
+    const parsed = inspectableAiExchangeSchema().safeParse(raw);
+    if (parsed.success) exchanges.push(parsed.data);
+  }
+  return exchanges;
 }
 
 function providerFailure(exchange: AiExchangeDiagnostic | undefined): boolean {
@@ -127,7 +134,7 @@ function providerFailure(exchange: AiExchangeDiagnostic | undefined): boolean {
 }
 
 function recordExchangeReachability(
-  exchange: Pick<JobExtractionExchange | AiExchangeDiagnostic, "endpoint" | "model"> | undefined,
+  exchange: Pick<InspectableAiExchange, "endpoint" | "model"> | undefined,
   reachable: boolean,
 ): void {
   if (!exchange) return;
@@ -217,21 +224,21 @@ export function startAiTask<T>(
         const active = tasks.get(key);
         if (!active || active.status !== "working" || controller.signal.aborted) return;
         const appliedFieldIds = preAppliedFieldIds(result);
-        const completedExchange = resultExchange(result);
+        const completedExchanges = resultExchanges(result);
         tasks.set(key, {
           key,
           label: active.label ?? label,
           status: "completed",
           detail: completionDetail?.(result) ?? "Completed",
           result,
-          completedExchange,
+          completedExchanges,
           handledFieldIds: appliedFieldIds,
           appliedFieldIds,
           scopeFieldIds: completedScope(active.scopeFieldIds, scopeFieldIds, appliedFieldIds),
         });
         controllers.delete(key);
         emit();
-        recordExchangeReachability(completedExchange, true);
+        for (const exchange of completedExchanges) recordExchangeReachability(exchange, true);
       })
       .catch((reason: unknown) => {
         const active = tasks.get(key);
@@ -264,7 +271,7 @@ export function cancelAiTask(key: string): void {
     detail: "Cancelled",
     error: undefined,
     exchange: undefined,
-    completedExchange: undefined,
+    completedExchanges: undefined,
     result: undefined,
   });
   emit();
