@@ -51,3 +51,20 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+  gate:
+    name: Verification gate
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require static hygiene
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        shell: bash
+        run: |
+          if [[ "$VERIFY_RESULT" != "success" ]]; then
+            echo "Static typecheck/lint hygiene finished as $VERIFY_RESULT" >&2
+            exit 1
+          fi
+          echo "Static hygiene passed. This check is branch-protection plumbing, not product acceptance." >> "$GITHUB_STEP_SUMMARY"
