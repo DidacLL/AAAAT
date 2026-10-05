@@ -26,6 +26,7 @@ import {
   chatCompletion,
   containsAny,
   errorInfo,
+  evalCredential,
   evalEnabled,
   evalEndpoint,
   evalModel,
@@ -433,7 +434,11 @@ async function preflightModelServer(): Promise<void> {
   url.hash = "";
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, {
+      headers: evalCredential
+        ? { authorization: "Bearer " + evalCredential }
+        : undefined,
+    });
   } catch (reason) {
     throw new Error(
       "Cannot reach the configured llama.cpp/OpenAI-compatible server at " +
