@@ -128,10 +128,11 @@ async function runCaptured(
     let stdoutText = "";
     let stderrText = "";
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const finish = (result: { code: number | null; stdout: string; stderr: string }) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       resolve(result);
     };
     child.stdout?.on("data", (chunk: Buffer | string) => {
@@ -143,13 +144,13 @@ async function runCaptured(
     child.once("error", (reason) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       reject(reason);
     });
     child.once("exit", (code) => {
       finish({ code, stdout: stdoutText, stderr: stderrText });
     });
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       child.kill();
       finish({
         code: null,
