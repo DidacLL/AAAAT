@@ -24,184 +24,56 @@ jobs:
         with:
           node-version: 24.20.0
           cache: npm
-      - run: npm install --global npm@11.19.0
       - run: npm ci
-      - name: Package AAAAT
-        run: npm run package
-      - name: Reproduce launcher npx.cmd boundary
+
+      - name: Reproduce failing cmd shim and prove replacement process
         shell: pwsh
         run: |
           $probe = @'
           const { spawn } = require("node:child_process");
-          const result = { command: "npx.cmd", args: ["--version"] };
-          let child;
+          const path = require("node:path");
+
+          let oldFailure = null;
           try {
-            child = spawn("npx.cmd", ["--version"], { stdio: "pipe" });
+            spawn("npx.cmd", ["--version"], { stdio: "pipe" });
           } catch (error) {
-            console.log("NPX_CMD_SPAWN", JSON.stringify({
-              ...result,
-              threwSynchronously: true,
+            oldFailure = {
               name: error.name,
               message: error.message,
               code: error.code ?? null,
               errno: error.errno ?? null,
               syscall: error.syscall ?? null,
-            }));
-            process.exit(0);
+            };
           }
+          console.log("OLD_NPX_CMD_BOUNDARY", JSON.stringify(oldFailure));
+          if (!oldFailure || oldFailure.code !== "EINVAL") process.exit(2);
+
+          const vitest = path.resolve("node_modules", "vitest", "vitest.mjs");
+          const child = spawn(process.execPath, [vitest, "--version"], {
+            stdio: ["ignore", "pipe", "pipe"],
+          });
+          child.once("error", (error) => {
+            console.log("NEW_VITEST_BOUNDARY", JSON.stringify({
+              spawned: false,
+              message: error.message,
+              code: error.code ?? null,
+            }));
+            process.exit(3);
+          });
           child.once("spawn", () => {
-            console.log("NPX_CMD_SPAWN", JSON.stringify({
-              ...result,
-              threwSynchronously: false,
+            console.log("NEW_VITEST_BOUNDARY", JSON.stringify({
               spawned: true,
               pid: child.pid ?? null,
             }));
-            child.kill();
           });
-          child.once("error", (error) => {
-            console.log("NPX_CMD_SPAWN", JSON.stringify({
-              ...result,
-              threwSynchronously: false,
-              spawned: false,
-              name: error.name,
-              message: error.message,
-              code: error.code ?? null,
-              errno: error.errno ?? null,
-              syscall: error.syscall ?? null,
-            }));
-          });
-          child.once("close", () => process.exit(0));
-          setTimeout(() => process.exit(0), 3000);
+          child.once("exit", (code) => process.exit(code ?? 4));
           '@
           node -e $probe
-      - name: Reproduce direct spawn and MCP transport
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $exe = (Resolve-Path 'out/AAAAT-win32-x64/aaaat.exe').Path
-          $env:AAAAT_PACKAGED_EXECUTABLE = $exe
-          $diagnostic = @'
-          // @vitest-environment node
-          import { spawn } from "node:child_process";
-          import { existsSync, mkdtempSync, rmSync } from "node:fs";
-          import { tmpdir } from "node:os";
-          import path from "node:path";
-          import { Client } from "@modelcontextprotocol/client";
-          import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
-          import { describe, it } from "vitest";
-          import { createOrOpenWorkspace } from "../../src/main/workspace";
 
-          function envCopy(): Record<string, string> {
-            return Object.fromEntries(
-              Object.entries(process.env).filter(
-                (entry): entry is [string, string] => typeof entry[1] === "string",
-              ),
-            );
-          }
+      - name: Package AAAAT
+        run: npm run package
 
-          function errorShape(reason: unknown) {
-            if (!(reason instanceof Error)) return { value: String(reason) };
-            const error = reason as NodeJS.ErrnoException & {
-              path?: string;
-              spawnargs?: string[];
-            };
-            return {
-              name: error.name,
-              message: error.message,
-              code: error.code ?? null,
-              errno: error.errno ?? null,
-              syscall: error.syscall ?? null,
-              path: error.path ?? null,
-              spawnargs: error.spawnargs ?? null,
-              stack: error.stack ?? null,
-            };
-          }
-
-          describe("Windows packaged AAAAT spawn evidence", () => {
-            it("compares raw spawn with MCP stdio transport", async () => {
-              const command = process.env.AAAAT_PACKAGED_EXECUTABLE ?? "";
-              const root = mkdtempSync(path.join(tmpdir(), "aaaat-windows-spawn-evidence-"));
-              const args = ["--mcp", "--workspace", root];
-              const env = envCopy();
-              try {
-                createOrOpenWorkspace(root);
-                console.log("SPAWN_INPUT", JSON.stringify({
-                  command,
-                  commandExists: existsSync(command),
-                  args,
-                  cwd: process.cwd(),
-                  envKeyCount: Object.keys(env).length,
-                  envKeys: Object.keys(env).sort(),
-                  commandHasOuterQuotes:
-                    (command.startsWith('"') && command.endsWith('"')) ||
-                    (command.startsWith("'") && command.endsWith("'")),
-                }));
-
-                await new Promise<void>((resolve, reject) => {
-                  let spawned = false;
-                  const child = spawn(command, args, {
-                    cwd: process.cwd(),
-                    env,
-                    stdio: ["pipe", "pipe", "pipe"],
-                    windowsHide: true,
-                  });
-                  child.once("spawn", () => {
-                    spawned = true;
-                    console.log("RAW_SPAWN", JSON.stringify({
-                      succeeded: true,
-                      pid: child.pid ?? null,
-                    }));
-                    setTimeout(() => child.kill(), 500);
-                  });
-                  child.once("error", (reason) => {
-                    console.log("RAW_SPAWN", JSON.stringify({
-                      succeeded: false,
-                      error: errorShape(reason),
-                    }));
-                    reject(reason);
-                  });
-                  child.once("exit", (code, signal) => {
-                    if (spawned) {
-                      console.log("RAW_EXIT", JSON.stringify({ code, signal }));
-                      resolve();
-                    }
-                  });
-                });
-
-                const transport = new StdioClientTransport({ command, args, env });
-                const client = new Client({
-                  name: "aaaat-windows-spawn-evidence",
-                  version: "1.0.0",
-                });
-                try {
-                  await client.connect(transport);
-                  console.log("MCP_CONNECT", JSON.stringify({ succeeded: true }));
-                  const listed = await client.listTools();
-                  const names = listed.tools.map((tool) => tool.name);
-                  console.log("MCP_LIST_TOOLS", JSON.stringify({
-                    succeeded: true,
-                    toolCount: names.length,
-                    names,
-                    hasApplicationDocumentsCreate:
-                      names.includes("application_documents_create"),
-                  }));
-                } catch (reason) {
-                  console.log("MCP_FAILURE", JSON.stringify({
-                    error: errorShape(reason),
-                  }));
-                  throw reason;
-                } finally {
-                  await client.close().catch(() => undefined);
-                }
-              } finally {
-                rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-              }
-            }, 60_000);
-          });
-          '@
-          Set-Content -LiteralPath 'test/ai-eval/_windows-spawn-evidence.test.ts' -Value $diagnostic -Encoding utf8
-          npx vitest run test/ai-eval/_windows-spawn-evidence.test.ts --reporter=verbose
-      - name: Exercise actual host launcher with local compatible stub
+      - name: Exercise packaged MCP host evaluator with local compatible stub
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -290,34 +162,18 @@ jobs:
               throw 'OpenAI-compatible stub did not start.'
             }
 
+            $env:AAAAT_AI_EVAL = '1'
             $env:AAAAT_AI_EVAL_ENDPOINT = 'http://127.0.0.1:18080/v1'
             $env:AAAAT_AI_EVAL_MODEL = 'aaaat-eval'
             $env:AAAAT_AI_EVAL_CREDENTIAL = ''
             $env:AAAAT_AI_EVAL_REPETITIONS = '2'
-            $env:AAAAT_AI_EVAL_TIMEOUT_SECONDS = '30'
+            $env:AAAAT_AI_EVAL_TIMEOUT_MS = '30000'
+            $env:AAAAT_AI_EVAL_RUN_ID = 'windows-host-evidence'
             $env:AAAAT_PACKAGED_EXECUTABLE = $exe
 
-            $driver = @(
-              'const { spawn } = require("node:child_process");',
-              'const prompts = ["Repetitions per scenario", "Maximum seconds per model request", "OpenAI-compatible base URL", "Model name", "API key / Bearer credential"];',
-              'const child = spawn(process.execPath, ["scripts/ai-journey-eval.mjs", "--mode", "host"], { env: process.env, stdio: ["pipe", "pipe", "inherit"] });',
-              'let nextPrompt = 0;',
-              'let buffer = "";',
-              'child.stdout.on("data", (chunk) => {',
-              '  process.stdout.write(chunk);',
-              '  buffer += String(chunk);',
-              '  if (nextPrompt < prompts.length && buffer.includes(prompts[nextPrompt])) {',
-              '    child.stdin.write("\\n");',
-              '    nextPrompt += 1;',
-              '    buffer = "";',
-              '  }',
-              '});',
-              'child.once("error", (error) => { console.error(error); process.exit(1); });',
-              'child.once("exit", (code) => { process.exit(code ?? 1); });'
-            ) -join "`n"
-            node -e $driver
+            node node_modules/vitest/vitest.mjs run test/ai-eval/llama-host.eval.test.ts --reporter=verbose --testTimeout=14400000
             if ($LASTEXITCODE -ne 0) {
-              throw "Host launcher exited with code $LASTEXITCODE"
+              throw "Host evaluator exited with code $LASTEXITCODE"
             }
 
             $requestLines = @(Get-Content -LiteralPath $env:AAAAT_STUB_LOG)
@@ -326,11 +182,9 @@ jobs:
               throw "Expected repeated model requests, observed only $($chatRequests.Count)."
             }
 
-            $report = Get-ChildItem -Path 'ai-eval-results' -Recurse -Filter 'llama-host.json' |
-              Sort-Object LastWriteTime -Descending |
-              Select-Object -First 1
-            if (-not $report) { throw 'llama-host.json was not produced.' }
-            $json = Get-Content -Raw -LiteralPath $report.FullName | ConvertFrom-Json
+            $reportPath = 'ai-eval-results/windows-host-evidence/llama-host.json'
+            if (-not (Test-Path $reportPath)) { throw 'llama-host.json was not produced.' }
+            $json = Get-Content -Raw -LiteralPath $reportPath | ConvertFrom-Json
             if ($json.trials.Count -ne 8) {
               throw "Expected 8 scheduled trials, found $($json.trials.Count)."
             }
@@ -347,8 +201,18 @@ jobs:
             if (-not $json.extra.packagedMcp.mcpListToolsSucceeded) {
               throw 'Report did not preserve successful MCP listTools evidence.'
             }
-            Write-Host "HOST_LAUNCHER_EVIDENCE trials=$($json.trials.Count) chatRequests=$($chatRequests.Count)"
-            Write-Host "HOST_LAUNCHER_EVIDENCE firstScenarioToolCall=application_documents_create"
+            if (-not ($json.extra.packagedMcp.toolNames -contains 'application_documents_create')) {
+              throw 'Expected application_documents_create in packaged MCP tool list.'
+            }
+
+            $nonPassing = @($json.trials | Where-Object { $_.status -ne 'pass' })
+            if ($nonPassing.Count -eq 0) {
+              throw 'Stub evidence did not exercise continuation after model misses.'
+            }
+
+            Write-Host "HOST_EVIDENCE trials=$($json.trials.Count) chatRequests=$($chatRequests.Count)"
+            Write-Host "HOST_EVIDENCE directSpawn=$($json.extra.packagedMcp.directSpawnSucceeded) mcpInit=$($json.extra.packagedMcp.mcpInitializationSucceeded) listTools=$($json.extra.packagedMcp.mcpListToolsSucceeded)"
+            Write-Host "HOST_EVIDENCE integratedToolCall=application_documents_create nonPassingTrials=$($nonPassing.Count)"
           }
           finally {
             if ($serverProcess -and -not $serverProcess.HasExited) {
