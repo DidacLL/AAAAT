@@ -2,7 +2,6 @@ import type { AiConnectionDesktopApi } from "../shared/ai-connection-contracts";
 import type { AiPromptDesktopApi } from "../shared/ai-prompt-contracts";
 import type { AiDesktopApi } from "../shared/ai-contracts";
 import type { AiTaskCancellationDesktopApi } from "../shared/ai-task-cancellation-contracts";
-import type { ApplicationHandoffDesktopApi } from "../shared/application-handoff-contracts";
 import type { CandidatureActivityDesktopApi } from "../shared/candidature-activity-contracts";
 import type { CandidatureOpportunityResearchAccessDesktopApi } from "../shared/candidature-opportunity-research-access-contracts";
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
@@ -20,7 +19,6 @@ declare global {
     readonly aaaat: DesktopApi &
       AiDesktopApi &
       AiTaskCancellationDesktopApi &
-      ApplicationHandoffDesktopApi &
       AiConnectionDesktopApi &
       AiPromptDesktopApi &
       CandidatureActivityDesktopApi &

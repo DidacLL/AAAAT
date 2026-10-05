@@ -22,16 +22,11 @@ import {
   externalConfiguratorValidationResultSchema,
 } from "../shared/external-action-contracts";
 import {
-  applicationDocumentsIntentSchema,
-  applicationDocumentsResultSchema,
-} from "../shared/application-material-contracts";
-import {
   listAiConnections,
   saveNamedAiConnection,
   setAiOperationDefault,
   validateAiConnectionOperation,
 } from "./ai-connection-service";
-import { createApplicationDocuments } from "./application-material-service";
 import {
   addSourceToSelectedOpportunityResearchCandidature,
   selectedOpportunityResearchContext,
@@ -52,7 +47,6 @@ const workspaceFlag = "--workspace";
 const emptyInputSchema = z.object({}).strict();
 
 export const candidatureCreateToolName = "candidature_create";
-export const applicationDocumentsCreateToolName = "application_documents_create";
 export const opportunityResearchContextReadToolName = "opportunity_research_context_read";
 export const candidatureSourceAddToolName = "candidature_source_add";
 export const careerContextReadToolName = "career_context_read";
@@ -125,20 +119,6 @@ function createServerForWorkspace(rootPath: string): McpServer {
       return {
         content: [{ type: "text" as const, text: JSON.stringify({ ok: true, capability: "candidature.create", created: true }) }],
       };
-    },
-  );
-
-  server.registerTool(
-    applicationDocumentsCreateToolName,
-    {
-      description: "Create a retained AAAAT application from job-offer text and locally create its requested editable Working CV, cover letter, or both. This intention does not invoke configured AAAAT AI; later AI use is a separate explicit local action. Returns no local IDs or paths.",
-      inputSchema: applicationDocumentsIntentSchema,
-    },
-    async (input) => {
-      const result = applicationDocumentsResultSchema.parse(
-        await createApplicationDocuments(rootPath, applicationDocumentsIntentSchema.parse(input)),
-      );
-      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
     },
   );
 

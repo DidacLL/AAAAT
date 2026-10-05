@@ -20,7 +20,6 @@ import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
 import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
-import { createApplicationDocuments } from "./create-application-documents";
 import {
   candidatureCardRecognitionProjection,
   candidatureRecognitionProjection,
@@ -226,7 +225,6 @@ export function CandidaturesWorkspace({
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
-  const [selectedSources, setSelectedSources] = useState<CandidatureSource[]>([]);
   const [documentCreationBusy, setDocumentCreationBusy] = useState<"cv" | "cover_letter" | null>(null);
   const [applicationCvSource, setApplicationCvSource] = useState("profile");
   const [packetWorkingCvId, setPacketWorkingCvId] = useState("");
@@ -392,20 +390,11 @@ export function CandidaturesWorkspace({
   }, [onTagContextChange, tagContext]);
   useEffect(() => () => onTagContextChange?.(null), [onTagContextChange]);
 
-  const selectedRecordId = mode === "selected" ? selectedId : null;
-  useEffect(() => {
-    if (!selectedRecordId) return;
-    let active = true;
-    void window.aaaat.candidatures.listSources(selectedRecordId).then((next) => { if (active) setSelectedSources(next); }).catch(() => { if (active) setSelectedSources([]); });
-    return () => { active = false; };
-  }, [selectedRecordId]);
-
   const confirmDiscard = () => !hasUnsavedChanges || window.confirm("Discard unsaved application edits?");
   const storeRecord = (record: CandidatureRecord) => setRecords((current) => current.map((candidate) => candidate.id === record.id ? record : candidate));
   const openRecord = (record: CandidatureRecord) => {
     if (!confirmDiscard()) return;
     setPreselectedId(record.id);
-    setSelectedSources([]);
     hydrate(record);
     setMode("selected");
   };
@@ -604,20 +593,19 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
   };
-  const createApplicationDocument = async (kind: "cv" | "cover_letter") => {
+  const createApplicationCoverLetter = async () => {
     if (!selected || documentCreationBusy) return;
-    setDocumentCreationBusy(kind); setError(null);
+    setDocumentCreationBusy("cover_letter"); setError(null);
     try {
-      const documents = await createApplicationDocuments({
+      const created = await window.aaaat.documentDomain.createLetter({
         candidatureId: selected.id,
-        sourceText: selectedSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText,
-        cv: kind === "cv", coverLetter: kind === "cover_letter",
+        title: "Application cover letter",
+        bodyParagraphs: [],
       });
-      const created = documents.find((candidate) => candidate.kind === kind);
-      if (!created) throw new Error("The document was not created.");
       await refreshCollections(); openDocument(created.id);
-    } catch { setError(kind === "cv" ? "AAAAT could not create the application CV." : "AAAAT could not create the cover letter."); }
-    finally { setDocumentCreationBusy(null); }
+    } catch (reason) {
+      setError(readableDocumentError(reason, "AAAAT could not create the cover letter."));
+    } finally { setDocumentCreationBusy(null); }
   };
   const createApplicationCvFromSource = async () => {
     if (!selected || documentCreationBusy) return;
@@ -1552,7 +1540,7 @@ export function CandidaturesWorkspace({
                 type="button"
                 className="compact-secondary"
                 disabled={documentCreationBusy !== null}
-                onClick={() => void createApplicationDocument("cover_letter")}
+                onClick={() => void createApplicationCoverLetter()}
               >
                 {documentCreationBusy === "cover_letter"
                   ? "Creating…"

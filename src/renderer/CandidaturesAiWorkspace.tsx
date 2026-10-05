@@ -37,8 +37,6 @@ export function CandidaturesAiWorkspace({
   const [selection, setSelection] = useState<InitialSelection | null>(() =>
     initialCandidatureId ? { candidatureId: initialCandidatureId, rawRetained: false } : null,
   );
-  const [handoffBusy, setHandoffBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
 
   const reportDirty = (next: boolean) => {
@@ -50,7 +48,6 @@ export function CandidaturesAiWorkspace({
     if (next === view) return;
     if (dirty && !window.confirm("Discard unsaved application edits?")) return;
     reportDirty(false);
-    setError(null);
     if (next === "new") {
       setSelection(null);
       setNotice(null);
@@ -84,24 +81,6 @@ export function CandidaturesAiWorkspace({
     if (dirty && !window.confirm("Discard unsaved application edits?")) return;
     reportDirty(false);
     setSelection({ ...selection, task });
-  };
-
-  const importExternalHandoff = async () => {
-    if (handoffBusy) return;
-    setHandoffBusy(true);
-    setError(null);
-    try {
-      const imported = await window.aaaat.applicationHandoff.importFile();
-      if (imported.status === "cancelled") return;
-      setRevision((current) => current + 1);
-      setSelection(null);
-      setNotice("External AI handoff imported. The application and requested documents are saved locally.");
-      setView("applications");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not import this handoff.");
-    } finally {
-      setHandoffBusy(false);
-    }
   };
 
   const clearInitialSelection = () => {
@@ -157,7 +136,6 @@ export function CandidaturesAiWorkspace({
               <h2>How do you want to start?</h2>
               <p className="compact-help">Both paths create the same application. Start with what you already have.</p>
             </div>
-            {error ? <p className="error-message" role="alert">{error}</p> : null}
             <div className="new-application-intention-grid">
               <button type="button" onClick={() => setNewIntent("direct")}>
                 <strong>Enter information directly</strong>
@@ -166,16 +144,6 @@ export function CandidaturesAiWorkspace({
               <button type="button" onClick={() => setNewIntent("raw")}>
                 <strong>Retain raw material</strong>
                 <span>Keep an offer, message, form copy, conversation, or notes first.</span>
-              </button>
-            </div>
-            <div className="new-application-secondary-entry">
-              <button
-                type="button"
-                className="compact-secondary"
-                disabled={handoffBusy}
-                onClick={() => void importExternalHandoff()}
-              >
-                {handoffBusy ? "Importing…" : "Import external AI handoff…"}
               </button>
             </div>
           </section>

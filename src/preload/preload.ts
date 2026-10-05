@@ -2,7 +2,6 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import { createAiConnectionDesktopApi } from "./ai-connection-api";
 import { createAiPromptDesktopApi } from "./ai-prompt-api";
-import { createApplicationHandoffDesktopApi } from "./application-handoff-api";
 import { createCandidatureActivityDesktopApi } from "./candidature-activity-api";
 import { createCandidatureOpportunityResearchAccessDesktopApi } from "./candidature-opportunity-research-access-api";
 import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
@@ -24,7 +23,6 @@ contextBridge.exposeInMainWorld(
     ...coreApi,
     ...createAiConnectionDesktopApi(invoke),
     ...createAiPromptDesktopApi(invoke),
-    ...createApplicationHandoffDesktopApi(invoke),
     ...createCandidatureActivityDesktopApi(invoke),
     ...createCandidatureOpportunityResearchAccessDesktopApi(invoke),
     ...createCandidatureSearchDesktopApi(invoke),

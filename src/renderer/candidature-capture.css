@@ -24,7 +24,6 @@
 }
 .new-application-intention-grid strong { font-size: 1rem; }
 .new-application-intention-grid span { color: var(--muted-ink); font-size: 12px; line-height: 1.45; }
-.new-application-secondary-entry { display: flex; justify-content: flex-end; padding-top: 2px; border-top: 1px solid var(--line-soft); }
 .new-application-continuation {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
   padding: 9px 11px; border: 1px solid #777b6c; border-left: 4px solid var(--rust);
