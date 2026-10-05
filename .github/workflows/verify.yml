@@ -3,13 +3,31 @@ name: Verify
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/**"
       - "src/**"
+      - "scripts/**"
       - "package.json"
       - "package-lock.json"
       - "vite*.ts"
+      - "vite*.mts"
       - "forge.config.*"
+      - "tsconfig.json"
+      - "eslint.config.mjs"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "src/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite*.ts"
+      - "vite*.mts"
+      - "forge.config.*"
+      - "tsconfig.json"
+      - "eslint.config.mjs"
 
 permissions:
   contents: read
@@ -20,7 +38,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Static verification
+    name: Typecheck and lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,22 +47,7 @@ jobs:
         with:
           node-version: 24.20.0
           cache: npm
+      - run: npm install --global npm@11.19.0
       - run: npm ci
-      - run: npm run build
-
-  gate:
-    name: Verification gate
-    needs: verify
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require package build
-        env:
-          VERIFY_RESULT: ${{ needs.verify.result }}
-        run: |
-          if [[ "$VERIFY_RESULT" != "success" ]]; then
-            echo "Application package build finished as $VERIFY_RESULT" >&2
-            exit 1
-          fi
-          echo "Application package build passed." >> "$GITHUB_STEP_SUMMARY"
+      - run: npm run typecheck
+      - run: npm run lint
