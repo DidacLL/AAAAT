@@ -170,7 +170,7 @@ export async function reviewOpportunity(
 export async function extractJob(rootPath: string, rawRequest: JobExtractionRequest): Promise<JobExtractionResult> {
   const request = jobExtractionRequestSchema.parse(rawRequest);
   const result = await extractJobWithPartialOutcomes(rootPath, request);
-  return jobExtractionResultSchema.parse({ proposals: result.proposals, newFields: result.newFields });
+  return jobExtractionResultSchema.parse({ proposals: result.proposals });
 }
 
 function normalizeChoiceValue(field: ReturnType<typeof listCandidatureFields>[number], value: CandidatureRuntimeValue, choiceRefs: ReadonlyMap<string, string>): CandidatureRuntimeValue {
@@ -217,7 +217,6 @@ export async function discoverCandidatureFieldFromSources(
     sourceUrl: "",
     sourceText,
     fields: [{ fieldRef, label: field.definition.label, description: field.definition.description, valueType: field.definition.valueType, cardinality: field.definition.cardinality, choices }],
-    tags: [],
   });
   const result = providerJobExtractionEnvelopeSchema.parse(await provider.extractJob(stored, wire, undefined, "historical_field_discovery"));
   const proposed = result.proposals.find((candidate) =>
