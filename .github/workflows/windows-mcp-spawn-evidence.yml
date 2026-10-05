@@ -24,6 +24,52 @@ jobs:
       - run: npm ci
       - name: Package AAAAT
         run: npm run package
+      - name: Reproduce launcher npx.cmd boundary
+        shell: pwsh
+        run: |
+          $probe = @'
+          const { spawn } = require("node:child_process");
+          const result = { command: "npx.cmd", args: ["--version"] };
+          let child;
+          try {
+            child = spawn("npx.cmd", ["--version"], { stdio: "pipe" });
+          } catch (error) {
+            console.log("NPX_CMD_SPAWN", JSON.stringify({
+              ...result,
+              threwSynchronously: true,
+              name: error.name,
+              message: error.message,
+              code: error.code ?? null,
+              errno: error.errno ?? null,
+              syscall: error.syscall ?? null,
+            }));
+            process.exit(0);
+          }
+          child.once("spawn", () => {
+            console.log("NPX_CMD_SPAWN", JSON.stringify({
+              ...result,
+              threwSynchronously: false,
+              spawned: true,
+              pid: child.pid ?? null,
+            }));
+            child.kill();
+          });
+          child.once("error", (error) => {
+            console.log("NPX_CMD_SPAWN", JSON.stringify({
+              ...result,
+              threwSynchronously: false,
+              spawned: false,
+              name: error.name,
+              message: error.message,
+              code: error.code ?? null,
+              errno: error.errno ?? null,
+              syscall: error.syscall ?? null,
+            }));
+          });
+          child.once("close", () => process.exit(0));
+          setTimeout(() => process.exit(0), 3000);
+          '@
+          node -e $probe
       - name: Reproduce direct spawn and MCP transport
         shell: pwsh
         run: |
