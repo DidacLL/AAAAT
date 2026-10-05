@@ -24,9 +24,9 @@ chat evaluates no-local-computer / chat-driven journeys through the production r
 
 mcp gives the real model the production MCP tool definitions and lets the model decide which AAAAT tools to call. Tool calls execute against the real AAAAT MCP server and temporary workspace. This is useful for refining tool descriptions, schemas and host guidance. It does not by itself prove third-party-host compatibility.
 
-host:llama is representative third-party-host evidence. It starts a user-supplied llama-server, configures packaged AAAAT as a stdio MCP server, reads the host's actual registered tool definitions, lets the real model choose tools, and executes those calls through llama.cpp's MCP/tool path.
+host:llama is a reference local-agent boundary backed by a real running llama.cpp/OpenAI-compatible model server. The evaluator sends every model request to that server while connecting directly to packaged AAAAT over its normal stdio MCP boundary. It does not depend on llama.cpp's experimental server-side MCP support.
 
-core runs direct + chat + MCP. external runs chat + MCP + the real llama.cpp host. all runs every mode.
+core runs direct + chat + MCP. external runs chat + MCP + the llama.cpp-backed packaged-AAAAT host boundary. all runs every mode.
 
 ## Repetition and failures
 
@@ -47,14 +47,15 @@ Thus the external-AI surfaces receive more scenario coverage in all than the dir
 
 Direct, chat and model-driven MCP modes ask for an OpenAI-compatible endpoint, model and optional Bearer/API credential.
 
-The llama.cpp host fixture additionally asks for:
+The llama.cpp-backed host fixture asks for the same OpenAI-compatible endpoint/model connection as the other model-driven modes plus a packaged AAAAT executable. Start llama.cpp yourself with the model you want to evaluate, for example:
 
-- the llama-server executable;
-- a GGUF model path;
-- a local port;
-- a packaged AAAAT executable.
+    llama-server -m C:\\models\\your-model.gguf --host 127.0.0.1 --port 8080 --jinja
 
-Before loading the model, host mode now verifies that the selected llama-server build supports MCP configuration and that the packaged AAAAT executable can independently start as a stdio MCP server and expose its expected tools. This keeps host-version or packaged-MCP failures separate from model/tool-choice failures.
+Then use:
+
+    http://127.0.0.1:8080/v1
+
+as the endpoint. The evaluator connects to that running server, so its terminal shows the actual model requests. It separately spawns packaged AAAAT over stdio MCP. No second llama-server is started.
 
 If no packaged AAAAT executable is found under out/, the launcher can build one before the host run.
 
@@ -64,9 +65,6 @@ Environment variables can prefill automation/local scripts:
     AAAAT_AI_EVAL_MODEL
     AAAAT_AI_EVAL_CREDENTIAL
     AAAAT_AI_EVAL_REPETITIONS
-    AAAAT_LLAMA_SERVER
-    AAAAT_LLAMA_MODEL
-    AAAAT_LLAMA_PORT
     AAAAT_PACKAGED_EXECUTABLE
 
 ## What is evaluated
@@ -77,7 +75,7 @@ External-chat mode exercises production Send to my AI context construction and r
 
 MCP mode evaluates model tool choice and round trips including application + document creation, Source-only candidature creation, selected-application research return, Career-context reads, setup-status reads, denied setup authority and requests for unsupported generic database/shell access.
 
-The llama.cpp host mode repeats representative application/document creation, selected-application return, Career-context use and bounded-authority journeys through a real third-party MCP host.
+The llama.cpp-backed host mode repeats representative application/document creation, selected-application return, Career-context use and bounded-authority journeys through a real local-agent process boundary: the model runs in the user's llama.cpp server and packaged AAAAT runs as the MCP child process.
 
 ## Reports
 

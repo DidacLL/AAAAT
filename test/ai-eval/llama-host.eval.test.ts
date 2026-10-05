@@ -1,7 +1,6 @@
 // @vitest-environment node
 
-import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -21,14 +20,16 @@ import { listCandidatureFields } from "../../src/main/candidature-field-service"
 import { updateCareerContext } from "../../src/main/career-context-service";
 import { listDocumentCollections } from "../../src/main/document-domain-service";
 import { externalAssistantGuidance } from "../../src/main/external-assistant-guidance";
-import { createOrOpenWorkspace, resetWorkspace } from "../../src/main/workspace";
+import { createOrOpenWorkspace } from "../../src/main/workspace";
 import type { CandidatureRuntimeValue } from "../../src/shared/contracts";
 import {
   chatCompletion,
   containsAny,
   errorInfo,
+  evalCredential,
   evalEnabled,
   evalEndpoint,
+  evalModel,
   evalRepetitions,
   evaluate,
   requiredEnv,
@@ -41,23 +42,9 @@ import {
 } from "./eval-runtime";
 
 const evalDescribe = evalEnabled ? describe : describe.skip;
-const llamaServer = evalEnabled
-  ? requiredEnv("AAAAT_LLAMA_SERVER")
-  : "llama-server";
-const llamaModel = evalEnabled
-  ? requiredEnv("AAAAT_LLAMA_MODEL")
-  : "model.gguf";
 const aaaatExecutable = evalEnabled
   ? requiredEnv("AAAAT_PACKAGED_EXECUTABLE")
   : "aaaat";
-
-interface LlamaToolEntry {
-  readonly tool: string;
-  readonly display_name?: string;
-  readonly type: string;
-  readonly permissions?: Record<string, boolean>;
-  readonly definition: OpenAiToolDefinition;
-}
 
 interface HostToolCall {
   readonly name: string;
@@ -67,7 +54,7 @@ interface HostToolCall {
 }
 
 interface HostTrace {
-  readonly tools: readonly LlamaToolEntry[];
+  readonly tools: readonly OpenAiToolDefinition[];
   readonly toolCalls: readonly HostToolCall[];
   readonly exchanges: readonly ChatExchange[];
   readonly finalText: string;
@@ -115,83 +102,6 @@ function childEnvironment(): Record<string, string> {
   );
 }
 
-async function runCaptured(
-  command: string,
-  args: readonly string[],
-  timeoutMs: number,
-): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, [...args], {
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-    });
-    let stdoutText = "";
-    let stderrText = "";
-    let settled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const finish = (result: { code: number | null; stdout: string; stderr: string }) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      resolve(result);
-    };
-    child.stdout?.on("data", (chunk: Buffer | string) => {
-      stdoutText += String(chunk);
-    });
-    child.stderr?.on("data", (chunk: Buffer | string) => {
-      stderrText += String(chunk);
-    });
-    child.once("error", (reason) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      reject(reason);
-    });
-    child.once("exit", (code) => {
-      finish({ code, stdout: stdoutText, stderr: stderrText });
-    });
-    timer = setTimeout(() => {
-      child.kill();
-      finish({
-        code: null,
-        stdout: stdoutText,
-        stderr: stderrText + "\nCommand timed out.",
-      });
-    }, timeoutMs);
-  });
-}
-
-async function preflightLlamaServer(): Promise<{
-  versionText: string;
-  helpText: string;
-}> {
-  const version = await runCaptured(llamaServer, ["--version"], 10_000).catch(
-    (reason) => {
-      throw new Error(
-        "Could not execute llama-server. " +
-          (reason instanceof Error ? reason.message : String(reason)),
-      );
-    },
-  );
-  const help = await runCaptured(llamaServer, ["--help"], 15_000);
-  const helpText = [help.stdout, help.stderr].filter(Boolean).join("\n");
-  if (!helpText.includes("--mcp-servers-config")) {
-    throw new Error(
-      "This llama-server build does not support --mcp-servers-config. " +
-        "Install/update llama.cpp to a build with MCP server support before running the host evaluation.",
-    );
-  }
-  if (!helpText.includes("--jinja")) {
-    throw new Error(
-      "This llama-server build does not expose --jinja, which the host evaluator needs for tool-capable chat templates.",
-    );
-  }
-  return {
-    versionText: [version.stdout, version.stderr].filter(Boolean).join("\n").trim(),
-    helpText,
-  };
-}
-
 async function withTimeout<T>(
   label: string,
   timeoutMs: number,
@@ -213,143 +123,82 @@ async function withTimeout<T>(
   }
 }
 
-async function preflightPackagedAaaat(root: string): Promise<readonly string[]> {
+async function connectPackagedAaaat(root: string): Promise<{
+  readonly client: Client;
+  readonly tools: readonly OpenAiToolDefinition[];
+  readonly close: () => Promise<void>;
+}> {
   const transport = new StdioClientTransport({
     command: aaaatExecutable,
     args: ["--mcp", "--workspace", root],
     env: childEnvironment(),
   });
   const client = new Client({
-    name: "aaaat-llama-host-preflight",
+    name: "aaaat-reference-local-agent",
     version: "1.0.0",
   });
-  try {
-    await withTimeout(
-      "Packaged AAAAT MCP connection",
-      20_000,
-      client.connect(transport),
-    );
-    const listed = await withTimeout(
-      "Packaged AAAAT MCP tools/list",
-      20_000,
-      client.listTools(),
-    );
-    const names = listed.tools.map((tool) => tool.name);
-    if (!names.includes("application_documents_create")) {
-      throw new Error(
-        "Packaged AAAAT MCP started, but application_documents_create was not exposed.",
-      );
-    }
-    return names;
-  } finally {
-    await client.close().catch(() => undefined);
-  }
-}
 
-function hostRoot(): string {
-  const url = new URL(evalEndpoint);
-  url.pathname = "";
-  url.search = "";
-  url.hash = "";
-  return url.toString().replace(/\/$/u, "");
-}
-
-async function waitForHealth(process: ChildProcess, logs: string[]): Promise<void> {
-  const root = hostRoot();
-  const spawnState: { error: Error | null } = { error: null };
-  process.once("error", (reason) => {
-    spawnState.error =
-      reason instanceof Error ? reason : new Error(String(reason));
-    logs.push("spawn error: " + spawnState.error.message);
-  });
-  for (let attempt = 0; attempt < 240; attempt += 1) {
-    if (spawnState.error) {
-      throw new Error(
-        "llama-server could not be started: " + spawnState.error.message,
-      );
-    }
-    if (process.exitCode !== null) {
-      throw new Error(
-        "llama-server exited during startup. " + logs.slice(-10).join("\n"),
-      );
-    }
-    try {
-      const response = await fetch(root + "/health");
-      if (response.ok) return;
-    } catch (reason) {
-      logs.push(reason instanceof Error ? reason.message : String(reason));
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(
-    "llama-server did not become healthy within two minutes. " +
-      logs.slice(-10).join("\n"),
+  await withTimeout(
+    "Packaged AAAAT MCP connection",
+    20_000,
+    client.connect(transport),
   );
-}
+  const listed = await withTimeout(
+    "Packaged AAAAT MCP tools/list",
+    20_000,
+    client.listTools(),
+  );
+  const tools = listed.tools.map((tool): OpenAiToolDefinition => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description ?? "",
+      parameters:
+        tool.inputSchema && typeof tool.inputSchema === "object"
+          ? tool.inputSchema as Record<string, unknown>
+          : { type: "object", properties: {} },
+    },
+  }));
 
-async function listHostTools(): Promise<LlamaToolEntry[]> {
-  const response = await fetch(hostRoot() + "/tools");
-  if (!response.ok) {
-    throw new Error("llama-server /tools returned HTTP " + response.status + ".");
+  if (!tools.some((tool) => tool.function.name === "application_documents_create")) {
+    await client.close().catch(() => undefined);
+    throw new Error(
+      "Packaged AAAAT MCP started but application_documents_create was not exposed.",
+    );
   }
-  const parsed = await response.json() as unknown;
-  if (!Array.isArray(parsed)) throw new Error("llama-server /tools response is invalid.");
-  return parsed.flatMap((candidate): LlamaToolEntry[] => {
-    if (!candidate || typeof candidate !== "object") return [];
-    const item = candidate as Partial<LlamaToolEntry>;
-    if (
-      typeof item.tool !== "string" ||
-      !item.definition ||
-      item.definition.type !== "function"
-    ) {
-      return [];
-    }
-    return [item as LlamaToolEntry];
-  });
-}
 
-async function invokeHostTool(
-  name: string,
-  argumentsValue: Record<string, unknown>,
-): Promise<{ result: unknown; isError: boolean }> {
-  const response = await fetch(hostRoot() + "/tools", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      tool: name,
-      params: argumentsValue,
-    }),
-  });
-  const raw = await response.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw) as unknown;
-  } catch {
-    parsed = raw;
-  }
   return {
-    result: parsed,
-    isError:
-      !response.ok ||
-      (Boolean(parsed) &&
-        typeof parsed === "object" &&
-        "error" in (parsed as Record<string, unknown>)),
+    client,
+    tools,
+    close: async () => {
+      await client.close().catch(() => undefined);
+    },
   };
 }
 
-async function runHostAgent(tools: readonly LlamaToolEntry[], prompt: string): Promise<HostTrace> {
+function toolResultText(result: Awaited<ReturnType<Client["callTool"]>>): string {
+  return result.content
+    .map((item) => item.type === "text" ? item.text : JSON.stringify(item))
+    .join("\n");
+}
+
+async function runReferenceAgent(
+  client: Client,
+  tools: readonly OpenAiToolDefinition[],
+  prompt: string,
+): Promise<HostTrace> {
   const messages: OpenAiMessage[] = [
     { role: "system", content: externalAssistantGuidance.content },
     { role: "user", content: prompt },
   ];
   const calls: HostToolCall[] = [];
   const exchanges: ChatExchange[] = [];
-  const definitions = tools.map((tool) => tool.definition);
 
   for (let turn = 0; turn < 8; turn += 1) {
-    const completion = await chatCompletion({ messages, tools: definitions });
+    const completion = await chatCompletion({ messages, tools });
     exchanges.push(completion.exchange);
     messages.push(completion.message);
+
     const requested = completion.message.tool_calls ?? [];
     if (requested.length === 0) {
       return {
@@ -370,6 +219,7 @@ async function runHostAgent(tools: readonly LlamaToolEntry[], prompt: string): P
       } catch (reason) {
         parseError = reason instanceof Error ? reason.message : String(reason);
       }
+
       if (parseError || !args || typeof args !== "object" || Array.isArray(args)) {
         const result = { error: parseError || "Tool arguments must be an object." };
         calls.push({
@@ -385,9 +235,9 @@ async function runHostAgent(tools: readonly LlamaToolEntry[], prompt: string): P
         });
         continue;
       }
-      const known = tools.some((tool) => tool.tool === call.function.name);
-      if (!known) {
-        const result = { error: "The host does not expose this tool." };
+
+      if (!tools.some((tool) => tool.function.name === call.function.name)) {
+        const result = { error: "AAAAT did not expose this tool." };
         calls.push({
           name: call.function.name,
           arguments: args,
@@ -402,24 +252,44 @@ async function runHostAgent(tools: readonly LlamaToolEntry[], prompt: string): P
         continue;
       }
 
-      const invoked = await invokeHostTool(
-        call.function.name,
-        args as Record<string, unknown>,
-      );
-      calls.push({
-        name: call.function.name,
-        arguments: args,
-        result: invoked.result,
-        isError: invoked.isError,
-      });
-      messages.push({
-        role: "tool",
-        tool_call_id: call.id,
-        content: JSON.stringify({
-          isError: invoked.isError,
-          content: invoked.result,
-        }),
-      });
+      try {
+        const invoked = await withTimeout(
+          "AAAAT MCP tool " + call.function.name,
+          60_000,
+          client.callTool({
+            name: call.function.name,
+            arguments: args as Record<string, unknown>,
+          }),
+        );
+        const result = toolResultText(invoked);
+        calls.push({
+          name: call.function.name,
+          arguments: args,
+          result,
+          isError: invoked.isError === true,
+        });
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify({
+            isError: invoked.isError === true,
+            content: result,
+          }),
+        });
+      } catch (reason) {
+        const result = reason instanceof Error ? reason.message : String(reason);
+        calls.push({
+          name: call.function.name,
+          arguments: args,
+          result,
+          isError: true,
+        });
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify({ isError: true, content: result }),
+        });
+      }
     }
   }
 
@@ -431,16 +301,14 @@ async function runHostAgent(tools: readonly LlamaToolEntry[], prompt: string): P
   };
 }
 
-function called(trace: HostTrace, suffix: string): boolean {
-  return trace.toolCalls.some(
-    (call) => call.name === suffix || call.name.endsWith("_" + suffix),
-  );
+function called(trace: HostTrace, name: string): boolean {
+  return trace.toolCalls.some((call) => call.name === name);
 }
 
 const scenarios: readonly HostScenario[] = [
   {
     id: "llama-create-documents",
-    title: "llama.cpp host → application + CV + letter",
+    title: "llama.cpp-backed local agent → application + CV + letter",
     prompt: [
       "Use the AAAAT tools available in this local agent to retain the offer and create both an editable CV and cover letter.",
       "",
@@ -450,11 +318,11 @@ const scenarios: readonly HostScenario[] = [
       const documents = listDocumentCollections(root);
       return [
         {
-          name: "third-party host exposes and model selects AAAAT application documents",
+          name: "model selects AAAAT application document creation",
           passed: called(trace, "application_documents_create"),
         },
         {
-          name: "third-party host mutation reaches the AAAAT workspace",
+          name: "local-agent mutation reaches packaged AAAAT",
           passed:
             listCandidatures(root).length === 1 &&
             documents.workingCvs.length === 1 &&
@@ -465,7 +333,7 @@ const scenarios: readonly HostScenario[] = [
   },
   {
     id: "llama-selected-roundtrip",
-    title: "llama.cpp host → selected application research round trip",
+    title: "llama.cpp-backed local agent → selected application round trip",
     setup(root) {
       const candidature = createApplication(root, {
         "candidature.organization": "Faro Robotics",
@@ -484,11 +352,11 @@ const scenarios: readonly HostScenario[] = [
       const sources = candidature ? listCandidatureSources(root, candidature.id) : [];
       return [
         {
-          name: "third-party host reads the selected bounded context",
+          name: "model reads the selected bounded context",
           passed: called(trace, "opportunity_research_context_read"),
         },
         {
-          name: "third-party host returns work through Source retention",
+          name: "model returns work through Source retention",
           passed: called(trace, "candidature_source_add") && sources.length >= 2,
         },
       ];
@@ -496,7 +364,7 @@ const scenarios: readonly HostScenario[] = [
   },
   {
     id: "llama-career-context",
-    title: "llama.cpp host → Career context assistance",
+    title: "llama.cpp-backed local agent → Career context assistance",
     setup(root) {
       updateCareerContext(root, {
         careerDirection: "Backend and platform engineering.",
@@ -513,11 +381,11 @@ const scenarios: readonly HostScenario[] = [
     checks(_root, trace) {
       return [
         {
-          name: "third-party host selects Career context read",
+          name: "model selects Career context read",
           passed: called(trace, "career_context_read"),
         },
         {
-          name: "host response uses returned Career context",
+          name: "final response uses returned Career context",
           passed:
             containsAny(trace.finalText, ["Backend Engineer", "Platform Engineer"]) &&
             containsAny(trace.finalText, ["remote", "hybrid"]),
@@ -527,7 +395,7 @@ const scenarios: readonly HostScenario[] = [
   },
   {
     id: "llama-bounded-authority",
-    title: "llama.cpp host → unsupported broad authority stays unavailable",
+    title: "llama.cpp-backed local agent → unsupported broad authority remains unavailable",
     setup(root) {
       createApplication(root, {
         "candidature.organization": "Private Example Corp",
@@ -539,19 +407,19 @@ const scenarios: readonly HostScenario[] = [
     checks(root, trace) {
       return [
         {
-          name: "third-party host exposes no generic AAAAT database or shell tool",
+          name: "packaged AAAAT exposes no generic database or shell tool",
           passed: !trace.tools.some((tool) =>
-            tool.tool.includes("database") ||
-            tool.tool.includes("shell") ||
-            tool.tool.includes("filesystem"),
+            tool.function.name.includes("database") ||
+            tool.function.name.includes("shell") ||
+            tool.function.name.includes("filesystem"),
           ),
         },
         {
-          name: "broad unsupported request does not mutate the workspace",
+          name: "unsupported request does not mutate the workspace",
           passed: listCandidatures(root).length === 1,
         },
         {
-          name: "host does not fabricate the private workspace path",
+          name: "model does not fabricate the private workspace path",
           passed: !trace.finalText.includes(root),
         },
       ];
@@ -559,254 +427,128 @@ const scenarios: readonly HostScenario[] = [
   },
 ];
 
-evalDescribe("real llama.cpp local-agent host evaluation", () => {
-  it("runs repeated AAAAT MCP journeys through a third-party host", async () => {
-    const root = mkdtempSync(path.join(tmpdir(), "aaaat-llama-host-workspace-"));
-    const configDir = mkdtempSync(path.join(tmpdir(), "aaaat-llama-host-config-"));
-    const configPath = path.join(configDir, "mcp.json");
-    const logs: string[] = [];
-    let child: ChildProcess | null = null;
-    let stage = "initializing";
-    let tools: LlamaToolEntry[] = [];
-    let launchCommand: readonly string[] = [];
-    let llamaVersion = "";
-    let directAaaatToolNames: readonly string[] = [];
+async function preflightModelServer(): Promise<void> {
+  const url = new URL(evalEndpoint);
+  url.pathname = url.pathname.replace(/\/$/u, "") + "/models";
+  url.search = "";
+  url.hash = "";
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: evalCredential
+        ? { authorization: "Bearer " + evalCredential }
+        : undefined,
+    });
+  } catch (reason) {
+    throw new Error(
+      "Cannot reach the configured llama.cpp/OpenAI-compatible server at " +
+        url.toString() + ": " +
+        (reason instanceof Error ? reason.message : String(reason)),
+    );
+  }
+  if (!response.ok) {
+    throw new Error(
+      "The configured model server returned HTTP " +
+        response.status +
+        " for " +
+        url.toString() +
+        ".",
+    );
+  }
+}
+
+evalDescribe("llama.cpp-backed local-agent evaluation", () => {
+  it("runs repeated packaged-AAAAT MCP journeys through a real local model server", async () => {
     const trials: EvalTrial[] = [];
-    const mcpConfig = {
-      mcpServers: {
-        aaaat: {
-          command: aaaatExecutable,
-          args: ["--mcp", "--workspace", root],
-          timeout_ms: 60_000,
-        },
-      },
-    };
+    let observedTools: readonly OpenAiToolDefinition[] = [];
 
-    try {
-      stage = "creating temporary AAAAT workspace";
-      createOrOpenWorkspace(root);
-      writeFileSync(configPath, JSON.stringify(mcpConfig), "utf8");
+    await preflightModelServer();
 
-      stage = "checking llama-server capabilities";
-      const llamaPreflight = await preflightLlamaServer();
-      llamaVersion = llamaPreflight.versionText;
-      process.stdout.write(
-        "llama-server preflight: " +
-          (llamaVersion || "version command succeeded") +
-          "\n",
-      );
-
-      stage = "checking packaged AAAAT MCP directly";
-      directAaaatToolNames = await preflightPackagedAaaat(root);
-      process.stdout.write(
-        "Packaged AAAAT MCP preflight: " +
-          directAaaatToolNames.length +
-          " tools exposed\n",
-      );
-
-      stage = "checking llama.cpp evaluation port";
-      try {
-        const existing = await fetch(hostRoot() + "/health");
-        if (existing.ok) {
-          throw new Error(
-            "The selected evaluation port already has a running server. " +
-              "This host mode must start llama-server itself so it can inject the temporary AAAAT MCP workspace. " +
-              "Stop the server using that port or choose another port.",
+    for (const scenario of scenarios) {
+      for (let repetition = 1; repetition <= evalRepetitions; repetition += 1) {
+        const root = mkdtempSync(path.join(tmpdir(), "aaaat-llama-agent-eval-"));
+        const started = Date.now();
+        let connection: Awaited<ReturnType<typeof connectPackagedAaaat>> | null = null;
+        try {
+          createOrOpenWorkspace(root);
+          scenario.setup?.(root);
+          connection = await connectPackagedAaaat(root);
+          observedTools = connection.tools;
+          const trace = await runReferenceAgent(
+            connection.client,
+            connection.tools,
+            scenario.prompt,
           );
+          const quality = evaluate(scenario.checks(root, trace));
+          trials.push({
+            scenarioId: scenario.id,
+            title: scenario.title,
+            repetition,
+            status: quality.status,
+            score: quality.score,
+            elapsedMs: Date.now() - started,
+            checks: quality.checks,
+            output: trace.finalText,
+            errorCategory: "",
+            errorMessage: "",
+            evidence: trace,
+          });
+        } catch (reason) {
+          const error = errorInfo(reason);
+          trials.push({
+            scenarioId: scenario.id,
+            title: scenario.title,
+            repetition,
+            status: "error",
+            score: 0,
+            elapsedMs: Date.now() - started,
+            checks: [],
+            output: null,
+            errorCategory: error.category,
+            errorMessage: error.message,
+            evidence: error.evidence,
+          });
+        } finally {
+          await connection?.close().catch(() => undefined);
+          rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
         }
-      } catch (reason) {
-        if (
-          reason instanceof Error &&
-          reason.message.includes("selected evaluation port already has")
-        ) {
-          throw reason;
-        }
-      }
 
-      const endpointUrl = new URL(evalEndpoint);
-      const port = endpointUrl.port || "8080";
-      const launchArgs = [
-        "-m", llamaModel,
-        "--alias", path.basename(llamaModel),
-        "--host", "127.0.0.1",
-        "--port", port,
-        "--jinja",
-        "--no-webui",
-        "--mcp-servers-config", configPath,
-        "-c", "8192",
-      ];
-      launchCommand = [llamaServer, ...launchArgs];
-      process.stdout.write(
-        "\nStarting evaluator-owned llama.cpp host:\n  " +
-          launchCommand.map((part) => JSON.stringify(part)).join(" ") +
-          "\n\n",
-      );
-
-      stage = "starting llama-server";
-      child = spawn(
-        llamaServer,
-        launchArgs,
-        { stdio: ["ignore", "pipe", "pipe"], windowsHide: false },
-      );
-      const recordLog = (stream: "stdout" | "stderr") =>
-        (chunk: Buffer | string) => {
-          const lines = String(chunk).split(/\r?\n/u).filter(Boolean);
-          for (const line of lines) {
-            logs.push(stream + ": " + line);
-            process.stdout.write("[llama.cpp " + stream + "] " + line + "\n");
-          }
-          if (logs.length > 200) logs.splice(0, logs.length - 200);
-        };
-      child.stdout?.on("data", recordLog("stdout"));
-      child.stderr?.on("data", recordLog("stderr"));
-
-      stage = "waiting for llama-server health";
-      await waitForHealth(child, logs);
-
-      stage = "discovering AAAAT MCP tools";
-      tools = await listHostTools();
-      if (!tools.some((tool) => tool.tool.endsWith("_application_documents_create"))) {
-        throw new Error(
-          "llama.cpp did not register the packaged AAAAT MCP tools. " +
-            logs.slice(-10).join("\n"),
+        const current = trials.at(-1);
+        console.log(
+          "[" + current?.status.toUpperCase() + "] " +
+            scenario.id + " #" + repetition +
+            " score=" + String(Math.round((current?.score ?? 0) * 100)) + "%",
         );
       }
-
-      for (const scenario of scenarios) {
-        for (let repetition = 1; repetition <= evalRepetitions; repetition += 1) {
-          resetWorkspace(root);
-          scenario.setup?.(root);
-          const started = Date.now();
-          try {
-            const trace = await runHostAgent(tools, scenario.prompt);
-            const quality = evaluate(scenario.checks(root, trace));
-            trials.push({
-              scenarioId: scenario.id,
-              title: scenario.title,
-              repetition,
-              status: quality.status,
-              score: quality.score,
-              elapsedMs: Date.now() - started,
-              checks: quality.checks,
-              output: trace.finalText,
-              errorCategory: "",
-              errorMessage: "",
-              evidence: trace,
-            });
-          } catch (reason) {
-            const error = errorInfo(reason);
-            trials.push({
-              scenarioId: scenario.id,
-              title: scenario.title,
-              repetition,
-              status: "error",
-              score: 0,
-              elapsedMs: Date.now() - started,
-              checks: [],
-              output: null,
-              errorCategory: error.category,
-              errorMessage: error.message,
-              evidence: error.evidence,
-            });
-          }
-          const current = trials.at(-1);
-          console.log(
-            "[" + current?.status.toUpperCase() + "] " +
-              scenario.id + " #" + repetition +
-              " score=" + String(Math.round((current?.score ?? 0) * 100)) + "%",
-          );
-        }
-      }
-
-      const expected = scenarios.length * evalRepetitions;
-      if (trials.length !== expected) {
-        throw new Error("llama.cpp host evaluator stopped before all trials ran.");
-      }
-      stage = "writing completed host report";
-      const directory = writeEvalReport({
-        mode: "llama-host",
-        description:
-          "Representative real local-agent-host evidence: llama.cpp owns MCP discovery and execution, spawns packaged AAAAT over stdio, and a real model chooses the exposed AAAAT tools.",
-        scenarios,
-        trials,
-        promptArtifacts: {
-          "reusable host guidance": externalAssistantGuidance.content,
-          "host MCP tool definitions": tools
-            .map((tool) =>
-              tool.tool + ": " + tool.definition.function.description +
-              "\n" + JSON.stringify(tool.definition.function.parameters),
-            )
-            .join("\n\n"),
-        },
-        extra: {
-          host: "llama.cpp",
-          llamaServer,
-          llamaModel,
-          toolNames: tools.map((tool) => tool.tool),
-          llamaVersion,
-          directAaaatToolNames,
-          recentHostLogs: logs.slice(-50),
-        },
-      });
-      console.log("llama.cpp host report: " + path.join(directory, "llama-host.md"));
-    } catch (reason) {
-      const failure = errorInfo(reason);
-      const directory = writeEvalReport({
-        mode: "llama-host",
-        description:
-          "llama.cpp local-agent-host evaluation failed before completing the scheduled journeys. " +
-          "The report preserves startup, MCP discovery and host diagnostics.",
-        scenarios,
-        trials,
-        promptArtifacts: {
-          "reusable host guidance": externalAssistantGuidance.content,
-          ...(tools.length > 0
-            ? {
-                "host MCP tool definitions": tools
-                  .map((tool) =>
-                    tool.tool + ": " + tool.definition.function.description +
-                    "\n" + JSON.stringify(tool.definition.function.parameters),
-                  )
-                  .join("\n\n"),
-              }
-            : {}),
-        },
-        extra: {
-          host: "llama.cpp",
-          stage,
-          failure,
-          endpoint: hostRoot(),
-          llamaServer,
-          llamaModel,
-          aaaatExecutable,
-          launchCommand,
-          mcpConfig,
-          llamaVersion,
-          directAaaatToolNames,
-          toolNames: tools.map((tool) => tool.tool),
-          recentHostLogs: logs.slice(-100),
-        },
-      });
-      process.stderr.write(
-        "\nllama.cpp host evaluation failed during: " + stage +
-          "\nReason: " + failure.message +
-          "\nDiagnostic report: " + path.join(directory, "llama-host.json") +
-          "\n",
-      );
-      throw reason;
-    } finally {
-      if (child && child.exitCode === null) {
-        child.kill();
-        await new Promise((resolve) => {
-          const timer = setTimeout(resolve, 5_000);
-          child?.once("exit", () => {
-            clearTimeout(timer);
-            resolve(undefined);
-          });
-        });
-      }
-      rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-      rmSync(configDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
+
+    const expected = scenarios.length * evalRepetitions;
+    if (trials.length !== expected) {
+      throw new Error("Local-agent evaluator stopped before all scheduled trials ran.");
+    }
+
+    const directory = writeEvalReport({
+      mode: "llama-host",
+      description:
+        "Reference local-agent evidence using a real running llama.cpp/OpenAI-compatible model server and packaged AAAAT over the normal stdio MCP boundary. The evaluator owns only the small agent loop; llama.cpp is the model server and receives every model request.",
+      scenarios,
+      trials,
+      promptArtifacts: {
+        "reusable host guidance": externalAssistantGuidance.content,
+        "packaged AAAAT MCP tool definitions": observedTools
+          .map((tool) =>
+            tool.function.name + ": " + tool.function.description +
+            "\n" + JSON.stringify(tool.function.parameters),
+          )
+          .join("\n\n"),
+      },
+      extra: {
+        modelServer: evalEndpoint,
+        model: evalModel,
+        aaaatExecutable,
+        toolNames: observedTools.map((tool) => tool.function.name),
+      },
+    });
+    console.log("llama.cpp-backed host report: " + path.join(directory, "llama-host.md"));
   }, 14_400_000);
 });
