@@ -110,4 +110,4 @@ AI connection portability belongs in **Settings → AI**, not Backup. Portable A
 
 ## Current alpha limitations
 
-Current alpha builds are unsigned. A Windows package is produced locally for natural-use acceptance before cross-platform and release verification. There is not yet a stable release channel, updater or code signing.
+Current alpha builds are unsigned. Release packaging targets Windows, macOS and Linux on x64 and ARM64 using native build runners. Windows and macOS use portable ZIPs; Linux also provides a DEB. There is not yet code signing, macOS notarization, an updater or a stable non-alpha release channel, so operating-system warnings may still appear.
