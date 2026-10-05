@@ -191,6 +191,27 @@ async function preflightLlamaServer(): Promise<{
   };
 }
 
+async function withTimeout<T>(
+  label: string,
+  timeoutMs: number,
+  work: Promise<T>,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(label + " timed out after " + timeoutMs + " ms.")),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function preflightPackagedAaaat(root: string): Promise<readonly string[]> {
   const transport = new StdioClientTransport({
     command: aaaatExecutable,
@@ -202,8 +223,16 @@ async function preflightPackagedAaaat(root: string): Promise<readonly string[]> 
     version: "1.0.0",
   });
   try {
-    await client.connect(transport);
-    const listed = await client.listTools();
+    await withTimeout(
+      "Packaged AAAAT MCP connection",
+      20_000,
+      client.connect(transport),
+    );
+    const listed = await withTimeout(
+      "Packaged AAAAT MCP tools/list",
+      20_000,
+      client.listTools(),
+    );
     const names = listed.tools.map((tool) => tool.name);
     if (!names.includes("application_documents_create")) {
       throw new Error(
