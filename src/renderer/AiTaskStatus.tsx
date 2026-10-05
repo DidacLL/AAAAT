@@ -23,7 +23,9 @@ export function AiTaskStatus() {
       <summary>{summary}</summary>
       <div className="shell-ai-task-list">
         {tasks.map((task) => {
-          const inspectableExchange = task.exchange ?? task.completedExchange;
+          const inspectableExchanges = task.exchange
+            ? [task.exchange]
+            : task.completedExchanges ?? [];
           return (
             <article key={task.key} className={`shell-ai-task shell-ai-task-${task.status}`}>
               <div>
@@ -40,7 +42,12 @@ export function AiTaskStatus() {
                           : "Failed"}
                 </span>
                 {task.error ? <small>{task.error}</small> : null}
-                {inspectableExchange ? <AiExchangeInspector exchange={inspectableExchange} /> : null}
+                {inspectableExchanges.map((exchange, index) => (
+                  <AiExchangeInspector
+                    key={`${exchange.operation}:${index}`}
+                    exchange={exchange}
+                  />
+                ))}
               </div>
               {task.status === "queued" || task.status === "working" ? (
                 <button type="button" className="compact-secondary" onClick={() => cancelAiTask(task.key)}>
