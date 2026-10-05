@@ -6,6 +6,8 @@ import {
   providerJobExtractionRequestSchema,
   providerJobExtractionEnvelopeSchema,
   providerOpportunityReviewContextSchema,
+  providerTagInferenceEnvelopeSchema,
+  providerTagInferenceRequestSchema,
 } from "../shared/ai-contracts";
 import type { AiOperation } from "../shared/ai-connection-contracts";
 import { aiExchangeDiagnosticSchema } from "../shared/ai-diagnostics";
@@ -38,7 +40,6 @@ async function validateExtraction(
         choices: [],
       },
     ],
-    tags: [],
   });
   const result = providerJobExtractionEnvelopeSchema.parse(
     await provider.extractJob(connection, request, signal),
@@ -48,6 +49,36 @@ async function validateExtraction(
     const candidate = proposal as { fieldRef?: unknown };
     if (typeof candidate.fieldRef === "string" && candidate.fieldRef !== fieldRef) {
       throw new Error("The configured provider returned an out-of-scope validation field reference.");
+    }
+  }
+}
+
+async function validateTagInference(
+  connection: AiProviderConnection,
+  provider: ModelProvider,
+  signal?: AbortSignal,
+): Promise<void> {
+  const tagRef = "aaaat_validation_tag";
+  const request = providerTagInferenceRequestSchema.parse({
+    sourceText: "Validation source: this role concerns platform engineering.",
+    sourceTitle: "AAAAT capability validation",
+    sourceUrl: "",
+    fieldTitles: ["Location", "Compensation"],
+    tags: [{
+      tagRef,
+      name: "Platform engineering",
+      aliases: ["Platform"],
+      definition: "Reusable work concerned with software platforms.",
+    }],
+  });
+  const result = providerTagInferenceEnvelopeSchema.parse(
+    await provider.inferTags(connection, request, signal),
+  );
+  for (const proposal of result.existingTags) {
+    if (!proposal || typeof proposal !== "object") continue;
+    const candidate = proposal as { tagRef?: unknown };
+    if (typeof candidate.tagRef === "string" && candidate.tagRef !== tagRef) {
+      throw new Error("The configured provider returned an out-of-scope validation Tag reference.");
     }
   }
 }
@@ -93,6 +124,9 @@ export async function validateAiOperation(
       case "job_extraction":
       case "historical_field_discovery":
         await validateExtraction(connection, provider, signal);
+        return;
+      case "tag_inference":
+        await validateTagInference(connection, provider, signal);
         return;
       case "cv_tailoring": {
         const context = providerDocumentAiContextSchema.parse({

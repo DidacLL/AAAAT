@@ -1,21 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { JobExtractionNewField, JobExtractionNewTag } from "../shared/ai-contracts";
+import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
 import type {
-  JobExtractionExistingTag,
   PartialJobExtractionResult,
+  PartialTagInferenceResult,
+  TagInferenceExistingTag,
 } from "../shared/ai-proposal-outcomes";
+import type {
+  TagInferenceNewTag,
+} from "../shared/ai-contracts";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRecord,
-  CandidatureRuntimeValue,
   CandidatureSource,
 } from "../shared/contracts";
-import { clearAiTask, startAiTask, useAiTask } from "./ai-task-store";
-import { candidatureInferenceContext } from "./candidature-inference-context";
+import {
+  aiTaskFailure,
+  startAiTask,
+  useAiTask,
+} from "./ai-task-store";
+import {
+  candidatureInferenceContext,
+  candidatureTagInferenceContext,
+} from "./candidature-inference-context";
+import { AiExchangeInspector } from "./AiExchangeInspector";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
-type InferenceTaskResult = PartialJobExtractionResult;
+interface InferenceTaskResult extends PartialJobExtractionResult {
+  readonly tagInference?: PartialTagInferenceResult;
+  readonly tagInferenceError?: string;
+  readonly tagInferenceFailureExchange?: AiExchangeDiagnostic;
+  readonly fieldInferenceError?: string;
+  readonly fieldInferenceFailureExchange?: AiExchangeDiagnostic;
+}
 
 interface Props {
   readonly candidature: CandidatureRecord;
@@ -23,7 +40,7 @@ interface Props {
   readonly targetFieldIds: readonly string[];
   readonly taskId: string;
   readonly title: string;
-  readonly allowNewFields?: boolean;
+  readonly includeTagInference?: boolean;
   readonly onChanged?: () => void | Promise<void>;
 }
 
@@ -36,42 +53,13 @@ function routeReady(
   );
 }
 
-function normalizedLabel(value: string): string {
-  return value.trim().toLocaleLowerCase();
-}
-
-function createChoices(suggestion: JobExtractionNewField) {
-  return suggestion.valueType === "choice"
-    ? suggestion.choices.map((label) => ({ id: crypto.randomUUID(), label }))
-    : [];
-}
-
-function createdValue(
-  suggestion: JobExtractionNewField,
-  choices: readonly { readonly id: string; readonly label: string }[],
-): CandidatureRuntimeValue | null {
-  if (suggestion.valueType !== "choice") return suggestion.value;
-
-  const byLabel = new Map(
-    choices.map((choice) => [normalizedLabel(choice.label), choice.id]),
-  );
-  const mapOne = (value: string | number | boolean): string | null =>
-    typeof value === "string" ? (byLabel.get(normalizedLabel(value)) ?? null) : null;
-
-  if (Array.isArray(suggestion.value)) {
-    const mapped = suggestion.value.map(mapOne);
-    return mapped.every((value): value is string => value !== null) ? mapped : null;
-  }
-  return mapOne(suggestion.value);
-}
-
 export function CandidatureInferencePanel({
   candidature,
   fields,
   targetFieldIds,
   taskId,
   title,
-  allowNewFields = false,
+  includeTagInference = false,
   onChanged,
 }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
@@ -79,16 +67,14 @@ export function CandidatureInferencePanel({
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
-  const [handledNewFields, setHandledNewFields] = useState<Set<number>>(() => new Set());
-  const [newFieldError, setNewFieldError] = useState<string | null>(null);
   const targetSet = useMemo(() => new Set(targetFieldIds), [targetFieldIds]);
   const requestedFields = useMemo(
     () =>
       fields.filter(
         (field) =>
-          targetSet.has(field.definition.id) &&
-          field.definition.enabled &&
-          field.preferences.aiUseAllowed,
+          targetSet.has(field.definition.id)
+          && field.definition.enabled
+          && field.preferences.aiUseAllowed,
       ),
     [fields, targetSet],
   );
@@ -114,13 +100,21 @@ export function CandidatureInferencePanel({
     };
   }, [candidature.id]);
 
-  const context = useMemo(
-    () => (sources === null ? "" : candidatureInferenceContext(candidature, fields, sources, targetSet)),
+  const fieldContext = useMemo(
+    () => (
+      sources === null
+        ? ""
+        : candidatureInferenceContext(candidature, fields, sources, targetSet)
+    ),
     [candidature, fields, sources, targetSet],
+  );
+  const tagContext = useMemo(
+    () => (sources === null ? "" : candidatureTagInferenceContext(sources)),
+    [sources],
   );
 
   useEffect(() => {
-    if (task || aiReady !== true || !context || requestedFields.length === 0) return;
+    if (task || aiReady !== true || !fieldContext || requestedFields.length === 0) return;
 
     startAiTask<InferenceTaskResult>(
       taskId,
@@ -131,42 +125,93 @@ export function CandidatureInferencePanel({
             : `Finding ${requestedFields.length} missing values…`,
         );
 
+        const tagProviderTaskId = `${taskId}:tags`;
         const cancelProvider = () => {
           void window.aaaat.aiTasks.cancelJobExtraction(taskId).catch(() => undefined);
+          if (includeTagInference && tagContext) {
+            void window.aaaat.aiTasks.cancelTagInference(tagProviderTaskId).catch(() => undefined);
+          }
         };
         signal.addEventListener("abort", cancelProvider, { once: true });
 
-        let result: PartialJobExtractionResult;
         try {
-          result = await window.aaaat.aiTasks.extractJob(taskId, {
+          const fieldPromise = window.aaaat.aiTasks.extractJob(taskId, {
             sourceTitle: "Retained AAAAT candidature context",
             sourceUrl: "",
-            sourceText: context,
+            sourceText: fieldContext,
             targetFieldIds: [...targetFieldIds],
           });
+
+          if (!includeTagInference || !tagContext) return await fieldPromise;
+
+          const tagPromise = window.aaaat.aiTasks.inferTags(tagProviderTaskId, {
+            sourceTitle: "Retained AAAAT candidature Sources",
+            sourceUrl: "",
+            sourceText: tagContext,
+          });
+          const [fieldOutcome, tagOutcome] = await Promise.allSettled([
+            fieldPromise,
+            tagPromise,
+          ]);
+
+          if (fieldOutcome.status === "rejected" && tagOutcome.status === "rejected") {
+            throw fieldOutcome.reason;
+          }
+
+          const fieldFailure = fieldOutcome.status === "rejected"
+            ? aiTaskFailure(fieldOutcome.reason)
+            : null;
+          const tagFailure = tagOutcome.status === "rejected"
+            ? aiTaskFailure(tagOutcome.reason)
+            : null;
+          const fieldResult: PartialJobExtractionResult = fieldOutcome.status === "fulfilled"
+            ? fieldOutcome.value
+            : { proposals: [], issues: [] };
+
+          return {
+            ...fieldResult,
+            ...(fieldFailure
+              ? {
+                  fieldInferenceError: fieldFailure.message,
+                  ...(fieldFailure.exchange
+                    ? { fieldInferenceFailureExchange: fieldFailure.exchange }
+                    : {}),
+                }
+              : {}),
+            ...(tagOutcome.status === "fulfilled"
+              ? { tagInference: tagOutcome.value }
+              : {}),
+            ...(tagFailure
+              ? {
+                  tagInferenceError: tagFailure.message,
+                  ...(tagFailure.exchange
+                    ? { tagInferenceFailureExchange: tagFailure.exchange }
+                    : {}),
+                }
+              : {}),
+          };
         } finally {
           signal.removeEventListener("abort", cancelProvider);
         }
-
-        return result;
       },
       title,
       (result) => {
         const usable = result.proposals.filter((proposal) => targetSet.has(proposal.fieldId));
-        const newFieldCount = allowNewFields ? result.newFields.length : 0;
-        const tagCount = allowNewFields ? result.existingTags.length + result.newTags.length : 0;
-        const review = result.issues.length;
-        return `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found${newFieldCount ? ` · ${newFieldCount} new field suggestion${newFieldCount === 1 ? "" : "s"}` : ""}${tagCount ? ` · ${tagCount} Tag suggestion${tagCount === 1 ? "" : "s"}` : ""}${review ? ` · ${review} needs review` : ""}`;
+        const tagCount = result.tagInference
+          ? result.tagInference.existingTags.length + result.tagInference.newTags.length
+          : 0;
+        const review = result.issues.length + (result.tagInference?.issues.length ?? 0);
+        const degraded = Number(Boolean(result.fieldInferenceError)) + Number(Boolean(result.tagInferenceError));
+        return `Completed · ${usable.length} value${usable.length === 1 ? "" : "s"} found${tagCount ? ` · ${tagCount} Tag suggestion${tagCount === 1 ? "" : "s"}` : ""}${review ? ` · ${review} needs review` : ""}${degraded ? ` · ${degraded} bounded request${degraded === 1 ? "" : "s"} unavailable` : ""}`;
       },
       targetFieldIds,
     );
   }, [
     aiReady,
-    allowNewFields,
-    candidature.id,
-    context,
-    onChanged,
+    fieldContext,
+    includeTagInference,
     requestedFields,
+    tagContext,
     targetFieldIds,
     targetSet,
     task,
@@ -174,49 +219,7 @@ export function CandidatureInferencePanel({
     title,
   ]);
 
-  const createAndUseField = async (proposal: JobExtractionNewField, index: number) => {
-    setNewFieldError(null);
-    const choices = createChoices(proposal);
-    const value = createdValue(proposal, choices);
-    if (value === null) {
-      setNewFieldError(`AAAAT could not map the proposed value for ${proposal.label} to its choices.`);
-      return;
-    }
-
-    let created: CandidatureFieldConfiguration | null = null;
-    try {
-      created = await window.aaaat.candidatures.createField({
-        label: proposal.label,
-        description: proposal.description,
-        valueType: proposal.valueType,
-        cardinality: proposal.cardinality,
-        choices,
-        enabled: true,
-      });
-      await window.aaaat.candidatures.setFieldValue({
-        candidatureId: candidature.id,
-        fieldId: created.definition.id,
-        value,
-      });
-      setHandledNewFields((handled) => new Set(handled).add(index));
-      await onChanged?.();
-    } catch (reason) {
-      if (created) {
-        try {
-          await window.aaaat.candidatures.deleteField(created.definition.id);
-        } catch {
-          // If another action started using the new field, keep it rather than deleting shared data.
-        }
-      }
-      setNewFieldError(
-        reason instanceof Error
-          ? reason.message
-          : `AAAAT could not create ${proposal.label}.`,
-      );
-    }
-  };
-
-  const attachExistingTag = async (proposal: JobExtractionExistingTag) => {
+  const attachExistingTag = async (proposal: TagInferenceExistingTag) => {
     const current = (await window.aaaat.candidatures.list()).find(
       (item) => item.id === candidature.id,
     );
@@ -230,7 +233,7 @@ export function CandidatureInferencePanel({
     await onChanged?.();
   };
 
-  const createAndAttachTag = async (proposal: JobExtractionNewTag, index: number) => {
+  const createAndAttachTag = async (proposal: TagInferenceNewTag, index: number) => {
     const tag = await window.aaaat.candidatures.createTag({
       name: proposal.name,
       definition: proposal.definition,
@@ -253,10 +256,10 @@ export function CandidatureInferencePanel({
     return <p className="compact-help">This information is not available for AI use.</p>;
   }
   if (
-    sources === null ||
-    aiReady === null ||
-    task?.status === "queued" ||
-    task?.status === "working"
+    sources === null
+    || aiReady === null
+    || task?.status === "queued"
+    || task?.status === "working"
   ) {
     return null;
   }
@@ -274,7 +277,7 @@ export function CandidatureInferencePanel({
       </div>
     );
   }
-  if (!context) {
+  if (!fieldContext) {
     return (
       <p className="compact-help candidature-inline-ai-message">
         Keep some Source text or retained information available to AI before asking for this value.
@@ -285,112 +288,127 @@ export function CandidatureInferencePanel({
     return (
       <div className="ai-task-failure candidature-inline-ai-message" role="alert">
         <span>{task.error}</span>
-        <button
-          type="button"
-          className="compact-secondary"
-          onClick={() => clearAiTask(taskId)}
-        >
-          Retry
-        </button>
       </div>
     );
   }
 
   const result = task?.status === "completed" ? task.result : undefined;
-  const newFieldSuggestions = result
-    ? result.newFields
-        .map((proposal, index) => ({ proposal, index }))
-        .filter(({ index }) => !handledNewFields.has(index))
-    : [];
-  const showSuggestionReview =
-    allowNewFields &&
-    result &&
-    (newFieldSuggestions.length > 0 || result.existingTags.length > 0 || result.newTags.length > 0);
-  if (!showSuggestionReview) return null;
+  if (!result) return null;
+  const tagResult = result.tagInference;
+  const hasTagReview = Boolean(
+    includeTagInference
+    && tagResult
+    && (
+      tagResult.existingTags.some(
+        (proposal) =>
+          !handledTags.has(`existing:${proposal.tagId}`)
+          && !candidature.tagIds.includes(proposal.tagId),
+      )
+      || tagResult.newTags.some((_, index) => !handledTags.has(`new:${index}`))
+      || tagResult.issues.length > 0
+    ),
+  );
+  const hasDegradedResult = Boolean(result.fieldInferenceError || result.tagInferenceError);
+  if (!hasTagReview && !hasDegradedResult) return null;
 
   return (
     <section className="candidature-tag-proposals" aria-label="AI suggestions">
-      <h4>AI suggestions</h4>
-      {newFieldError ? <p className="error-message" role="alert">{newFieldError}</p> : null}
-      {newFieldSuggestions.map(({ proposal, index }) => (
-        <article key={`new-field:${index}`}>
-          <strong>{proposal.label}</strong>
-          <p>{proposal.description}</p>
-          <p className="compact-help">
-            Proposed value: {Array.isArray(proposal.value) ? proposal.value.map(String).join(", ") : String(proposal.value)}
-          </p>
-          <div className="button-row">
-            <button type="button" onClick={() => void createAndUseField(proposal, index)}>
-              Create and use
-            </button>
-            <button
-              type="button"
-              className="compact-secondary"
-              onClick={() => setHandledNewFields((handled) => new Set(handled).add(index))}
-            >
-              Ignore
-            </button>
-          </div>
-        </article>
-      ))}
-      {result.existingTags.length > 0 || result.newTags.length > 0 ? <h5>Tag suggestions</h5> : null}
-      {result.existingTags.map((proposal) => {
-        const key = `existing:${proposal.tagId}`;
-        if (handledTags.has(key)) return null;
-        return (
-          <article key={key}>
-            <strong>{proposal.name}</strong>
-            {proposal.evidence ? <p>{proposal.evidence}</p> : null}
-            <div className="button-row">
-              <button type="button" onClick={() => void attachExistingTag(proposal)}>
-                Attach Tag
-              </button>
-              <button
-                type="button"
-                className="compact-secondary"
-                onClick={() =>
-                  setHandledTags((handled) => new Set(handled).add(key))
-                }
-              >
-                Ignore
-              </button>
+      {result.fieldInferenceError ? (
+        <div className="ai-task-failure candidature-inline-ai-message" role="alert">
+          <span>
+            Application information could not be inferred. Tag suggestions, if available, were kept.
+          </span>
+          <small>{result.fieldInferenceError}</small>
+          {result.fieldInferenceFailureExchange ? (
+            <AiExchangeInspector exchange={result.fieldInferenceFailureExchange} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {result.tagInferenceError ? (
+        <div className="ai-task-failure candidature-inline-ai-message" role="alert">
+          <span>Tag suggestions were unavailable. Application-field results were kept.</span>
+          <small>{result.tagInferenceError}</small>
+          {result.tagInferenceFailureExchange ? (
+            <AiExchangeInspector exchange={result.tagInferenceFailureExchange} />
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasTagReview && tagResult ? (
+        <>
+          <h4>Tag suggestions</h4>
+          {tagResult.existingTags.map((proposal) => {
+            const key = `existing:${proposal.tagId}`;
+            if (handledTags.has(key) || candidature.tagIds.includes(proposal.tagId)) return null;
+            return (
+              <article key={key}>
+                <strong>{proposal.name}</strong>
+                {proposal.evidence ? <p>{proposal.evidence}</p> : null}
+                <div className="button-row">
+                  <button type="button" onClick={() => void attachExistingTag(proposal)}>
+                    Attach Tag
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() =>
+                      setHandledTags((handled) => new Set(handled).add(key))
+                    }
+                  >
+                    Ignore
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+          {tagResult.newTags.map((proposal, index) => {
+            const key = `new:${index}`;
+            if (handledTags.has(key)) return null;
+            return (
+              <article key={key}>
+                <strong>{proposal.name}</strong>
+                <p>{proposal.definition}</p>
+                {proposal.aliases.length ? (
+                  <p className="compact-help">Also: {proposal.aliases.join(", ")}</p>
+                ) : null}
+                {proposal.evidence ? (
+                  <p className="compact-help">Evidence: {proposal.evidence}</p>
+                ) : null}
+                <div className="button-row">
+                  <button
+                    type="button"
+                    onClick={() => void createAndAttachTag(proposal, index)}
+                  >
+                    Create and attach
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-secondary"
+                    onClick={() =>
+                      setHandledTags((handled) => new Set(handled).add(key))
+                    }
+                  >
+                    Ignore
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+          {tagResult.issues.length > 0 ? (
+            <div className="candidature-field-ai-error" role="status">
+              <strong>
+                {tagResult.issues.length} Tag suggestion
+                {tagResult.issues.length === 1 ? "" : "s"} could not be used
+              </strong>
+              {tagResult.issues.map((issue, index) => (
+                <p key={index}>{issue.reason}</p>
+              ))}
             </div>
-          </article>
-        );
-      })}
-      {result.newTags.map((proposal, index) => {
-        const key = `new:${index}`;
-        if (handledTags.has(key)) return null;
-        return (
-          <article key={key}>
-            <strong>{proposal.name}</strong>
-            <p>{proposal.definition}</p>
-            {proposal.aliases.length ? (
-              <p className="compact-help">Also: {proposal.aliases.join(", ")}</p>
-            ) : null}
-            {proposal.evidence ? (
-              <p className="compact-help">Evidence: {proposal.evidence}</p>
-            ) : null}
-            <div className="button-row">
-              <button
-                type="button"
-                onClick={() => void createAndAttachTag(proposal, index)}
-              >
-                Create and attach
-              </button>
-              <button
-                type="button"
-                className="compact-secondary"
-                onClick={() =>
-                  setHandledTags((handled) => new Set(handled).add(key))
-                }
-              >
-                Ignore
-              </button>
-            </div>
-          </article>
-        );
-      })}
+          ) : null}
+          {tagResult.exchange ? <AiExchangeInspector exchange={tagResult.exchange} /> : null}
+        </>
+      ) : null}
     </section>
   );
 }

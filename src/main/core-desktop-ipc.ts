@@ -29,6 +29,8 @@ import {
   cancellableCvTailoringResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
+  cancellableTagInferenceRequestSchema,
+  cancellableTagInferenceResultSchema,
 } from "../shared/ai-task-cancellation-contracts";
 import {
   candidatureFavouriteOrderUpdateSchema,
@@ -87,10 +89,12 @@ import {
   cancelCancellableCoverLetterDraft,
   cancelCancellableCvTailoring,
   cancelCancellableJobExtraction,
+  cancelCancellableTagInference,
   runCancellableAiConnectionValidation,
   runCancellableCoverLetterDraft,
   runCancellableCvTailoring,
   runCancellableJobExtraction,
+  runCancellableTagInference,
 } from "./ai-task-cancellation";
 import {
   clearCandidatureFieldValue,
@@ -493,6 +497,19 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return aiTaskCancellationResultSchema.parse(
       cancelCancellableJobExtraction(aiTaskIdSchema.parse(taskId)),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.tagInfer, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const parsed = cancellableTagInferenceRequestSchema.parse(input);
+    return cancellableTagInferenceResultSchema.parse(
+      await runCancellableTagInference(requireWorkspaceRoot(), parsed.taskId, parsed.request),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.tagInferCancel, (event, taskId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiTaskCancellationResultSchema.parse(
+      cancelCancellableTagInference(aiTaskIdSchema.parse(taskId)),
     );
   });
   ipcMain.handle(aiTaskCancellationChannels.connectionValidate, async (event, input: unknown) => {

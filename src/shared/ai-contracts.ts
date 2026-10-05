@@ -125,27 +125,7 @@ export const jobExtractionProposalSchema = z
   .strict();
 export type JobExtractionProposal = z.infer<typeof jobExtractionProposalSchema>;
 
-export const jobExtractionNewFieldSchema = z
-  .object({
-    label: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(500).default(""),
-    valueType: candidatureFieldValueTypeSchema,
-    cardinality: candidatureFieldCardinalitySchema,
-    choices: z.array(z.string().trim().min(1).max(120)).max(32).default([]),
-    value: candidatureRuntimeValueSchema,
-  })
-  .strict()
-  .superRefine((field, context) => {
-    if (field.valueType === "choice" && field.choices.length === 0) {
-      context.addIssue({ code: "custom", path: ["choices"], message: "Choice suggestions need choices." });
-    }
-    if (field.valueType !== "choice" && field.choices.length > 0) {
-      context.addIssue({ code: "custom", path: ["choices"], message: "Only choice suggestions may include choices." });
-    }
-  });
-export type JobExtractionNewField = z.infer<typeof jobExtractionNewFieldSchema>;
-
-export const jobExtractionNewTagSchema = z
+export const tagInferenceNewTagSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
     definition: z.string().trim().min(1).max(3000),
@@ -153,16 +133,14 @@ export const jobExtractionNewTagSchema = z
     evidence: z.string().trim().min(1).max(1500).optional(),
   })
   .strict();
-export type JobExtractionNewTag = z.infer<typeof jobExtractionNewTagSchema>;
+export type TagInferenceNewTag = z.infer<typeof tagInferenceNewTagSchema>;
 
 export const jobExtractionResultSchema = z
   .object({
     proposals: z.array(jobExtractionProposalSchema).max(64),
-    newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
   })
   .strict()
-  .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldId)).size === result.proposals.length, { message: "Each discovery field may be proposed only once." })
-  .refine((result) => new Set(result.newFields.map((field) => field.label.toLocaleLowerCase())).size === result.newFields.length, { message: "Each suggested new field needs a unique name." });
+  .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldId)).size === result.proposals.length, { message: "Each discovery field may be proposed only once." });
 export type JobExtractionResult = z.infer<typeof jobExtractionResultSchema>;
 
 export const historicalFieldDiscoveryRequestSchema = z
@@ -261,17 +239,13 @@ export const providerTagGlossaryEntrySchema = z
   .strict();
 export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
   .extend({
-    fields: z.array(providerDiscoveryFieldSchema).max(64),
-    tags: z.array(providerTagGlossaryEntrySchema).max(300).default([]),
+    fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
   })
   .strict();
 export type ProviderJobExtractionRequest = z.infer<typeof providerJobExtractionRequestSchema>;
 export const providerJobExtractionEnvelopeSchema = z
   .object({
     proposals: z.array(z.unknown()).max(64).default([]),
-    newFields: z.array(z.unknown()).max(8).default([]),
-    existingTags: z.array(z.unknown()).max(100).default([]),
-    newTags: z.array(z.unknown()).max(30).default([]),
   })
   .strict();
 export type ProviderJobExtractionEnvelope = z.infer<typeof providerJobExtractionEnvelopeSchema>;
@@ -279,14 +253,38 @@ export type ProviderJobExtractionEnvelope = z.infer<typeof providerJobExtraction
 export const providerJobExtractionResultSchema = z
   .object({
     proposals: z.array(z.object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema }).strict()).max(64),
-    newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
-    existingTags: z.array(z.object({ tagRef: operationReferenceSchema, evidence: z.string().trim().min(1).max(1500).optional() }).strict()).max(100).default([]),
-    newTags: z.array(jobExtractionNewTagSchema).max(30).default([]),
   })
   .strict()
-  .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldRef)).size === result.proposals.length, { message: "Each extraction field may be proposed only once." })
-  .refine((result) => new Set(result.existingTags.map((proposal) => proposal.tagRef)).size === result.existingTags.length, { message: "Each existing Tag may be proposed only once." });
+  .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldRef)).size === result.proposals.length, { message: "Each extraction field may be proposed only once." });
 export type ProviderJobExtractionResult = z.infer<typeof providerJobExtractionResultSchema>;
+
+export const tagInferenceRequestSchema = jobExtractionRequestSchema;
+export type TagInferenceRequest = z.infer<typeof tagInferenceRequestSchema>;
+export const providerTagInferenceRequestSchema = tagInferenceRequestSchema
+  .extend({
+    fieldTitles: z.array(z.string().trim().min(1).max(120)).max(64),
+    tags: z.array(providerTagGlossaryEntrySchema).max(300),
+  })
+  .strict();
+export type ProviderTagInferenceRequest = z.infer<typeof providerTagInferenceRequestSchema>;
+export const providerTagInferenceEnvelopeSchema = z
+  .object({
+    existingTags: z.array(z.unknown()).max(30).default([]),
+    newTags: z.array(z.unknown()).max(5).default([]),
+  })
+  .strict();
+export type ProviderTagInferenceEnvelope = z.infer<typeof providerTagInferenceEnvelopeSchema>;
+export const providerTagInferenceResultSchema = z
+  .object({
+    existingTags: z.array(z.object({
+      tagRef: operationReferenceSchema,
+      evidence: z.string().trim().min(1).max(1500).optional(),
+    }).strict()).max(30),
+    newTags: z.array(tagInferenceNewTagSchema).max(5),
+  })
+  .strict()
+  .refine((result) => new Set(result.existingTags.map((proposal) => proposal.tagRef)).size === result.existingTags.length, { message: "Each existing Tag may be proposed only once." });
+export type ProviderTagInferenceResult = z.infer<typeof providerTagInferenceResultSchema>;
 
 export const providerDocumentAiContextSchema = z
   .object({

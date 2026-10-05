@@ -12,19 +12,25 @@ import {
   cvTailoringRequestSchema,
   cvTailoringResultSchema,
   jobExtractionRequestSchema,
+  tagInferenceRequestSchema,
   type CoverLetterDraft,
   type CoverLetterDraftRequest,
   type CvTailoringRequest,
   type CvTailoringResult,
+  type TagInferenceRequest,
 } from "./ai-contracts";
 import {
   partialJobExtractionResultSchema,
+  partialTagInferenceResultSchema,
   type PartialJobExtractionResult,
+  type PartialTagInferenceResult,
 } from "./ai-proposal-outcomes";
 
 export const aiTaskCancellationChannels = Object.freeze({
   jobExtract: "aaaat:ai-task-job-extract",
   jobExtractCancel: "aaaat:ai-task-job-extract-cancel",
+  tagInfer: "aaaat:ai-task-tag-infer",
+  tagInferCancel: "aaaat:ai-task-tag-infer-cancel",
   connectionValidate: "aaaat:ai-task-connection-validate",
   connectionValidateCancel: "aaaat:ai-task-connection-validate-cancel",
   cvTailor: "aaaat:ai-task-cv-tailor",
@@ -60,6 +66,10 @@ export const cancellableJobExtractionRequestSchema = z
   .strict();
 
 export const cancellableJobExtractionResultSchema = partialJobExtractionResultSchema;
+export const cancellableTagInferenceRequestSchema = z
+  .object({ taskId: aiTaskIdSchema, request: tagInferenceRequestSchema })
+  .strict();
+export const cancellableTagInferenceResultSchema = partialTagInferenceResultSchema;
 export const cancellableCvTailoringRequestSchema = z
   .object({
     taskId: aiTaskIdSchema,
@@ -90,6 +100,11 @@ export interface AiTaskCancellationDesktopApi {
       request: CancellableJobExtractionTaskRequest,
     ) => Promise<PartialJobExtractionResult>;
     readonly cancelJobExtraction: (taskId: string) => Promise<boolean>;
+    readonly inferTags: (
+      taskId: string,
+      request: TagInferenceRequest,
+    ) => Promise<PartialTagInferenceResult>;
+    readonly cancelTagInference: (taskId: string) => Promise<boolean>;
     readonly tailorCv: (
       taskId: string,
       request: CvTailoringRequest,

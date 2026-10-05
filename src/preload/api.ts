@@ -26,6 +26,8 @@ import {
   cancellableCvTailoringResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
+  cancellableTagInferenceRequestSchema,
+  cancellableTagInferenceResultSchema,
   type AiTaskCancellationDesktopApi,
 } from "../shared/ai-task-cancellation-contracts";
 import {
@@ -259,6 +261,20 @@ export function createDesktopApi(
     cancelJobExtraction: async (taskId: string) =>
       aiTaskCancellationResultSchema.parse(
         await invoke(aiTaskCancellationChannels.jobExtractCancel, aiTaskIdSchema.parse(taskId)),
+      ),
+    inferTags: async (
+      taskId: string,
+      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["inferTags"]>[1],
+    ) =>
+      cancellableTagInferenceResultSchema.parse(
+        await invoke(
+          aiTaskCancellationChannels.tagInfer,
+          cancellableTagInferenceRequestSchema.parse({ taskId, request }),
+        ),
+      ),
+    cancelTagInference: async (taskId: string) =>
+      aiTaskCancellationResultSchema.parse(
+        await invoke(aiTaskCancellationChannels.tagInferCancel, aiTaskIdSchema.parse(taskId)),
       ),
     tailorCv: async (
       taskId: string,

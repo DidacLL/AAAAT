@@ -51,3 +51,24 @@ export function candidatureInferenceContext(
   }
   return parts.join("\n\n---\n\n").slice(0, 50000).trim();
 }
+
+
+/** Tag inference intentionally receives retained Sources without application-field values. */
+export function candidatureTagInferenceContext(
+  sources: readonly CandidatureSource[],
+): string {
+  return sources
+    .map((source, index) =>
+      [
+        `Retained Source ${index + 1}`,
+        source.title ? `Title: ${source.title}` : "",
+        source.url ? `URL: ${source.url}` : "",
+        compactSourceText(source.sourceText),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n---\n\n")
+    .slice(0, 50000)
+    .trim();
+}

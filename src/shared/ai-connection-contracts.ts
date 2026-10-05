@@ -5,6 +5,7 @@ import { aiConnectionInputSchema } from "./ai-contracts";
 export const aiOperationSchema = z.enum([
   "opportunity_review",
   "job_extraction",
+  "tag_inference",
   "historical_field_discovery",
   "cv_tailoring",
   "cover_letter_draft",
@@ -14,7 +15,8 @@ export const aiOperations = aiOperationSchema.options;
 
 export const aiOperationLabels: Readonly<Record<AiOperation, string>> = Object.freeze({
   opportunity_review: "Opportunity review",
-  job_extraction: "Job extraction",
+  job_extraction: "Application information",
+  tag_inference: "Tag suggestions",
   historical_field_discovery: "Historical field discovery",
   cv_tailoring: "CV tailoring",
   cover_letter_draft: "Cover-letter drafting",
