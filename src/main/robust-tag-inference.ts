@@ -57,7 +57,6 @@ function tagWireRequest(
     };
   });
   const fieldTitles = listCandidatureFields(rootPath)
-    .filter((field) => field.definition.enabled)
     .slice(0, 64)
     .map((field) => field.definition.label);
 
