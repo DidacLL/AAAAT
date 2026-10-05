@@ -43,7 +43,7 @@ const config: ForgeConfig = {
   makers: [
     {
       name: "@electron-forge/maker-zip",
-      platforms: ["win32", "darwin"],
+      platforms: ["win32", "darwin", "linux"],
       config: {},
     },
     {
