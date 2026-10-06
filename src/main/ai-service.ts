@@ -499,9 +499,6 @@ function cvWritingContext(
       if (item.id === request.itemId || !item.profileItemId) return [];
       const localValue = cvContentText(item.content);
       if (!localValue) return [];
-      const sameKind =
-        item.content.kind.trim().toLocaleLowerCase()
-        === targetItem.content.kind.trim().toLocaleLowerCase();
       return [{
         sectionTitle: section.name,
         item,
@@ -513,7 +510,7 @@ function cvWritingContext(
           item.content.title,
           item.content.subtitle,
           item.content.description,
-        ) + (sameKind ? 1 : 0),
+        ),
       }];
     }),
   );
