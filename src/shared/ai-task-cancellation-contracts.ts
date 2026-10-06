@@ -9,14 +9,14 @@ import {
 import {
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   jobExtractionRequestSchema,
   tagInferenceRequestSchema,
   type CoverLetterDraft,
   type CoverLetterDraftRequest,
-  type CvTailoringRequest,
-  type CvTailoringResult,
+  type CvWritingRequest,
+  type CvWritingResult,
   type TagInferenceRequest,
 } from "./ai-contracts";
 import {
@@ -33,8 +33,8 @@ export const aiTaskCancellationChannels = Object.freeze({
   tagInferCancel: "aaaat:ai-task-tag-infer-cancel",
   connectionValidate: "aaaat:ai-task-connection-validate",
   connectionValidateCancel: "aaaat:ai-task-connection-validate-cancel",
-  cvTailor: "aaaat:ai-task-cv-tailor",
-  cvTailorCancel: "aaaat:ai-task-cv-tailor-cancel",
+  cvWrite: "aaaat:ai-task-cv-write",
+  cvWriteCancel: "aaaat:ai-task-cv-write-cancel",
   coverLetterDraft: "aaaat:ai-task-cover-letter-draft",
   coverLetterDraftCancel: "aaaat:ai-task-cover-letter-draft-cancel",
 } as const);
@@ -70,13 +70,13 @@ export const cancellableTagInferenceRequestSchema = z
   .object({ taskId: aiTaskIdSchema, request: tagInferenceRequestSchema })
   .strict();
 export const cancellableTagInferenceResultSchema = partialTagInferenceResultSchema;
-export const cancellableCvTailoringRequestSchema = z
+export const cancellableCvWritingRequestSchema = z
   .object({
     taskId: aiTaskIdSchema,
-    request: cvTailoringRequestSchema,
+    request: cvWritingRequestSchema,
   })
   .strict();
-export const cancellableCvTailoringResultSchema = cvTailoringResultSchema;
+export const cancellableCvWritingResultSchema = cvWritingResultSchema;
 
 export const cancellableCoverLetterDraftRequestSchema = z
   .object({
@@ -105,11 +105,11 @@ export interface AiTaskCancellationDesktopApi {
       request: TagInferenceRequest,
     ) => Promise<PartialTagInferenceResult>;
     readonly cancelTagInference: (taskId: string) => Promise<boolean>;
-    readonly tailorCv: (
+    readonly writeCvBlock: (
       taskId: string,
-      request: CvTailoringRequest,
-    ) => Promise<CvTailoringResult>;
-    readonly cancelCvTailoring: (taskId: string) => Promise<boolean>;
+      request: CvWritingRequest,
+    ) => Promise<CvWritingResult>;
+    readonly cancelCvWriting: (taskId: string) => Promise<boolean>;
     readonly draftCoverLetter: (
       taskId: string,
       request: CoverLetterDraftRequest,
