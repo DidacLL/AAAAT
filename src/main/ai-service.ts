@@ -27,6 +27,7 @@ import {
   type AiProjectedProfileItem,
   type CoverLetterDraft,
   type CoverLetterDraftRequest,
+  type CvWritingExchange,
   type CvWritingRequest,
   type CvWritingResult,
   type DocumentAiContext,
@@ -282,11 +283,11 @@ function providerDocumentContext(rootPath: string, context: DocumentAiContext, k
 function cvContentText(content: WorkingCvItem["content"]): string {
   const dates = [content.startDate, content.endDate].filter(Boolean).join(" – ");
   return [
+    content.kind,
     content.title,
     content.subtitle,
     dates,
     content.description,
-    content.url,
   ].filter((value): value is string => Boolean(value?.trim())).join(" · ");
 }
 
@@ -302,6 +303,46 @@ function candidatureValueText(
   return Array.isArray(value) ? value.map(render).join(", ") : render(value);
 }
 
+const relevanceStopWords = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "is", "it",
+  "of", "on", "or", "that", "the", "this", "to", "with",
+]);
+
+function relevanceTerms(...values: Array<string | undefined>): ReadonlySet<string> {
+  const terms = new Set<string>();
+  for (const value of values) {
+    if (!value) continue;
+    for (const term of value
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .split(/[^\p{L}\p{N}]+/gu)) {
+      if (term.length >= 3 && !relevanceStopWords.has(term)) terms.add(term);
+    }
+  }
+  return terms;
+}
+
+function relevanceScore(targetTerms: ReadonlySet<string>, ...values: Array<string | undefined>): number {
+  let score = 0;
+  for (const term of relevanceTerms(...values)) {
+    if (targetTerms.has(term)) score += 1;
+  }
+  return score;
+}
+
+function topRelevant<T>(
+  candidates: readonly T[],
+  score: (candidate: T) => number,
+  limit: number,
+): T[] {
+  return candidates
+    .map((candidate, index) => ({ candidate, index, score: score(candidate) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, limit)
+    .map((entry) => entry.candidate);
+}
+
 const userPrivatePattern = /\[USERPRIVATE:[^\]\r\n]+\]/gu;
 
 function privatePlaceholder(
@@ -311,7 +352,7 @@ function privatePlaceholder(
   ambiguous: Set<string>,
 ): string {
   const visibleTitle = title.replace(/[\]\r\n]+/gu, " ").trim() || "Private information";
-  const placeholder = `[USERPRIVATE:${visibleTitle}]`;
+  const placeholder = "[USERPRIVATE:" + visibleTitle + "]";
   if (ambiguous.has(placeholder)) return placeholder;
   const current = placeholders.get(placeholder);
   if (current === undefined) {
@@ -328,6 +369,82 @@ function resolvePrivatePlaceholders(
   placeholders: ReadonlyMap<string, string>,
 ): string {
   return text.replace(userPrivatePattern, (placeholder) => placeholders.get(placeholder) ?? placeholder);
+}
+
+interface CapturedCvWritingExchange {
+  readonly requestBody: string;
+  readonly responseBody: string;
+}
+
+function capturingCvWritingFetch(
+  signal: AbortSignal | undefined,
+): { readonly fetchImpl: typeof fetch; readonly snapshot: () => CapturedCvWritingExchange } {
+  let requestBody = "";
+  let responseBody = "";
+  const fetchImpl: typeof fetch = async (input, init) => {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error ? signal.reason : new DOMException("Aborted", "AbortError");
+    }
+    if (typeof init?.body === "string") requestBody = init.body;
+    const response = await fetch(input, init);
+    try { responseBody = await response.clone().text(); } catch { responseBody = ""; }
+    return response;
+  };
+  return { fetchImpl, snapshot: () => ({ requestBody, responseBody }) };
+}
+
+function providerModelContent(rawEnvelope: string): string {
+  if (!rawEnvelope) return "";
+  try {
+    const parsed = JSON.parse(rawEnvelope) as {
+      choices?: Array<{ message?: { content?: unknown } }>;
+    };
+    const content = parsed.choices?.[0]?.message?.content;
+    return typeof content === "string" ? content : rawEnvelope;
+  } catch {
+    return rawEnvelope;
+  }
+}
+
+function endpointForInspection(endpoint: string): string {
+  const url = new URL(endpoint);
+  url.username = "";
+  url.password = "";
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+function cvWritingExchange(
+  connection: AiConnectionStatus,
+  captured: CapturedCvWritingExchange,
+): CvWritingExchange | undefined {
+  if (!captured.requestBody) return undefined;
+  let systemInstruction = "";
+  let userPayload = "";
+  try {
+    const request = JSON.parse(captured.requestBody) as {
+      messages?: Array<{ role?: unknown; content?: unknown }>;
+    };
+    systemInstruction = String(
+      request.messages?.find((message) => message.role === "system")?.content ?? "",
+    );
+    userPayload = String(
+      request.messages?.find((message) => message.role === "user")?.content ?? "",
+    );
+  } catch {
+    return undefined;
+  }
+  return {
+    operation: "cv_tailoring",
+    endpoint: endpointForInspection(connection.endpoint),
+    model: connection.model,
+    systemInstruction,
+    userPayload,
+    rawModelResponse: providerModelContent(captured.responseBody),
+    structuredOutputMode: "plain_text",
+    providerValidationError: "",
+  };
 }
 
 function cvWritingContext(
@@ -352,97 +469,145 @@ function cvWritingContext(
 
   const placeholders = new Map<string, string>();
   const ambiguousPlaceholders = new Set<string>();
-  const information: string[] = [];
   const permissions = profileAiUse(rootPath);
+  const targetTerms = relevanceTerms(
+    targetSection.name,
+    targetItem.content.kind,
+    targetItem.content.title,
+    targetItem.content.subtitle,
+    targetItem.content.description,
+    request.currentValue,
+  );
   const targetAiAllowed =
     targetItem.profileItemId === null || permissions.get(targetItem.profileItemId) === true;
-
-  let targetFieldTitle = request.currentTitle;
-  let currentContent = request.currentText.trim() || undefined;
-  if (!targetAiAllowed) {
-    targetFieldTitle = targetSection.name;
-    currentContent = privatePlaceholder(
-      targetSection.name,
-      request.currentText.trim() || request.currentTitle,
-      placeholders,
-      ambiguousPlaceholders,
-    );
-  }
-
-  for (const section of workingCv.sections) {
-    for (const item of section.items) {
-      if (information.length >= 120) break;
-      if (item.id === request.itemId || !item.profileItemId) continue;
-      const localValue = cvContentText(item.content);
-      if (!localValue) continue;
-      if (permissions.get(item.profileItemId) === true) {
-        information.push(`${section.name}: ${localValue}`);
-      } else {
-        information.push(
-          privatePlaceholder(
-            section.name,
-            localValue,
-            placeholders,
-            ambiguousPlaceholders,
-          ),
+  const targetItemContext = targetAiAllowed
+    ? cvContentText({ ...targetItem.content, description: undefined })
+    : "Existing CV item";
+  const currentValue = request.currentValue.trim();
+  const providerCurrentValue = !currentValue
+    ? undefined
+    : targetAiAllowed
+      ? currentValue
+      : privatePlaceholder(
+          targetSection.name,
+          currentValue,
+          placeholders,
+          ambiguousPlaceholders,
         );
-      }
-    }
-    if (information.length >= 120) break;
-  }
+
+  const professionalCandidates = workingCv.sections.flatMap((section) =>
+    section.items.flatMap((item) => {
+      if (item.id === request.itemId || !item.profileItemId) return [];
+      const localValue = cvContentText(item.content);
+      if (!localValue) return [];
+      const sameKind =
+        item.content.kind.trim().toLocaleLowerCase()
+        === targetItem.content.kind.trim().toLocaleLowerCase();
+      return [{
+        sectionTitle: section.name,
+        item,
+        localValue,
+        score: relevanceScore(
+          targetTerms,
+          section.name,
+          item.content.kind,
+          item.content.title,
+          item.content.subtitle,
+          item.content.description,
+        ) + (sameKind ? 1 : 0),
+      }];
+    }),
+  );
+  const professionalContext = topRelevant(
+    professionalCandidates,
+    (candidate) => candidate.score,
+    4,
+  ).map((candidate) =>
+    permissions.get(candidate.item.profileItemId!) === true
+      ? candidate.sectionTitle + ": " + candidate.localValue
+      : privatePlaceholder(
+          candidate.sectionTitle,
+          candidate.localValue,
+          placeholders,
+          ambiguousPlaceholders,
+        )
+  );
 
   const career = getCareerContext(rootPath);
   const careerDisclosure = getCareerContextAiDisclosure(rootPath);
-  const careerFields = [
-    ["careerDirection", "Career direction"],
-    ["objectives", "Career objectives"],
-    ["targetRoles", "Target roles"],
-    ["targetMarketsLocations", "Target markets / locations"],
-    ["workPreferences", "Work preferences"],
-    ["applicationWritingPreferences", "Application writing preferences"],
+  const careerCandidates = [
+    { key: "careerDirection", title: "Career direction", value: career.careerDirection },
+    { key: "objectives", title: "Career objectives", value: career.objectives },
+    { key: "constraints", title: "Career constraints", value: career.constraints },
+    { key: "targetRoles", title: "Target roles", value: career.targetRoles },
+    { key: "targetMarketsLocations", title: "Target markets / locations", value: career.targetMarketsLocations },
+    { key: "workPreferences", title: "Work preferences", value: career.workPreferences },
+    { key: "applicationWritingPreferences", title: "Application writing preferences", value: career.applicationWritingPreferences },
   ] as const;
-  for (const [key, title] of careerFields) {
-    const value = career[key].trim();
-    if (!value) continue;
-    if (careerDisclosure[key]) {
-      information.push(`${title}: ${value}`);
-    } else {
-      information.push(
-        privatePlaceholder(title, value, placeholders, ambiguousPlaceholders),
-      );
-    }
-  }
+  const careerContext = topRelevant(
+    careerCandidates.filter((candidate) => candidate.value.trim()),
+    (candidate) =>
+      candidate.key === "applicationWritingPreferences"
+        ? 100
+        : relevanceScore(targetTerms, candidate.title, candidate.value),
+    2,
+  ).map((candidate) => {
+    const value = candidate.value.trim();
+    return careerDisclosure[candidate.key]
+      ? candidate.title + ": " + value
+      : privatePlaceholder(candidate.title, value, placeholders, ambiguousPlaceholders);
+  });
 
+  const applicationContext: string[] = [];
   if (workingCv.candidatureId) {
     const candidature = requireCandidature(rootPath, workingCv.candidatureId);
     const fields = new Map(
       listCandidatureFields(rootPath).map((field) => [field.definition.id, field]),
     );
-    for (const retained of candidature.values) {
+    const applicationCandidates = candidature.values.flatMap((retained) => {
       const field = fields.get(retained.fieldId);
-      if (!field?.definition.enabled) continue;
+      if (!field?.definition.enabled) return [];
       const value = candidatureValueText(field, retained.value).trim();
-      if (!value) continue;
-      if (field.preferences.aiUseAllowed) {
-        information.push(`${field.definition.label}: ${value}`);
-      } else {
-        information.push(
-          privatePlaceholder(
-            field.definition.label,
-            value,
-            placeholders,
-            ambiguousPlaceholders,
-          ),
-        );
-      }
+      if (!value) return [];
+      return [{
+        field,
+        value,
+        score: relevanceScore(
+          targetTerms,
+          field.definition.label,
+          field.definition.description,
+          value,
+        ),
+      }];
+    });
+    for (const candidate of topRelevant(
+      applicationCandidates,
+      (entry) => entry.score,
+      5,
+    )) {
+      applicationContext.push(
+        candidate.field.preferences.aiUseAllowed
+          ? candidate.field.definition.label + ": " + candidate.value
+          : privatePlaceholder(
+              candidate.field.definition.label,
+              candidate.value,
+              placeholders,
+              ambiguousPlaceholders,
+            ),
+      );
     }
   }
 
   return {
     context: providerCvWritingContextSchema.parse({
-      targetFieldTitle,
-      ...(currentContent ? { currentContent } : {}),
-      availableInformation: information,
+      target: {
+        field: request.field,
+        itemContext: targetItemContext || "Existing CV item",
+        ...(providerCurrentValue ? { currentValue: providerCurrentValue } : {}),
+      },
+      professionalContext,
+      careerContext,
+      applicationContext,
     }),
     placeholders,
   };
@@ -451,16 +616,21 @@ function cvWritingContext(
 export async function writeCvBlock(
   rootPath: string,
   rawRequest: CvWritingRequest,
-  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
+  provider?: ModelProvider,
   signal?: AbortSignal,
 ): Promise<CvWritingResult> {
   const request = cvWritingRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cv_tailoring");
   const { context, placeholders } = cvWritingContext(rootPath, request);
-  const modelContent = await provider.writeCvBlock(stored, context, signal);
+  const capture = provider ? null : capturingCvWritingFetch(signal);
+  const activeProvider = provider ?? createWorkspaceAiProvider(rootPath, capture!.fetchImpl);
+  const modelContent = await activeProvider.writeCvBlock(stored, context, signal);
+  const exchange = capture ? cvWritingExchange(stored, capture.snapshot()) : undefined;
   return cvWritingResultSchema.parse({
     itemId: request.itemId,
+    field: request.field,
     content: resolvePrivatePlaceholders(modelContent, placeholders),
+    ...(exchange ? { exchange } : {}),
   });
 }
 
