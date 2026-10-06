@@ -161,8 +161,6 @@ export const cvWritingRequestSchema = z
   .object({
     workingCvId: z.string().uuid(),
     itemId: z.string().uuid(),
-    profileItemId: z.string().uuid().nullable(),
-    sectionTitle: z.string().trim().min(1).max(200),
     currentTitle: z.string().trim().min(1).max(200),
     currentText: z.string().max(5000).default(""),
   })
