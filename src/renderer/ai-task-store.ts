@@ -260,6 +260,31 @@ export function startAiTask<T>(
   }, 0);
 }
 
+export function recordCompletedAiTask<T>(
+  key: string,
+  result: T,
+  label = "AI task",
+  detail = "Completed",
+  scopeFieldIds?: readonly string[],
+): void {
+  controllers.get(key)?.abort();
+  controllers.delete(key);
+  const appliedFieldIds = preAppliedFieldIds(result);
+  const completedExchanges = resultExchanges(result);
+  tasks.set(key, {
+    key,
+    label,
+    status: "completed",
+    detail,
+    result,
+    completedExchanges,
+    handledFieldIds: appliedFieldIds,
+    appliedFieldIds,
+    scopeFieldIds: completedScope(undefined, scopeFieldIds, appliedFieldIds),
+  });
+  emit();
+}
+
 export function cancelAiTask(key: string): void {
   const current = tasks.get(key);
   if (!current || (current.status !== "queued" && current.status !== "working")) return;
