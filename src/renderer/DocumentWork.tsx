@@ -500,10 +500,6 @@ export function WorkingCvEditor({
     if (writingActive) return;
     setError(null);
     setWritingMessage(null);
-    if (dirty) {
-      setError("Save this CV before using AI so AAAAT does not persist unrelated edits as a side effect of writing one field.");
-      return;
-    }
     const label = field === "title" ? "Title" : field === "subtitle" ? "Subtitle" : "Description";
     setWritingTarget({ itemId: item.id, field });
     startAiTask<CvWritingResult>(
@@ -519,6 +515,7 @@ export function WorkingCvEditor({
             workingCvId: draft.id,
             itemId: item.id,
             field,
+            sections: draft.sections,
           });
         } finally {
           signal.removeEventListener("abort", cancelProvider);
