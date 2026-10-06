@@ -1,18 +1,29 @@
 import { z } from "zod";
 
-import { externalOpportunityResearchInformationSchema } from "./external-assistant-contracts";
+import {
+  externalApplicationInformationPendingResultOptionalSchema,
+  externalApplicationInformationPendingResultSchema,
+  externalApplicationInformationTaskSchema,
+  externalInterviewPreparationContextSchema,
+  type ExternalApplicationInformationPendingResult,
+  type ExternalApplicationInformationTask,
+  type ExternalInterviewPreparationContext,
+} from "./external-assistant-contracts";
 
 export const candidatureOpportunityResearchAccessChannels = Object.freeze({
-  current: "aaaat:candidature-opportunity-research-access-current",
-  update: "aaaat:candidature-opportunity-research-access-update",
-  taskContext: "aaaat:candidature-opportunity-research-task-context",
-  taskTemplates: "aaaat:candidature-opportunity-research-task-templates",
-  taskTemplateSave: "aaaat:candidature-opportunity-research-task-template-save",
-  taskTemplateDelete: "aaaat:candidature-opportunity-research-task-template-delete",
-  copyTask: "aaaat:candidature-opportunity-research-copy-task",
-  exportTask: "aaaat:candidature-opportunity-research-export-task",
-  retainResult: "aaaat:candidature-opportunity-research-retain-result",
-  importResult: "aaaat:candidature-opportunity-research-import-result",
+  current: "aaaat:candidature-external-ai-current",
+  update: "aaaat:candidature-external-ai-update",
+  applicationInformationTask: "aaaat:candidature-application-information-task",
+  applicationInformationResult: "aaaat:candidature-application-information-result",
+  copyApplicationInformationTask: "aaaat:candidature-application-information-copy-task",
+  exportApplicationInformationTask: "aaaat:candidature-application-information-export-task",
+  submitApplicationInformationResult: "aaaat:candidature-application-information-submit-result",
+  importApplicationInformationResult: "aaaat:candidature-application-information-import-result",
+  interviewContext: "aaaat:candidature-interview-context",
+  copyInterviewTask: "aaaat:candidature-interview-copy-task",
+  exportInterviewTask: "aaaat:candidature-interview-export-task",
+  retainInterviewResult: "aaaat:candidature-interview-retain-result",
+  importInterviewResult: "aaaat:candidature-interview-import-result",
 } as const);
 
 export const candidatureOpportunityResearchAccessSchema = z
@@ -31,74 +42,51 @@ export type CandidatureOpportunityResearchAccessUpdate = z.infer<
   typeof candidatureOpportunityResearchAccessUpdateSchema
 >;
 
-export const candidatureOpportunityResearchTaskContextSchema = z
-  .object({
-    information: z.array(externalOpportunityResearchInformationSchema).max(64),
-  })
-  .strict();
-export type CandidatureOpportunityResearchTaskContext = z.infer<
-  typeof candidatureOpportunityResearchTaskContextSchema
->;
-
-export const candidatureOpportunityResearchTaskInstructionSchema = z
+export const candidatureExternalAiInstructionSchema = z
   .string()
   .trim()
   .min(1)
   .max(20_000);
-export type CandidatureOpportunityResearchTaskInstruction = z.infer<
-  typeof candidatureOpportunityResearchTaskInstructionSchema
+export type CandidatureExternalAiInstruction = z.infer<
+  typeof candidatureExternalAiInstructionSchema
 >;
 
-export const candidatureAiTaskTemplateSchema = z
-  .object({
-    id: z.string().uuid(),
-    name: z.string().trim().min(1).max(80),
-    instruction: candidatureOpportunityResearchTaskInstructionSchema,
-  })
-  .strict();
-export type CandidatureAiTaskTemplate = z.infer<typeof candidatureAiTaskTemplateSchema>;
-
-export const candidatureAiTaskTemplatesSchema = z.array(candidatureAiTaskTemplateSchema).max(50);
-
-export const candidatureAiTaskTemplateSaveSchema = z
-  .object({
-    id: z.string().uuid().optional(),
-    name: z.string().trim().min(1).max(80),
-    instruction: candidatureOpportunityResearchTaskInstructionSchema,
-  })
-  .strict();
-export type CandidatureAiTaskTemplateSave = z.infer<typeof candidatureAiTaskTemplateSaveSchema>;
-
-export const candidatureAiTaskTemplateDeleteSchema = z.string().uuid();
-
-export const candidatureOpportunityResearchResultTextSchema = z
+export const candidatureExternalAiResultTextSchema = z
   .string()
   .max(64 * 1024);
 
-export const candidatureOpportunityResearchTaskCopyResultSchema = z.literal("copied");
-export type CandidatureOpportunityResearchTaskCopyResult = z.infer<
-  typeof candidatureOpportunityResearchTaskCopyResultSchema
+export const candidatureExternalAiCopyResultSchema = z.literal("copied");
+export type CandidatureExternalAiCopyResult = z.infer<
+  typeof candidatureExternalAiCopyResultSchema
 >;
 
-export const candidatureOpportunityResearchTaskExportResultSchema = z.enum([
+export const candidatureExternalAiExportResultSchema = z.enum([
   "exported",
   "cancelled",
 ]);
-export type CandidatureOpportunityResearchTaskExportResult = z.infer<
-  typeof candidatureOpportunityResearchTaskExportResultSchema
+export type CandidatureExternalAiExportResult = z.infer<
+  typeof candidatureExternalAiExportResultSchema
 >;
 
-export const candidatureOpportunityResearchResultRetainResultSchema = z.literal("retained");
-export type CandidatureOpportunityResearchResultRetainResult = z.infer<
-  typeof candidatureOpportunityResearchResultRetainResultSchema
+export const candidatureInterviewResultRetainResultSchema = z.literal("retained");
+export type CandidatureInterviewResultRetainResult = z.infer<
+  typeof candidatureInterviewResultRetainResultSchema
 >;
 
-export const candidatureOpportunityResearchResultImportResultSchema = z.enum([
+export const candidatureInterviewResultImportResultSchema = z.enum([
   "imported",
   "cancelled",
 ]);
-export type CandidatureOpportunityResearchResultImportResult = z.infer<
-  typeof candidatureOpportunityResearchResultImportResultSchema
+export type CandidatureInterviewResultImportResult = z.infer<
+  typeof candidatureInterviewResultImportResultSchema
+>;
+
+export const candidatureApplicationInformationResultImportResultSchema = z.union([
+  externalApplicationInformationPendingResultSchema,
+  z.literal("cancelled"),
+]);
+export type CandidatureApplicationInformationResultImportResult = z.infer<
+  typeof candidatureApplicationInformationResultImportResultSchema
 >;
 
 export interface CandidatureOpportunityResearchAccessDesktopApi {
@@ -109,21 +97,40 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly update: (
       input: CandidatureOpportunityResearchAccessUpdate,
     ) => Promise<CandidatureOpportunityResearchAccess>;
-    readonly taskContext: () => Promise<CandidatureOpportunityResearchTaskContext>;
-    readonly taskTemplates: () => Promise<CandidatureAiTaskTemplate[]>;
-    readonly saveTaskTemplate: (
-      input: CandidatureAiTaskTemplateSave,
-    ) => Promise<CandidatureAiTaskTemplate>;
-    readonly deleteTaskTemplate: (id: string) => Promise<"deleted">;
-    readonly copyTask: (
-      instruction: CandidatureOpportunityResearchTaskInstruction,
-    ) => Promise<CandidatureOpportunityResearchTaskCopyResult>;
-    readonly exportTask: (
-      instruction: CandidatureOpportunityResearchTaskInstruction,
-    ) => Promise<CandidatureOpportunityResearchTaskExportResult>;
-    readonly retainResult: (
-      sourceText: string,
-    ) => Promise<CandidatureOpportunityResearchResultRetainResult>;
-    readonly importResult: () => Promise<CandidatureOpportunityResearchResultImportResult>;
+    readonly applicationInformationTask: (
+      instruction: CandidatureExternalAiInstruction,
+    ) => Promise<ExternalApplicationInformationTask>;
+    readonly applicationInformationResult: (
+      candidatureId: string,
+    ) => Promise<ExternalApplicationInformationPendingResult | null>;
+    readonly copyApplicationInformationTask: (
+      instruction: CandidatureExternalAiInstruction,
+    ) => Promise<CandidatureExternalAiCopyResult>;
+    readonly exportApplicationInformationTask: (
+      instruction: CandidatureExternalAiInstruction,
+    ) => Promise<CandidatureExternalAiExportResult>;
+    readonly submitApplicationInformationResult: (
+      resultText: string,
+    ) => Promise<ExternalApplicationInformationPendingResult>;
+    readonly importApplicationInformationResult: (
+    ) => Promise<CandidatureApplicationInformationResultImportResult>;
+    readonly interviewContext: () => Promise<ExternalInterviewPreparationContext>;
+    readonly copyInterviewTask: (
+      instruction: CandidatureExternalAiInstruction,
+    ) => Promise<CandidatureExternalAiCopyResult>;
+    readonly exportInterviewTask: (
+      instruction: CandidatureExternalAiInstruction,
+    ) => Promise<CandidatureExternalAiExportResult>;
+    readonly retainInterviewResult: (
+      resultText: string,
+    ) => Promise<CandidatureInterviewResultRetainResult>;
+    readonly importInterviewResult: () => Promise<CandidatureInterviewResultImportResult>;
   };
 }
+
+export {
+  externalApplicationInformationPendingResultOptionalSchema,
+  externalApplicationInformationPendingResultSchema,
+  externalApplicationInformationTaskSchema,
+  externalInterviewPreparationContextSchema,
+};
