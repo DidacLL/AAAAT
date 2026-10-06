@@ -371,6 +371,7 @@ function cvWritingContext(
 
   for (const section of workingCv.sections) {
     for (const item of section.items) {
+      if (information.length >= 120) break;
       if (item.id === request.itemId || !item.profileItemId) continue;
       const localValue = cvContentText(item.content);
       if (!localValue) continue;
@@ -387,6 +388,7 @@ function cvWritingContext(
         );
       }
     }
+    if (information.length >= 120) break;
   }
 
   const career = getCareerContext(rootPath);
