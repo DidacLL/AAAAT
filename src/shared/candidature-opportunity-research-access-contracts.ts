@@ -14,7 +14,7 @@ export const candidatureOpportunityResearchAccessChannels = Object.freeze({
   current: "aaaat:candidature-external-ai-current",
   update: "aaaat:candidature-external-ai-update",
   applicationInformationTask: "aaaat:candidature-application-information-task",
-  applicationInformationResult: "aaaat:candidature-application-information-result",
+  takeApplicationInformationResult: "aaaat:candidature-application-information-take-result",
   copyApplicationInformationTask: "aaaat:candidature-application-information-copy-task",
   exportApplicationInformationTask: "aaaat:candidature-application-information-export-task",
   submitApplicationInformationResult: "aaaat:candidature-application-information-submit-result",
@@ -100,7 +100,7 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly applicationInformationTask: (
       instruction: CandidatureExternalAiInstruction,
     ) => Promise<ExternalApplicationInformationTask>;
-    readonly applicationInformationResult: (
+    readonly takeApplicationInformationResult: (
       candidatureId: string,
     ) => Promise<ExternalApplicationInformationPendingResult | null>;
     readonly copyApplicationInformationTask: (
