@@ -310,7 +310,7 @@ export const providerCvWritingContextSchema = z
   .object({
     targetFieldTitle: z.string().trim().min(1).max(200),
     currentContent: z.string().max(5000).optional(),
-    availableInformation: z.array(z.string().trim().min(1).max(12000)).max(200),
+    availableInformation: z.array(z.string().trim().min(1).max(50000)).max(200),
   })
   .strict();
 export type ProviderCvWritingContext = z.infer<typeof providerCvWritingContextSchema>;
