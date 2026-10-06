@@ -282,13 +282,8 @@ export function WorkingCvEditor({
         } : item),
       })),
     }));
-    if (editingItemId === result.itemId) {
-      setEditingOptionalDetails((current) =>
-        current.includes("description") ? current : [...current, "description"],
-      );
-    }
     setWritingMessage("AI wrote this content block in the unsaved CV draft. Review it, then Save if you want to keep it.");
-  }, [editingItemId, writingTask]);
+  }, [writingTask]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
