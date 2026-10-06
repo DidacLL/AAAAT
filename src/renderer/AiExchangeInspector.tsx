@@ -18,7 +18,7 @@ function failureLabel(kind: AiExchangeDiagnostic["failureKind"]): string {
     case "model_response_invalid_json":
       return "Model response is not valid JSON";
     case "operation_contract_invalid":
-      return "JSON does not satisfy the AAAAT operation contract";
+      return "Response does not satisfy the AAAAT operation contract";
     case "operation_incompatible":
       return "Operation incompatible with this model";
   }
@@ -35,7 +35,7 @@ export function AiExchangeInspector({ exchange }: Props) {
         {failed ? <p><strong>Failure:</strong> {failureLabel(exchange.failureKind)}</p> : null}
         <p><strong>Model:</strong> {exchange.model}</p>
         <p><strong>Endpoint:</strong> {exchange.endpoint}</p>
-        <p><strong>Structured output:</strong> {exchange.structuredOutputMode === "json_schema" ? "JSON schema constrained" : "Plain JSON fallback"}</p>
+        <p><strong>Response mode:</strong> {exchange.structuredOutputMode === "json_schema" ? "JSON schema constrained" : exchange.structuredOutputMode === "plain_json_fallback" ? "Plain JSON fallback" : "Plain text"}</p>
         <label>
           <strong>System instruction sent</strong>
           <pre>{exchange.systemInstruction}</pre>
