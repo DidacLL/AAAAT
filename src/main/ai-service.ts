@@ -420,21 +420,20 @@ function cvWritingExchange(
   captured: CapturedCvWritingExchange,
 ): CvWritingExchange | undefined {
   if (!captured.requestBody) return undefined;
-  let systemInstruction = "";
-  let userPayload = "";
+  let request: { messages?: Array<{ role?: unknown; content?: unknown }> };
   try {
-    const request = JSON.parse(captured.requestBody) as {
+    request = JSON.parse(captured.requestBody) as {
       messages?: Array<{ role?: unknown; content?: unknown }>;
     };
-    systemInstruction = String(
-      request.messages?.find((message) => message.role === "system")?.content ?? "",
-    );
-    userPayload = String(
-      request.messages?.find((message) => message.role === "user")?.content ?? "",
-    );
   } catch {
     return undefined;
   }
+  const systemInstruction = String(
+    request.messages?.find((message) => message.role === "system")?.content ?? "",
+  );
+  const userPayload = String(
+    request.messages?.find((message) => message.role === "user")?.content ?? "",
+  );
   return {
     operation: "cv_tailoring",
     endpoint: endpointForInspection(connection.endpoint),
