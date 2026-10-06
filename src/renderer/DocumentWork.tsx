@@ -295,15 +295,6 @@ export function WorkingCvEditor({
     );
   }, [writingTask]);
 
-  useEffect(() => {
-    if (writingTask?.status === "failed") {
-      setWritingTarget(null);
-      setError(writingTask.error ?? "AAAAT could not write this CV field.");
-    } else if (writingTask?.status === "cancelled") {
-      setWritingTarget(null);
-    }
-  }, [writingTask]);
-
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
     setSections(draft.sections.map((section) => section.id === sectionId ? update(section) : section));
