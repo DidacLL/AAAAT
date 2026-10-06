@@ -6,8 +6,8 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -25,8 +25,8 @@ import {
   cancellableAiConnectionValidationResultSchema,
   cancellableCoverLetterDraftRequestSchema,
   cancellableCoverLetterDraftResultSchema,
-  cancellableCvTailoringRequestSchema,
-  cancellableCvTailoringResultSchema,
+  cancellableCvWritingRequestSchema,
+  cancellableCvWritingResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
   cancellableTagInferenceRequestSchema,
@@ -82,17 +82,17 @@ import {
   getAiConnection,
   previewOpportunityReview,
   reviewOpportunity,
-  tailorCv,
+  writeCvBlock,
 } from "./ai-service";
 import {
   cancelCancellableAiConnectionValidation,
   cancelCancellableCoverLetterDraft,
-  cancelCancellableCvTailoring,
+  cancelCancellableCvWriting,
   cancelCancellableJobExtraction,
   cancelCancellableTagInference,
   runCancellableAiConnectionValidation,
   runCancellableCoverLetterDraft,
-  runCancellableCvTailoring,
+  runCancellableCvWriting,
   runCancellableJobExtraction,
   runCancellableTagInference,
 } from "./ai-task-cancellation";
@@ -538,23 +538,23 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
       ),
     );
   });
-  ipcMain.handle(aiTaskCancellationChannels.cvTailor, async (event, input: unknown) => {
+  ipcMain.handle(aiTaskCancellationChannels.cvWrite, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    const parsed = cancellableCvTailoringRequestSchema.parse(input);
-    return cancellableCvTailoringResultSchema.parse(
-      await runCancellableCvTailoring(requireWorkspaceRoot(), parsed.taskId, parsed.request),
+    const parsed = cancellableCvWritingRequestSchema.parse(input);
+    return cancellableCvWritingResultSchema.parse(
+      await runCancellableCvWriting(requireWorkspaceRoot(), parsed.taskId, parsed.request),
     );
   });
-  ipcMain.handle(aiTaskCancellationChannels.cvTailorCancel, (event, taskId: unknown) => {
+  ipcMain.handle(aiTaskCancellationChannels.cvWriteCancel, (event, taskId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return aiTaskCancellationResultSchema.parse(
-      cancelCancellableCvTailoring(aiTaskIdSchema.parse(taskId)),
+      cancelCancellableCvWriting(aiTaskIdSchema.parse(taskId)),
     );
   });
-  ipcMain.handle(aiChannels.cvTailor, async (event, input: unknown) => {
+  ipcMain.handle(aiChannels.cvWrite, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return cvTailoringResultSchema.parse(
-      await tailorCv(requireWorkspaceRoot(), cvTailoringRequestSchema.parse(input)),
+    return cvWritingResultSchema.parse(
+      await writeCvBlock(requireWorkspaceRoot(), cvWritingRequestSchema.parse(input)),
     );
   });
   ipcMain.handle(aiTaskCancellationChannels.coverLetterDraft, async (event, input: unknown) => {
