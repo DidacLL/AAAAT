@@ -565,7 +565,7 @@ export function importApplicationInformationPortableResult(
   );
 }
 
-export function currentApplicationInformationResult(
+export function takeApplicationInformationResult(
   rootPath: string,
   candidatureId: string,
 ): ExternalApplicationInformationPendingResult | null {
@@ -573,12 +573,13 @@ export function currentApplicationInformationResult(
     candidatureId,
   );
   return withWorkspaceDatabase(rootPath, (database) =>
-    snapshot(database, () => {
+    transact(database, () => {
       if (selectedId(database) !== parsedId) return null;
       const raw = readMetadataJson(database, applicationInformationResultKey);
       if (raw === null) return null;
       const stored = storedApplicationInformationResultSchema.safeParse(raw);
       if (!stored.success || stored.data.candidatureId !== parsedId) return null;
+      deleteMetadata(database, applicationInformationResultKey);
       return stored.data.pending;
     }),
   );
