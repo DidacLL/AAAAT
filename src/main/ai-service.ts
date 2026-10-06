@@ -342,33 +342,31 @@ function cvWritingContext(
   );
   if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
 
+  const targetSection = workingCv.sections.find((section) =>
+    section.items.some((item) => item.id === request.itemId)
+  );
+  const targetItem = targetSection?.items.find((item) => item.id === request.itemId);
+  if (!targetSection || !targetItem) {
+    throw new AiServiceError("Save this CV content block before using AI to write it.");
+  }
+
   const placeholders = new Map<string, string>();
   const ambiguousPlaceholders = new Set<string>();
   const information: string[] = [];
   const permissions = profileAiUse(rootPath);
-  const linkedProfileItem = request.profileItemId
-    ? getProfile(rootPath).items.find((item) => item.id === request.profileItemId) ?? null
-    : null;
   const targetAiAllowed =
-    request.profileItemId === null || permissions.get(request.profileItemId) === true;
+    targetItem.profileItemId === null || permissions.get(targetItem.profileItemId) === true;
 
   let targetFieldTitle = request.currentTitle;
   let currentContent = request.currentText.trim() || undefined;
   if (!targetAiAllowed) {
-    targetFieldTitle = request.sectionTitle;
-    const localTarget = request.currentText.trim()
-      || request.currentTitle
-      || (linkedProfileItem ? projectProfileItem(linkedProfileItem).title : "");
-    if (localTarget) {
-      currentContent = privatePlaceholder(
-        request.sectionTitle,
-        localTarget,
-        placeholders,
-        ambiguousPlaceholders,
-      );
-    } else {
-      currentContent = undefined;
-    }
+    targetFieldTitle = targetSection.name;
+    currentContent = privatePlaceholder(
+      targetSection.name,
+      request.currentText.trim() || request.currentTitle,
+      placeholders,
+      ambiguousPlaceholders,
+    );
   }
 
   for (const section of workingCv.sections) {
