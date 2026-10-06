@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { CandidatureOpportunityResearchAccess } from "../shared/candidature-opportunity-research-access-contracts";
 import type {
@@ -53,7 +53,7 @@ export function CandidatureOpportunityResearchAccessPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const putInFieldReview = (pending: ExternalApplicationInformationPendingResult) => {
+  const putInFieldReview = useCallback((pending: ExternalApplicationInformationPendingResult) => {
     recordCompletedAiTask(
       `candidature-inference:${candidatureId}:missing`,
       pending.result,
@@ -66,7 +66,7 @@ export function CandidatureOpportunityResearchAccessPanel({
         ? "Suggestions are ready on the application fields. AAAAT kept usable suggestions and marked the others for review."
         : "Suggestions are ready on the application fields. Nothing has been saved yet.",
     );
-  };
+  }, [candidatureId]);
 
   useEffect(() => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
@@ -108,7 +108,7 @@ export function CandidatureOpportunityResearchAccessPanel({
       active = false;
       window.clearInterval(interval);
     };
-  }, [access?.allowed, candidatureId]);
+  }, [access?.allowed, candidatureId, putInFieldReview]);
 
   useEffect(() => {
     if (!contextDirty || !access?.allowed) return;
