@@ -511,8 +511,6 @@ export function WorkingCvEditor({
           return await window.aaaat.aiTasks.writeCvBlock(writingTaskKey, {
             workingCvId: draft.id,
             itemId: item.id,
-            profileItemId: item.profileItemId,
-            sectionTitle: section.name,
             currentTitle: item.content.title,
             currentText: item.content.description ?? "",
           });
