@@ -130,9 +130,14 @@ export async function validateAiOperation(
         return;
       case "cv_tailoring": {
         const context = providerCvWritingContextSchema.parse({
-          targetFieldTitle: "Summary",
-          currentContent: "Existing validation text.",
-          availableInformation: ["Experience: Synthetic evidence used only for capability validation."],
+          target: {
+            field: "description",
+            itemContext: "Validation experience",
+            currentValue: "Existing validation text.",
+          },
+          professionalContext: ["Experience: Synthetic evidence used only for capability validation."],
+          careerContext: [],
+          applicationContext: [],
         });
         await provider.writeCvBlock(connection, context, signal);
         return;
