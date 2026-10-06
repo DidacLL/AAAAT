@@ -5,13 +5,12 @@ import { z } from "zod";
 import {
   coverLetterDraftSchema,
   opportunityReviewResultSchema,
-  providerCvTailoringResultSchema,
   providerJobExtractionEnvelopeSchema,
   providerTagInferenceEnvelopeSchema,
   type AiConnectionStatus,
   type CoverLetterDraft,
   type OpportunityReviewResult,
-  type ProviderCvTailoringResult,
+  type ProviderCvWritingContext,
   type ProviderDocumentAiContext,
   type ProviderJobExtractionRequest,
   type ProviderOpportunityReviewContext,
@@ -109,7 +108,7 @@ export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Ob
   historical_field_discovery:
     'Extract only the requested information from the retained Sources explicitly selected by the user. Return one JSON object with a proposals array using only the supplied target fieldRef. Do not expose reasoning, infer unrelated fields, or invent facts.',
   cv_tailoring:
-    "Recommend the strongest supplied CV items for this application. Return only the final JSON object with key recommendations, an array of objects with itemRef and rationale. Do not expose chain-of-thought or reasoning. Use only itemRef values supplied in context. Do not rewrite or invent professional facts.",
+    "Write concise content for the supplied CV field using only the supplied information. Return only the field content. Keep USERPRIVATE placeholders exactly as supplied. Do not add headings or invent facts.",
   cover_letter_draft:
     "Draft a concise cover letter using only the supplied application and professional evidence. Return only the final JSON object with keys recipient, subject, bodyParagraphs, closing. Do not expose chain-of-thought or reasoning. Do not invent professional facts or contact details; use empty strings when recipient or closing is unsupported.",
 });
@@ -131,11 +130,11 @@ export interface ModelProvider {
     request: ProviderTagInferenceRequest,
     signal?: AbortSignal,
   ): Promise<z.input<typeof providerTagInferenceEnvelopeSchema>>;
-  tailorCv(
+  writeCvBlock(
     connection: AiProviderConnection,
-    context: ProviderDocumentAiContext,
+    context: ProviderCvWritingContext,
     signal?: AbortSignal,
-  ): Promise<ProviderCvTailoringResult>;
+  ): Promise<string>;
   draftCoverLetter(
     connection: AiProviderConnection,
     context: ProviderDocumentAiContext,
@@ -200,7 +199,7 @@ interface ProviderContent {
   readonly content: string;
   readonly structuredOutputMode: AiStructuredOutputMode;
 }
-type RequestProfile = "structured" | "plain_json";
+type RequestProfile = "structured" | "plain_json" | "plain_text";
 
 function requestBody<T>(
   connection: AiConnectionStatus,
@@ -210,7 +209,7 @@ function requestBody<T>(
   schema: z.ZodType<T>,
   profile: RequestProfile,
 ): Record<string, unknown> {
-  const structured = profile !== "plain_json";
+  const structured = profile === "structured";
   return {
     model: connection.model,
     temperature: 0,
@@ -237,7 +236,9 @@ function mayRejectRequestOption(status: number): boolean {
   return status === 400 || status === 404 || status === 415 || status === 422;
 }
 function outputMode(profile: RequestProfile): AiStructuredOutputMode {
-  return profile === "plain_json" ? "plain_json_fallback" : "json_schema";
+  if (profile === "plain_json") return "plain_json_fallback";
+  if (profile === "plain_text") return "plain_text";
+  return "json_schema";
 }
 
 async function requestContent<T>(
@@ -249,6 +250,7 @@ async function requestContent<T>(
   schema: z.ZodType<T>,
   requestTimeoutMs: number,
   externalSignal?: AbortSignal,
+  initialProfile: RequestProfile = "structured",
 ): Promise<ProviderContent> {
   const userPayload = JSON.stringify(context);
   const timeoutSignal = AbortSignal.timeout(requestTimeoutMs);
@@ -306,9 +308,9 @@ async function requestContent<T>(
     return { response, raw };
   };
 
-  let profile: RequestProfile = "structured";
+  let profile: RequestProfile = initialProfile;
   let current = await attempt(profile);
-  if (!current.response.ok && mayRejectRequestOption(current.response.status)) {
+  if (profile === "structured" && !current.response.ok && mayRejectRequestOption(current.response.status)) {
     profile = "plain_json";
     current = await attempt(profile);
   }
@@ -393,6 +395,45 @@ async function runStructuredOperation<T>(
   return parseJson(connection, operation, instruction, context, response, schema);
 }
 
+async function runTextOperation(
+  fetchImpl: typeof fetch,
+  connection: AiProviderConnection,
+  operation: AiOperation,
+  instruction: string,
+  context: unknown,
+  requestTimeoutMs: number,
+  externalSignal?: AbortSignal,
+): Promise<string> {
+  const response = await requestContent(
+    fetchImpl,
+    connection,
+    operation,
+    instruction,
+    context,
+    z.string(),
+    requestTimeoutMs,
+    externalSignal,
+    "plain_text",
+  );
+  const result = z.string().trim().min(1).max(5000).safeParse(response.content);
+  if (!result.success) {
+    throw new AiProviderError(
+      `The model response did not satisfy the AAAAT ${aiOperationLabels[operation]} contract.`,
+      diagnostic(
+        connection,
+        operation,
+        instruction,
+        JSON.stringify(context),
+        response.content,
+        z.prettifyError(result.error),
+        "operation_contract_invalid",
+        response.structuredOutputMode,
+      ),
+    );
+  }
+  return result.data;
+}
+
 export function createOpenAiCompatibleProvider(
   fetchImpl: typeof fetch = fetch,
   requestTimeoutMs: number | undefined = AI_PROVIDER_SAFETY_CEILING_MS,
@@ -414,8 +455,8 @@ export function createOpenAiCompatibleProvider(
     async inferTags(connection, request, signal) {
       return runStructuredOperation(fetchImpl, connection, "tag_inference", instructionFor("tag_inference"), request, providerTagInferenceEnvelopeSchema, timeout, signal);
     },
-    async tailorCv(connection, context, signal) {
-      return runStructuredOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, providerCvTailoringResultSchema, timeout, signal);
+    async writeCvBlock(connection, context, signal) {
+      return runTextOperation(fetchImpl, connection, "cv_tailoring", instructionFor("cv_tailoring"), context, timeout, signal);
     },
     async draftCoverLetter(connection, context, signal) {
       return runStructuredOperation(fetchImpl, connection, "cover_letter_draft", instructionFor("cover_letter_draft"), context, coverLetterDraftSchema, timeout, signal);
