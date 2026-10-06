@@ -4,8 +4,8 @@ import {
   aiProjectedCandidatureSchema,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   documentAiContextSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
@@ -15,7 +15,7 @@ import {
   opportunityReviewProjectedContextSchema,
   opportunityReviewRequestSchema,
   opportunityReviewResultSchema,
-  providerCvTailoringResultSchema,
+  providerCvWritingContextSchema,
   providerDocumentAiContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionEnvelopeSchema,
@@ -27,8 +27,9 @@ import {
   type AiProjectedProfileItem,
   type CoverLetterDraft,
   type CoverLetterDraftRequest,
-  type CvTailoringRequest,
-  type CvTailoringResult,
+  type CvWritingField,
+  type CvWritingRequest,
+  type CvWritingResult,
   type DocumentAiContext,
   type HistoricalFieldDiscoveryRequest,
   type HistoricalFieldDiscoveryResult,
@@ -46,7 +47,7 @@ import {
   type CandidatureRuntimeValue,
   type ProfileItem,
 } from "../shared/contracts";
-import type { WorkingCvItem } from "../shared/document-domain-contracts";
+import type { WorkingCvItem, WorkingCvRecord } from "../shared/document-domain-contracts";
 import { compactSourceText } from "../shared/source-text";
 import {
   getDefaultAiConnection,
@@ -60,6 +61,8 @@ import {
   validateCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
 import { getCandidature, listCandidatureSources } from "./candidature-service";
+import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
+import { getCareerContext } from "./career-context-service";
 import { listDocumentCollections } from "./document-domain-service";
 import { listProfileItemAiContextPreferences } from "./profile-ai-context-service";
 import { getProfile } from "./profile-service";
@@ -276,25 +279,173 @@ function providerDocumentContext(rootPath: string, context: DocumentAiContext, k
   };
 }
 
-export async function tailorCv(
+const cvWritingFieldDetails: Readonly<Record<CvWritingField, { readonly label: string; readonly maxLength: number }>> = Object.freeze({
+  title: { label: "Title", maxLength: 200 },
+  subtitle: { label: "Subtitle", maxLength: 300 },
+  description: { label: "Description", maxLength: 5000 },
+});
+
+const cvInformationFields = Object.freeze([
+  { key: "title", label: "Title" },
+  { key: "subtitle", label: "Subtitle" },
+  { key: "description", label: "Description" },
+  { key: "startDate", label: "Start date" },
+  { key: "endDate", label: "End date" },
+  { key: "url", label: "Link" },
+] as const);
+
+const careerInformationFields = Object.freeze([
+  { key: "careerDirection", label: "Career direction" },
+  { key: "objectives", label: "Objectives" },
+  { key: "constraints", label: "Constraints" },
+  { key: "targetRoles", label: "Target roles" },
+  { key: "targetMarketsLocations", label: "Target markets / locations" },
+  { key: "workPreferences", label: "Work preferences" },
+  { key: "applicationWritingPreferences", label: "Application / writing preferences" },
+] as const);
+
+type PrivateReplacements = Map<string, string | null>;
+
+function privateValue(
+  title: string,
+  value: string,
+  replacements: PrivateReplacements,
+): string {
+  const placeholder = `[USERPRIVATE:${title}]`;
+  if (!replacements.has(placeholder)) {
+    replacements.set(placeholder, value);
+  } else if (replacements.get(placeholder) !== value) {
+    replacements.set(placeholder, null);
+  }
+  return placeholder;
+}
+
+function candidatureValueText(
+  field: ReturnType<typeof listCandidatureFields>[number],
+  value: CandidatureRuntimeValue,
+): string {
+  const choices = new Map(field.definition.choices.map((choice) => [choice.id, choice.label]));
+  const visible = (candidate: string | number | boolean): string =>
+    typeof candidate === "string" ? (choices.get(candidate) ?? candidate) : String(candidate);
+  return Array.isArray(value) ? value.map(visible).join("; ") : visible(value);
+}
+
+function restorePrivateValues(text: string, replacements: PrivateReplacements): string {
+  const exact = Array.from(replacements.entries()).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+  if (exact.length === 0) return text;
+  const escaped = exact
+    .map(([placeholder]) => placeholder)
+    .sort((left, right) => right.length - left.length)
+    .map((placeholder) => placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(escaped.join("|"), "g");
+  const replacementMap = new Map(exact);
+  return text.replace(pattern, (placeholder) => replacementMap.get(placeholder) ?? placeholder);
+}
+
+function cvWritingContext(
   rootPath: string,
-  rawRequest: CvTailoringRequest,
+  workingCv: WorkingCvRecord,
+  itemId: string,
+  field: CvWritingField,
+) {
+  const targetDetail = cvWritingFieldDetails[field];
+  const targetLocation = workingCv.sections.flatMap((section) =>
+    section.items.map((item, itemIndex) => ({ section, item, itemIndex })),
+  ).find((candidate) => candidate.item.id === itemId);
+  if (!targetLocation) throw new AiServiceError("The selected CV content no longer exists.");
+
+  const replacements: PrivateReplacements = new Map();
+  const availableInformation: Array<{ title: string; value: string }> = [];
+  const career = getCareerContext(rootPath);
+  const careerDisclosure = getCareerContextAiDisclosure(rootPath);
+  for (const definition of careerInformationFields) {
+    const value = career[definition.key];
+    if (!value.trim()) continue;
+    availableInformation.push({
+      title: definition.label,
+      value: careerDisclosure[definition.key]
+        ? value
+        : privateValue(definition.label, value, replacements),
+    });
+  }
+
+  if (workingCv.candidatureId) {
+    const candidature = requireCandidature(rootPath, workingCv.candidatureId);
+    const fields = new Map(
+      listCandidatureFields(rootPath).map((candidate) => [candidate.definition.id, candidate]),
+    );
+    for (const retained of candidature.values) {
+      const candidatureField = fields.get(retained.fieldId);
+      if (!candidatureField) continue;
+      const value = candidatureValueText(candidatureField, retained.value);
+      availableInformation.push({
+        title: `Application — ${candidatureField.definition.label}`,
+        value: candidatureField.preferences.aiUseAllowed
+          ? value
+          : privateValue(candidatureField.definition.label, value, replacements),
+      });
+    }
+  }
+
+  const permissions = profileAiUse(rootPath);
+  for (const section of workingCv.sections) {
+    section.items.forEach((item, itemIndex) => {
+      const allowed = item.profileItemId !== null && permissions.get(item.profileItemId) === true;
+      for (const definition of cvInformationFields) {
+        const value = item.content[definition.key];
+        if (value === undefined || value === "") continue;
+        const title = `${section.name} ${itemIndex + 1} — ${definition.label}`;
+        availableInformation.push({
+          title,
+          value: allowed ? value : privateValue(title, value, replacements),
+        });
+      }
+    });
+  }
+
+  const targetTitle = `${targetLocation.section.name} ${targetLocation.itemIndex + 1} — ${targetDetail.label}`;
+  return {
+    context: providerCvWritingContextSchema.parse({
+      target: { field, title: targetTitle, maxLength: targetDetail.maxLength },
+      availableInformation,
+    }),
+    replacements,
+    maxLength: targetDetail.maxLength,
+  };
+}
+
+export async function writeCvField(
+  rootPath: string,
+  rawRequest: CvWritingRequest,
   provider: ModelProvider = createWorkspaceAiProvider(rootPath),
   signal?: AbortSignal,
-): Promise<CvTailoringResult> {
-  const request = cvTailoringRequestSchema.parse(rawRequest);
+): Promise<CvWritingResult> {
+  const request = cvWritingRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cv_tailoring");
-  requireCandidature(rootPath, request.candidatureId);
-  const workingCv = listDocumentCollections(rootPath).workingCvs.find((candidate) => candidate.id === request.workingCvId);
+  const workingCv = listDocumentCollections(rootPath).workingCvs.find(
+    (candidate) => candidate.id === request.workingCvId,
+  );
   if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
-  if (workingCv.candidatureId && workingCv.candidatureId !== request.candidatureId) throw new AiServiceError("This Working CV belongs to a different application.");
-  const context = projectDocumentContext(rootPath, projectCandidature(rootPath, request.candidatureId, true), workingCv.sections.flatMap((section) => section.items));
-  const providerContext = providerDocumentContext(rootPath, context, "cv");
-  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(stored, providerContext.context, signal));
-  const allowed = new Set(context.items.map((item) => item.id));
-  const recommendations = result.recommendations.map((item) => ({ itemId: providerContext.itemIds.get(item.itemRef) ?? "", rationale: item.rationale }));
-  if (recommendations.some((item) => !allowed.has(item.itemId))) throw new AiServiceError("The model recommended CV content that is not available to AI.");
-  return cvTailoringResultSchema.parse({ recommendations });
+  const projection = cvWritingContext(
+    rootPath,
+    { ...workingCv, sections: request.sections },
+    request.itemId,
+    request.field,
+  );
+  const written = await provider.writeCvField(stored, projection.context, signal);
+  const content = restorePrivateValues(written, projection.replacements).trim();
+  if (!content) throw new AiServiceError("The configured provider returned empty CV content.");
+  if (content.length > projection.maxLength) {
+    throw new AiServiceError("The configured provider returned CV content that is too long for this field.");
+  }
+  return cvWritingResultSchema.parse({
+    workingCvId: workingCv.id,
+    itemId: request.itemId,
+    field: request.field,
+    content,
+  });
 }
 
 export async function draftCoverLetter(

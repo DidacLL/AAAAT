@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
+import type { CoverLetterDraft, CvWritingField, CvWritingResult } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
@@ -237,13 +237,16 @@ export function WorkingCvEditor({
   const [cvTemplateReuseChoice, setCvTemplateReuseChoice] = useState<CvTemplateReuseChoice>("");
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
   const [reuseChoiceByItem, setReuseChoiceByItem] = useState<Record<string, CvReuseTarget>>({});
-  const [tailoringNotes, setTailoringNotes] = useState<Record<string, string>>({});
-  const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
-  const tailoringTaskKey = `document:cv-tailoring:${document.id}`;
-  const tailoringTask = useAiTask<CvTailoringResult>(tailoringTaskKey);
-  const handledTailoringResult = useRef<CvTailoringResult | null>(null);
-  const tailoringActive =
-    tailoringTask?.status === "queued" || tailoringTask?.status === "working";
+  const [writingMessage, setWritingMessage] = useState<string | null>(null);
+  const [writingTarget, setWritingTarget] = useState<{
+    readonly itemId: string;
+    readonly field: CvWritingField;
+  } | null>(null);
+  const writingTaskKey = `document:cv-writing:${document.id}`;
+  const writingTask = useAiTask<CvWritingResult>(writingTaskKey);
+  const handledWritingResult = useRef<CvWritingResult | null>(null);
+  const writingActive =
+    writingTask?.status === "queued" || writingTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
@@ -267,37 +270,30 @@ export function WorkingCvEditor({
   }, [dirty, onDirtyChange]);
 
   useEffect(() => {
-    const result = tailoringTask?.status === "completed" ? tailoringTask.result : undefined;
-    if (!result || handledTailoringResult.current === result) return;
-    handledTailoringResult.current = result;
-    const rank = new Map(
-      result.recommendations.map((recommendation, index) => [recommendation.itemId, index]),
-    );
+    const result = writingTask?.status === "completed" ? writingTask.result : undefined;
+    if (!result || handledWritingResult.current === result) return;
+    handledWritingResult.current = result;
     setDraft((current) => ({
       ...current,
       sections: current.sections.map((section) => ({
         ...section,
-        items: [...section.items].sort(
-          (left, right) =>
-            (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-            (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+        items: section.items.map((item) =>
+          item.id === result.itemId
+            ? {
+                ...item,
+                sourceMode: item.sourceMode === "custom" ? "custom" : "override",
+                profileVariantId: null,
+                content: { ...item.content, [result.field]: result.content },
+              }
+            : item,
         ),
       })),
     }));
-    setTailoringNotes(
-      Object.fromEntries(
-        result.recommendations.map((recommendation) => [
-          recommendation.itemId,
-          recommendation.rationale,
-        ]),
-      ),
+    setWritingTarget(null);
+    setWritingMessage(
+      `AI wrote ${result.field === "title" ? "Title" : result.field === "subtitle" ? "Subtitle" : "Description"}. Review or edit it, then Save when ready.`,
     );
-    setTailoringMessage(
-      result.recommendations.length > 0
-        ? "AI suggestions are ready in this CV draft. Review them, then Save or keep editing."
-        : "AI did not recommend a different emphasis for this CV.",
-    );
-  }, [tailoringTask]);
+  }, [writingTask]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -500,36 +496,34 @@ export function WorkingCvEditor({
     }
   };
 
-  const askAiToTailor = async () => {
-    if (!draft.candidatureId || tailoringActive) return;
+  const askAiToWrite = (item: WorkingCvItem, field: CvWritingField) => {
+    if (writingActive) return;
     setError(null);
-    setTailoringMessage(null);
-    try {
-      const saved = dirty ? await persistDraft() : draft;
-      startAiTask<CvTailoringResult>(
-        tailoringTaskKey,
-        async (updateDetail, signal) => {
-          updateDetail("Reviewing application context and CV content…");
-          const cancelProvider = () => {
-            void window.aaaat.aiTasks.cancelCvTailoring(tailoringTaskKey).catch(() => undefined);
-          };
-          signal.addEventListener("abort", cancelProvider, { once: true });
-          try {
-            return await window.aaaat.aiTasks.tailorCv(tailoringTaskKey, {
-              candidatureId: saved.candidatureId!,
-              workingCvId: saved.id,
-            });
-          } finally {
-            signal.removeEventListener("abort", cancelProvider);
-          }
-        },
-        "Tailor CV",
-        (result) =>
-          result.recommendations.length > 0 ? "Suggestions ready" : "No changes suggested",
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this CV for AI.");
-    }
+    setWritingMessage(null);
+    const label = field === "title" ? "Title" : field === "subtitle" ? "Subtitle" : "Description";
+    setWritingTarget({ itemId: item.id, field });
+    startAiTask<CvWritingResult>(
+      writingTaskKey,
+      async (updateDetail, signal) => {
+        updateDetail(`Writing ${label.toLocaleLowerCase()} from the information assigned to this CV task…`);
+        const cancelProvider = () => {
+          void window.aaaat.aiTasks.cancelCvWriting(writingTaskKey).catch(() => undefined);
+        };
+        signal.addEventListener("abort", cancelProvider, { once: true });
+        try {
+          return await window.aaaat.aiTasks.writeCvField(writingTaskKey, {
+            workingCvId: draft.id,
+            itemId: item.id,
+            field,
+            sections: draft.sections,
+          });
+        } finally {
+          signal.removeEventListener("abort", cancelProvider);
+        }
+      },
+      `Write CV ${label.toLocaleLowerCase()}`,
+      () => "Draft ready",
+    );
   };
 
   const render = async () => {
@@ -571,11 +565,6 @@ export function WorkingCvEditor({
           </div>
         </div>
         <div className="document-editor-actions">
-          {draft.candidatureId ? (
-            <button type="button" className="compact-secondary" disabled={busy || tailoringActive} onClick={() => void askAiToTailor()}>
-              {tailoringActive ? "AI working…" : "Tailor with AI"}
-            </button>
-          ) : null}
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
           <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>
             {busy ? "Creating PDF…" : "Create PDF"}
@@ -589,7 +578,7 @@ export function WorkingCvEditor({
           {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Document setup</button> : null}
         </div>
       ) : null}
-      {tailoringMessage ? <p className="compact-note document-editor-message" role="status">{tailoringMessage}</p> : null}
+      {writingMessage ? <p className="compact-note document-editor-message" role="status">{writingMessage}</p> : null}
 
       <div className="working-cv-composition document-sheet" aria-label="CV document">
         <header className="document-sheet-heading">
@@ -681,8 +670,6 @@ export function WorkingCvEditor({
 
                               {item.content.description ? <p className="working-cv-description">{item.content.description}</p> : null}
                               {item.content.url ? <p className="working-cv-link">{item.content.url}</p> : null}
-                              {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
-
                               {editing ? (
                                 <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
                                   {item.profileItemId && item.sourceMode === "override" ? (
@@ -707,9 +694,52 @@ export function WorkingCvEditor({
                                   ) : null}
 
                                   <div className="working-cv-edit-fields">
-                                    <label>Title<input value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} /></label>
-                                    {editingOptionalDetails.includes("subtitle") ? <label>Subtitle<input value={item.content.subtitle ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { subtitle: event.target.value || undefined })} /></label> : null}
-                                    {editingOptionalDetails.includes("description") ? <label className="working-cv-wide-field">Description<textarea rows={5} value={item.content.description ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { description: event.target.value || undefined })} /></label> : null}
+                                    <div className="working-cv-field">
+                                      <div className="working-cv-field-heading">
+                                        <label htmlFor={`cv-${item.id}-title`}>Title</label>
+                                        <button
+                                          type="button"
+                                          className="working-cv-link-button"
+                                          disabled={writingActive}
+                                          onClick={() => askAiToWrite(item, "title")}
+                                        >
+                                          {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "title" ? "AI working…" : "Write with AI"}
+                                        </button>
+                                      </div>
+                                      <input id={`cv-${item.id}-title`} value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} />
+                                    </div>
+                                    {editingOptionalDetails.includes("subtitle") ? (
+                                      <div className="working-cv-field">
+                                        <div className="working-cv-field-heading">
+                                          <label htmlFor={`cv-${item.id}-subtitle`}>Subtitle</label>
+                                          <button
+                                            type="button"
+                                            className="working-cv-link-button"
+                                            disabled={writingActive}
+                                            onClick={() => askAiToWrite(item, "subtitle")}
+                                          >
+                                            {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "subtitle" ? "AI working…" : "Write with AI"}
+                                          </button>
+                                        </div>
+                                        <input id={`cv-${item.id}-subtitle`} value={item.content.subtitle ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { subtitle: event.target.value || undefined })} />
+                                      </div>
+                                    ) : null}
+                                    {editingOptionalDetails.includes("description") ? (
+                                      <div className="working-cv-field working-cv-wide-field">
+                                        <div className="working-cv-field-heading">
+                                          <label htmlFor={`cv-${item.id}-description`}>Description</label>
+                                          <button
+                                            type="button"
+                                            className="working-cv-link-button"
+                                            disabled={writingActive}
+                                            onClick={() => askAiToWrite(item, "description")}
+                                          >
+                                            {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "description" ? "AI working…" : "Write with AI"}
+                                          </button>
+                                        </div>
+                                        <textarea id={`cv-${item.id}-description`} rows={5} value={item.content.description ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { description: event.target.value || undefined })} />
+                                      </div>
+                                    ) : null}
                                     {editingOptionalDetails.includes("startDate") ? <label>Start date<input value={item.content.startDate ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { startDate: event.target.value || undefined })} /></label> : null}
                                     {editingOptionalDetails.includes("endDate") ? <label>End date<input value={item.content.endDate ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { endDate: event.target.value || undefined })} /></label> : null}
                                     {editingOptionalDetails.includes("url") ? <label className="working-cv-wide-field">Link<input value={item.content.url ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { url: event.target.value || undefined })} /></label> : null}

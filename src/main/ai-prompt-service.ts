@@ -9,7 +9,7 @@ const contextSummary: Readonly<Record<AiOperation, string>> = {
   job_extraction: "Only the bounded retained Source/application context plus the requested eligible configured field definitions. No Tag glossary.",
   tag_inference: "Only relevant retained Source/application context, the existing Tag glossary, and configured application field titles. Application field values are not added merely because AI may use them.",
   historical_field_discovery: "Only the retained Sources selected by the user plus the one target field.",
-  cv_tailoring: "Bounded AI-visible application information plus AI-visible professional evidence from the selected Working CV.",
+  cv_tailoring: "The selected Working CV, Career preferences, and application information when this CV belongs to an application. Private assigned values are sent as local placeholders.",
   cover_letter_draft: "Bounded AI-visible application information plus AI-visible reusable professional evidence for the selected cover letter.",
 };
 
@@ -18,7 +18,7 @@ const responseExpectation: Readonly<Record<AiOperation, string>> = {
   job_extraction: "JSON field-value proposals keyed by task-local field references only.",
   tag_inference: "JSON existing-Tag references plus a tightly bounded set of new-Tag proposals; no durable mutation.",
   historical_field_discovery: "JSON proposal for the one requested field; no other candidature mutation authority.",
-  cv_tailoring: "JSON recommendations using only supplied task-local evidence references.",
+  cv_tailoring: "Plain text for the one requested existing Working CV field; no structure, ordering, layout, or presentation changes.",
   cover_letter_draft: "JSON recipient, subject, body paragraphs and closing; no invented career facts.",
 };
 

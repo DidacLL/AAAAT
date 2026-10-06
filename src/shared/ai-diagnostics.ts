@@ -17,6 +17,7 @@ export type AiExchangeFailureKind = z.infer<typeof aiExchangeFailureKindSchema>;
 export const aiStructuredOutputModeSchema = z.enum([
   "json_schema",
   "plain_json_fallback",
+  "plain_text",
 ]);
 export type AiStructuredOutputMode = z.infer<typeof aiStructuredOutputModeSchema>;
 

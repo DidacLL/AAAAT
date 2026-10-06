@@ -18,7 +18,7 @@ export const aiOperationLabels: Readonly<Record<AiOperation, string>> = Object.f
   job_extraction: "Application information",
   tag_inference: "Tag suggestions",
   historical_field_discovery: "Historical field discovery",
-  cv_tailoring: "CV tailoring",
+  cv_tailoring: "CV writing",
   cover_letter_draft: "Cover-letter drafting",
 });
 

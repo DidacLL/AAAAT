@@ -2,8 +2,8 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
@@ -22,8 +22,8 @@ import {
   cancellableAiConnectionValidationResultSchema,
   cancellableCoverLetterDraftRequestSchema,
   cancellableCoverLetterDraftResultSchema,
-  cancellableCvTailoringRequestSchema,
-  cancellableCvTailoringResultSchema,
+  cancellableCvWritingRequestSchema,
+  cancellableCvWritingResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
   cancellableTagInferenceRequestSchema,
@@ -218,9 +218,9 @@ export function createDesktopApi(
       historicalFieldDiscoveryResultSchema.parse(
         await invoke(aiChannels.fieldDiscover, historicalFieldDiscoveryRequestSchema.parse(request)),
       ),
-    tailorCv: async (request: Parameters<AiDesktopApi["ai"]["tailorCv"]>[0]) =>
-      cvTailoringResultSchema.parse(
-        await invoke(aiChannels.cvTailor, cvTailoringRequestSchema.parse(request)),
+    writeCvField: async (request: Parameters<AiDesktopApi["ai"]["writeCvField"]>[0]) =>
+      cvWritingResultSchema.parse(
+        await invoke(aiChannels.cvWrite, cvWritingRequestSchema.parse(request)),
       ),
     draftCoverLetter: async (
       request: Parameters<AiDesktopApi["ai"]["draftCoverLetter"]>[0],
@@ -276,19 +276,19 @@ export function createDesktopApi(
       aiTaskCancellationResultSchema.parse(
         await invoke(aiTaskCancellationChannels.tagInferCancel, aiTaskIdSchema.parse(taskId)),
       ),
-    tailorCv: async (
+    writeCvField: async (
       taskId: string,
-      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["tailorCv"]>[1],
+      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["writeCvField"]>[1],
     ) =>
-      cancellableCvTailoringResultSchema.parse(
+      cancellableCvWritingResultSchema.parse(
         await invoke(
-          aiTaskCancellationChannels.cvTailor,
-          cancellableCvTailoringRequestSchema.parse({ taskId, request }),
+          aiTaskCancellationChannels.cvWrite,
+          cancellableCvWritingRequestSchema.parse({ taskId, request }),
         ),
       ),
-    cancelCvTailoring: async (taskId: string) =>
+    cancelCvWriting: async (taskId: string) =>
       aiTaskCancellationResultSchema.parse(
-        await invoke(aiTaskCancellationChannels.cvTailorCancel, aiTaskIdSchema.parse(taskId)),
+        await invoke(aiTaskCancellationChannels.cvWriteCancel, aiTaskIdSchema.parse(taskId)),
       ),
     draftCoverLetter: async (
       taskId: string,

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { workingCvSectionSchema } from "./document-domain-contracts";
+
 import {
   candidatureChoiceDefinitionSchema,
   candidatureFieldCardinalitySchema,
@@ -14,7 +16,7 @@ export const aiChannels = Object.freeze({
   opportunityReview: "aaaat:ai-opportunity-review",
   jobExtract: "aaaat:ai-job-extract",
   fieldDiscover: "aaaat:ai-field-discover",
-  cvTailor: "aaaat:ai-cv-tailor",
+  cvWrite: "aaaat:ai-cv-write",
   coverLetterDraft: "aaaat:ai-cover-letter-draft",
 } as const);
 
@@ -157,10 +159,17 @@ export const historicalFieldDiscoveryResultSchema = z
   .strict();
 export type HistoricalFieldDiscoveryResult = z.infer<typeof historicalFieldDiscoveryResultSchema>;
 
-export const cvTailoringRequestSchema = z
-  .object({ candidatureId: z.string().uuid(), workingCvId: z.string().uuid() })
+export const cvWritingFieldSchema = z.enum(["title", "subtitle", "description"]);
+export type CvWritingField = z.infer<typeof cvWritingFieldSchema>;
+export const cvWritingRequestSchema = z
+  .object({
+    workingCvId: z.string().uuid(),
+    itemId: z.string().uuid(),
+    field: cvWritingFieldSchema,
+    sections: z.array(workingCvSectionSchema).max(40),
+  })
   .strict();
-export type CvTailoringRequest = z.infer<typeof cvTailoringRequestSchema>;
+export type CvWritingRequest = z.infer<typeof cvWritingRequestSchema>;
 export const coverLetterDraftRequestSchema = z.object({ coverLetterId: z.string().uuid() }).strict();
 export type CoverLetterDraftRequest = z.infer<typeof coverLetterDraftRequestSchema>;
 
@@ -179,13 +188,15 @@ export const documentAiContextSchema = z
   .strict();
 export type DocumentAiContext = z.infer<typeof documentAiContextSchema>;
 
-export const cvTailoringResultSchema = z
+export const cvWritingResultSchema = z
   .object({
-    recommendations: z.array(z.object({ itemId: z.string().uuid(), rationale: z.string().trim().min(1).max(1000) }).strict()).max(12),
+    workingCvId: z.string().uuid(),
+    itemId: z.string().uuid(),
+    field: cvWritingFieldSchema,
+    content: z.string().min(1).max(5000),
   })
-  .strict()
-  .refine((value) => new Set(value.recommendations.map((item) => item.itemId)).size === value.recommendations.length, { message: "Each CV recommendation must reference an item once." });
-export type CvTailoringResult = z.infer<typeof cvTailoringResultSchema>;
+  .strict();
+export type CvWritingResult = z.infer<typeof cvWritingResultSchema>;
 
 export const coverLetterDraftSchema = z
   .object({
@@ -299,13 +310,23 @@ export const providerDocumentAiContextSchema = z
   })
   .strict();
 export type ProviderDocumentAiContext = z.infer<typeof providerDocumentAiContextSchema>;
-export const providerCvTailoringResultSchema = z
+export const providerCvWritingInformationSchema = z
   .object({
-    recommendations: z.array(z.object({ itemRef: operationReferenceSchema, rationale: z.string().trim().min(1).max(1000) }).strict()).max(12),
+    title: z.string().trim().min(1).max(500),
+    value: z.string().max(1_000_000),
   })
-  .strict()
-  .refine((value) => new Set(value.recommendations.map((item) => item.itemRef)).size === value.recommendations.length, { message: "Each CV recommendation must reference an item once." });
-export type ProviderCvTailoringResult = z.infer<typeof providerCvTailoringResultSchema>;
+  .strict();
+export const providerCvWritingContextSchema = z
+  .object({
+    target: z.object({
+      field: cvWritingFieldSchema,
+      title: z.string().trim().min(1).max(500),
+      maxLength: z.number().int().min(1).max(5000),
+    }).strict(),
+    availableInformation: z.array(providerCvWritingInformationSchema).max(30_000),
+  })
+  .strict();
+export type ProviderCvWritingContext = z.infer<typeof providerCvWritingContextSchema>;
 
 export const externalCandidatureCreateInputSchema = z
   .object({ source: candidatureSourceDraftSchema })
@@ -323,7 +344,7 @@ export interface AiDesktopApi {
     readonly reviewOpportunity: (request: OpportunityReviewRequest) => Promise<OpportunityReviewResult>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
     readonly discoverField: (request: HistoricalFieldDiscoveryRequest) => Promise<HistoricalFieldDiscoveryResult>;
-    readonly tailorCv: (request: CvTailoringRequest) => Promise<CvTailoringResult>;
+    readonly writeCvField: (request: CvWritingRequest) => Promise<CvWritingResult>;
     readonly draftCoverLetter: (request: CoverLetterDraftRequest) => Promise<CoverLetterDraft>;
   };
 }

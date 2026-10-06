@@ -1,7 +1,7 @@
 import {
   coverLetterDraftSchema,
   opportunityReviewResultSchema,
-  providerCvTailoringResultSchema,
+  providerCvWritingContextSchema,
   providerDocumentAiContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionEnvelopeSchema,
@@ -129,23 +129,16 @@ export async function validateAiOperation(
         await validateTagInference(connection, provider, signal);
         return;
       case "cv_tailoring": {
-        const context = providerDocumentAiContextSchema.parse({
-          candidature,
-          items: [
+        const context = providerCvWritingContextSchema.parse({
+          target: { field: "description", title: "Summary — Description", maxLength: 5000 },
+          availableInformation: [
             {
-              itemRef,
-              kind: "experience",
-              title: "Validation experience",
-              description: "Synthetic evidence used only for capability validation.",
+              title: "Experience 1 — Description",
+              value: "Synthetic evidence used only for capability validation.",
             },
           ],
         });
-        const result = providerCvTailoringResultSchema.parse(
-          await provider.tailorCv(connection, context, signal),
-        );
-        if (result.recommendations.some((recommendation) => recommendation.itemRef !== itemRef)) {
-          throw new Error("The configured provider returned an out-of-scope validation item reference.");
-        }
+        await provider.writeCvField(connection, context, signal);
         return;
       }
       case "cover_letter_draft": {
