@@ -338,26 +338,7 @@ function restorePrivateValues(text: string, replacements: PrivateReplacements): 
   const escaped = exact
     .map(([placeholder]) => placeholder)
     .sort((left, right) => right.length - left.length)
-    .map((placeholder) => placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\export async function tailorCv(
-  rootPath: string,
-  rawRequest: CvTailoringRequest,
-  provider: ModelProvider = createWorkspaceAiProvider(rootPath),
-  signal?: AbortSignal,
-): Promise<CvTailoringResult> {
-  const request = cvTailoringRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath, "cv_tailoring");
-  requireCandidature(rootPath, request.candidatureId);
-  const workingCv = listDocumentCollections(rootPath).workingCvs.find((candidate) => candidate.id === request.workingCvId);
-  if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
-  if (workingCv.candidatureId && workingCv.candidatureId !== request.candidatureId) throw new AiServiceError("This Working CV belongs to a different application.");
-  const context = projectDocumentContext(rootPath, projectCandidature(rootPath, request.candidatureId, true), workingCv.sections.flatMap((section) => section.items));
-  const providerContext = providerDocumentContext(rootPath, context, "cv");
-  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(stored, providerContext.context, signal));
-  const allowed = new Set(context.items.map((item) => item.id));
-  const recommendations = result.recommendations.map((item) => ({ itemId: providerContext.itemIds.get(item.itemRef) ?? "", rationale: item.rationale }));
-  if (recommendations.some((item) => !allowed.has(item.itemId))) throw new AiServiceError("The model recommended CV content that is not available to AI.");
-  return cvTailoringResultSchema.parse({ recommendations });
-}"));
+    .map((placeholder) => placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pattern = new RegExp(escaped.join("|"), "g");
   const replacementMap = new Map(exact);
   return text.replace(pattern, (placeholder) => replacementMap.get(placeholder) ?? placeholder);
