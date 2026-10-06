@@ -278,7 +278,7 @@ export function WorkingCvEditor({
           ...item,
           sourceMode: item.sourceMode === "custom" ? "custom" : "override",
           profileVariantId: null,
-          content: { ...item.content, description: result.content },
+          content: { ...item.content, [result.field]: result.content },
         } : item),
       })),
     }));
@@ -486,10 +486,7 @@ export function WorkingCvEditor({
     }
   };
 
-  const askAiToWrite = (
-    section: WorkingCvSection,
-    item: WorkingCvItem,
-  ) => {
+  const askAiToWrite = (item: WorkingCvItem) => {
     if (writingActive) return;
     setError(null);
     setWritingMessage(null);
@@ -506,8 +503,8 @@ export function WorkingCvEditor({
           return await window.aaaat.aiTasks.writeCvBlock(writingTaskKey, {
             workingCvId: draft.id,
             itemId: item.id,
-            currentTitle: item.content.title,
-            currentText: item.content.description ?? "",
+            field: "description",
+            currentValue: item.content.description ?? "",
           });
         } finally {
           signal.removeEventListener("abort", cancelProvider);
@@ -646,7 +643,7 @@ export function WorkingCvEditor({
                                     type="button"
                                     className="compact-secondary"
                                     disabled={busy || writingActive}
-                                    onClick={() => askAiToWrite(section, item)}
+                                    onClick={() => askAiToWrite(item)}
                                   >
                                     {writingActive && writingItemId === item.id ? "AI writing…" : "Write with AI"}
                                   </button>
