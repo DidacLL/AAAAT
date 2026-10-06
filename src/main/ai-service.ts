@@ -4,8 +4,8 @@ import {
   aiProjectedCandidatureSchema,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   documentAiContextSchema,
   historicalFieldDiscoveryRequestSchema,
   historicalFieldDiscoveryResultSchema,
@@ -15,7 +15,7 @@ import {
   opportunityReviewProjectedContextSchema,
   opportunityReviewRequestSchema,
   opportunityReviewResultSchema,
-  providerCvTailoringResultSchema,
+  providerCvWritingContextSchema,
   providerDocumentAiContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionEnvelopeSchema,
@@ -27,8 +27,8 @@ import {
   type AiProjectedProfileItem,
   type CoverLetterDraft,
   type CoverLetterDraftRequest,
-  type CvTailoringRequest,
-  type CvTailoringResult,
+  type CvWritingRequest,
+  type CvWritingResult,
   type DocumentAiContext,
   type HistoricalFieldDiscoveryRequest,
   type HistoricalFieldDiscoveryResult,
@@ -37,6 +37,7 @@ import {
   type OpportunityReviewPreview,
   type OpportunityReviewRequest,
   type OpportunityReviewResult,
+  type ProviderCvWritingContext,
   type ProviderDocumentAiContext,
   type ProviderOpportunityReviewCandidature,
 } from "../shared/ai-contracts";
@@ -48,6 +49,8 @@ import {
 } from "../shared/contracts";
 import type { WorkingCvItem } from "../shared/document-domain-contracts";
 import { compactSourceText } from "../shared/source-text";
+import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
+import { getCareerContext } from "./career-context-service";
 import {
   getDefaultAiConnection,
   requireAiProviderConnectionForOperation,
@@ -276,25 +279,189 @@ function providerDocumentContext(rootPath: string, context: DocumentAiContext, k
   };
 }
 
-export async function tailorCv(
+function cvContentText(content: WorkingCvItem["content"]): string {
+  const dates = [content.startDate, content.endDate].filter(Boolean).join(" – ");
+  return [
+    content.title,
+    content.subtitle,
+    dates,
+    content.description,
+    content.url,
+  ].filter((value): value is string => Boolean(value?.trim())).join(" · ");
+}
+
+function candidatureValueText(
+  field: ReturnType<typeof listCandidatureFields>[number],
+  value: CandidatureRuntimeValue,
+): string {
+  const choices = new Map(field.definition.choices.map((choice) => [choice.id, choice.label]));
+  const render = (candidate: string | number | boolean): string => {
+    if (typeof candidate === "string") return choices.get(candidate) ?? candidate;
+    return String(candidate);
+  };
+  return Array.isArray(value) ? value.map(render).join(", ") : render(value);
+}
+
+const userPrivatePattern = /\[USERPRIVATE:[^\]\r\n]+\]/gu;
+
+function privatePlaceholder(
+  title: string,
+  value: string,
+  placeholders: Map<string, string>,
+  ambiguous: Set<string>,
+): string {
+  const visibleTitle = title.replace(/[\]\r\n]+/gu, " ").trim() || "Private information";
+  const placeholder = `[USERPRIVATE:${visibleTitle}]`;
+  if (ambiguous.has(placeholder)) return placeholder;
+  const current = placeholders.get(placeholder);
+  if (current === undefined) {
+    placeholders.set(placeholder, value);
+  } else if (current !== value) {
+    placeholders.delete(placeholder);
+    ambiguous.add(placeholder);
+  }
+  return placeholder;
+}
+
+function resolvePrivatePlaceholders(
+  text: string,
+  placeholders: ReadonlyMap<string, string>,
+): string {
+  return text.replace(userPrivatePattern, (placeholder) => placeholders.get(placeholder) ?? placeholder);
+}
+
+function cvWritingContext(
   rootPath: string,
-  rawRequest: CvTailoringRequest,
+  request: CvWritingRequest,
+): {
+  readonly context: ProviderCvWritingContext;
+  readonly placeholders: ReadonlyMap<string, string>;
+} {
+  const workingCv = listDocumentCollections(rootPath).workingCvs.find(
+    (candidate) => candidate.id === request.workingCvId,
+  );
+  if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
+
+  const placeholders = new Map<string, string>();
+  const ambiguousPlaceholders = new Set<string>();
+  const information: string[] = [];
+  const permissions = profileAiUse(rootPath);
+  const linkedProfileItem = request.profileItemId
+    ? getProfile(rootPath).items.find((item) => item.id === request.profileItemId) ?? null
+    : null;
+  const targetAiAllowed =
+    request.profileItemId === null || permissions.get(request.profileItemId) === true;
+
+  let targetFieldTitle = request.currentTitle;
+  let currentContent = request.currentText.trim() || undefined;
+  if (!targetAiAllowed) {
+    targetFieldTitle = request.sectionTitle;
+    const localTarget = request.currentText.trim()
+      || request.currentTitle
+      || (linkedProfileItem ? projectProfileItem(linkedProfileItem).title : "");
+    if (localTarget) {
+      currentContent = privatePlaceholder(
+        request.sectionTitle,
+        localTarget,
+        placeholders,
+        ambiguousPlaceholders,
+      );
+    } else {
+      currentContent = undefined;
+    }
+  }
+
+  for (const section of workingCv.sections) {
+    for (const item of section.items) {
+      if (item.id === request.itemId || !item.profileItemId) continue;
+      const localValue = cvContentText(item.content);
+      if (!localValue) continue;
+      if (permissions.get(item.profileItemId) === true) {
+        information.push(`${section.name}: ${localValue}`);
+      } else {
+        information.push(
+          privatePlaceholder(
+            section.name,
+            localValue,
+            placeholders,
+            ambiguousPlaceholders,
+          ),
+        );
+      }
+    }
+  }
+
+  const career = getCareerContext(rootPath);
+  const careerDisclosure = getCareerContextAiDisclosure(rootPath);
+  const careerFields = [
+    ["careerDirection", "Career direction"],
+    ["objectives", "Career objectives"],
+    ["targetRoles", "Target roles"],
+    ["targetMarketsLocations", "Target markets / locations"],
+    ["workPreferences", "Work preferences"],
+    ["applicationWritingPreferences", "Application writing preferences"],
+  ] as const;
+  for (const [key, title] of careerFields) {
+    const value = career[key].trim();
+    if (!value) continue;
+    if (careerDisclosure[key]) {
+      information.push(`${title}: ${value}`);
+    } else {
+      information.push(
+        privatePlaceholder(title, value, placeholders, ambiguousPlaceholders),
+      );
+    }
+  }
+
+  if (workingCv.candidatureId) {
+    const candidature = requireCandidature(rootPath, workingCv.candidatureId);
+    const fields = new Map(
+      listCandidatureFields(rootPath).map((field) => [field.definition.id, field]),
+    );
+    for (const retained of candidature.values) {
+      const field = fields.get(retained.fieldId);
+      if (!field?.definition.enabled) continue;
+      const value = candidatureValueText(field, retained.value).trim();
+      if (!value) continue;
+      if (field.preferences.aiUseAllowed) {
+        information.push(`${field.definition.label}: ${value}`);
+      } else {
+        information.push(
+          privatePlaceholder(
+            field.definition.label,
+            value,
+            placeholders,
+            ambiguousPlaceholders,
+          ),
+        );
+      }
+    }
+  }
+
+  return {
+    context: providerCvWritingContextSchema.parse({
+      targetFieldTitle,
+      ...(currentContent ? { currentContent } : {}),
+      availableInformation: information,
+    }),
+    placeholders,
+  };
+}
+
+export async function writeCvBlock(
+  rootPath: string,
+  rawRequest: CvWritingRequest,
   provider: ModelProvider = createWorkspaceAiProvider(rootPath),
   signal?: AbortSignal,
-): Promise<CvTailoringResult> {
-  const request = cvTailoringRequestSchema.parse(rawRequest);
+): Promise<CvWritingResult> {
+  const request = cvWritingRequestSchema.parse(rawRequest);
   const stored = requireStoredConnection(rootPath, "cv_tailoring");
-  requireCandidature(rootPath, request.candidatureId);
-  const workingCv = listDocumentCollections(rootPath).workingCvs.find((candidate) => candidate.id === request.workingCvId);
-  if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
-  if (workingCv.candidatureId && workingCv.candidatureId !== request.candidatureId) throw new AiServiceError("This Working CV belongs to a different application.");
-  const context = projectDocumentContext(rootPath, projectCandidature(rootPath, request.candidatureId, true), workingCv.sections.flatMap((section) => section.items));
-  const providerContext = providerDocumentContext(rootPath, context, "cv");
-  const result = providerCvTailoringResultSchema.parse(await provider.tailorCv(stored, providerContext.context, signal));
-  const allowed = new Set(context.items.map((item) => item.id));
-  const recommendations = result.recommendations.map((item) => ({ itemId: providerContext.itemIds.get(item.itemRef) ?? "", rationale: item.rationale }));
-  if (recommendations.some((item) => !allowed.has(item.itemId))) throw new AiServiceError("The model recommended CV content that is not available to AI.");
-  return cvTailoringResultSchema.parse({ recommendations });
+  const { context, placeholders } = cvWritingContext(rootPath, request);
+  const modelContent = await provider.writeCvBlock(stored, context, signal);
+  return cvWritingResultSchema.parse({
+    itemId: request.itemId,
+    content: resolvePrivatePlaceholders(modelContent, placeholders),
+  });
 }
 
 export async function draftCoverLetter(
