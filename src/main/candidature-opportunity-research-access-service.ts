@@ -73,6 +73,7 @@ const storedFieldBindingSchema = z.object({
 const storedApplicationInformationTaskSchema = z.object({
   candidatureId: z.string().uuid(),
   taskRef: operationReferenceSchema,
+  instruction: candidatureExternalAiInstructionSchema,
   request: providerJobExtractionRequestSchema,
   fields: z.array(storedFieldBindingSchema).min(1).max(64),
 }).strict();
@@ -307,11 +308,13 @@ function storedWire(task: StoredApplicationInformationTask): CandidatureFieldPro
 function storedTaskFromWire(
   candidatureId: string,
   taskRef: string,
+  instruction: string,
   wire: CandidatureFieldProposalWire,
 ): StoredApplicationInformationTask {
   return storedApplicationInformationTaskSchema.parse({
     candidatureId,
     taskRef,
+    instruction,
     request: wire.request,
     fields: wire.request.fields.map((field) => ({
       fieldRef: field.fieldRef,
@@ -368,11 +371,10 @@ function readStoredApplicationInformationTask(
 
 function taskFor(
   stored: StoredApplicationInformationTask,
-  instruction: string,
 ): ExternalApplicationInformationTask {
   return externalApplicationInformationTaskSchema.parse({
     taskRef: stored.taskRef,
-    instruction: candidatureExternalAiInstructionSchema.parse(instruction),
+    instruction: stored.instruction,
     context: stored.request.sourceText,
     fields: stored.request.fields,
   });
@@ -417,11 +419,12 @@ export function prepareApplicationInformationTask(
       const stored = storedTaskFromWire(
         candidatureId,
         `aaaat_task_${randomUUID()}`,
+        instruction,
         wire,
       );
       writeMetadataJson(database, applicationInformationTaskKey, stored);
       deleteMetadata(database, applicationInformationResultKey);
-      return taskFor(stored, instruction);
+      return taskFor(stored);
     }),
   );
 }
@@ -435,7 +438,7 @@ export function selectedApplicationInformationTask(
       if (candidatureId === null) return null;
       const stored = readStoredApplicationInformationTask(database);
       if (!stored || stored.candidatureId !== candidatureId) return null;
-      return taskFor(stored, defaultApplicationInformationTaskInstruction);
+      return taskFor(stored);
     }),
   );
 }
