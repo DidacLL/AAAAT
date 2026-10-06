@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  cvWritingExchangeSchema,
   jobExtractionProposalSchema,
   tagInferenceNewTagSchema,
   type JobExtractionRequest,
@@ -84,8 +85,17 @@ export type PartialTagInferenceResult = z.infer<typeof partialTagInferenceResult
 
 export type PartialJobExtractionRequest = JobExtractionRequest;
 export type PartialTagInferenceRequest = TagInferenceRequest;
-export type InspectableAiExchange = JobExtractionExchange | TagInferenceExchange | AiExchangeDiagnostic;
+export type InspectableAiExchange =
+  | JobExtractionExchange
+  | TagInferenceExchange
+  | z.infer<typeof cvWritingExchangeSchema>
+  | AiExchangeDiagnostic;
 
 export function inspectableAiExchangeSchema() {
-  return z.union([jobExtractionExchangeSchema, tagInferenceExchangeSchema, aiExchangeDiagnosticSchema]);
+  return z.union([
+    jobExtractionExchangeSchema,
+    tagInferenceExchangeSchema,
+    cvWritingExchangeSchema,
+    aiExchangeDiagnosticSchema,
+  ]);
 }
