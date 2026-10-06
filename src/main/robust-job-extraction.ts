@@ -26,7 +26,7 @@ import {
 } from "./candidature-field-service";
 import { withWorkspaceDatabase } from "./workspace";
 
-interface DiscoveryWireRequest {
+export interface CandidatureFieldProposalWire {
   readonly request: ProviderJobExtractionRequest;
   readonly fieldIds: ReadonlyMap<string, string>;
   readonly fieldLabels: ReadonlyMap<string, string>;
@@ -38,10 +38,10 @@ interface CapturedExchange {
   readonly responseBody: string;
 }
 
-function discoveryWireRequest(
+export function buildCandidatureFieldProposalWire(
   request: JobExtractionRequest,
   fields: readonly CandidatureFieldConfiguration[],
-): DiscoveryWireRequest {
+): CandidatureFieldProposalWire {
   const fieldIds = new Map<string, string>();
   const fieldLabels = new Map<string, string>();
   const choiceIds = new Map<string, ReadonlyMap<string, string>>();
@@ -242,7 +242,7 @@ function localChoiceValue(
     : { value: resolved };
 }
 
-function fieldReference(wire: DiscoveryWireRequest, raw: unknown): string | null {
+function fieldReference(wire: CandidatureFieldProposalWire, raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   if (wire.fieldIds.has(raw)) return raw;
   const normalized = raw.trim().toLocaleLowerCase();
@@ -252,9 +252,9 @@ function fieldReference(wire: DiscoveryWireRequest, raw: unknown): string | null
   return null;
 }
 
-function validateExistingProposals(
+export function validateCandidatureFieldProposals(
   rootPath: string,
-  wire: DiscoveryWireRequest,
+  wire: CandidatureFieldProposalWire,
   rawProposals: readonly unknown[],
 ): {
   readonly proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }>;
@@ -348,7 +348,7 @@ export async function extractJobWithPartialOutcomes(
     throw new Error("Allow AI use for at least one application information item first.");
   }
 
-  const wire = discoveryWireRequest(request, fields);
+  const wire = buildCandidatureFieldProposalWire(request, fields);
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
@@ -372,7 +372,7 @@ export async function extractJobWithPartialOutcomes(
 
   const envelope = looseEnvelope(rawResult);
   if (!envelope) throw new Error("The configured provider returned an invalid application-information result envelope.");
-  const existing = validateExistingProposals(rootPath, wire, envelope.proposals);
+  const existing = validateCandidatureFieldProposals(rootPath, wire, envelope.proposals);
   const exchange = capturedExchange(
     connection,
     capture.snapshot(),
