@@ -1,33 +1,50 @@
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { z } from "zod";
 
 import {
-  candidatureAiTaskTemplateSaveSchema,
-  candidatureAiTaskTemplatesSchema,
+  candidatureExternalAiInstructionSchema,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
-  candidatureOpportunityResearchTaskInstructionSchema,
-  type CandidatureAiTaskTemplate,
-  type CandidatureAiTaskTemplateSave,
   type CandidatureOpportunityResearchAccess,
   type CandidatureOpportunityResearchAccessUpdate,
-  type CandidatureOpportunityResearchTaskContext,
 } from "../shared/candidature-opportunity-research-access-contracts";
+import {
+  operationReferenceSchema,
+  providerJobExtractionRequestSchema,
+} from "../shared/ai-contracts";
 import type {
   CandidatureFieldConfiguration,
   CandidatureRuntimeValue,
 } from "../shared/contracts";
-import { opportunityResearchTaskInstruction } from "../shared/external-ai-task-templates";
 import {
-  externalCandidatureSourceAddInputSchema,
-  externalOpportunityResearchContextSchema,
-  type ExternalCandidatureSourceAddInput,
-  type ExternalOpportunityResearchContext,
+  applicationInformationTaskInstruction,
+  interviewPreparationTaskInstruction,
+} from "../shared/external-ai-task-templates";
+import {
+  externalApplicationInformationPendingResultSchema,
+  externalApplicationInformationProposalInputSchema,
+  externalApplicationInformationTaskSchema,
+  externalInterviewPreparationContextSchema,
+  externalInterviewPreparationResultSchema,
+  type ExternalApplicationInformationPendingResult,
+  type ExternalApplicationInformationTask,
+  type ExternalInterviewPreparationContext,
 } from "../shared/external-assistant-contracts";
 import {
   listCandidatureFieldsInDatabase,
   readCandidatureFieldValuesInDatabase,
 } from "./candidature-field-service";
-import { addCandidatureSourceInDatabase } from "./candidature-service";
+import {
+  addCandidatureSourceInDatabase,
+  listCandidatureSourcesInDatabase,
+} from "./candidature-service";
+import {
+  buildCandidatureFieldProposalWire,
+  validateCandidatureFieldProposals,
+  type CandidatureFieldProposalWire,
+} from "./robust-job-extraction";
+import { compactSourceText } from "../shared/source-text";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface AccessRow {
@@ -40,7 +57,33 @@ type ResearchAccessActivity =
   | "candidature.opportunity-research-access.allow"
   | "candidature.opportunity-research-access.revoke";
 
-const candidatureTaskTemplatesKey = "external_ai.candidature_task_templates.v1";
+const applicationInformationTaskKey = "external_ai.application_information_task.v1";
+const applicationInformationResultKey = "external_ai.application_information_result.v1";
+
+const storedFieldBindingSchema = z.object({
+  fieldRef: operationReferenceSchema,
+  fieldId: z.string().uuid(),
+  label: z.string().trim().min(1).max(120),
+  choices: z.array(z.object({
+    choiceRef: operationReferenceSchema,
+    choiceId: z.string().uuid(),
+  }).strict()).max(64),
+}).strict();
+
+const storedApplicationInformationTaskSchema = z.object({
+  candidatureId: z.string().uuid(),
+  taskRef: operationReferenceSchema,
+  request: providerJobExtractionRequestSchema,
+  fields: z.array(storedFieldBindingSchema).min(1).max(64),
+}).strict();
+type StoredApplicationInformationTask = z.infer<
+  typeof storedApplicationInformationTaskSchema
+>;
+
+const storedApplicationInformationResultSchema = z.object({
+  candidatureId: z.string().uuid(),
+  pending: externalApplicationInformationPendingResultSchema,
+}).strict();
 
 export class CandidatureOpportunityResearchAccessServiceError extends Error {
   constructor(message: string) {
@@ -83,7 +126,7 @@ function requireRow(database: DatabaseSync, candidatureId: string): AccessRow {
     .get(candidatureId) as unknown as AccessRow | undefined;
   if (!row) {
     throw new CandidatureOpportunityResearchAccessServiceError(
-      "The candidature no longer exists.",
+      "The application no longer exists.",
     );
   }
   return row;
@@ -98,6 +141,16 @@ function selectedId(database: DatabaseSync): string | null {
     )
     .get() as unknown as { readonly id: string } | undefined;
   return row?.id ?? null;
+}
+
+function requireSelectedId(database: DatabaseSync): string {
+  const candidatureId = selectedId(database);
+  if (candidatureId === null) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Choose an application AI action in AAAAT first.",
+    );
+  }
+  return candidatureId;
 }
 
 function recordActivity(
@@ -140,7 +193,7 @@ export function updateCandidatureOpportunityResearchAccess(
       const current = requireRow(database, update.candidatureId);
       if (update.allowed && current.archived === 1) {
         throw new CandidatureOpportunityResearchAccessServiceError(
-          "Archived candidatures cannot be used with external AI.",
+          "Archived applications cannot be used with external AI.",
         );
       }
       if ((current.selected === 1) === update.allowed) return accessFor(current);
@@ -185,153 +238,485 @@ export function updateCandidatureOpportunityResearchAccess(
   );
 }
 
-function readTaskTemplates(database: DatabaseSync): CandidatureAiTaskTemplate[] {
+function displayValue(
+  field: CandidatureFieldConfiguration,
+  value: CandidatureRuntimeValue,
+): string {
+  const displayOne = (item: string | number | boolean): string => {
+    if (field.definition.valueType === "choice" && typeof item === "string") {
+      return field.definition.choices.find((choice) => choice.id === item)?.label ?? item;
+    }
+    if (typeof item === "boolean") return item ? "Yes" : "No";
+    return String(item);
+  };
+  return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
+}
+
+function privatePlaceholder(field: CandidatureFieldConfiguration): string {
+  return `[USERPRIVATE:${field.definition.label}]`;
+}
+
+function applicationContext(
+  database: DatabaseSync,
+  candidatureId: string,
+  fields: readonly CandidatureFieldConfiguration[],
+): string {
+  const byId = new Map(fields.map((field) => [field.definition.id, field]));
+  const sources = listCandidatureSourcesInDatabase(database, candidatureId)
+    .slice(0, 20)
+    .map((source, index) =>
+      [
+        `Retained Source ${index + 1}`,
+        source.title ? `Title: ${source.title}` : "",
+        source.url ? `URL: ${source.url}` : "",
+        compactSourceText(source.sourceText),
+      ].filter(Boolean).join("\n"),
+    );
+
+  const retained = readCandidatureFieldValuesInDatabase(database, candidatureId).flatMap((item) => {
+    const field = byId.get(item.fieldId);
+    if (!field?.definition.enabled) return [];
+    return [
+      `${field.definition.label}: ${
+        field.preferences.aiUseAllowed
+          ? displayValue(field, item.value)
+          : privatePlaceholder(field)
+      }`,
+    ];
+  });
+
+  const parts = [...sources];
+  if (retained.length > 0) {
+    parts.push(`Existing application information:\n${retained.join("\n")}`);
+  }
+  return parts.join("\n\n---\n\n").slice(0, 50_000).trim();
+}
+
+function storedWire(task: StoredApplicationInformationTask): CandidatureFieldProposalWire {
+  return {
+    request: task.request,
+    fieldIds: new Map(task.fields.map((field) => [field.fieldRef, field.fieldId])),
+    fieldLabels: new Map(task.fields.map((field) => [field.fieldRef, field.label])),
+    choiceIds: new Map(task.fields.map((field) => [
+      field.fieldRef,
+      new Map(field.choices.map((choice) => [choice.choiceRef, choice.choiceId])),
+    ])),
+  };
+}
+
+function storedTaskFromWire(
+  candidatureId: string,
+  taskRef: string,
+  wire: CandidatureFieldProposalWire,
+): StoredApplicationInformationTask {
+  return storedApplicationInformationTaskSchema.parse({
+    candidatureId,
+    taskRef,
+    request: wire.request,
+    fields: wire.request.fields.map((field) => ({
+      fieldRef: field.fieldRef,
+      fieldId: wire.fieldIds.get(field.fieldRef),
+      label: wire.fieldLabels.get(field.fieldRef),
+      choices: field.choices.map((choice) => ({
+        choiceRef: choice.choiceRef,
+        choiceId: wire.choiceIds.get(field.fieldRef)?.get(choice.choiceRef),
+      })),
+    })),
+  });
+}
+
+function readMetadataJson(database: DatabaseSync, key: string): unknown | null {
   const row = database
     .prepare("SELECT value FROM workspace_metadata WHERE key = ?")
-    .get(candidatureTaskTemplatesKey) as { readonly value: string } | undefined;
-  if (!row) return [];
+    .get(key) as { readonly value: string } | undefined;
+  if (!row) return null;
   try {
-    return candidatureAiTaskTemplatesSchema.parse(JSON.parse(row.value) as unknown);
+    return JSON.parse(row.value) as unknown;
   } catch {
     throw new CandidatureOpportunityResearchAccessServiceError(
-      "Saved AI task templates are invalid.",
+      "Stored external AI task state is invalid.",
     );
   }
 }
 
-function writeTaskTemplates(database: DatabaseSync, templates: readonly CandidatureAiTaskTemplate[]): void {
-  const parsed = candidatureAiTaskTemplatesSchema.parse(templates);
+function writeMetadataJson(database: DatabaseSync, key: string, value: unknown): void {
   database
     .prepare(
       `INSERT INTO workspace_metadata(key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     )
-    .run(candidatureTaskTemplatesKey, JSON.stringify(parsed));
+    .run(key, JSON.stringify(value));
 }
 
-export function listCandidatureAiTaskTemplates(rootPath: string): CandidatureAiTaskTemplate[] {
-  return withWorkspaceDatabase(rootPath, (database) => readTaskTemplates(database));
+function deleteMetadata(database: DatabaseSync, key: string): void {
+  database.prepare("DELETE FROM workspace_metadata WHERE key = ?").run(key);
 }
 
-export function saveCandidatureAiTaskTemplate(
+function readStoredApplicationInformationTask(
+  database: DatabaseSync,
+): StoredApplicationInformationTask | null {
+  const raw = readMetadataJson(database, applicationInformationTaskKey);
+  if (raw === null) return null;
+  const parsed = storedApplicationInformationTaskSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Stored external application-information task is invalid.",
+    );
+  }
+  return parsed.data;
+}
+
+function taskFor(
+  stored: StoredApplicationInformationTask,
+  instruction: string,
+): ExternalApplicationInformationTask {
+  return externalApplicationInformationTaskSchema.parse({
+    taskRef: stored.taskRef,
+    instruction: candidatureExternalAiInstructionSchema.parse(instruction),
+    context: stored.request.sourceText,
+    fields: stored.request.fields,
+  });
+}
+
+export const defaultApplicationInformationTaskInstruction =
+  applicationInformationTaskInstruction;
+export const defaultInterviewPreparationTaskInstruction =
+  interviewPreparationTaskInstruction;
+
+export function prepareApplicationInformationTask(
   rootPath: string,
-  rawInput: CandidatureAiTaskTemplateSave,
-): CandidatureAiTaskTemplate {
-  const input = candidatureAiTaskTemplateSaveSchema.parse(rawInput);
+  rawInstruction: string = defaultApplicationInformationTaskInstruction,
+): ExternalApplicationInformationTask {
+  const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
-      const templates = readTaskTemplates(database);
-      const duplicate = templates.find(
-        (candidate) => candidate.name.toLocaleLowerCase() === input.name.toLocaleLowerCase()
-          && candidate.id !== input.id,
+      const candidatureId = requireSelectedId(database);
+      const fields = listCandidatureFieldsInDatabase(database);
+      const assignedFields = fields.filter(
+        (field) => field.definition.enabled && field.preferences.aiUseAllowed,
       );
-      if (duplicate) {
+      if (assignedFields.length === 0) {
         throw new CandidatureOpportunityResearchAccessServiceError(
-          "A saved AI task already uses that name.",
+          "Allow AI use for at least one application information item first.",
         );
       }
-      const id = input.id ?? crypto.randomUUID();
-      if (input.id && !templates.some((candidate) => candidate.id === input.id)) {
+      const context = applicationContext(database, candidatureId, fields);
+      if (!context) {
         throw new CandidatureOpportunityResearchAccessServiceError(
-          "The saved AI task no longer exists.",
+          "Keep some Source text or existing application information before asking external AI to fill application information.",
         );
       }
-      const saved = {
-        id,
-        name: input.name,
-        instruction: input.instruction,
-      } satisfies CandidatureAiTaskTemplate;
-      const next = templates.filter((candidate) => candidate.id !== id);
-      next.push(saved);
-      writeTaskTemplates(database, next);
-      return saved;
+      const wire = buildCandidatureFieldProposalWire(
+        {
+          sourceTitle: "Retained AAAAT application context",
+          sourceUrl: "",
+          sourceText: context,
+        },
+        assignedFields,
+      );
+      const stored = storedTaskFromWire(
+        candidatureId,
+        `aaaat_task_${randomUUID()}`,
+        wire,
+      );
+      writeMetadataJson(database, applicationInformationTaskKey, stored);
+      deleteMetadata(database, applicationInformationResultKey);
+      return taskFor(stored, instruction);
     }),
   );
 }
 
-export function deleteCandidatureAiTaskTemplate(rootPath: string, id: string): void {
-  return withWorkspaceDatabase(rootPath, (database) =>
-    transact(database, () => {
-      const templates = readTaskTemplates(database);
-      if (!templates.some((candidate) => candidate.id === id)) return;
-      writeTaskTemplates(database, templates.filter((candidate) => candidate.id !== id));
-    }),
-  );
-}
-
-function exposedChoiceLabels(
-  field: CandidatureFieldConfiguration,
-  value: CandidatureRuntimeValue,
-): CandidatureRuntimeValue {
-  if (field.definition.valueType !== "choice") return value;
-  const choices = new Map(field.definition.choices.map((choice) => [choice.id, choice.label]));
-  const label = (candidate: string | number | boolean): string | number | boolean => {
-    if (typeof candidate !== "string") return candidate;
-    const resolved = choices.get(candidate);
-    if (resolved === undefined) {
-      throw new CandidatureOpportunityResearchAccessServiceError(
-        "Stored external-AI task information is invalid.",
-      );
-    }
-    return resolved;
-  };
-  return Array.isArray(value) ? value.map(label) : label(value);
-}
-
-export function selectedOpportunityResearchContext(
+export function selectedApplicationInformationTask(
   rootPath: string,
-): ExternalOpportunityResearchContext {
+): ExternalApplicationInformationTask | null {
   return withWorkspaceDatabase(rootPath, (database) =>
     snapshot(database, () => {
       const candidatureId = selectedId(database);
       if (candidatureId === null) return null;
-
-      const fieldConfigurations = listCandidatureFieldsInDatabase(database);
-      const fields = new Map(
-        fieldConfigurations.map((field) => [field.definition.id, field]),
-      );
-      const values = readCandidatureFieldValuesInDatabase(database, candidatureId);
-
-      const information = values.flatMap((retained) => {
-        const field = fields.get(retained.fieldId);
-        if (!field?.preferences.aiUseAllowed) return [];
-        return [
-          {
-            label: field.definition.label,
-            value: exposedChoiceLabels(field, retained.value),
-          },
-        ];
-      });
-
-      return externalOpportunityResearchContextSchema.parse({ information });
+      const stored = readStoredApplicationInformationTask(database);
+      if (!stored || stored.candidatureId !== candidatureId) return null;
+      return taskFor(stored, defaultApplicationInformationTaskInstruction);
     }),
   );
 }
 
-export function requireSelectedOpportunityResearchContext(
-  rootPath: string,
-): CandidatureOpportunityResearchTaskContext {
-  const context = selectedOpportunityResearchContext(rootPath);
-  if (context === null) {
+function requireStoredApplicationInformationTask(
+  database: DatabaseSync,
+): StoredApplicationInformationTask {
+  const candidatureId = requireSelectedId(database);
+  const stored = readStoredApplicationInformationTask(database);
+  if (!stored || stored.candidatureId !== candidatureId) {
     throw new CandidatureOpportunityResearchAccessServiceError(
-      "Choose Send to my AI on an application before using an external AI task.",
+      "Prepare application information with my AI in AAAAT before returning suggestions.",
     );
   }
-  return context;
+  return stored;
 }
 
-export function addSourceToSelectedOpportunityResearchCandidature(
+function recoverableJsonText(raw: string): string {
+  let text = raw.trim();
+  if (text.startsWith("```")) {
+    const firstLineEnd = text.indexOf("\n");
+    const lastFence = text.lastIndexOf("```");
+    if (firstLineEnd >= 0 && lastFence > firstLineEnd) {
+      text = text.slice(firstLineEnd + 1, lastFence).trim();
+    }
+  }
+  const firstObject = text.indexOf("{");
+  const lastObject = text.lastIndexOf("}");
+  return firstObject >= 0 && lastObject > firstObject
+    ? text.slice(firstObject, lastObject + 1)
+    : text;
+}
+
+function parseApplicationInformationResult(
+  rawText: string,
+  fallbackTaskRef: string,
+): { readonly taskRef: string; readonly proposals: readonly unknown[] } {
+  const content = rawText.trim();
+  if (!content) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "The external AI result is empty.",
+    );
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(recoverableJsonText(content)) as unknown;
+  } catch {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "The external AI result must contain a JSON field-proposal result.",
+    );
+  }
+  if (Array.isArray(raw)) {
+    return externalApplicationInformationProposalInputSchema.parse({
+      taskRef: fallbackTaskRef,
+      proposals: raw,
+    });
+  }
+  if (!raw || typeof raw !== "object") {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "The external AI result must contain field proposals.",
+    );
+  }
+  const candidate = raw as { taskRef?: unknown; proposals?: unknown };
+  return externalApplicationInformationProposalInputSchema.parse({
+    taskRef: candidate.taskRef ?? fallbackTaskRef,
+    proposals: candidate.proposals,
+  });
+}
+
+function storeApplicationInformationProposals(
+  database: DatabaseSync,
   rootPath: string,
-  rawInput: ExternalCandidatureSourceAddInput,
-): boolean {
-  const input = externalCandidatureSourceAddInputSchema.parse(rawInput);
+  input: { readonly taskRef: string; readonly proposals: readonly unknown[] },
+): ExternalApplicationInformationPendingResult {
+  const stored = requireStoredApplicationInformationTask(database);
+  if (input.taskRef !== stored.taskRef) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "These suggestions belong to an older application-information task.",
+    );
+  }
+  const validated = validateCandidatureFieldProposals(
+    rootPath,
+    storedWire(stored),
+    input.proposals,
+  );
+  const pending = externalApplicationInformationPendingResultSchema.parse({
+    resultRef: `aaaat_result_${randomUUID()}`,
+    taskRef: stored.taskRef,
+    scopeFieldIds: stored.fields.map((field) => field.fieldId),
+    result: {
+      proposals: validated.proposals,
+      issues: validated.issues,
+    },
+  });
+  writeMetadataJson(database, applicationInformationResultKey, {
+    candidatureId: stored.candidatureId,
+    pending,
+  });
+  return pending;
+}
+
+export function submitApplicationInformationProposals(
+  rootPath: string,
+  rawInput: unknown,
+): ExternalApplicationInformationPendingResult {
+  const input = externalApplicationInformationProposalInputSchema.parse(rawInput);
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => storeApplicationInformationProposals(database, rootPath, input)),
+  );
+}
+
+export function importApplicationInformationPortableResult(
+  rootPath: string,
+  rawText: string,
+): ExternalApplicationInformationPendingResult {
+  if (Buffer.byteLength(rawText, "utf8") > maxExternalAiPortableResultBytes) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "The external AI result is too large.",
+    );
+  }
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
-      const candidatureId = selectedId(database);
-      if (candidatureId === null) return false;
+      const stored = requireStoredApplicationInformationTask(database);
+      const parsed = parseApplicationInformationResult(rawText, stored.taskRef);
+      return storeApplicationInformationProposals(database, rootPath, parsed);
+    }),
+  );
+}
+
+export function currentApplicationInformationResult(
+  rootPath: string,
+  candidatureId: string,
+): ExternalApplicationInformationPendingResult | null {
+  const parsedId = candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(
+    candidatureId,
+  );
+  return withWorkspaceDatabase(rootPath, (database) =>
+    snapshot(database, () => {
+      if (selectedId(database) !== parsedId) return null;
+      const raw = readMetadataJson(database, applicationInformationResultKey);
+      if (raw === null) return null;
+      const stored = storedApplicationInformationResultSchema.safeParse(raw);
+      if (!stored.success || stored.data.candidatureId !== parsedId) return null;
+      return stored.data.pending;
+    }),
+  );
+}
+
+function fieldDescription(field: ExternalApplicationInformationTask["fields"][number]): string {
+  const choices = field.choices.length > 0
+    ? ` Choices: ${field.choices.map((choice) => `${choice.choiceRef} = ${choice.label}`).join("; ")}.`
+    : "";
+  return `- ${field.fieldRef} — ${field.label} (${field.valueType}, ${field.cardinality}). ${field.description}${choices}`.trim();
+}
+
+export function buildApplicationInformationPortableTask(
+  rootPath: string,
+  rawInstruction: string = defaultApplicationInformationTaskInstruction,
+): string {
+  const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
+  const task = selectedApplicationInformationTask(rootPath);
+  if (!task) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Prepare application information with my AI in AAAAT first.",
+    );
+  }
+  return [
+    "# Fill application information with my AI",
+    "",
+    "## Instructions",
+    "",
+    instruction,
+    "",
+    "## Application context",
+    "",
+    task.context,
+    "",
+    "## Application information you may propose",
+    "",
+    ...task.fields.map(fieldDescription),
+    "",
+    "## Return to AAAAT",
+    "",
+    "Return JSON only. Propose only the fieldRef values listed above. For choice fields, use only the listed choiceRef values.",
+    `{"taskRef":"${task.taskRef}","proposals":[{"fieldRef":"aaaat_f1","value":"..."}]}`,
+    "",
+  ].join("\n");
+}
+
+export function interviewPreparationContext(
+  rootPath: string,
+): ExternalInterviewPreparationContext {
+  return withWorkspaceDatabase(rootPath, (database) =>
+    snapshot(database, () => {
+      const candidatureId = requireSelectedId(database);
+      const fields = listCandidatureFieldsInDatabase(database);
+      const byId = new Map(fields.map((field) => [field.definition.id, field]));
+      const information = readCandidatureFieldValuesInDatabase(database, candidatureId)
+        .flatMap((item) => {
+          const field = byId.get(item.fieldId);
+          if (!field?.definition.enabled) return [];
+          return [{
+            label: field.definition.label,
+            value: field.preferences.aiUseAllowed
+              ? displayValue(field, item.value)
+              : privatePlaceholder(field),
+          }];
+        });
+      const sources = listCandidatureSourcesInDatabase(database, candidatureId)
+        .slice(0, 20)
+        .map((source) => ({
+          title: source.title,
+          url: source.url,
+          sourceText: compactSourceText(source.sourceText).slice(0, 12_000),
+        }));
+      return externalInterviewPreparationContextSchema.parse({ information, sources });
+    }),
+  );
+}
+
+function interviewContextText(context: ExternalInterviewPreparationContext): string {
+  const sourceParts = context.sources.map((source, index) =>
+    [
+      `Retained Source ${index + 1}`,
+      source.title ? `Title: ${source.title}` : "",
+      source.url ? `URL: ${source.url}` : "",
+      source.sourceText,
+    ].filter(Boolean).join("\n"),
+  );
+  const information = context.information.length > 0
+    ? context.information.map((item) => `- ${item.label}: ${item.value}`)
+    : ["- No retained application information."];
+  return [
+    ...sourceParts,
+    sourceParts.length > 0 ? "---" : "",
+    "Application information:",
+    ...information,
+  ].filter(Boolean).join("\n\n").slice(0, 50_000);
+}
+
+export function buildInterviewPreparationPortableTask(
+  rootPath: string,
+  rawInstruction: string = defaultInterviewPreparationTaskInstruction,
+): string {
+  const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
+  const context = interviewPreparationContext(rootPath);
+  return [
+    "# Prepare for interview with my AI",
+    "",
+    "## Application context",
+    "",
+    interviewContextText(context),
+    "",
+    "## Instructions",
+    "",
+    instruction,
+    "",
+    "## Return to AAAAT",
+    "",
+    "Return the interview preparation as Markdown or plain text. Do not return application-field proposals for this task.",
+    "",
+  ].join("\n");
+}
+
+export function retainInterviewPreparationResult(
+  rootPath: string,
+  rawText: string,
+): boolean {
+  const result = externalInterviewPreparationResultSchema.parse({ text: rawText });
+  return withWorkspaceDatabase(rootPath, (database) =>
+    transact(database, () => {
+      const candidatureId = requireSelectedId(database);
       addCandidatureSourceInDatabase(
         database,
-        { candidatureId, ...input.source },
+        {
+          candidatureId,
+          kind: "conversation",
+          title: "Interview preparation from external AI",
+          url: "",
+          sourceText: result.text,
+        },
         new Date().toISOString(),
       );
       return true;
@@ -339,65 +724,4 @@ export function addSourceToSelectedOpportunityResearchCandidature(
   );
 }
 
-export const maxOpportunityResearchPortableResultBytes = 64 * 1024;
-
-export const defaultOpportunityResearchTaskInstruction =
-  opportunityResearchTaskInstruction;
-
-function portableValue(value: CandidatureRuntimeValue): string {
-  if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
-}
-
-export function buildOpportunityResearchPortableTask(
-  rootPath: string,
-  rawInstruction: string = defaultOpportunityResearchTaskInstruction,
-): string {
-  const context = requireSelectedOpportunityResearchContext(rootPath);
-  const instruction = candidatureOpportunityResearchTaskInstructionSchema.parse(rawInstruction);
-  const information = context.information.length > 0
-    ? context.information.map(
-        ({ label, value }) =>
-          `- **${label.replaceAll(/\s+/g, " ").trim()}:** ${portableValue(value)}`,
-      )
-    : ["- No application context provided."];
-
-  return [
-    "# Application task",
-    "",
-    "## Context",
-    "",
-    ...information,
-    "",
-    "## Task",
-    "",
-    instruction,
-    "",
-  ].join("\n");
-}
-
-export function importOpportunityResearchPortableResult(
-  rootPath: string,
-  sourceText: string,
-): boolean {
-  if (Buffer.byteLength(sourceText, "utf8") > maxOpportunityResearchPortableResultBytes) {
-    throw new CandidatureOpportunityResearchAccessServiceError(
-      "The external AI result is too large to retain.",
-    );
-  }
-  const content = sourceText.trim();
-  if (!content) {
-    throw new CandidatureOpportunityResearchAccessServiceError(
-      "The external AI result is empty.",
-    );
-  }
-  return addSourceToSelectedOpportunityResearchCandidature(rootPath, {
-    source: {
-      kind: "conversation",
-      title: "External AI result",
-      url: "",
-      sourceText: content,
-    },
-  });
-}
+export const maxExternalAiPortableResultBytes = 64 * 1024;
