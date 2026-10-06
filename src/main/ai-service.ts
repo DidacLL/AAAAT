@@ -392,7 +392,7 @@ function cvWritingContext(
   const permissions = profileAiUse(rootPath);
   for (const section of workingCv.sections) {
     section.items.forEach((item, itemIndex) => {
-      const allowed = item.profileItemId === null || permissions.get(item.profileItemId) === true;
+      const allowed = item.profileItemId !== null && permissions.get(item.profileItemId) === true;
       for (const definition of cvInformationFields) {
         const value = item.content[definition.key];
         if (value === undefined || value === "") continue;
@@ -428,7 +428,12 @@ export async function writeCvField(
     (candidate) => candidate.id === request.workingCvId,
   );
   if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
-  const projection = cvWritingContext(rootPath, workingCv, request.itemId, request.field);
+  const projection = cvWritingContext(
+    rootPath,
+    { ...workingCv, sections: request.sections },
+    request.itemId,
+    request.field,
+  );
   const written = await provider.writeCvField(stored, projection.context, signal);
   const content = restorePrivateValues(written, projection.replacements).trim();
   if (!content) throw new AiServiceError("The configured provider returned empty CV content.");
