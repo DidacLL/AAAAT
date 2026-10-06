@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { CoverLetterDraft, CvTailoringResult } from "../shared/ai-contracts";
+import type { CoverLetterDraft, CvWritingResult } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
@@ -237,13 +237,13 @@ export function WorkingCvEditor({
   const [cvTemplateReuseChoice, setCvTemplateReuseChoice] = useState<CvTemplateReuseChoice>("");
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
   const [reuseChoiceByItem, setReuseChoiceByItem] = useState<Record<string, CvReuseTarget>>({});
-  const [tailoringNotes, setTailoringNotes] = useState<Record<string, string>>({});
-  const [tailoringMessage, setTailoringMessage] = useState<string | null>(null);
-  const tailoringTaskKey = `document:cv-tailoring:${document.id}`;
-  const tailoringTask = useAiTask<CvTailoringResult>(tailoringTaskKey);
-  const handledTailoringResult = useRef<CvTailoringResult | null>(null);
-  const tailoringActive =
-    tailoringTask?.status === "queued" || tailoringTask?.status === "working";
+  const [writingItemId, setWritingItemId] = useState<string | null>(null);
+  const [writingMessage, setWritingMessage] = useState<string | null>(null);
+  const writingTaskKey = `document:cv-writing:${document.id}`;
+  const writingTask = useAiTask<CvWritingResult>(writingTaskKey);
+  const handledWritingResult = useRef<CvWritingResult | null>(null);
+  const writingActive =
+    writingTask?.status === "queued" || writingTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
@@ -267,37 +267,28 @@ export function WorkingCvEditor({
   }, [dirty, onDirtyChange]);
 
   useEffect(() => {
-    const result = tailoringTask?.status === "completed" ? tailoringTask.result : undefined;
-    if (!result || handledTailoringResult.current === result) return;
-    handledTailoringResult.current = result;
-    const rank = new Map(
-      result.recommendations.map((recommendation, index) => [recommendation.itemId, index]),
-    );
+    const result = writingTask?.status === "completed" ? writingTask.result : undefined;
+    if (!result || handledWritingResult.current === result) return;
+    handledWritingResult.current = result;
     setDraft((current) => ({
       ...current,
       sections: current.sections.map((section) => ({
         ...section,
-        items: [...section.items].sort(
-          (left, right) =>
-            (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-            (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER),
-        ),
+        items: section.items.map((item) => item.id === result.itemId ? {
+          ...item,
+          sourceMode: item.sourceMode === "custom" ? "custom" : "override",
+          profileVariantId: null,
+          content: { ...item.content, description: result.content },
+        } : item),
       })),
     }));
-    setTailoringNotes(
-      Object.fromEntries(
-        result.recommendations.map((recommendation) => [
-          recommendation.itemId,
-          recommendation.rationale,
-        ]),
-      ),
-    );
-    setTailoringMessage(
-      result.recommendations.length > 0
-        ? "AI suggestions are ready in this CV draft. Review them, then Save or keep editing."
-        : "AI did not recommend a different emphasis for this CV.",
-    );
-  }, [tailoringTask]);
+    if (editingItemId === result.itemId) {
+      setEditingOptionalDetails((current) =>
+        current.includes("description") ? current : [...current, "description"],
+      );
+    }
+    setWritingMessage("AI wrote this content block in the unsaved CV draft. Review it, then Save if you want to keep it.");
+  }, [editingItemId, writingTask]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -500,36 +491,38 @@ export function WorkingCvEditor({
     }
   };
 
-  const askAiToTailor = async () => {
-    if (!draft.candidatureId || tailoringActive) return;
+  const askAiToWrite = (
+    section: WorkingCvSection,
+    item: WorkingCvItem,
+  ) => {
+    if (writingActive) return;
     setError(null);
-    setTailoringMessage(null);
-    try {
-      const saved = dirty ? await persistDraft() : draft;
-      startAiTask<CvTailoringResult>(
-        tailoringTaskKey,
-        async (updateDetail, signal) => {
-          updateDetail("Reviewing application context and CV content…");
-          const cancelProvider = () => {
-            void window.aaaat.aiTasks.cancelCvTailoring(tailoringTaskKey).catch(() => undefined);
-          };
-          signal.addEventListener("abort", cancelProvider, { once: true });
-          try {
-            return await window.aaaat.aiTasks.tailorCv(tailoringTaskKey, {
-              candidatureId: saved.candidatureId!,
-              workingCvId: saved.id,
-            });
-          } finally {
-            signal.removeEventListener("abort", cancelProvider);
-          }
-        },
-        "Tailor CV",
-        (result) =>
-          result.recommendations.length > 0 ? "Suggestions ready" : "No changes suggested",
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this CV for AI.");
-    }
+    setWritingMessage(null);
+    setWritingItemId(item.id);
+    startAiTask<CvWritingResult>(
+      writingTaskKey,
+      async (updateDetail, signal) => {
+        updateDetail("Writing one CV content block…");
+        const cancelProvider = () => {
+          void window.aaaat.aiTasks.cancelCvWriting(writingTaskKey).catch(() => undefined);
+        };
+        signal.addEventListener("abort", cancelProvider, { once: true });
+        try {
+          return await window.aaaat.aiTasks.writeCvBlock(writingTaskKey, {
+            workingCvId: draft.id,
+            itemId: item.id,
+            profileItemId: item.profileItemId,
+            sectionTitle: section.name,
+            currentTitle: item.content.title,
+            currentText: item.content.description ?? "",
+          });
+        } finally {
+          signal.removeEventListener("abort", cancelProvider);
+        }
+      },
+      "Write CV content",
+      () => "Draft text ready",
+    );
   };
 
   const render = async () => {
@@ -571,11 +564,6 @@ export function WorkingCvEditor({
           </div>
         </div>
         <div className="document-editor-actions">
-          {draft.candidatureId ? (
-            <button type="button" className="compact-secondary" disabled={busy || tailoringActive} onClick={() => void askAiToTailor()}>
-              {tailoringActive ? "AI working…" : "Tailor with AI"}
-            </button>
-          ) : null}
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
           <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>
             {busy ? "Creating PDF…" : "Create PDF"}
@@ -589,7 +577,7 @@ export function WorkingCvEditor({
           {renderSettingsSuggested ? <button className="compact-secondary" type="button" onClick={() => openSettingsFor("documents", "documents")}>Document setup</button> : null}
         </div>
       ) : null}
-      {tailoringMessage ? <p className="compact-note document-editor-message" role="status">{tailoringMessage}</p> : null}
+      {writingMessage ? <p className="compact-note document-editor-message" role="status">{writingMessage}</p> : null}
 
       <div className="working-cv-composition document-sheet" aria-label="CV document">
         <header className="document-sheet-heading">
@@ -661,6 +649,14 @@ export function WorkingCvEditor({
                                   {dates ? <small>{dates}</small> : null}
                                 </div>
                                 <div className="working-cv-item-controls">
+                                  <button
+                                    type="button"
+                                    className="compact-secondary"
+                                    disabled={busy || writingActive}
+                                    onClick={() => askAiToWrite(section, item)}
+                                  >
+                                    {writingActive && writingItemId === item.id ? "AI writing…" : "Write with AI"}
+                                  </button>
                                   <button type="button" className="compact-secondary" onClick={() => toggleItemEditing(item)}>{editing ? "Done" : "Edit"}</button>
                                   <details className="working-cv-item-options">
                                     <summary aria-label={`${item.content.title} item actions`}>•••</summary>
@@ -681,8 +677,6 @@ export function WorkingCvEditor({
 
                               {item.content.description ? <p className="working-cv-description">{item.content.description}</p> : null}
                               {item.content.url ? <p className="working-cv-link">{item.content.url}</p> : null}
-                              {tailoringNotes[item.id] ? <p className="compact-note"><strong>AI:</strong> {tailoringNotes[item.id]}</p> : null}
-
                               {editing ? (
                                 <div className="document-item-editor" aria-label={`Edit ${item.content.title}`}>
                                   {item.profileItemId && item.sourceMode === "override" ? (
