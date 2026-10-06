@@ -157,12 +157,14 @@ export const historicalFieldDiscoveryResultSchema = z
   .strict();
 export type HistoricalFieldDiscoveryResult = z.infer<typeof historicalFieldDiscoveryResultSchema>;
 
+export const cvWritingFieldSchema = z.literal("description");
+export type CvWritingField = z.infer<typeof cvWritingFieldSchema>;
 export const cvWritingRequestSchema = z
   .object({
     workingCvId: z.string().uuid(),
     itemId: z.string().uuid(),
-    currentTitle: z.string().trim().min(1).max(200),
-    currentText: z.string().max(5000).default(""),
+    field: cvWritingFieldSchema,
+    currentValue: z.string().max(5000).default(""),
   })
   .strict();
 export type CvWritingRequest = z.infer<typeof cvWritingRequestSchema>;
@@ -184,10 +186,25 @@ export const documentAiContextSchema = z
   .strict();
 export type DocumentAiContext = z.infer<typeof documentAiContextSchema>;
 
+export const cvWritingExchangeSchema = z
+  .object({
+    operation: z.literal("cv_tailoring"),
+    endpoint: z.string().url(),
+    model: z.string().min(1),
+    systemInstruction: z.string(),
+    userPayload: z.string(),
+    rawModelResponse: z.string(),
+    structuredOutputMode: z.literal("plain_text"),
+    providerValidationError: z.string(),
+  })
+  .strict();
+export type CvWritingExchange = z.infer<typeof cvWritingExchangeSchema>;
 export const cvWritingResultSchema = z
   .object({
     itemId: z.string().uuid(),
+    field: cvWritingFieldSchema,
     content: z.string().trim().min(1).max(5000),
+    exchange: cvWritingExchangeSchema.optional(),
   })
   .strict();
 export type CvWritingResult = z.infer<typeof cvWritingResultSchema>;
@@ -306,9 +323,14 @@ export const providerDocumentAiContextSchema = z
 export type ProviderDocumentAiContext = z.infer<typeof providerDocumentAiContextSchema>;
 export const providerCvWritingContextSchema = z
   .object({
-    targetFieldTitle: z.string().trim().min(1).max(200),
-    currentContent: z.string().max(5000).optional(),
-    availableInformation: z.array(z.string().trim().min(1).max(50000)).max(200),
+    target: z.object({
+      field: cvWritingFieldSchema,
+      itemContext: z.string().trim().min(1).max(8000),
+      currentValue: z.string().max(5000).optional(),
+    }).strict(),
+    professionalContext: z.array(z.string().trim().min(1).max(12000)).max(4),
+    careerContext: z.array(z.string().trim().min(1).max(12000)).max(2),
+    applicationContext: z.array(z.string().trim().min(1).max(50000)).max(5),
   })
   .strict();
 export type ProviderCvWritingContext = z.infer<typeof providerCvWritingContextSchema>;
