@@ -2,7 +2,7 @@
 
 Current explicit Product Owner instruction remains highest authority.
 
-Base main: `0da82234a19d35b9ba881482f65dcaefae59cc80`.
+Live integration state is tracked in Issue #418; do not freeze a moving main SHA here.
 
 ## Active recovery
 
