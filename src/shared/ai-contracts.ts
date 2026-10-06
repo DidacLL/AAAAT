@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { workingCvSectionSchema } from "./document-domain-contracts";
+
 import {
   candidatureChoiceDefinitionSchema,
   candidatureFieldCardinalitySchema,
@@ -164,6 +166,7 @@ export const cvWritingRequestSchema = z
     workingCvId: z.string().uuid(),
     itemId: z.string().uuid(),
     field: cvWritingFieldSchema,
+    sections: z.array(workingCvSectionSchema).max(40),
   })
   .strict();
 export type CvWritingRequest = z.infer<typeof cvWritingRequestSchema>;
