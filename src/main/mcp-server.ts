@@ -209,7 +209,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     applicationDocumentTargetReadToolName,
     {
-      description: "Bind the one application currently selected for external-AI work in AAAAT to a session-local reference for separate document actions. Returns null when no application is selected.",
+      description: "Bind the one existing application the user explicitly selected for external document work in AAAAT to a session-local reference. Application-information or interview access does not authorize this. Returns null when no application is selected for document work.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -224,7 +224,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     reusableCvsListToolName,
     {
-      description: "List reusable AAAAT CV choices by user-facing name and optional description only. This never returns reusable CV contents, document IDs, paths, PDFs, or other documents.",
+      description: "List reusable AAAAT CV choices by user-facing name only. This never returns reusable CV contents, PDF metadata, document IDs, paths, PDFs, or other documents.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -239,7 +239,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     reusableCvReadToolName,
     {
-      description: "Read only the one reusable CV chosen from reusable_cvs_list. AAAAT applies existing AI-disclosure choices and substitutes private values with USERPRIVATE placeholders. Layout and Blueprint data are excluded.",
+      description: "Read only the one reusable CV chosen from reusable_cvs_list. AAAAT fails closed for content without an AI-disclosure choice: private blocks expose only AAAAT-supplied USERPRIVATE placeholders, not semantic item metadata or values. Layout and Blueprint data are excluded.",
       inputSchema: externalReusableCvReadInputSchema,
     },
     async (input) => {
@@ -321,7 +321,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     coverLetterWriteToolName,
     {
-      description: "Apply one bounded external-AI cover-letter draft to the editable letter created in this session. The result remains ordinary editable AAAAT letter content and this action does not render it.",
+      description: "Apply one bounded external-AI cover-letter draft to the editable letter created in this session. AAAAT restores only exact private placeholders it supplied for this document work and rejects unresolved placeholder text. The result remains ordinary editable AAAAT letter content and this action does not render it.",
       inputSchema: externalCoverLetterWriteInputSchema,
     },
     async (input) => {
