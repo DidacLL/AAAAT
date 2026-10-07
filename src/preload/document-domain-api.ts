@@ -1,4 +1,6 @@
 import {
+  applicationDocumentExternalAccessSchema,
+  applicationDocumentExternalAccessUpdateSchema,
   applicationPacketCreateSchema,
   applicationPacketRecordSchema,
   availableBlueprintsSchema,
@@ -21,6 +23,7 @@ import {
   workingCvSaveItemSchema,
   workingCvSaveTemplateSchema,
   workingCvUpdateSchema,
+  type ApplicationDocumentExternalAccessUpdate,
   type ApplicationPacketCreate,
   type CoverLetterInput,
   type CoverLetterUpdate,
@@ -42,6 +45,20 @@ export function createDocumentDomainDesktopApi(invoke: Invoke): DocumentDomainDe
     documentDomain: Object.freeze({
       collections: async () => documentCollectionsSchema.parse(await invoke(documentDomainChannels.collections)),
       blueprints: async () => availableBlueprintsSchema.parse(await invoke(documentDomainChannels.blueprints)),
+      externalApplicationAccess: async (candidatureId: string) =>
+        applicationDocumentExternalAccessSchema.parse(
+          await invoke(
+            documentDomainChannels.externalApplicationAccessCurrent,
+            applicationDocumentExternalAccessSchema.shape.candidatureId.parse(candidatureId),
+          ),
+        ),
+      updateExternalApplicationAccess: async (input: ApplicationDocumentExternalAccessUpdate) =>
+        applicationDocumentExternalAccessSchema.parse(
+          await invoke(
+            documentDomainChannels.externalApplicationAccessUpdate,
+            applicationDocumentExternalAccessUpdateSchema.parse(input),
+          ),
+        ),
       createTemplate: async (input: CvTemplateInput) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.templateCreate, cvTemplateInputSchema.parse(input))),
       updateTemplate: async (input: CvTemplateUpdate) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.templateUpdate, cvTemplateUpdateSchema.parse(input))),
       removeTemplate: async (templateId: string) => documentCollectionsSchema.parse(await invoke(documentDomainChannels.templateRemove, cvTemplateRecordSchema.shape.id.parse(templateId))),
