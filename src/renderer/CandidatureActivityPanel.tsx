@@ -20,8 +20,8 @@ const labels: Readonly<Record<CandidatureActivityKind, string>> = {
   documents_updated: "Application document associations changed",
   tags_updated: "Tag associations changed",
   artifact_retained: "Application artifact retained",
-  external_research_allowed: "External opportunity research access allowed",
-  external_research_revoked: "External opportunity research access revoked",
+  external_research_allowed: "My AI application access opened",
+  external_research_revoked: "My AI application access closed",
   changed: "Candidature changed",
 };
 

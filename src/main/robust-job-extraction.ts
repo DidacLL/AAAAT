@@ -1,3 +1,5 @@
+import type { DatabaseSync } from "node:sqlite";
+
 import {
   providerJobExtractionRequestSchema,
   type AiConnectionStatus,
@@ -22,11 +24,12 @@ import { AiProviderError } from "./ai-provider";
 import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import {
   listCandidatureFields,
+  listCandidatureFieldsInDatabase,
   validateCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
 import { withWorkspaceDatabase } from "./workspace";
 
-interface DiscoveryWireRequest {
+export interface CandidatureFieldProposalWire {
   readonly request: ProviderJobExtractionRequest;
   readonly fieldIds: ReadonlyMap<string, string>;
   readonly fieldLabels: ReadonlyMap<string, string>;
@@ -38,10 +41,10 @@ interface CapturedExchange {
   readonly responseBody: string;
 }
 
-function discoveryWireRequest(
+export function buildCandidatureFieldProposalWire(
   request: JobExtractionRequest,
   fields: readonly CandidatureFieldConfiguration[],
-): DiscoveryWireRequest {
+): CandidatureFieldProposalWire {
   const fieldIds = new Map<string, string>();
   const fieldLabels = new Map<string, string>();
   const choiceIds = new Map<string, ReadonlyMap<string, string>>();
@@ -242,7 +245,7 @@ function localChoiceValue(
     : { value: resolved };
 }
 
-function fieldReference(wire: DiscoveryWireRequest, raw: unknown): string | null {
+function fieldReference(wire: CandidatureFieldProposalWire, raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   if (wire.fieldIds.has(raw)) return raw;
   const normalized = raw.trim().toLocaleLowerCase();
@@ -252,15 +255,15 @@ function fieldReference(wire: DiscoveryWireRequest, raw: unknown): string | null
   return null;
 }
 
-function validateExistingProposals(
-  rootPath: string,
-  wire: DiscoveryWireRequest,
+export function validateCandidatureFieldProposalsInDatabase(
+  database: DatabaseSync,
+  wire: CandidatureFieldProposalWire,
   rawProposals: readonly unknown[],
 ): {
   readonly proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }>;
   readonly issues: JobExtractionProposalIssue[];
 } {
-  const currentFields = listCandidatureFields(rootPath);
+  const currentFields = listCandidatureFieldsInDatabase(database);
   const byId = new Map(currentFields.map((field) => [field.definition.id, field]));
   const proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> = [];
   const issues: JobExtractionProposalIssue[] = [];
@@ -305,9 +308,10 @@ function validateExistingProposals(
       continue;
     }
     try {
-      const normalized = withWorkspaceDatabase(
-        rootPath,
-        (database) => validateCandidatureFieldValueInDatabase(database, fieldId, runtime.data),
+      const normalized = validateCandidatureFieldValueInDatabase(
+        database,
+        fieldId,
+        runtime.data,
       );
       if (normalized === null) {
         issues.push(issue("invalid", fieldId, label, candidate.value, `${field.definition.label} did not contain a usable value.`));
@@ -325,6 +329,20 @@ function validateExistingProposals(
     }
   }
   return { proposals, issues };
+}
+
+
+export function validateCandidatureFieldProposals(
+  rootPath: string,
+  wire: CandidatureFieldProposalWire,
+  rawProposals: readonly unknown[],
+): {
+  readonly proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }>;
+  readonly issues: JobExtractionProposalIssue[];
+} {
+  return withWorkspaceDatabase(rootPath, (database) =>
+    validateCandidatureFieldProposalsInDatabase(database, wire, rawProposals)
+  );
 }
 
 export async function extractJobWithPartialOutcomes(
@@ -348,7 +366,7 @@ export async function extractJobWithPartialOutcomes(
     throw new Error("Allow AI use for at least one application information item first.");
   }
 
-  const wire = discoveryWireRequest(request, fields);
+  const wire = buildCandidatureFieldProposalWire(request, fields);
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
@@ -372,7 +390,7 @@ export async function extractJobWithPartialOutcomes(
 
   const envelope = looseEnvelope(rawResult);
   if (!envelope) throw new Error("The configured provider returned an invalid application-information result envelope.");
-  const existing = validateExistingProposals(rootPath, wire, envelope.proposals);
+  const existing = validateCandidatureFieldProposals(rootPath, wire, envelope.proposals);
   const exchange = capturedExchange(
     connection,
     capture.snapshot(),

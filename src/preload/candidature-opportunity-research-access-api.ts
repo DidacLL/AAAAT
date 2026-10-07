@@ -1,18 +1,18 @@
 import {
-  candidatureAiTaskTemplateDeleteSchema,
-  candidatureAiTaskTemplateSaveSchema,
-  candidatureAiTaskTemplateSchema,
-  candidatureAiTaskTemplatesSchema,
+  candidatureApplicationInformationResultImportResultSchema,
+  candidatureExternalAiCopyResultSchema,
+  candidatureExternalAiExportResultSchema,
+  candidatureExternalAiInstructionSchema,
+  candidatureExternalAiResultTextSchema,
+  candidatureInterviewResultImportResultSchema,
+  candidatureInterviewResultRetainResultSchema,
   candidatureOpportunityResearchAccessChannels,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
-  candidatureOpportunityResearchResultImportResultSchema,
-  candidatureOpportunityResearchResultRetainResultSchema,
-  candidatureOpportunityResearchResultTextSchema,
-  candidatureOpportunityResearchTaskContextSchema,
-  candidatureOpportunityResearchTaskCopyResultSchema,
-  candidatureOpportunityResearchTaskExportResultSchema,
-  candidatureOpportunityResearchTaskInstructionSchema,
+  externalApplicationInformationPendingResultOptionalSchema,
+  externalApplicationInformationPendingResultSchema,
+  externalApplicationInformationTaskSchema,
+  externalInterviewPreparationContextSchema,
   type CandidatureOpportunityResearchAccessDesktopApi,
 } from "../shared/candidature-opportunity-research-access-contracts";
 
@@ -39,53 +39,85 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
             candidatureOpportunityResearchAccessUpdateSchema.parse(input),
           ),
         ),
-      taskContext: async () =>
-        candidatureOpportunityResearchTaskContextSchema.parse(
-          await invoke(candidatureOpportunityResearchAccessChannels.taskContext),
-        ),
-      taskTemplates: async () =>
-        candidatureAiTaskTemplatesSchema.parse(
-          await invoke(candidatureOpportunityResearchAccessChannels.taskTemplates),
-        ),
-      saveTaskTemplate: async (input: Parameters<ResearchApi["saveTaskTemplate"]>[0]) =>
-        candidatureAiTaskTemplateSchema.parse(
+      applicationInformationTask: async (
+        instruction: Parameters<ResearchApi["applicationInformationTask"]>[0],
+      ) =>
+        externalApplicationInformationTaskSchema.parse(
           await invoke(
-            candidatureOpportunityResearchAccessChannels.taskTemplateSave,
-            candidatureAiTaskTemplateSaveSchema.parse(input),
+            candidatureOpportunityResearchAccessChannels.applicationInformationTask,
+            candidatureExternalAiInstructionSchema.parse(instruction),
           ),
         ),
-      deleteTaskTemplate: async (id: string) => {
-        const result = await invoke(
-          candidatureOpportunityResearchAccessChannels.taskTemplateDelete,
-          candidatureAiTaskTemplateDeleteSchema.parse(id),
-        );
-        if (result !== "deleted") throw new Error("Invalid task template delete response.");
-        return "deleted" as const;
-      },
-      copyTask: async (instruction: Parameters<ResearchApi["copyTask"]>[0]) =>
-        candidatureOpportunityResearchTaskCopyResultSchema.parse(
+      takeApplicationInformationResult: async (candidatureId: string) =>
+        externalApplicationInformationPendingResultOptionalSchema.parse(
           await invoke(
-            candidatureOpportunityResearchAccessChannels.copyTask,
-            candidatureOpportunityResearchTaskInstructionSchema.parse(instruction),
+            candidatureOpportunityResearchAccessChannels.takeApplicationInformationResult,
+            candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId),
           ),
         ),
-      exportTask: async (instruction: Parameters<ResearchApi["exportTask"]>[0]) =>
-        candidatureOpportunityResearchTaskExportResultSchema.parse(
+      copyApplicationInformationTask: async (
+        instruction: Parameters<ResearchApi["copyApplicationInformationTask"]>[0],
+      ) =>
+        candidatureExternalAiCopyResultSchema.parse(
           await invoke(
-            candidatureOpportunityResearchAccessChannels.exportTask,
-            candidatureOpportunityResearchTaskInstructionSchema.parse(instruction),
+            candidatureOpportunityResearchAccessChannels.copyApplicationInformationTask,
+            candidatureExternalAiInstructionSchema.parse(instruction),
           ),
         ),
-      retainResult: async (sourceText: Parameters<ResearchApi["retainResult"]>[0]) =>
-        candidatureOpportunityResearchResultRetainResultSchema.parse(
+      exportApplicationInformationTask: async (
+        instruction: Parameters<ResearchApi["exportApplicationInformationTask"]>[0],
+      ) =>
+        candidatureExternalAiExportResultSchema.parse(
           await invoke(
-            candidatureOpportunityResearchAccessChannels.retainResult,
-            candidatureOpportunityResearchResultTextSchema.parse(sourceText),
+            candidatureOpportunityResearchAccessChannels.exportApplicationInformationTask,
+            candidatureExternalAiInstructionSchema.parse(instruction),
           ),
         ),
-      importResult: async () =>
-        candidatureOpportunityResearchResultImportResultSchema.parse(
-          await invoke(candidatureOpportunityResearchAccessChannels.importResult),
+      submitApplicationInformationResult: async (resultText: string) =>
+        externalApplicationInformationPendingResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.submitApplicationInformationResult,
+            candidatureExternalAiResultTextSchema.parse(resultText),
+          ),
+        ),
+      importApplicationInformationResult: async () =>
+        candidatureApplicationInformationResultImportResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.importApplicationInformationResult,
+          ),
+        ),
+      interviewContext: async () =>
+        externalInterviewPreparationContextSchema.parse(
+          await invoke(candidatureOpportunityResearchAccessChannels.interviewContext),
+        ),
+      copyInterviewTask: async (
+        instruction: Parameters<ResearchApi["copyInterviewTask"]>[0],
+      ) =>
+        candidatureExternalAiCopyResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.copyInterviewTask,
+            candidatureExternalAiInstructionSchema.parse(instruction),
+          ),
+        ),
+      exportInterviewTask: async (
+        instruction: Parameters<ResearchApi["exportInterviewTask"]>[0],
+      ) =>
+        candidatureExternalAiExportResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.exportInterviewTask,
+            candidatureExternalAiInstructionSchema.parse(instruction),
+          ),
+        ),
+      retainInterviewResult: async (resultText: string) =>
+        candidatureInterviewResultRetainResultSchema.parse(
+          await invoke(
+            candidatureOpportunityResearchAccessChannels.retainInterviewResult,
+            candidatureExternalAiResultTextSchema.parse(resultText),
+          ),
+        ),
+      importInterviewResult: async () =>
+        candidatureInterviewResultImportResultSchema.parse(
+          await invoke(candidatureOpportunityResearchAccessChannels.importInterviewResult),
         ),
     }),
   });

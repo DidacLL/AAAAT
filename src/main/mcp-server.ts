@@ -6,13 +6,10 @@ import { z } from "zod";
 
 import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
-  externalCandidatureSourceAddInputSchema,
-  externalCandidatureSourceAddResultSchema,
-  externalCareerContextRequestSchema,
-  externalCareerContextSchema,
-  externalOpportunityResearchContextRequestSchema,
-  externalOpportunityResearchContextSchema,
-  type ExternalCareerContext,
+  externalApplicationInformationProposalInputSchema,
+  externalApplicationInformationTaskSchema,
+  externalInterviewPreparationContextSchema,
+  externalInterviewPreparationResultSchema,
 } from "../shared/external-assistant-contracts";
 import {
   externalConfiguratorConnectionInputSchema,
@@ -28,12 +25,12 @@ import {
   validateAiConnectionOperation,
 } from "./ai-connection-service";
 import {
-  addSourceToSelectedOpportunityResearchCandidature,
-  selectedOpportunityResearchContext,
+  selectedInterviewPreparationContext,
+  retainInterviewPreparationResult,
+  selectedApplicationInformationTask,
+  submitApplicationInformationProposals,
 } from "./candidature-opportunity-research-access-service";
 import { createCandidature } from "./candidature-service";
-import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
-import { getCareerContext } from "./career-context-service";
 import {
   requireConfiguratorActionsAllowed,
   requireInstallerActionsAllowed,
@@ -47,9 +44,10 @@ const workspaceFlag = "--workspace";
 const emptyInputSchema = z.object({}).strict();
 
 export const candidatureCreateToolName = "candidature_create";
-export const opportunityResearchContextReadToolName = "opportunity_research_context_read";
-export const candidatureSourceAddToolName = "candidature_source_add";
-export const careerContextReadToolName = "career_context_read";
+export const applicationInformationTaskReadToolName = "application_information_task_read";
+export const applicationInformationProposalsSubmitToolName = "application_information_proposals_submit";
+export const interviewPreparationContextReadToolName = "interview_preparation_context_read";
+export const interviewPreparationResultSaveToolName = "interview_preparation_result_save";
 export const installerStatusReadToolName = "installer_status_read";
 export const installerRenderingSelfTestToolName = "installer_rendering_self_test";
 export const configuratorStatusReadToolName = "configurator_status_read";
@@ -59,28 +57,6 @@ export const configuratorAiOperationDefaultToolName = "configurator_ai_operation
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
-}
-
-function projectCareerContext(rootPath: string): ExternalCareerContext {
-  const context = getCareerContext(rootPath);
-  const disclosure = getCareerContextAiDisclosure(rootPath);
-  return externalCareerContextSchema.parse({
-    ...(disclosure.careerDirection && context.careerDirection.trim()
-      ? { careerDirection: context.careerDirection }
-      : {}),
-    ...(disclosure.objectives && context.objectives.trim() ? { objectives: context.objectives } : {}),
-    ...(disclosure.constraints && context.constraints.trim() ? { constraints: context.constraints } : {}),
-    ...(disclosure.targetRoles && context.targetRoles.trim() ? { targetRoles: context.targetRoles } : {}),
-    ...(disclosure.targetMarketsLocations && context.targetMarketsLocations.trim()
-      ? { targetMarketsLocations: context.targetMarketsLocations }
-      : {}),
-    ...(disclosure.workPreferences && context.workPreferences.trim()
-      ? { workPreferences: context.workPreferences }
-      : {}),
-    ...(disclosure.applicationWritingPreferences && context.applicationWritingPreferences.trim()
-      ? { applicationWritingPreferences: context.applicationWritingPreferences }
-      : {}),
-  });
 }
 
 function connectionIdByName(rootPath: string, name: string): string {
@@ -117,47 +93,80 @@ function createServerForWorkspace(rootPath: string): McpServer {
       const parsed = externalCandidatureCreateInputSchema.parse(input);
       createCandidature(rootPath, { source: parsed.source, values: [] });
       return {
-        content: [{ type: "text" as const, text: JSON.stringify({ ok: true, capability: "candidature.create", created: true }) }],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({ ok: true, capability: "candidature.create", created: true }),
+        }],
       };
     },
   );
 
   server.registerTool(
-    opportunityResearchContextReadToolName,
+    applicationInformationTaskReadToolName,
     {
-      description: "Read the application context selected in AAAAT for opportunity research. Returns null when no application is selected.",
-      inputSchema: externalOpportunityResearchContextRequestSchema,
+      description: "Read the bounded application-information task the user prepared for the currently selected AAAAT application. Returns null when no such task is prepared.",
+      inputSchema: emptyInputSchema,
     },
     async (input) => {
-      externalOpportunityResearchContextRequestSchema.parse(input);
-      const context = externalOpportunityResearchContextSchema.parse(selectedOpportunityResearchContext(rootPath));
+      emptyInputSchema.parse(input);
+      const task = selectedApplicationInformationTask(rootPath);
+      const parsed = task === null ? null : externalApplicationInformationTaskSchema.parse(task);
+      return { content: [{ type: "text" as const, text: JSON.stringify(parsed) }] };
+    },
+  );
+
+  server.registerTool(
+    applicationInformationProposalsSubmitToolName,
+    {
+      description: "Return bounded field proposals for the prepared application-information task. AAAAT validates them locally and presents usable values for user review; this tool does not save application fields.",
+      inputSchema: externalApplicationInformationProposalInputSchema,
+    },
+    async (input) => {
+      const parsed = externalApplicationInformationProposalInputSchema.parse(input);
+      const pending = submitApplicationInformationProposals(rootPath, parsed);
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            accepted: true,
+            usableProposals: pending.result.proposals.length,
+            proposalsNeedingReview: pending.result.issues.length,
+          }),
+        }],
+      };
+    },
+  );
+
+  server.registerTool(
+    interviewPreparationContextReadToolName,
+    {
+      description: "Read bounded context for preparing an interview for the application the user selected in AAAAT.",
+      inputSchema: emptyInputSchema,
+    },
+    async (input) => {
+      emptyInputSchema.parse(input);
+      const context = externalInterviewPreparationContextSchema.parse(
+        selectedInterviewPreparationContext(rootPath),
+      );
       return { content: [{ type: "text" as const, text: JSON.stringify(context) }] };
     },
   );
 
   server.registerTool(
-    candidatureSourceAddToolName,
+    interviewPreparationResultSaveToolName,
     {
-      description: "Save research or analysis as a Source on the application selected in AAAAT.",
-      inputSchema: externalCandidatureSourceAddInputSchema,
+      description: "Save completed interview preparation as a Source on the application selected in AAAAT. This does not propose or mutate application fields.",
+      inputSchema: externalInterviewPreparationResultSchema,
     },
     async (input) => {
-      const parsed = externalCandidatureSourceAddInputSchema.parse(input);
-      const retained = addSourceToSelectedOpportunityResearchCandidature(rootPath, parsed);
-      const result = externalCandidatureSourceAddResultSchema.parse(retained ? { retained: true } : null);
-      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
-    },
-  );
-
-  server.registerTool(
-    careerContextReadToolName,
-    {
-      description: "Read only non-empty user-written Career preferences locally permitted for external career assistance.",
-      inputSchema: externalCareerContextRequestSchema,
-    },
-    async (input) => {
-      externalCareerContextRequestSchema.parse(input);
-      return { content: [{ type: "text" as const, text: JSON.stringify(projectCareerContext(rootPath)) }] };
+      const parsed = externalInterviewPreparationResultSchema.parse(input);
+      retainInterviewPreparationResult(rootPath, parsed.text);
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({ retained: true }),
+        }],
+      };
     },
   );
 

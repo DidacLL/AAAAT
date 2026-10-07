@@ -1222,6 +1222,14 @@ export function CandidaturesWorkspace({
         </div>
       ) : null}
 
+      {initialTask ? null : (
+        <CandidatureOpportunityResearchAccessPanel
+          key={`external-ai-${selected.id}`}
+          candidatureId={selected.id}
+          contextDirty={taskContextDirty}
+        />
+      )}
+
       {sourceOwnsInitialContext ? (
         <CandidatureSourcesPanel
           candidatureId={selected.id}
@@ -1648,14 +1656,6 @@ export function CandidaturesWorkspace({
               onDirtyChange={setSourceDirty}
             />
           )}
-          {initialTask ? null : (
-            <CandidatureOpportunityResearchAccessPanel
-              key={`external-research-${selected.id}`}
-              candidatureId={selected.id}
-              contextDirty={taskContextDirty}
-            />
-          )}
-
           <section
             className="section-surface candidature-secondary-controls"
             aria-label="Application history"

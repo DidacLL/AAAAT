@@ -2,9 +2,10 @@ export const externalAssistantMcpContract = Object.freeze({
   transport: "stdio" as const,
   capabilityNames: Object.freeze([
     "candidature.create",
-    "opportunity_research.context.read",
-    "candidature.source.add",
-    "career_context.read",
+    "application_information.task.read",
+    "application_information.proposals.submit",
+    "interview_preparation.context.read",
+    "interview_preparation.result.save",
     "installer.status.read",
     "installer.rendering.self_test",
     "configurator.status.read",
@@ -14,9 +15,10 @@ export const externalAssistantMcpContract = Object.freeze({
   ] as const),
   toolNames: Object.freeze([
     "candidature_create",
-    "opportunity_research_context_read",
-    "candidature_source_add",
-    "career_context_read",
+    "application_information_task_read",
+    "application_information_proposals_submit",
+    "interview_preparation_context_read",
+    "interview_preparation_result_save",
     "installer_status_read",
     "installer_rendering_self_test",
     "configurator_status_read",
@@ -25,7 +27,7 @@ export const externalAssistantMcpContract = Object.freeze({
     "configurator_ai_operation_default",
   ] as const),
   permissionScope:
-    "Perform only typed AAAAT product intentions: create an application from retained material; work with the one locally task-selected opportunity; read explicitly permitted Career context; inspect setup readiness; and, only while the user enables the matching local setup authority, run AAAAT's fixed rendering self-test or save/validate/select typed AI connection configuration. No capability provides generic storage or machine authority." as const,
+    "Perform only typed AAAAT product intentions: create an application from supplied Source material; work with the one locally selected application's prepared application-information or interview-preparation task; inspect setup readiness; and, only while the user enables the matching local setup authority, run AAAAT's fixed rendering self-test or save/validate/select typed AI connection configuration. No capability provides generic candidature CRUD, corpus access, storage access, or machine authority." as const,
   privacyDisclosure:
-    "The external assistant receives only the payload of the bounded capability it invokes. Application creation accepts one retained Source and returns only a narrow creation acknowledgement, never local IDs or paths. Opportunity and Career reads remain locally selected/disclosed. installer_status_read and configurator_status_read remain privacy-minimal. installer_rendering_self_test accepts no path, command or package-manager input and is denied unless installer.ai actions are enabled in AAAAT Settings. configurator AI mutations accept only connection name/endpoint/model and typed AAAAT operation names, use the same endpoint validation and capability validation as the desktop, expose no credentials, and are denied unless configurator.ai actions are enabled in Settings. No tool exposes generic database, filesystem, process, network, browse, search, query, package-manager or command authority. A host with broader machine access remains the user's separate trust choice outside AAAAT's tool boundary." as const,
+    "The external assistant receives only the payload of the bounded capability it invokes. Application-information uses one locally selected application, task-local field/choice references, retained task context, and only the field information AAAAT assigned and allows for AI use. Private assigned values are represented only as USERPRIVATE placeholders using the user-visible field title. Returned field proposals are validated locally and enter user review instead of mutating fields or becoming Sources. Interview preparation is separate and may retain only the returned free-text preparation as a Source. No application capability exposes durable candidature/field IDs, corpus browsing, generic database/filesystem/process/shell authority, or unrelated application data. Setup tools remain independently bounded and expose no application data." as const,
 });
