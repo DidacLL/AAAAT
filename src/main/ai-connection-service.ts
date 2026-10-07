@@ -44,10 +44,8 @@ type StoredConnection = z.infer<typeof storedConnectionSchema>;
 
 const operationDefaultsSchema = z
   .object({
-    opportunity_review: aiConnectionIdSchema.optional(),
     job_extraction: aiConnectionIdSchema.optional(),
     tag_inference: aiConnectionIdSchema.optional(),
-    historical_field_discovery: aiConnectionIdSchema.optional(),
     cv_tailoring: aiConnectionIdSchema.optional(),
     cover_letter_draft: aiConnectionIdSchema.optional(),
   })
@@ -215,12 +213,43 @@ function emptyConfiguration(): StoredConnectionConfiguration {
   return { version: 4, connections: [], defaultConnectionId: null, operationDefaults: {} };
 }
 
+function isCurrentOperation(value: unknown): value is AiOperation {
+  return aiOperationSchema.safeParse(value).success;
+}
+
+function normalizeStoredConfiguration(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const candidate = raw as Record<string, unknown>;
+  const connections = Array.isArray(candidate.connections)
+    ? candidate.connections.map((connection) => {
+        if (!connection || typeof connection !== "object" || Array.isArray(connection)) {
+          return connection;
+        }
+        const stored = connection as Record<string, unknown>;
+        return {
+          ...stored,
+          validatedOperations: Array.isArray(stored.validatedOperations)
+            ? stored.validatedOperations.filter(isCurrentOperation)
+            : stored.validatedOperations,
+        };
+      })
+    : candidate.connections;
+  const storedDefaults = candidate.operationDefaults;
+  const operationDefaults =
+    storedDefaults && typeof storedDefaults === "object" && !Array.isArray(storedDefaults)
+      ? Object.fromEntries(
+          Object.entries(storedDefaults).filter(([operation]) => isCurrentOperation(operation)),
+        )
+      : storedDefaults;
+  return { ...candidate, connections, operationDefaults };
+}
+
 function readConfiguration(rootPath: string): StoredConnectionConfiguration {
   const filePath = connectionPath(rootPath);
   if (!existsSync(filePath)) return emptyConfiguration();
   try {
     const configuration = storedConnectionConfigurationSchema.parse(
-      JSON.parse(readFileSync(filePath, "utf8")),
+      normalizeStoredConfiguration(JSON.parse(readFileSync(filePath, "utf8"))),
     );
     for (const connection of configuration.connections) validatedEndpoint(connection);
     return configuration;
