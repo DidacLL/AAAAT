@@ -219,9 +219,10 @@ export class ExternalDocumentSession {
     ExternalApplicationCvCreateResult["editableFields"]
   >();
   private readonly cvFieldContexts = new Map<OperationReference, CvFieldContextBinding>();
+  private readonly reusableCvPrivateValues = new Map<OperationReference, PrivateReplacements>();
+  private readonly applicationPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly workingCvPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly letterPrivateValues = new Map<OperationReference, PrivateReplacements>();
-  private readonly inspectedReusableCvPrivateValues: PrivateReplacements = new Map();
   private readonly createdApplicationRefs = new Set<OperationReference>();
   private readonly selectedApplicationRefs = new Set<OperationReference>();
 
@@ -374,10 +375,10 @@ export class ExternalDocumentSession {
       })),
     });
 
-    this.inspectedReusableCvPrivateValues.clear();
-    for (const [placeholder, value] of privateValues) {
-      this.inspectedReusableCvPrivateValues.set(placeholder, value);
-    }
+    this.reusableCvPrivateValues.set(
+      cvRef,
+      mergedPrivateValues(privateValues),
+    );
     return result;
   }
 
@@ -428,16 +429,24 @@ export class ExternalDocumentSession {
       reusableCvRef,
       "Choose one reusable CV from AAAAT's reusable-CV list first.",
     );
+    const privateValues = this.reusableCvPrivateValues.get(reusableCvRef);
+    if (!privateValues) {
+      throw new ExternalDocumentServiceError(
+        "Inspect the chosen reusable CV before creating the application CV.",
+      );
+    }
     const created = createWorkingCv(this.rootPath, {
       title: "Application CV",
       candidatureId,
       source: { kind: "template", templateId },
     });
     const bound = this.bindWorkingCv(created);
+    const documentPrivateValues = mergedPrivateValues(privateValues);
     this.workingCvApplications.set(bound.cvRef, applicationRef);
-    this.workingCvPrivateValues.set(
-      bound.cvRef,
-      mergedPrivateValues(this.inspectedReusableCvPrivateValues),
+    this.workingCvPrivateValues.set(bound.cvRef, documentPrivateValues);
+    this.applicationPrivateValues.set(
+      applicationRef,
+      mergedPrivateValues(documentPrivateValues),
     );
     return externalApplicationCvCreateResultSchema.parse({
       created: true,
@@ -579,7 +588,7 @@ export class ExternalDocumentSession {
     this.letterApplications.set(letterRef, applicationRef);
     this.letterPrivateValues.set(
       letterRef,
-      mergedPrivateValues(this.inspectedReusableCvPrivateValues),
+      mergedPrivateValues(this.applicationPrivateValues.get(applicationRef) ?? new Map()),
     );
     return externalApplicationCoverLetterCreateResultSchema.parse({
       created: true,
@@ -610,11 +619,7 @@ export class ExternalDocumentSession {
       throw new ExternalDocumentServiceError("The application cover letter no longer exists.");
     }
 
-    const retainedPrivateValues = this.letterPrivateValues.get(letterRef);
-    const privateValues =
-      retainedPrivateValues && retainedPrivateValues.size > 0
-        ? retainedPrivateValues
-        : this.inspectedReusableCvPrivateValues;
+    const privateValues = this.letterPrivateValues.get(letterRef) ?? new Map();
     const restore = (value: string): string =>
       restorePrivateValues(value, privateValues);
     const restoredDraft: CoverLetterDraft = {
