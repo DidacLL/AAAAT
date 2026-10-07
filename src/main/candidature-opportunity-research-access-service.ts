@@ -41,7 +41,7 @@ import {
 } from "./candidature-service";
 import {
   buildCandidatureFieldProposalWire,
-  validateCandidatureFieldProposals,
+  validateCandidatureFieldProposalsInDatabase,
   type CandidatureFieldProposalWire,
 } from "./robust-job-extraction";
 import { compactSourceText } from "../shared/source-text";
@@ -607,7 +607,6 @@ function parseApplicationInformationResult(
 
 function storeApplicationInformationProposals(
   database: DatabaseSync,
-  rootPath: string,
   input: { readonly taskRef: string; readonly proposals: readonly unknown[] },
 ): ExternalApplicationInformationPendingResult {
   const stored = requireStoredApplicationInformationTask(database);
@@ -616,8 +615,8 @@ function storeApplicationInformationProposals(
       "These suggestions belong to an older application-information task.",
     );
   }
-  const validated = validateCandidatureFieldProposals(
-    rootPath,
+  const validated = validateCandidatureFieldProposalsInDatabase(
+    database,
     storedWire(stored),
     restorePrivateProposals(
       input.proposals,
@@ -646,7 +645,7 @@ export function submitApplicationInformationProposals(
 ): ExternalApplicationInformationPendingResult {
   const input = externalApplicationInformationProposalInputSchema.parse(rawInput);
   return withWorkspaceDatabase(rootPath, (database) =>
-    transact(database, () => storeApplicationInformationProposals(database, rootPath, input)),
+    transact(database, () => storeApplicationInformationProposals(database, input)),
   );
 }
 
@@ -663,7 +662,7 @@ export function importApplicationInformationPortableResult(
     transact(database, () => {
       const stored = requireStoredApplicationInformationTask(database);
       const parsed = parseApplicationInformationResult(rawText, stored.taskRef);
-      return storeApplicationInformationProposals(database, rootPath, parsed);
+      return storeApplicationInformationProposals(database, parsed);
     }),
   );
 }
