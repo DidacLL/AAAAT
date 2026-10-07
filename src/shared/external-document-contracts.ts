@@ -76,7 +76,7 @@ export const externalApplicationCvCreateResultSchema = z
   .object({
     created: z.literal(true),
     cvRef: operationReferenceSchema,
-    editableFields: z.array(externalCvEditableFieldSchema).max(300),
+    editableFields: z.array(externalCvEditableFieldSchema).max(12_000),
   })
   .strict();
 export type ExternalApplicationCvCreateResult = z.infer<
