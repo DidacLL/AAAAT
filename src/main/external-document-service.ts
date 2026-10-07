@@ -209,8 +209,10 @@ export class ExternalDocumentSession {
   private readonly reusableCvRefs = new Map<string, OperationReference>();
   private readonly workingCvs = new Map<OperationReference, string>();
   private readonly workingCvRefs = new Map<string, OperationReference>();
+  private readonly workingCvApplications = new Map<OperationReference, OperationReference>();
   private readonly letters = new Map<OperationReference, string>();
   private readonly letterRefs = new Map<string, OperationReference>();
+  private readonly letterApplications = new Map<OperationReference, OperationReference>();
   private readonly cvFields = new Map<OperationReference, CvFieldBinding>();
   private readonly cvEditableFields = new Map<
     OperationReference,
@@ -432,6 +434,7 @@ export class ExternalDocumentSession {
       source: { kind: "template", templateId },
     });
     const bound = this.bindWorkingCv(created);
+    this.workingCvApplications.set(bound.cvRef, applicationRef);
     this.workingCvPrivateValues.set(
       bound.cvRef,
       mergedPrivateValues(this.inspectedReusableCvPrivateValues),
@@ -447,6 +450,13 @@ export class ExternalDocumentSession {
     cvRef: OperationReference,
     fieldRef: OperationReference,
   ): ExternalCvFieldContext {
+    const applicationRef = this.workingCvApplications.get(cvRef);
+    if (!applicationRef) {
+      throw new ExternalDocumentServiceError(
+        "Choose an application CV created in this AAAAT session first.",
+      );
+    }
+    this.requireApplicationReference(applicationRef);
     const workingCvId = this.requireReference(
       this.workingCvs,
       cvRef,
@@ -485,6 +495,13 @@ export class ExternalDocumentSession {
     fieldRef: OperationReference,
     rawContent: string,
   ): ReturnType<typeof externalDocumentAppliedResultSchema.parse> {
+    const applicationRef = this.workingCvApplications.get(cvRef);
+    if (!applicationRef) {
+      throw new ExternalDocumentServiceError(
+        "Choose an application CV created in this AAAAT session first.",
+      );
+    }
+    this.requireApplicationReference(applicationRef);
     const workingCvId = this.requireReference(
       this.workingCvs,
       cvRef,
@@ -559,6 +576,7 @@ export class ExternalDocumentSession {
       this.letters,
       this.letterRefs,
     );
+    this.letterApplications.set(letterRef, applicationRef);
     this.letterPrivateValues.set(
       letterRef,
       mergedPrivateValues(this.inspectedReusableCvPrivateValues),
@@ -573,6 +591,13 @@ export class ExternalDocumentSession {
     letterRef: OperationReference,
     draft: CoverLetterDraft,
   ): ReturnType<typeof externalDocumentAppliedResultSchema.parse> {
+    const applicationRef = this.letterApplications.get(letterRef);
+    if (!applicationRef) {
+      throw new ExternalDocumentServiceError(
+        "Create the application cover letter in this AAAAT session first.",
+      );
+    }
+    this.requireApplicationReference(applicationRef);
     const letterId = this.requireReference(
       this.letters,
       letterRef,
@@ -632,11 +657,20 @@ export class ExternalDocumentSession {
   ): Promise<ReturnType<typeof externalDocumentRenderResultSchema.parse>> {
     const workingCvId = this.workingCvs.get(documentRef);
     const letterId = this.letters.get(documentRef);
+    const applicationRef =
+      this.workingCvApplications.get(documentRef)
+      ?? this.letterApplications.get(documentRef);
     if (!workingCvId && !letterId) {
       throw new ExternalDocumentServiceError(
         "Choose a document created in this AAAAT session first.",
       );
     }
+    if (!applicationRef) {
+      throw new ExternalDocumentServiceError(
+        "Choose a document created for an application in this AAAAT session first.",
+      );
+    }
+    this.requireApplicationReference(applicationRef);
 
     const status = await this.renderingStatus();
     if (!status.available) {
