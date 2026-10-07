@@ -1,3 +1,5 @@
+import type { DatabaseSync } from "node:sqlite";
+
 import {
   providerJobExtractionRequestSchema,
   type AiConnectionStatus,
@@ -22,6 +24,7 @@ import { AiProviderError } from "./ai-provider";
 import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import {
   listCandidatureFields,
+  listCandidatureFieldsInDatabase,
   validateCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
 import { withWorkspaceDatabase } from "./workspace";
@@ -252,15 +255,15 @@ function fieldReference(wire: CandidatureFieldProposalWire, raw: unknown): strin
   return null;
 }
 
-export function validateCandidatureFieldProposals(
-  rootPath: string,
+export function validateCandidatureFieldProposalsInDatabase(
+  database: DatabaseSync,
   wire: CandidatureFieldProposalWire,
   rawProposals: readonly unknown[],
 ): {
   readonly proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }>;
   readonly issues: JobExtractionProposalIssue[];
 } {
-  const currentFields = listCandidatureFields(rootPath);
+  const currentFields = listCandidatureFieldsInDatabase(database);
   const byId = new Map(currentFields.map((field) => [field.definition.id, field]));
   const proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }> = [];
   const issues: JobExtractionProposalIssue[] = [];
@@ -305,9 +308,10 @@ export function validateCandidatureFieldProposals(
       continue;
     }
     try {
-      const normalized = withWorkspaceDatabase(
-        rootPath,
-        (database) => validateCandidatureFieldValueInDatabase(database, fieldId, runtime.data),
+      const normalized = validateCandidatureFieldValueInDatabase(
+        database,
+        fieldId,
+        runtime.data,
       );
       if (normalized === null) {
         issues.push(issue("invalid", fieldId, label, candidate.value, `${field.definition.label} did not contain a usable value.`));
@@ -325,6 +329,20 @@ export function validateCandidatureFieldProposals(
     }
   }
   return { proposals, issues };
+}
+
+
+export function validateCandidatureFieldProposals(
+  rootPath: string,
+  wire: CandidatureFieldProposalWire,
+  rawProposals: readonly unknown[],
+): {
+  readonly proposals: Array<{ fieldId: string; value: CandidatureRuntimeValue }>;
+  readonly issues: JobExtractionProposalIssue[];
+} {
+  return withWorkspaceDatabase(rootPath, (database) =>
+    validateCandidatureFieldProposalsInDatabase(database, wire, rawProposals)
+  );
 }
 
 export async function extractJobWithPartialOutcomes(
