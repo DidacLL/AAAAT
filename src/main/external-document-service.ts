@@ -3,7 +3,6 @@ import { operationReferenceSchema } from "../shared/ai-contracts";
 import type {
   CvContent,
   CvTemplateItem,
-  CvTemplateRecord,
   WorkingCvItem,
   WorkingCvRecord,
 } from "../shared/document-domain-contracts";
@@ -19,10 +18,11 @@ import {
   externalReusableCvContentSchema,
   type ExternalApplicationCvCreateResult,
   type ExternalCvFieldContext,
+  type ExternalReusableCvBlock,
   type ExternalReusableCvContent,
 } from "../shared/external-document-contracts";
 import { cvWritingContext, restorePrivateValues } from "./ai-service";
-import { selectedExternalAiCandidatureId } from "./candidature-opportunity-research-access-service";
+import { selectedApplicationDocumentExternalAccessId } from "./application-document-external-access-service";
 import { BUILTIN_BLUEPRINT_SOURCE } from "./document-blueprints";
 import {
   createCoverLetter,
@@ -39,6 +39,7 @@ import { listProfileVariants } from "./profile-variant-service";
 import { getSetupEnvironmentSnapshot } from "./setup-environment-service";
 
 type OperationReference = ReturnType<typeof operationReferenceSchema.parse>;
+type PrivateReplacements = Map<string, string | null>;
 
 interface CvFieldBinding {
   readonly cvRef: OperationReference;
@@ -48,7 +49,7 @@ interface CvFieldBinding {
 }
 
 interface CvFieldContextBinding {
-  readonly replacements: Map<string, string | null>;
+  readonly replacements: PrivateReplacements;
   readonly maxLength: number;
 }
 
@@ -67,16 +68,13 @@ const writableCvFields = Object.freeze([
   { key: "description", label: "Description" },
 ] as const satisfies readonly { readonly key: CvWritingField; readonly label: string }[]);
 
+const privatePlaceholderPattern = /\[USERPRIVATE:[^\]]+\]/u;
+
 export class ExternalDocumentServiceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ExternalDocumentServiceError";
   }
-}
-
-function templateDescription(template: CvTemplateRecord): string | undefined {
-  const description = template.pdfMetadata.subject.trim();
-  return description || undefined;
 }
 
 function contentFromTemplateItem(
@@ -123,20 +121,62 @@ function contentFromTemplateItem(
   };
 }
 
+function recordPrivateValue(
+  replacements: PrivateReplacements,
+  title: string,
+  value: string,
+): string {
+  const placeholder = `[USERPRIVATE:${title}]`;
+  if (!replacements.has(placeholder)) {
+    replacements.set(placeholder, value);
+  } else if (replacements.get(placeholder) !== value) {
+    replacements.set(placeholder, null);
+  }
+  return placeholder;
+}
+
+function mergedPrivateValues(
+  ...sources: readonly ReadonlyMap<string, string | null>[]
+): PrivateReplacements {
+  const merged: PrivateReplacements = new Map();
+  for (const source of sources) {
+    for (const [placeholder, value] of source) {
+      if (!merged.has(placeholder)) {
+        merged.set(placeholder, value);
+      } else if (merged.get(placeholder) !== value) {
+        merged.set(placeholder, null);
+      }
+    }
+  }
+  return merged;
+}
+
 function externalBlock(
   content: CvContent,
   sectionName: string,
   itemIndex: number,
   discloseValue: boolean,
-): CvContent {
-  const projected: Record<string, string> = { kind: content.kind };
-  for (const field of visibleCvFields) {
-    const value = content[field.key];
-    if (value === undefined) continue;
-    const title = `${sectionName} ${itemIndex + 1} — ${field.label}`;
-    projected[field.key] = discloseValue ? value : `[USERPRIVATE:${title}]`;
+  replacements: PrivateReplacements,
+): ExternalReusableCvBlock {
+  if (discloseValue) {
+    return {
+      kind: content.kind,
+      title: content.title,
+      ...(content.subtitle === undefined ? {} : { subtitle: content.subtitle }),
+      ...(content.description === undefined ? {} : { description: content.description }),
+      ...(content.startDate === undefined ? {} : { startDate: content.startDate }),
+      ...(content.endDate === undefined ? {} : { endDate: content.endDate }),
+      ...(content.url === undefined ? {} : { url: content.url }),
+    };
   }
-  return projected as CvContent;
+
+  const placeholders = visibleCvFields.flatMap((field) => {
+    const value = content[field.key];
+    if (value === undefined) return [];
+    const title = `${sectionName} ${itemIndex + 1} — ${field.label}`;
+    return [recordPrivateValue(replacements, title, value)];
+  });
+  return { placeholders };
 }
 
 function updateCvItemField(
@@ -153,6 +193,14 @@ function updateCvItemField(
   return { ...item, content: { ...item.content, description: content } };
 }
 
+function requireNoPrivatePlaceholder(value: string): void {
+  if (privatePlaceholderPattern.test(value)) {
+    throw new ExternalDocumentServiceError(
+      "The submitted document content contains a private placeholder AAAAT did not supply unambiguously for this document work.",
+    );
+  }
+}
+
 export class ExternalDocumentSession {
   private sequence = 0;
   private readonly applications = new Map<OperationReference, string>();
@@ -164,8 +212,12 @@ export class ExternalDocumentSession {
   private readonly letters = new Map<OperationReference, string>();
   private readonly letterRefs = new Map<string, OperationReference>();
   private readonly cvFields = new Map<OperationReference, CvFieldBinding>();
-  private readonly cvEditableFields = new Map<OperationReference, ExternalApplicationCvCreateResult["editableFields"]>();
+  private readonly cvEditableFields = new Map<
+    OperationReference,
+    ExternalApplicationCvCreateResult["editableFields"]
+  >();
   private readonly cvFieldContexts = new Map<OperationReference, CvFieldContextBinding>();
+  private readonly inspectedReusableCvPrivateValues: PrivateReplacements = new Map();
 
   constructor(private readonly rootPath: string) {}
 
@@ -208,7 +260,7 @@ export class ExternalDocumentSession {
   }
 
   applicationTarget(): ReturnType<typeof externalApplicationDocumentTargetSchema.parse> {
-    const candidatureId = selectedExternalAiCandidatureId(this.rootPath);
+    const candidatureId = selectedApplicationDocumentExternalAccessId(this.rootPath);
     if (!candidatureId) return null;
     return externalApplicationDocumentTargetSchema.parse({
       applicationRef: this.bindApplication(candidatureId),
@@ -216,19 +268,17 @@ export class ExternalDocumentSession {
   }
 
   listReusableCvs(): ReturnType<typeof externalReusableCvChoicesSchema.parse> {
-    const choices = listDocumentCollections(this.rootPath).templates.map((template) => ({
-      cvRef: this.bind(
-        "reusable_cv",
-        template.id,
-        this.reusableCvs,
-        this.reusableCvRefs,
-      ),
-      name: template.name,
-      ...(templateDescription(template)
-        ? { description: templateDescription(template) }
-        : {}),
-    }));
-    return externalReusableCvChoicesSchema.parse(choices);
+    return externalReusableCvChoicesSchema.parse(
+      listDocumentCollections(this.rootPath).templates.map((template) => ({
+        cvRef: this.bind(
+          "reusable_cv",
+          template.id,
+          this.reusableCvs,
+          this.reusableCvRefs,
+        ),
+        name: template.name,
+      })),
+    );
   }
 
   readReusableCv(cvRef: OperationReference): ExternalReusableCvContent {
@@ -254,24 +304,33 @@ export class ExternalDocumentSession {
         preference.aiUseAllowed,
       ]),
     );
+    const privateValues: PrivateReplacements = new Map();
 
-    return externalReusableCvContentSchema.parse({
+    const result = externalReusableCvContentSchema.parse({
       name: template.name,
-      ...(templateDescription(template)
-        ? { description: templateDescription(template) }
-        : {}),
       sections: template.sections.map((section) => ({
         name: section.name,
         blocks: section.items.map((item, itemIndex) => {
           const content = contentFromTemplateItem(item, profile, variants);
           const discloseValue =
-            item.sourceMode === "custom"
-            || (item.profileItemId !== undefined
-              && permissions.get(item.profileItemId) === true);
-          return externalBlock(content, section.name, itemIndex, discloseValue);
+            item.sourceMode !== "custom"
+            && permissions.get(item.profileItemId) === true;
+          return externalBlock(
+            content,
+            section.name,
+            itemIndex,
+            discloseValue,
+            privateValues,
+          );
         }),
       })),
     });
+
+    this.inspectedReusableCvPrivateValues.clear();
+    for (const [placeholder, value] of privateValues) {
+      this.inspectedReusableCvPrivateValues.set(placeholder, value);
+    }
+    return result;
   }
 
   private bindWorkingCv(working: WorkingCvRecord): {
@@ -366,7 +425,10 @@ export class ExternalDocumentSession {
       binding.field,
     );
     this.cvFieldContexts.set(fieldRef, {
-      replacements: projected.replacements,
+      replacements: mergedPrivateValues(
+        this.inspectedReusableCvPrivateValues,
+        projected.replacements,
+      ),
       maxLength: projected.maxLength,
     });
     return externalCvFieldContextSchema.parse(projected.context);
@@ -401,11 +463,7 @@ export class ExternalDocumentSession {
         "The submitted CV content does not fit the requested field.",
       );
     }
-    if (/\[USERPRIVATE:[^\]]+\]/u.test(content)) {
-      throw new ExternalDocumentServiceError(
-        "The submitted CV content contains a private placeholder AAAAT did not supply unambiguously for this field.",
-      );
-    }
+    requireNoPrivatePlaceholder(content);
 
     const working = listDocumentCollections(this.rootPath).workingCvs.find(
       (candidate) => candidate.id === workingCvId,
@@ -480,15 +538,31 @@ export class ExternalDocumentSession {
     if (!letter) {
       throw new ExternalDocumentServiceError("The application cover letter no longer exists.");
     }
+
+    const restore = (value: string): string =>
+      restorePrivateValues(value, this.inspectedReusableCvPrivateValues);
+    const restoredDraft: CoverLetterDraft = {
+      recipient: restore(draft.recipient),
+      subject: restore(draft.subject),
+      bodyParagraphs: draft.bodyParagraphs.map(restore),
+      closing: restore(draft.closing),
+    };
+    requireNoPrivatePlaceholder(restoredDraft.recipient);
+    requireNoPrivatePlaceholder(restoredDraft.subject);
+    for (const paragraph of restoredDraft.bodyParagraphs) {
+      requireNoPrivatePlaceholder(paragraph);
+    }
+    requireNoPrivatePlaceholder(restoredDraft.closing);
+
     updateCoverLetter(this.rootPath, {
       id: letter.id,
       title: letter.title,
       ...(letter.language ? { language: letter.language } : {}),
       sender: letter.sender,
-      recipient: draft.recipient,
-      subject: draft.subject,
-      bodyParagraphs: draft.bodyParagraphs,
-      closing: draft.closing,
+      recipient: restoredDraft.recipient,
+      subject: restoredDraft.subject,
+      bodyParagraphs: restoredDraft.bodyParagraphs,
+      closing: restoredDraft.closing,
     });
     return externalDocumentAppliedResultSchema.parse({ applied: true });
   }
