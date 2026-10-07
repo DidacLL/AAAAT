@@ -330,7 +330,7 @@ function candidatureValueText(
   return Array.isArray(value) ? value.map(visible).join("; ") : visible(value);
 }
 
-function restorePrivateValues(text: string, replacements: PrivateReplacements): string {
+export function restorePrivateValues(text: string, replacements: PrivateReplacements): string {
   const exact = Array.from(replacements.entries()).filter(
     (entry): entry is [string, string] => typeof entry[1] === "string",
   );
@@ -344,7 +344,7 @@ function restorePrivateValues(text: string, replacements: PrivateReplacements): 
   return text.replace(pattern, (placeholder) => replacementMap.get(placeholder) ?? placeholder);
 }
 
-function cvWritingContext(
+export function cvWritingContext(
   rootPath: string,
   workingCv: WorkingCvRecord,
   itemId: string,
