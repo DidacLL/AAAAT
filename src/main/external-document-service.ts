@@ -220,6 +220,7 @@ export class ExternalDocumentSession {
   private readonly workingCvPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly letterPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly inspectedReusableCvPrivateValues: PrivateReplacements = new Map();
+  private documentWorkAuthorized = false;
 
   constructor(private readonly rootPath: string) {}
 
@@ -253,12 +254,21 @@ export class ExternalDocumentSession {
   }
 
   bindApplication(candidatureId: string): OperationReference {
+    this.documentWorkAuthorized = true;
     return this.bind(
       "application",
       candidatureId,
       this.applications,
       this.applicationRefs,
     );
+  }
+
+  private requireDocumentWorkAuthorization(): void {
+    if (!this.documentWorkAuthorized) {
+      throw new ExternalDocumentServiceError(
+        "Create an application or explicitly select an existing application's documents for external AI work in AAAAT first.",
+      );
+    }
   }
 
   applicationTarget(): ReturnType<typeof externalApplicationDocumentTargetSchema.parse> {
@@ -270,6 +280,7 @@ export class ExternalDocumentSession {
   }
 
   listReusableCvs(): ReturnType<typeof externalReusableCvChoicesSchema.parse> {
+    this.requireDocumentWorkAuthorization();
     return externalReusableCvChoicesSchema.parse(
       listDocumentCollections(this.rootPath).templates.map((template) => ({
         cvRef: this.bind(
@@ -284,6 +295,7 @@ export class ExternalDocumentSession {
   }
 
   readReusableCv(cvRef: OperationReference): ExternalReusableCvContent {
+    this.requireDocumentWorkAuthorization();
     const templateId = this.requireReference(
       this.reusableCvs,
       cvRef,
