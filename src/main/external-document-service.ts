@@ -220,7 +220,8 @@ export class ExternalDocumentSession {
   private readonly workingCvPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly letterPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly inspectedReusableCvPrivateValues: PrivateReplacements = new Map();
-  private documentWorkAuthorized = false;
+  private readonly createdApplicationRefs = new Set<OperationReference>();
+  private readonly selectedApplicationRefs = new Set<OperationReference>();
 
   constructor(private readonly rootPath: string) {}
 
@@ -254,29 +255,60 @@ export class ExternalDocumentSession {
   }
 
   bindApplication(candidatureId: string): OperationReference {
-    this.documentWorkAuthorized = true;
-    return this.bind(
+    const applicationRef = this.bind(
       "application",
       candidatureId,
       this.applications,
       this.applicationRefs,
     );
+    this.createdApplicationRefs.add(applicationRef);
+    return applicationRef;
+  }
+
+  private currentSelectedApplicationRef(): OperationReference | null {
+    const candidatureId = selectedApplicationDocumentExternalAccessId(this.rootPath);
+    if (!candidatureId) return null;
+    const applicationRef = this.applicationRefs.get(candidatureId);
+    if (!applicationRef || !this.selectedApplicationRefs.has(applicationRef)) return null;
+    return applicationRef;
   }
 
   private requireDocumentWorkAuthorization(): void {
-    if (!this.documentWorkAuthorized) {
+    if (this.createdApplicationRefs.size > 0 || this.currentSelectedApplicationRef()) return;
+    throw new ExternalDocumentServiceError(
+      "Create an application or explicitly select an existing application's documents for external AI work in AAAAT first.",
+    );
+  }
+
+  private requireApplicationReference(applicationRef: OperationReference): string {
+    const candidatureId = this.requireReference(
+      this.applications,
+      applicationRef,
+      "Choose or create the application in this AAAAT session first.",
+    );
+    if (
+      this.selectedApplicationRefs.has(applicationRef)
+      && !this.createdApplicationRefs.has(applicationRef)
+      && selectedApplicationDocumentExternalAccessId(this.rootPath) !== candidatureId
+    ) {
       throw new ExternalDocumentServiceError(
-        "Create an application or explicitly select an existing application's documents for external AI work in AAAAT first.",
+        "Select this existing application's documents for external AI work in AAAAT again.",
       );
     }
+    return candidatureId;
   }
 
   applicationTarget(): ReturnType<typeof externalApplicationDocumentTargetSchema.parse> {
     const candidatureId = selectedApplicationDocumentExternalAccessId(this.rootPath);
     if (!candidatureId) return null;
-    return externalApplicationDocumentTargetSchema.parse({
-      applicationRef: this.bindApplication(candidatureId),
-    });
+    const applicationRef = this.bind(
+      "application",
+      candidatureId,
+      this.applications,
+      this.applicationRefs,
+    );
+    this.selectedApplicationRefs.add(applicationRef);
+    return externalApplicationDocumentTargetSchema.parse({ applicationRef });
   }
 
   listReusableCvs(): ReturnType<typeof externalReusableCvChoicesSchema.parse> {
@@ -388,11 +420,7 @@ export class ExternalDocumentSession {
     applicationRef: OperationReference,
     reusableCvRef: OperationReference,
   ): ExternalApplicationCvCreateResult {
-    const candidatureId = this.requireReference(
-      this.applications,
-      applicationRef,
-      "Choose or create the application in this AAAAT session first.",
-    );
+    const candidatureId = this.requireApplicationReference(applicationRef);
     const templateId = this.requireReference(
       this.reusableCvs,
       reusableCvRef,
@@ -519,11 +547,7 @@ export class ExternalDocumentSession {
   createApplicationCoverLetter(
     applicationRef: OperationReference,
   ): ReturnType<typeof externalApplicationCoverLetterCreateResultSchema.parse> {
-    const candidatureId = this.requireReference(
-      this.applications,
-      applicationRef,
-      "Choose or create the application in this AAAAT session first.",
-    );
+    const candidatureId = this.requireApplicationReference(applicationRef);
     const letter = createCoverLetter(this.rootPath, {
       candidatureId,
       title: "Application cover letter",
