@@ -59,6 +59,12 @@ type ResearchAccessActivity =
 
 const applicationInformationTaskKey = "external_ai.application_information_task.v1";
 const applicationInformationResultKey = "external_ai.application_information_result.v1";
+const interviewPreparationTaskKey = "external_ai.interview_preparation_task.v1";
+
+const storedPrivateReplacementSchema = z.object({
+  placeholder: z.string().trim().min(1).max(240),
+  value: z.string().nullable(),
+}).strict();
 
 const storedFieldBindingSchema = z.object({
   fieldRef: operationReferenceSchema,
@@ -76,6 +82,7 @@ const storedApplicationInformationTaskSchema = z.object({
   instruction: candidatureExternalAiInstructionSchema,
   request: providerJobExtractionRequestSchema,
   fields: z.array(storedFieldBindingSchema).min(1).max(64),
+  privateReplacements: z.array(storedPrivateReplacementSchema).max(64),
 }).strict();
 type StoredApplicationInformationTask = z.infer<
   typeof storedApplicationInformationTaskSchema
@@ -85,6 +92,17 @@ const storedApplicationInformationResultSchema = z.object({
   candidatureId: z.string().uuid(),
   pending: externalApplicationInformationPendingResultSchema,
 }).strict();
+
+const storedInterviewPreparationTaskSchema = z.object({
+  candidatureId: z.string().uuid(),
+  context: externalInterviewPreparationContextSchema,
+  privateReplacements: z.array(storedPrivateReplacementSchema).max(64),
+}).strict();
+type StoredInterviewPreparationTask = z.infer<
+  typeof storedInterviewPreparationTaskSchema
+>;
+
+type PrivateReplacements = Map<string, string | null>;
 
 export class CandidatureOpportunityResearchAccessServiceError extends Error {
   constructor(message: string) {
@@ -226,6 +244,9 @@ export function updateCandidatureOpportunityResearchAccess(
         database
           .prepare("UPDATE candidatures SET opportunity_research_selected = 0 WHERE id = ?")
           .run(update.candidatureId);
+        deleteMetadata(database, applicationInformationTaskKey);
+        deleteMetadata(database, applicationInformationResultKey);
+        deleteMetadata(database, interviewPreparationTaskKey);
         recordActivity(
           database,
           update.candidatureId,
@@ -253,7 +274,41 @@ function displayValue(
   return Array.isArray(value) ? value.map(displayOne).join(", ") : displayOne(value);
 }
 
-function privatePlaceholder(field: CandidatureFieldConfiguration): string {
+function privatePlaceholder(
+  field: CandidatureFieldConfiguration,
+  value: string,
+  replacements: PrivateReplacements,
+): string {
+  const placeholder = `[USERPRIVATE:${field.definition.label}]`;
+  if (!replacements.has(placeholder)) {
+    replacements.set(placeholder, value);
+  } else if (replacements.get(placeholder) !== value) {
+    replacements.set(placeholder, null);
+  }
+  return placeholder;
+}
+
+function storedPrivateReplacements(
+  replacements: PrivateReplacements,
+): Array<{ readonly placeholder: string; readonly value: string | null }> {
+  return Array.from(replacements, ([placeholder, value]) => ({ placeholder, value }));
+}
+
+function replacementMap(
+  replacements: readonly { readonly placeholder: string; readonly value: string | null }[],
+): PrivateReplacements {
+  return new Map(replacements.map(({ placeholder, value }) => [placeholder, value]));
+}
+
+function restorePrivateText(text: string, replacements: PrivateReplacements): string {
+  const exact = Array.from(replacements.entries()).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+  if (exact.length === 0) return text;
+  const escaped = exact
+    .map(([placeholder]) => placeholder)
+    .sort((left, right) => right.length - left.length)
+    .map((placeholder) => placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\function privatePlaceholder(field: CandidatureFieldConfiguration): string {
   return `[USERPRIVATE:${field.definition.label}]`;
 }
 
@@ -261,8 +316,43 @@ function applicationContext(
   database: DatabaseSync,
   candidatureId: string,
   fields: readonly CandidatureFieldConfiguration[],
-): string {
+): string {"));
+  const pattern = new RegExp(escaped.join("|"), "g");
+  const values = new Map(exact);
+  return text.replace(pattern, (placeholder) => values.get(placeholder) ?? placeholder);
+}
+
+function restorePrivateProposalValue(
+  value: unknown,
+  replacements: PrivateReplacements,
+): unknown {
+  if (typeof value === "string") return restorePrivateText(value, replacements);
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      typeof item === "string" ? restorePrivateText(item, replacements) : item
+    );
+  }
+  return value;
+}
+
+function restorePrivateProposals(
+  proposals: readonly unknown[],
+  replacements: PrivateReplacements,
+): unknown[] {
+  return proposals.map((proposal) => {
+    if (!proposal || typeof proposal !== "object" || !("value" in proposal)) return proposal;
+    const candidate = proposal as { readonly value?: unknown };
+    return { ...proposal, value: restorePrivateProposalValue(candidate.value, replacements) };
+  });
+}
+
+function applicationContext(
+  database: DatabaseSync,
+  candidatureId: string,
+  fields: readonly CandidatureFieldConfiguration[],
+): { readonly text: string; readonly replacements: PrivateReplacements } {
   const byId = new Map(fields.map((field) => [field.definition.id, field]));
+  const replacements: PrivateReplacements = new Map();
   const sources = listCandidatureSourcesInDatabase(database, candidatureId)
     .slice(0, 20)
     .map((source, index) =>
@@ -281,7 +371,7 @@ function applicationContext(
       `${field.definition.label}: ${
         field.preferences.aiUseAllowed
           ? displayValue(field, item.value)
-          : privatePlaceholder(field)
+          : privatePlaceholder(field, displayValue(field, item.value), replacements)
       }`,
     ];
   });
@@ -290,7 +380,10 @@ function applicationContext(
   if (retained.length > 0) {
     parts.push(`Existing application information:\n${retained.join("\n")}`);
   }
-  return parts.join("\n\n---\n\n").slice(0, 50_000).trim();
+  return {
+    text: parts.join("\n\n---\n\n").slice(0, 50_000).trim(),
+    replacements,
+  };
 }
 
 function storedWire(task: StoredApplicationInformationTask): CandidatureFieldProposalWire {
@@ -310,12 +403,14 @@ function storedTaskFromWire(
   taskRef: string,
   instruction: string,
   wire: CandidatureFieldProposalWire,
+  replacements: PrivateReplacements,
 ): StoredApplicationInformationTask {
   return storedApplicationInformationTaskSchema.parse({
     candidatureId,
     taskRef,
     instruction,
     request: wire.request,
+    privateReplacements: storedPrivateReplacements(replacements),
     fields: wire.request.fields.map((field) => ({
       fieldRef: field.fieldRef,
       fieldId: wire.fieldIds.get(field.fieldRef),
@@ -394,16 +489,24 @@ export function prepareApplicationInformationTask(
     transact(database, () => {
       const candidatureId = requireSelectedId(database);
       const fields = listCandidatureFieldsInDatabase(database);
+      const retainedFieldIds = new Set(
+        readCandidatureFieldValuesInDatabase(database, candidatureId).map(
+          (item) => item.fieldId,
+        ),
+      );
       const assignedFields = fields.filter(
-        (field) => field.definition.enabled && field.preferences.aiUseAllowed,
+        (field) =>
+          field.definition.enabled
+          && field.preferences.aiUseAllowed
+          && !retainedFieldIds.has(field.definition.id),
       );
       if (assignedFields.length === 0) {
         throw new CandidatureOpportunityResearchAccessServiceError(
-          "Allow AI use for at least one application information item first.",
+          "No missing application information is currently available for AI use.",
         );
       }
       const context = applicationContext(database, candidatureId, fields);
-      if (!context) {
+      if (!context.text) {
         throw new CandidatureOpportunityResearchAccessServiceError(
           "Keep some Source text or existing application information before asking external AI to fill application information.",
         );
@@ -412,7 +515,7 @@ export function prepareApplicationInformationTask(
         {
           sourceTitle: "Retained AAAAT application context",
           sourceUrl: "",
-          sourceText: context,
+          sourceText: context.text,
         },
         assignedFields,
       );
@@ -421,9 +524,11 @@ export function prepareApplicationInformationTask(
         `aaaat_task_${randomUUID()}`,
         instruction,
         wire,
+        context.replacements,
       );
       writeMetadataJson(database, applicationInformationTaskKey, stored);
       deleteMetadata(database, applicationInformationResultKey);
+      deleteMetadata(database, interviewPreparationTaskKey);
       return taskFor(stored);
     }),
   );
@@ -522,7 +627,10 @@ function storeApplicationInformationProposals(
   const validated = validateCandidatureFieldProposals(
     rootPath,
     storedWire(stored),
-    input.proposals,
+    restorePrivateProposals(
+      input.proposals,
+      replacementMap(stored.privateReplacements),
+    ),
   );
   const pending = externalApplicationInformationPendingResultSchema.parse({
     resultRef: `aaaat_result_${randomUUID()}`,
@@ -629,33 +737,96 @@ export function buildApplicationInformationPortableTask(
   ].join("\n");
 }
 
-export function interviewPreparationContext(
+function buildInterviewPreparationContext(
+  database: DatabaseSync,
+  candidatureId: string,
+): {
+  readonly context: ExternalInterviewPreparationContext;
+  readonly replacements: PrivateReplacements;
+} {
+  const fields = listCandidatureFieldsInDatabase(database);
+  const byId = new Map(fields.map((field) => [field.definition.id, field]));
+  const replacements: PrivateReplacements = new Map();
+  const information = readCandidatureFieldValuesInDatabase(database, candidatureId)
+    .flatMap((item) => {
+      const field = byId.get(item.fieldId);
+      if (!field?.definition.enabled) return [];
+      const value = displayValue(field, item.value);
+      return [{
+        label: field.definition.label,
+        value: field.preferences.aiUseAllowed
+          ? value
+          : privatePlaceholder(field, value, replacements),
+      }];
+    });
+  const sources = listCandidatureSourcesInDatabase(database, candidatureId)
+    .slice(0, 20)
+    .map((source) => ({
+      title: source.title,
+      url: source.url,
+      sourceText: compactSourceText(source.sourceText).slice(0, 12_000),
+    }));
+  return {
+    context: externalInterviewPreparationContextSchema.parse({ information, sources }),
+    replacements,
+  };
+}
+
+function readStoredInterviewPreparationTask(
+  database: DatabaseSync,
+): StoredInterviewPreparationTask | null {
+  const raw = readMetadataJson(database, interviewPreparationTaskKey);
+  if (raw === null) return null;
+  const parsed = storedInterviewPreparationTaskSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Stored external interview-preparation task is invalid.",
+    );
+  }
+  return parsed.data;
+}
+
+function requireStoredInterviewPreparationTask(
+  database: DatabaseSync,
+): StoredInterviewPreparationTask {
+  const candidatureId = requireSelectedId(database);
+  const stored = readStoredInterviewPreparationTask(database);
+  if (!stored || stored.candidatureId !== candidatureId) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Prepare for interview with my AI in AAAAT first.",
+    );
+  }
+  return stored;
+}
+
+export function prepareInterviewPreparationContext(
   rootPath: string,
 ): ExternalInterviewPreparationContext {
   return withWorkspaceDatabase(rootPath, (database) =>
-    snapshot(database, () => {
+    transact(database, () => {
       const candidatureId = requireSelectedId(database);
-      const fields = listCandidatureFieldsInDatabase(database);
-      const byId = new Map(fields.map((field) => [field.definition.id, field]));
-      const information = readCandidatureFieldValuesInDatabase(database, candidatureId)
-        .flatMap((item) => {
-          const field = byId.get(item.fieldId);
-          if (!field?.definition.enabled) return [];
-          return [{
-            label: field.definition.label,
-            value: field.preferences.aiUseAllowed
-              ? displayValue(field, item.value)
-              : privatePlaceholder(field),
-          }];
-        });
-      const sources = listCandidatureSourcesInDatabase(database, candidatureId)
-        .slice(0, 20)
-        .map((source) => ({
-          title: source.title,
-          url: source.url,
-          sourceText: compactSourceText(source.sourceText).slice(0, 12_000),
-        }));
-      return externalInterviewPreparationContextSchema.parse({ information, sources });
+      const built = buildInterviewPreparationContext(database, candidatureId);
+      writeMetadataJson(database, interviewPreparationTaskKey, {
+        candidatureId,
+        context: built.context,
+        privateReplacements: storedPrivateReplacements(built.replacements),
+      });
+      deleteMetadata(database, applicationInformationTaskKey);
+      deleteMetadata(database, applicationInformationResultKey);
+      return built.context;
+    }),
+  );
+}
+
+export function selectedInterviewPreparationContext(
+  rootPath: string,
+): ExternalInterviewPreparationContext | null {
+  return withWorkspaceDatabase(rootPath, (database) =>
+    snapshot(database, () => {
+      const candidatureId = selectedId(database);
+      if (candidatureId === null) return null;
+      const stored = readStoredInterviewPreparationTask(database);
+      return stored?.candidatureId === candidatureId ? stored.context : null;
     }),
   );
 }
@@ -685,7 +856,12 @@ export function buildInterviewPreparationPortableTask(
   rawInstruction: string = defaultInterviewPreparationTaskInstruction,
 ): string {
   const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-  const context = interviewPreparationContext(rootPath);
+  const context = selectedInterviewPreparationContext(rootPath);
+  if (!context) {
+    throw new CandidatureOpportunityResearchAccessServiceError(
+      "Prepare for interview with my AI in AAAAT first.",
+    );
+  }
   return [
     "# Prepare for interview with my AI",
     "",
@@ -711,15 +887,18 @@ export function retainInterviewPreparationResult(
   const result = externalInterviewPreparationResultSchema.parse({ text: rawText });
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
-      const candidatureId = requireSelectedId(database);
+      const stored = requireStoredInterviewPreparationTask(database);
       addCandidatureSourceInDatabase(
         database,
         {
-          candidatureId,
+          candidatureId: stored.candidatureId,
           kind: "conversation",
           title: "Interview preparation from external AI",
           url: "",
-          sourceText: result.text,
+          sourceText: restorePrivateText(
+            result.text,
+            replacementMap(stored.privateReplacements),
+          ),
         },
         new Date().toISOString(),
       );
