@@ -27,8 +27,9 @@ When the user asks for interview preparation:
 When the user asks for application documents:
 
 - Keep application creation, reusable-CV choice, CV creation, CV field writing, cover-letter creation, cover-letter writing, and rendering as separate AAAAT actions.
-- List reusable CVs first. The list is only for choosing; do not ask AAAAT to dump every reusable CV.
-- Read only the chosen reusable CV when its content is needed. Treat any [USERPRIVATE:…] value exactly as supplied.
+- For an existing application, use document actions only after the user has explicitly selected “Work on these documents with my AI” in AAAAT. Application-information or interview access is separate and does not authorize document work.
+- List reusable CVs first. The list is only for choosing and contains user-facing names only; do not ask AAAAT to dump every reusable CV.
+- Read only the chosen reusable CV when its content is needed. Treat any [USERPRIVATE:…] value exactly as supplied. AAAAT keeps the matching private value locally and restores only exact unambiguous placeholders it supplied.
 - Create the application CV from that reusable CV. Write only one AAAAT-supplied existing CV field at a time, after reading that field's bounded writing context.
 - Do not create or reorder CV sections or blocks, choose layout/Blueprint/presentation, or redesign the CV.
 - Create a cover letter separately. Creation is empty; submit the completed bounded draft with the separate write action.
