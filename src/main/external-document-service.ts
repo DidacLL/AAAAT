@@ -1,4 +1,4 @@
-import type { CvWritingField } from "../shared/ai-contracts";
+import type { CoverLetterDraft, CvWritingField } from "../shared/ai-contracts";
 import { operationReferenceSchema } from "../shared/ai-contracts";
 import type {
   CvContent,
@@ -464,12 +464,7 @@ export class ExternalDocumentSession {
 
   writeCoverLetter(
     letterRef: OperationReference,
-    draft: Parameters<typeof updateCoverLetter>[1] extends never ? never : {
-      readonly recipient: string;
-      readonly subject: string;
-      readonly bodyParagraphs: string[];
-      readonly closing: string;
-    },
+    draft: CoverLetterDraft,
   ): ReturnType<typeof externalDocumentAppliedResultSchema.parse> {
     const letterId = this.requireReference(
       this.letters,
