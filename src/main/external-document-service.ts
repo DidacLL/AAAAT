@@ -395,7 +395,7 @@ export class ExternalDocumentSession {
       );
     }
 
-    let content = restorePrivateValues(rawContent.trim(), context.replacements).trim();
+    const content = restorePrivateValues(rawContent.trim(), context.replacements).trim();
     if (!content || content.length > context.maxLength) {
       throw new ExternalDocumentServiceError(
         "The submitted CV content does not fit the requested field.",
