@@ -586,10 +586,13 @@ export class ExternalDocumentSession {
       this.letterRefs,
     );
     this.letterApplications.set(letterRef, applicationRef);
-    this.letterPrivateValues.set(
-      letterRef,
-      mergedPrivateValues(this.applicationPrivateValues.get(applicationRef) ?? new Map()),
-    );
+    const privateValues = this.applicationPrivateValues.get(applicationRef);
+    if (privateValues) {
+      this.letterPrivateValues.set(
+        letterRef,
+        mergedPrivateValues(privateValues),
+      );
+    }
     return externalApplicationCoverLetterCreateResultSchema.parse({
       created: true,
       letterRef,
@@ -619,7 +622,13 @@ export class ExternalDocumentSession {
       throw new ExternalDocumentServiceError("The application cover letter no longer exists.");
     }
 
-    const privateValues = this.letterPrivateValues.get(letterRef) ?? new Map();
+    let privateValues = this.letterPrivateValues.get(letterRef);
+    if (!privateValues) {
+      privateValues = mergedPrivateValues(
+        this.applicationPrivateValues.get(applicationRef) ?? new Map(),
+      );
+      this.letterPrivateValues.set(letterRef, privateValues);
+    }
     const restore = (value: string): string =>
       restorePrivateValues(value, privateValues);
     const restoredDraft: CoverLetterDraft = {
