@@ -25,7 +25,7 @@ import {
   validateAiConnectionOperation,
 } from "./ai-connection-service";
 import {
-  interviewPreparationContext,
+  selectedInterviewPreparationContext,
   retainInterviewPreparationResult,
   selectedApplicationInformationTask,
   submitApplicationInformationProposals,
@@ -146,7 +146,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
     async (input) => {
       emptyInputSchema.parse(input);
       const context = externalInterviewPreparationContextSchema.parse(
-        interviewPreparationContext(rootPath),
+        selectedInterviewPreparationContext(rootPath),
       );
       return { content: [{ type: "text" as const, text: JSON.stringify(context) }] };
     },
