@@ -226,6 +226,8 @@ export function CandidaturesWorkspace({
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [documentCreationBusy, setDocumentCreationBusy] = useState<"cv" | "cover_letter" | null>(null);
+  const [documentExternalAccessAllowed, setDocumentExternalAccessAllowed] = useState(false);
+  const [documentExternalAccessBusy, setDocumentExternalAccessBusy] = useState(false);
   const [applicationCvSource, setApplicationCvSource] = useState("profile");
   const [packetWorkingCvId, setPacketWorkingCvId] = useState("");
   const [packetLetterId, setPacketLetterId] = useState("");
@@ -293,6 +295,7 @@ export function CandidaturesWorkspace({
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
+    setDocumentExternalAccessAllowed(false); setDocumentExternalAccessBusy(false);
   }, []);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
@@ -350,6 +353,21 @@ export function CandidaturesWorkspace({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshCollections();
   }, [documentHandoff, refreshCollections]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const readAccess = window.aaaat.documentDomain.externalApplicationAccess;
+    if (typeof readAccess !== "function") return;
+    let active = true;
+    void readAccess(selectedId)
+      .then((access) => {
+        if (active) setDocumentExternalAccessAllowed(access.allowed);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not read document access for your external AI.");
+      });
+    return () => { active = false; };
+  }, [selectedId]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
@@ -593,6 +611,28 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
   };
+  const updateDocumentExternalAccess = async (allowed: boolean) => {
+    if (!selected || documentExternalAccessBusy) return;
+    setDocumentExternalAccessBusy(true);
+    setError(null);
+    try {
+      const access = await window.aaaat.documentDomain.updateExternalApplicationAccess({
+        candidatureId: selected.id,
+        allowed,
+      });
+      setDocumentExternalAccessAllowed(access.allowed);
+    } catch (reason) {
+      setError(
+        readableDocumentError(
+          reason,
+          "AAAAT could not update external AI access for these application documents.",
+        ),
+      );
+    } finally {
+      setDocumentExternalAccessBusy(false);
+    }
+  };
+
   const createApplicationCoverLetter = async () => {
     if (!selected || documentCreationBusy) return;
     setDocumentCreationBusy("cover_letter"); setError(null);
@@ -1457,6 +1497,21 @@ export function CandidaturesWorkspace({
             <h3>CV + cover letter</h3>
             <p>Edit the two source documents separately. Create one application PDF when both are ready.</p>
           </div>
+          <label className="application-document-ai-access">
+            <input
+              type="checkbox"
+              checked={documentExternalAccessAllowed}
+              disabled={documentExternalAccessBusy || selected.archived}
+              onChange={(event) => void updateDocumentExternalAccess(event.target.checked)}
+            />
+            <span>
+              <strong>Work on these documents with my AI</strong>
+              <small>
+                This selects this application for external CV, cover-letter and rendering actions.
+                Application-information and interview access are separate.
+              </small>
+            </span>
+          </label>
         </div>
 
         <div className="application-document-pair">
