@@ -415,6 +415,30 @@
   max-width: 62ch;
 }
 
+.application-document-ai-access {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  max-width: 27rem;
+  padding: 8px 10px;
+  border: 1px solid #b9a78e;
+  border-radius: 4px;
+  background: #f7ead7;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.application-document-ai-access > span {
+  display: grid;
+  gap: 2px;
+}
+
+.application-document-ai-access small {
+  color: var(--muted-ink);
+  line-height: 1.4;
+}
+
 .application-document-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
