@@ -434,6 +434,9 @@ export class ExternalDocumentSession {
       parserSummary: working.parserSummary,
       sections,
     });
+    for (const [candidateRef, candidate] of this.cvFields) {
+      if (candidate.cvRef === cvRef) this.cvFieldContexts.delete(candidateRef);
+    }
     return externalDocumentAppliedResultSchema.parse({ applied: true });
   }
 
