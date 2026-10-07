@@ -308,15 +308,7 @@ function restorePrivateText(text: string, replacements: PrivateReplacements): st
   const escaped = exact
     .map(([placeholder]) => placeholder)
     .sort((left, right) => right.length - left.length)
-    .map((placeholder) => placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\function privatePlaceholder(field: CandidatureFieldConfiguration): string {
-  return `[USERPRIVATE:${field.definition.label}]`;
-}
-
-function applicationContext(
-  database: DatabaseSync,
-  candidatureId: string,
-  fields: readonly CandidatureFieldConfiguration[],
-): string {"));
+    .map((placeholder) => placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const pattern = new RegExp(escaped.join("|"), "g");
   const values = new Map(exact);
   return text.replace(pattern, (placeholder) => values.get(placeholder) ?? placeholder);
