@@ -162,6 +162,10 @@ function selectedId(database: DatabaseSync): string | null {
   return row?.id ?? null;
 }
 
+export function selectedExternalAiCandidatureId(rootPath: string): string | null {
+  return withWorkspaceDatabase(rootPath, selectedId);
+}
+
 function requireSelectedId(database: DatabaseSync): string {
   const candidatureId = selectedId(database);
   if (candidatureId === null) {
