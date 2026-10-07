@@ -21,7 +21,7 @@ import {
   buildApplicationInformationPortableTask,
   buildInterviewPreparationPortableTask,
   importApplicationInformationPortableResult,
-  interviewPreparationContext,
+  prepareInterviewPreparationContext,
   maxExternalAiPortableResultBytes,
   prepareApplicationInformationTask,
   retainInterviewPreparationResult,
@@ -172,7 +172,7 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.interviewContext, (event) => {
     assertTrustedSender(event, mainWindow);
     return externalInterviewPreparationContextSchema.parse(
-      interviewPreparationContext(requireWorkspaceRoot()),
+      prepareInterviewPreparationContext(requireWorkspaceRoot()),
     );
   });
 
