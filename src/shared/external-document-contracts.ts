@@ -19,7 +19,6 @@ export const externalReusableCvChoiceSchema = z
   .object({
     cvRef: operationReferenceSchema,
     name: z.string().trim().min(1).max(200),
-    description: z.string().trim().min(1).max(500).optional(),
   })
   .strict();
 export const externalReusableCvChoicesSchema = z
@@ -31,7 +30,11 @@ export const externalReusableCvReadInputSchema = z
   .object({ cvRef: operationReferenceSchema })
   .strict();
 
-const externalCvBlockSchema = z
+export const externalPrivatePlaceholderSchema = z
+  .string()
+  .regex(/^\[USERPRIVATE:[^\]\r\n]{1,500}\]$/u);
+
+const externalCvVisibleBlockSchema = z
   .object({
     kind: z.string().trim().min(1).max(80),
     title: z.string().max(200),
@@ -43,14 +46,25 @@ const externalCvBlockSchema = z
   })
   .strict();
 
+const externalCvPrivateBlockSchema = z
+  .object({
+    placeholders: z.array(externalPrivatePlaceholderSchema).min(1).max(6),
+  })
+  .strict();
+
+export const externalReusableCvBlockSchema = z.union([
+  externalCvVisibleBlockSchema,
+  externalCvPrivateBlockSchema,
+]);
+export type ExternalReusableCvBlock = z.infer<typeof externalReusableCvBlockSchema>;
+
 export const externalReusableCvContentSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
-    description: z.string().trim().min(1).max(500).optional(),
     sections: z.array(
       z.object({
         name: z.string().trim().min(1).max(120),
-        blocks: z.array(externalCvBlockSchema).max(100),
+        blocks: z.array(externalReusableCvBlockSchema).max(100),
       }).strict(),
     ).max(40),
   })
