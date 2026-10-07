@@ -217,6 +217,8 @@ export class ExternalDocumentSession {
     ExternalApplicationCvCreateResult["editableFields"]
   >();
   private readonly cvFieldContexts = new Map<OperationReference, CvFieldContextBinding>();
+  private readonly workingCvPrivateValues = new Map<OperationReference, PrivateReplacements>();
+  private readonly letterPrivateValues = new Map<OperationReference, PrivateReplacements>();
   private readonly inspectedReusableCvPrivateValues: PrivateReplacements = new Map();
 
   constructor(private readonly rootPath: string) {}
@@ -390,6 +392,10 @@ export class ExternalDocumentSession {
       source: { kind: "template", templateId },
     });
     const bound = this.bindWorkingCv(created);
+    this.workingCvPrivateValues.set(
+      bound.cvRef,
+      mergedPrivateValues(this.inspectedReusableCvPrivateValues),
+    );
     return externalApplicationCvCreateResultSchema.parse({
       created: true,
       cvRef: bound.cvRef,
@@ -426,7 +432,7 @@ export class ExternalDocumentSession {
     );
     this.cvFieldContexts.set(fieldRef, {
       replacements: mergedPrivateValues(
-        this.inspectedReusableCvPrivateValues,
+        this.workingCvPrivateValues.get(cvRef) ?? new Map(),
         projected.replacements,
       ),
       maxLength: projected.maxLength,
@@ -517,6 +523,10 @@ export class ExternalDocumentSession {
       this.letters,
       this.letterRefs,
     );
+    this.letterPrivateValues.set(
+      letterRef,
+      mergedPrivateValues(this.inspectedReusableCvPrivateValues),
+    );
     return externalApplicationCoverLetterCreateResultSchema.parse({
       created: true,
       letterRef,
@@ -539,8 +549,13 @@ export class ExternalDocumentSession {
       throw new ExternalDocumentServiceError("The application cover letter no longer exists.");
     }
 
+    const retainedPrivateValues = this.letterPrivateValues.get(letterRef);
+    const privateValues =
+      retainedPrivateValues && retainedPrivateValues.size > 0
+        ? retainedPrivateValues
+        : this.inspectedReusableCvPrivateValues;
     const restore = (value: string): string =>
-      restorePrivateValues(value, this.inspectedReusableCvPrivateValues);
+      restorePrivateValues(value, privateValues);
     const restoredDraft: CoverLetterDraft = {
       recipient: restore(draft.recipient),
       subject: restore(draft.subject),
