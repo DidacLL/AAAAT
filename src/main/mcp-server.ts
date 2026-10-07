@@ -224,7 +224,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     reusableCvsListToolName,
     {
-      description: "List reusable AAAAT CV choices by user-facing name only. This never returns reusable CV contents, PDF metadata, document IDs, paths, PDFs, or other documents.",
+      description: "After document work is authorized by a newly created application or the user's explicit existing-application document selection, list reusable AAAAT CV choices by user-facing name only. This never returns reusable CV contents, PDF metadata, document IDs, paths, PDFs, or other documents.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
