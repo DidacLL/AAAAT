@@ -206,7 +206,7 @@ export const providerCoverLetterSourceSchema = z
   .object({
     title: z.string().max(200),
     url: z.string().max(2048),
-    sourceText: z.string().max(12_000),
+    sourceText: z.string().max(50_000),
   })
   .strict();
 export const providerCoverLetterInformationSchema = z
@@ -217,10 +217,10 @@ export const providerCoverLetterInformationSchema = z
   .strict();
 export const providerCoverLetterContextSchema = z
   .object({
-    sources: z.array(providerCoverLetterSourceSchema).max(20),
+    sources: z.array(providerCoverLetterSourceSchema),
     applicationInformation: z.array(providerCoverLetterInformationSchema).max(64),
     careerContext: z.array(providerCoverLetterInformationSchema).max(7),
-    myInformation: z.array(providerCoverLetterInformationSchema).max(1_400),
+    myInformation: z.array(providerCoverLetterInformationSchema),
   })
   .strict();
 export type ProviderCoverLetterContext = z.infer<typeof providerCoverLetterContextSchema>;
