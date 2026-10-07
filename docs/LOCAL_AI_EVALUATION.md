@@ -36,7 +36,7 @@ A mode exits unsuccessfully only for a harness/configuration failure such as an 
 
 The current scenario counts are:
 
-- direct AAAAT -> AI: 15;
+- direct AAAAT -> AI: 9;
 - external chat / Send to my AI: 8;
 - model-driven MCP: 8;
 - representative llama.cpp local host: 4.
@@ -69,7 +69,7 @@ Environment variables can prefill automation/local scripts:
 
 ## What is evaluated
 
-Direct mode repeatedly exercises the production AAAAT provider/service paths for Source extraction, historical field discovery, opportunity review, CV tailoring and cover-letter drafting.
+Direct mode repeatedly exercises the production AAAAT provider/service paths for application-information extraction, CV writing and cover-letter drafting.
 
 External-chat mode exercises production Send to my AI context construction and reusable host guidance with opportunity research, interview preparation, one-off edited tasks, sparse context, privacy-hidden information, hostile/instruction-like context text and returned-result retention. It also measures whether current host guidance is sufficient for an external chat to produce the documented application-handoff format; failure is retained as evidence rather than patched around in the evaluator.
 
