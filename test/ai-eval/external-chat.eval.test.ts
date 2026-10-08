@@ -41,6 +41,7 @@ function setup(root: string, cls: string) {
   if (cls==="stress") for(let n=1;n<=20;n++) createCandidatureField(root,{
     label:"Follow-up application question "+n,
     description:"Only propose a value when the retained Source explicitly answers question "+n,
+    valueType:"text",cardinality:"one",choices:[],enabled:true,
   });
   const candidature = createCandidature(root, {
     source: { kind: "job_posting", title: "Recruiter Source", url: "", sourceText: sourceText(cls) },
@@ -115,10 +116,10 @@ async function run(scenario: typeof scenarios[number], root: string, markStage:(
     if (retainedReview && retainedReview.result.proposals.length > 0) {
       // Simulate the ordinary human review's acceptance with the production field write.
       const chosen = retainedReview.result.proposals[0]!;
-      const accepted = setCandidatureFieldValue(root,{
+      setCandidatureFieldValue(root,{
         candidatureId:candidature.id,fieldId:chosen.fieldId,value:chosen.value,
       });
-      acceptedValue = accepted.values.find(v=>v.fieldId===chosen.fieldId)?.value ?? null;
+      acceptedValue = getCandidature(root,candidature.id).values.find(v=>v.fieldId===chosen.fieldId)?.value ?? null;
       checks.push({name:"reviewed proposal can be accepted with exact value",critical:true,passed:JSON.stringify(acceptedValue)===JSON.stringify(chosen.value)});
     }
     if (scenario.scenarioClass==="normal") checks.push({name:"source employer proposed",passed:Boolean(pending?.result.proposals.some(p=>JSON.stringify(p.value).includes("Meridian")))});
