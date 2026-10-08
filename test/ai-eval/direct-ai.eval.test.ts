@@ -224,9 +224,12 @@ describe.runIf(evalEnabled)("AAAAT configured-provider journeys", () => {
       for (const scenario of scenarios) for (let repetition=1; repetition<=evalRepetitions; repetition++) {
         const root = mkdtempSync(path.join(tmpdir(),"aaaat-direct-eval-"));
         const started=Date.now();capture=[];
+        let stage:"fixture"|"model"|"report"="fixture";
         try {
           setup(root);
+          stage="model";
           const value=await run(scenario,root);
+          stage="report";
           const scored=evaluate(value.checks);
           trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
             scenarioClass:scenario.scenarioClass,repetition,status:scored.status,score:scored.score,
@@ -237,7 +240,8 @@ describe.runIf(evalEnabled)("AAAAT configured-provider journeys", () => {
         } catch(reason) {
           const error=errorInfo(reason);
           const kind=reason instanceof AiProviderError ? reason.diagnostic?.failureKind || error.category : error.category;
-          const configurationFailure=["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(kind);
+          const configurationFailure=stage==="fixture" || stage==="report" ||
+            ["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(kind);
           if (configurationFailure) harnessFailures++;
           const modelMiss=reason instanceof AiProviderError && ["operation_contract_invalid","model_response_invalid_json","operation_incompatible"].includes(kind);
           trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
