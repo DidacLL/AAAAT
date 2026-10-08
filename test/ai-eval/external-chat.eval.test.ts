@@ -130,6 +130,7 @@ async function run(scenario: typeof scenarios[number], root: string) {
 describe.runIf(evalEnabled)("AAAAT external chat task carriers",()=>{
   it("evaluates application-information proposals and interview preparation in real round trips",async()=>{
     const trials:EvalTrial[]=[];
+    let harnessFailures=0;
     for(const scenario of scenarios)for(let repetition=1;repetition<=evalRepetitions;repetition++){
       const root=mkdtempSync(path.join(tmpdir(),"aaaat-chat-eval-")),started=Date.now();
       try{
@@ -140,6 +141,7 @@ describe.runIf(evalEnabled)("AAAAT external chat task carriers",()=>{
       }catch(reason){
         const error=errorInfo(reason);
         const transport=["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(error.category);
+        if(transport)harnessFailures++;
         trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
           scenarioClass:scenario.scenarioClass,repetition,status:transport?"error":"fail",score:0,
           elapsedMs:Date.now()-started,checks:[{name:"valid intention round trip",passed:false}],
@@ -147,6 +149,7 @@ describe.runIf(evalEnabled)("AAAAT external chat task carriers",()=>{
       }finally{rmSync(root,{recursive:true,force:true,maxRetries:5});}
     }
     writeEvalReport({mode:"chat",description:"Current task-carrier copy/paste and file returns, with normal review and Source retention.",
-      scenarios,trials,promptArtifacts:{"reusable host guidance":externalAssistantGuidance.content}});
+      scenarios,trials,promptArtifacts:{"reusable host guidance":externalAssistantGuidance.content},extra:{harnessFailures}});
+    if(harnessFailures>0)throw new Error("External-chat evaluation had "+harnessFailures+" configuration/transport errors; all scheduled trials were recorded.");
   },14_400_000);
 });
