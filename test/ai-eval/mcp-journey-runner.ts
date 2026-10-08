@@ -19,6 +19,7 @@ import { listDocumentCollections, createCvTemplate } from "../../src/main/docume
 import { externalAssistantGuidance } from "../../src/main/external-assistant-guidance";
 import { listAiConnections } from "../../src/main/ai-connection-service";
 import { addProfileItem } from "../../src/main/profile-service";
+import { updateProfileItemAiContextPreference } from "../../src/main/profile-ai-context-service";
 import { getSetupAssistantAccess, updateSetupAssistantAccess } from "../../src/main/setup-assistant-service";
 import { createOrOpenWorkspace } from "../../src/main/workspace";
 import { selectedScenarios } from "./catalog.mjs";
@@ -190,6 +191,7 @@ function prepare(root: string, scenario: Scenario): Fixture {
     });
     const profileId = profile.items.find(p=>p.title==="Platform Engineer at Atlas")?.id;
     if(!profileId)throw new Error("Missing seeded profile item.");
+    updateProfileItemAiContextPreference(root,{itemId:profileId,aiUseAllowed:true});
     if (cls==="privacy_ambiguous") {
       const ambiguousProfile=addProfileItem(root,{kind:"experience",title:"Another private engagement",description:"SECOND-PRIVATE-VALUE-3486"});
       const secondId=ambiguousProfile.items.find(p=>p.title==="Another private engagement")?.id;
