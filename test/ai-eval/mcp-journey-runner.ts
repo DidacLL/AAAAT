@@ -8,7 +8,7 @@ import path from "node:path";
 import type { Client } from "@modelcontextprotocol/client";
 
 import { createCandidature, listCandidatures, listCandidatureSources } from "../../src/main/candidature-service";
-import { listCandidatureFields, setCandidatureFieldValue, updateCandidatureFieldPreferences } from "../../src/main/candidature-field-service";
+import { createCandidatureField, listCandidatureFields, setCandidatureFieldValue, updateCandidatureFieldPreferences } from "../../src/main/candidature-field-service";
 import {
   updateCandidatureOpportunityResearchAccess,
   prepareApplicationInformationTask, prepareInterviewPreparationContext,
@@ -18,7 +18,7 @@ import { updateApplicationDocumentExternalAccess } from "../../src/main/applicat
 import { listDocumentCollections, createCvTemplate } from "../../src/main/document-domain-service";
 import { externalAssistantGuidance } from "../../src/main/external-assistant-guidance";
 import { listAiConnections, saveNamedAiConnection } from "../../src/main/ai-connection-service";
-import { addProfileItem } from "../../src/main/profile-service";
+import { addProfileItem, getProfile } from "../../src/main/profile-service";
 import { updateProfileItemAiContextPreference } from "../../src/main/profile-ai-context-service";
 import { getSetupAssistantAccess, updateSetupAssistantAccess } from "../../src/main/setup-assistant-service";
 import { createOrOpenWorkspace } from "../../src/main/workspace";
@@ -169,12 +169,28 @@ function prepare(root: string, scenario: Scenario): Fixture {
     });
     other = second.id;
   }
+  if (cls==="stress" && journey==="application_information_return") {
+    for(let index=1;index<=22;index++) createCandidatureField(root,{
+      label:"Additional application question "+index,
+      description:"Only fill from explicit retained Source evidence for information "+index,
+    });
+  }
   if (journey === "application_information_return" || journey === "interview_result") {
     updateCandidatureOpportunityResearchAccess(root,{candidatureId:app.id,allowed:true});
     if (journey === "application_information_return") {
+      if (cls==="stress") {
+        prepareInterviewPreparationContext(root);
+        prepareApplicationInformationTask(root);
+        prepareInterviewPreparationContext(root);
+      }
       prepareApplicationInformationTask(root);
       if (cls === "stale") prepareInterviewPreparationContext(root);
     } else {
+      if (cls==="stress") {
+        prepareApplicationInformationTask(root);
+        prepareInterviewPreparationContext(root);
+        prepareApplicationInformationTask(root);
+      }
       prepareInterviewPreparationContext(root);
       if (cls === "stale") prepareApplicationInformationTask(root);
     }
@@ -207,6 +223,32 @@ function prepare(root: string, scenario: Scenario): Fixture {
       });
       templateId=templates.templates.find(t=>t.name==="Core Platform CV")?.id;
       if(!templateId)throw new Error("Missing ambiguous reusable CV.");
+    } else if (cls==="stress" && ["cv_field_write","cv_field_context","application_cv_create"].includes(journey)) {
+      const ids=[profileId];
+      for(let index=1;index<=8;index++) {
+        const item=addProfileItem(root,{
+          kind:index%3===0?"education":"project",
+          title:"Retained professional block "+index,
+          subtitle:"Scoped evidence "+index,
+          description:index%2===0 ? "PRIVATE-STRESS-EVIDENCE-"+index : "Public evidence for project "+index,
+        });
+        const id=item.items.find(candidate=>candidate.title==="Retained professional block "+index)?.id;
+        if(!id)throw new Error("Missing stress profile item.");
+        updateProfileItemAiContextPreference(root,{itemId:id,aiUseAllowed:index%2!==0});
+        ids.push(id);
+      }
+      const templates=createCvTemplate(root,{
+        name:"Core Platform CV",
+        sections:[0,1,2].map(section=>({
+          id:randomUUID(),name:["Experience","Projects","Education"][section]!,
+          presentationRole:"main" as const,
+          items:ids.slice(section*3,(section+1)*3).map(id=>({
+            id:randomUUID(),sourceMode:"current" as const,profileItemId:id,
+          })),
+        })),
+      });
+      templateId=templates.templates.find(t=>t.name==="Core Platform CV")?.id;
+      if(!templateId)throw new Error("Missing multi-section reusable CV.");
     } else templateId = makeTemplate(root,"Core Platform CV",profileId);
     if (["ambiguous","stress","stale"].includes(cls) || cls.startsWith("privacy") || journey === "reusable_cv_list") {
       const second = addProfileItem(root, {
@@ -391,18 +433,32 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"CV write is bound to chosen CV and existing field",passed:succeeded(trace,"cv_field_write") &&
       Boolean(cv && cv.sourceTemplateId===fixture.templateId && docs.workingCvs.length===priorDocs.workingCvs.length+1)});
     const items=cv?.sections.flatMap(section=>section.items) || [];
-    checks.push({name:"CV write preserves all other field titles, subtitles and block count",passed:Boolean(cv) &&
-      items.length===(cls==="privacy_ambiguous"?2:1) &&
-      items[0]?.content.title==="Platform Engineer at Atlas" &&
-      items[0]?.content.subtitle==="Barcelona" &&
-      (items.length===1 || items[1]?.content.title==="Another private engagement")});
-    checks.push({name:"requested description, not title, was edited",passed:items.some(item=>
-      item.content.title==="Platform Engineer at Atlas" &&
-      item.content.description !== "Maintained TypeScript and Node.js systems; improved monitoring and Kubernetes deployments.")});
+    const originals = new Map(getProfile(root).items.map(p=>[p.id,p]));
+    const diffs:string[]=[];
+    if(cv && template) for(const [sectionIndex,section] of cv.sections.entries()) {
+      const basis=template.sections[sectionIndex];
+      for(const [itemIndex,item] of section.items.entries()) {
+        const sourceItem=basis?.items[itemIndex];
+        const sourceContent=sourceItem?.sourceMode==="custom"
+          ? sourceItem.content
+          : sourceItem && "profileItemId" in sourceItem ? originals.get(sourceItem.profileItemId) : undefined;
+        if(!sourceContent) { diffs.push("missing_basis");continue; }
+        for(const key of ["kind","title","subtitle","startDate","endDate","url","description"]) {
+          if(JSON.stringify(item.content[key as keyof typeof item.content]) !==
+             JSON.stringify(sourceContent[key as keyof typeof sourceContent])) diffs.push(key);
+        }
+      }
+    }
+    checks.push({name:"CV write touches exactly one existing description and nothing else",
+      passed:Boolean(cv && template && items.length===template.sections.reduce((sum,section)=>sum+section.items.length,0)) &&
+        diffs.length===1 && diffs[0]==="description"});
     checks.push({name:"CV sections and item ordering preserved",passed:Boolean(cv && template && cv.sections.length===template.sections.length &&
       cv.sections.every((section,i)=>section.name===template.sections[i]?.name && section.items.length===template.sections[i]?.items.length))});
     checks.push({name:"no unrelated letter creation",passed:docs.letters.length===priorDocs.letters.length});
     checks.push({name:"no unexpected rendering from a field write",passed:docs.renderedCvs.length===priorDocs.renderedCvs.length});
+    if (cls==="stress") checks.push({name:"private values in large CV remain model-invisible",
+      passed:!JSON.stringify(trace.exchanges.map(e=>e.request)).includes("PRIVATE-STRESS-EVIDENCE") &&
+        !JSON.stringify(trace.toolCalls.map(c=>c.result)).includes("PRIVATE-STRESS-EVIDENCE")});
   } else if(journey==="cover_letter_create") {
     checks.push({name:"empty editable letter created separately",passed:docs.letters.length===priorDocs.letters.length+1 &&
       docs.letters.some(l=>l.candidatureId===fixture.applicationId && l.bodyParagraphs.length===0)});
