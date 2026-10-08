@@ -17,7 +17,7 @@ import {
 import { updateApplicationDocumentExternalAccess } from "../../src/main/application-document-external-access-service";
 import { listDocumentCollections, createCvTemplate } from "../../src/main/document-domain-service";
 import { externalAssistantGuidance } from "../../src/main/external-assistant-guidance";
-import { listAiConnections } from "../../src/main/ai-connection-service";
+import { listAiConnections, saveNamedAiConnection } from "../../src/main/ai-connection-service";
 import { addProfileItem } from "../../src/main/profile-service";
 import { updateProfileItemAiContextPreference } from "../../src/main/profile-ai-context-service";
 import { getSetupAssistantAccess, updateSetupAssistantAccess } from "../../src/main/setup-assistant-service";
@@ -235,6 +235,9 @@ function prepare(root: string, scenario: Scenario): Fixture {
       updateApplicationDocumentExternalAccess(root,{candidatureId:app.id,allowed:true});
       updateApplicationDocumentExternalAccess(root,{candidatureId:app.id,allowed:false});
     }
+  }
+  if (journey==="configurator_validation" || journey==="configurator_default") {
+    saveNamedAiConnection(root,{name:"Local Evaluation",endpoint:evalEndpoint,model:evalModel});
   }
   if (journey.startsWith("configurator_") || journey.startsWith("installer_")) {
     updateSetupAssistantAccess(root, {
