@@ -31,7 +31,7 @@ async function flush(): Promise<void> {
 function diagnosticError(failureKind = "operation_incompatible"): Error {
   const exchange = {
     id: "00000000-0000-4000-8000-000000000d11",
-    operation: "opportunity_review",
+    operation: "cover_letter_draft",
     endpoint: "http://localhost:8080/v1",
     model: "small-local-model",
     systemInstruction: "Return the requested JSON object.",
@@ -195,7 +195,7 @@ describe("renderer AI task state", () => {
       status: "failed",
       error: "The endpoint is reachable, but this operation is incompatible.",
       exchange: {
-        operation: "opportunity_review",
+        operation: "cover_letter_draft",
         endpoint: "http://localhost:8080/v1",
         model: "small-local-model",
         rawModelResponse: "I cannot return that schema.",

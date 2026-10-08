@@ -1134,33 +1134,28 @@ function LetterEditor({
     }
   };
 
-  const askAi = async () => {
+  const askAi = () => {
     if (draftingActive) return;
     setError(null);
-    try {
-      const saved = dirty ? await persistDraft() : draft;
-      startAiTask<CoverLetterDraft>(
-        draftingTaskKey,
-        async (updateDetail, signal) => {
-          updateDetail("Drafting from the application and allowed My information…");
-          const cancelProvider = () => {
-            void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey).catch(() => undefined);
-          };
-          signal.addEventListener("abort", cancelProvider, { once: true });
-          try {
-            return await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, {
-              coverLetterId: saved.id,
-            });
-          } finally {
-            signal.removeEventListener("abort", cancelProvider);
-          }
-        },
-        "Draft cover letter",
-        () => "Draft ready",
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not prepare this cover letter for AI.");
-    }
+    startAiTask<CoverLetterDraft>(
+      draftingTaskKey,
+      async (updateDetail, signal) => {
+        updateDetail("Drafting from the information assigned to this cover-letter task…");
+        const cancelProvider = () => {
+          void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey).catch(() => undefined);
+        };
+        signal.addEventListener("abort", cancelProvider, { once: true });
+        try {
+          return await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, {
+            coverLetterId: draft.id,
+          });
+        } finally {
+          signal.removeEventListener("abort", cancelProvider);
+        }
+      },
+      "Draft cover letter",
+      () => "Draft ready",
+    );
   };
 
   const renderLetter = async () => {
@@ -1211,7 +1206,7 @@ function LetterEditor({
           </div>
         </div>
         <div className="document-editor-actions">
-          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={() => void askAi()}>
+          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={askAi}>
             {draftingActive ? "AI working…" : "Draft with AI"}
           </button>
           <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>

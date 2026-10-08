@@ -1,11 +1,9 @@
 import {
   coverLetterDraftSchema,
-  opportunityReviewResultSchema,
   providerCvWritingContextSchema,
-  providerDocumentAiContextSchema,
+  providerCoverLetterContextSchema,
   providerJobExtractionRequestSchema,
   providerJobExtractionEnvelopeSchema,
-  providerOpportunityReviewContextSchema,
   providerTagInferenceEnvelopeSchema,
   providerTagInferenceRequestSchema,
 } from "../shared/ai-contracts";
@@ -18,8 +16,6 @@ import {
 } from "./ai-provider";
 
 const fieldRef = "aaaat_validation_field";
-const itemRef = "aaaat_validation_item";
-const candidature = { label: "Validation opportunity", information: [], sources: [] };
 
 async function validateExtraction(
   connection: AiProviderConnection,
@@ -114,15 +110,7 @@ export async function validateAiOperation(
 ): Promise<void> {
   await runValidation(async () => {
     switch (operation) {
-      case "opportunity_review": {
-        const context = providerOpportunityReviewContextSchema.parse({ candidature, profileItems: [] });
-        opportunityReviewResultSchema.parse(
-          await provider.reviewOpportunity(connection, context, signal),
-        );
-        return;
-      }
       case "job_extraction":
-      case "historical_field_discovery":
         await validateExtraction(connection, provider, signal);
         return;
       case "tag_inference":
@@ -142,16 +130,18 @@ export async function validateAiOperation(
         return;
       }
       case "cover_letter_draft": {
-        const context = providerDocumentAiContextSchema.parse({
-          candidature,
-          items: [
-            {
-              itemRef,
-              kind: "experience",
-              title: "Validation experience",
-              description: "Synthetic evidence used only for capability validation.",
-            },
-          ],
+        const context = providerCoverLetterContextSchema.parse({
+          sources: [{
+            title: "Validation Source",
+            url: "",
+            sourceText: "Synthetic application Source used only for capability validation.",
+          }],
+          applicationInformation: [],
+          careerContext: [],
+          myInformation: [{
+            title: "My information 1 — Description",
+            value: "Synthetic information used only for capability validation.",
+          }],
         });
         coverLetterDraftSchema.parse(
           await provider.draftCoverLetter(connection, context, signal),
