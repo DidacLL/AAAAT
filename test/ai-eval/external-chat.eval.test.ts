@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "vitest";
 import { createCandidature, getCandidature, listCandidatureSources } from "../../src/main/candidature-service";
-import { listCandidatureFields, setCandidatureFieldValue, updateCandidatureFieldPreferences } from "../../src/main/candidature-field-service";
+import { createCandidatureField, listCandidatureFields, setCandidatureFieldValue, updateCandidatureFieldPreferences } from "../../src/main/candidature-field-service";
 import {
   updateCandidatureOpportunityResearchAccess, prepareApplicationInformationTask,
   prepareInterviewPreparationContext, buildApplicationInformationPortableTask,
@@ -38,6 +38,10 @@ function sourceText(cls: string) {
 }
 function setup(root: string, cls: string) {
   createOrOpenWorkspace(root);
+  if (cls==="stress") for(let n=1;n<=20;n++) createCandidatureField(root,{
+    label:"Follow-up application question "+n,
+    description:"Only propose a value when the retained Source explicitly answers question "+n,
+  });
   const candidature = createCandidature(root, {
     source: { kind: "job_posting", title: "Recruiter Source", url: "", sourceText: sourceText(cls) },
     values: [],
