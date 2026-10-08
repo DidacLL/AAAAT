@@ -24,7 +24,7 @@ import { getSetupAssistantAccess, updateSetupAssistantAccess } from "../../src/m
 import { createOrOpenWorkspace } from "../../src/main/workspace";
 import { selectedScenarios } from "./catalog.mjs";
 import {
-  chatCompletion, evalEnabled, evalEndpoint, evalModel, evalRepetitions, evaluate,
+  chatCompletion, evalEndpoint, evalModel, evalRepetitions, evaluate,
   errorInfo, writeEvalReport, type ChatExchange, type EvalCheck, type EvalTrial,
   type OpenAiMessage, type OpenAiToolDefinition,
 } from "./eval-runtime";
