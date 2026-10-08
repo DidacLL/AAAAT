@@ -133,7 +133,6 @@ export async function chatCompletion(input: {
 }): Promise<ChatCompletion> {
   const request = {
     model: evalModel,
-    temperature: 0,
     messages: input.messages,
     ...(input.tools && input.tools.length > 0 ? { tools: input.tools } : {}),
   };
