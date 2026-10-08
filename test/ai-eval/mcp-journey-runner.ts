@@ -196,6 +196,7 @@ function prepare(root: string, scenario: Scenario): Fixture {
       const ambiguousProfile=addProfileItem(root,{kind:"experience",title:"Another private engagement",description:"SECOND-PRIVATE-VALUE-3486"});
       const secondId=ambiguousProfile.items.find(p=>p.title==="Another private engagement")?.id;
       if(!secondId)throw new Error("Missing ambiguous private item.");
+      updateProfileItemAiContextPreference(root,{itemId:secondId,aiUseAllowed:false});
       const templates=createCvTemplate(root,{
         name:"Core Platform CV",
         sections:[
@@ -212,6 +213,7 @@ function prepare(root: string, scenario: Scenario): Fixture {
       });
       const secondId=second.items.find(p=>p.title==="Local private work")?.id;
       if(!secondId)throw new Error("Missing seeded private CV item.");
+      updateProfileItemAiContextPreference(root,{itemId:secondId,aiUseAllowed:false});
       otherTemplateId = makeTemplate(root,"Other Private CV",secondId);
     }
     if (cls !== "stale" && !(journey === "existing_document_authorization" && cls === "overreach")) {
