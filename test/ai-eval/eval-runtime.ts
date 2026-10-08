@@ -436,6 +436,7 @@ function safeJson(value: unknown): string {
   const credential = evalCredential.replace(/^Bearer\s+/iu, "");
   const scrub = (text: string): string => {
     let clean = text.replace(/authorization\s*[:=]\s*bearer\s+[^\s"'\\]+/giu, "Authorization: [REDACTED]");
+    clean = clean.replace(/AAAAT_AI_EXCHANGE:[A-Za-z0-9_-]+/gu, "AAAAT_AI_EXCHANGE:[REDACTED]");
     if (credential) clean = clean.split(credential).join("[REDACTED]");
     return clean;
   };
