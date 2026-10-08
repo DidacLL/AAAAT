@@ -11,6 +11,7 @@ import { createCandidature, listCandidatures } from "../../src/main/candidature-
 import { listCandidatureFields } from "../../src/main/candidature-field-service";
 import { createCoverLetter, createWorkingCv, listDocumentCollections } from "../../src/main/document-domain-service";
 import { addProfileItem } from "../../src/main/profile-service";
+import { updateProfileItemAiContextPreference } from "../../src/main/profile-ai-context-service";
 import { createTag } from "../../src/main/tag-service";
 import { extractJobWithPartialOutcomes } from "../../src/main/robust-job-extraction";
 import { inferTagsWithPartialOutcomes } from "../../src/main/robust-tag-inference";
@@ -87,7 +88,12 @@ function seedProfile(root: string) {
     { kind: "experience", title: "Platform Engineer — Atlas", subtitle: "Barcelona", description: "Built Node.js systems, TypeScript services and Kubernetes observability." },
     { kind: "project", title: "Event ingestion", description: "Developed queue retries and dashboards for production incidents." },
     { kind: "skill", title: "SQL and Python", description: "Analytics scripting and reporting." },
-  ]) addProfileItem(root, item);
+  ]) {
+    const snapshot=addProfileItem(root,item);
+    const created=snapshot.items.find(p=>p.title===item.title);
+    if (!created) throw new Error("Missing seeded public profile item.");
+    updateProfileItemAiContextPreference(root,{itemId:created.id,aiUseAllowed:true});
+  }
 }
 function checksFor(scenario: typeof scenarios[number], result: unknown, root: string, before: string, after: string): EvalCheck[] {
   const cls = scenario.scenarioClass;
