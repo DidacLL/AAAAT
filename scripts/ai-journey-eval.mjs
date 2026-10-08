@@ -189,6 +189,9 @@ function writeSummary(reportDir, models, modes, journeys, repetitions, records) 
       matrix.push({
         model: record.model, mode: record.mode, journey: scenario.journey, scenario: scenario.id,
         scenarioClass: scenario.scenarioClass, repetitions: current.length, expectedRepetitions: repetitions,
+        repetitionResults: current.map(t => ({
+          repetition:t.repetition, status:t.status, elapsedMs:t.elapsedMs, score:t.score,
+        })).sort((a,b)=>a.repetition-b.repetition),
         ...countStatuses(current), elapsedMs: current.reduce((sum,t) => sum + t.elapsedMs, 0),
         evidenceFile: existsSync(file) ? file : null,
       });
@@ -205,7 +208,8 @@ function writeSummary(reportDir, models, modes, journeys, repetitions, records) 
   const named = models.map((m,i) => {
     const name=m.name+" ["+m.model+" #"+(i+1)+"]";
     return {name,endpoint:m.endpoint,model:m.model,
-      ...countStatuses(all.filter(t=>t.model===name))};
+      ...countStatuses(all.filter(t=>t.model===name)),
+      elapsedMs:all.filter(t=>t.model===name).reduce((sum,t)=>sum+t.elapsedMs,0)};
   });
   const ranked = map => [...map].sort((a,b) => b[1] - a[1]).map(([name,count]) => ({ name,count }));
   const summary = {
@@ -216,12 +220,12 @@ function writeSummary(reportDir, models, modes, journeys, repetitions, records) 
   writeFileSync(path.join(reportDir, "run.json"), JSON.stringify(summary, null, 2) + "\n");
   const lines = ["# AAAAT real-model comparison", "",
     "A model miss is evidence, not a test-harness failure.", "",
-    "| Model | Endpoint | Pass | Weak | Fail | Error |", "| --- | --- | ---: | ---: | ---: | ---: |"];
-  for (const m of named) lines.push("| " + m.name + " (" + m.model + ") | " + m.endpoint + " | " + m.pass + " | " + m.weak + " | " + m.fail + " | " + m.error + " |");
+    "| Model | Endpoint | Pass | Weak | Fail | Error | Total seconds |", "| --- | --- | ---: | ---: | ---: | ---: | ---: |"];
+  for (const m of named) lines.push("| " + m.name + " (" + m.model + ") | " + m.endpoint + " | " + m.pass + " | " + m.weak + " | " + m.fail + " | " + m.error + " | " + (m.elapsedMs/1000).toFixed(1) + " |");
   lines.push("", "## Scenario matrix", "",
-    "| Model | Mode | Journey | Scenario | Class | Repeats | Pass | Weak | Fail | Error | Seconds |",
-    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
-  for (const r of matrix) lines.push("| " + r.model + " | " + r.mode + " | " + r.journey + " | " + r.scenario + " | " + r.scenarioClass + " | " + r.repetitions + "/" + r.expectedRepetitions + " | " + r.pass + " | " + r.weak + " | " + r.fail + " | " + r.error + " | " + (r.elapsedMs / 1000).toFixed(1) + " |");
+    "| Model | Mode | Journey | Scenario | Class | Repeats | Outcomes by repetition | Pass | Weak | Fail | Error | Seconds |",
+    "| --- | --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |");
+  for (const r of matrix) lines.push("| " + r.model + " | " + r.mode + " | " + r.journey + " | " + r.scenario + " | " + r.scenarioClass + " | " + r.repetitions + "/" + r.expectedRepetitions + " | " + r.repetitionResults.map(t=>t.repetition+":"+t.status).join(", ") + " | " + r.pass + " | " + r.weak + " | " + r.fail + " | " + r.error + " | " + (r.elapsedMs / 1000).toFixed(1) + " |");
   lines.push("", "## Recurrent checks across models", "", ...summary.failedChecksAcrossModels.map(s => "- " + s.count + "x " + s.name));
   lines.push("", "## Recurrent checks by model", "", ...summary.failedChecksByModel.map(s => "- " + s.count + "x " + s.name));
   lines.push("", "## Harness/configuration failures", "",
