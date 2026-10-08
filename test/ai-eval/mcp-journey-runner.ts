@@ -556,6 +556,11 @@ export async function runMcpSuite(
       });
     } catch(reason) {
       const error=errorInfo(reason);
+      let failureState:unknown=null;
+      if(connection){
+        try{failureState=state(root);}
+        catch(snapshotError){failureState={snapshotFailure:snapshotError instanceof Error?snapshotError.message:String(snapshotError)};}
+      }
       const harness=stage==="fixture" || stage==="connect" || stage==="outcome" ||
         ["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(error.category);
       if(harness)harnessFailures++;
@@ -564,7 +569,7 @@ export async function runMcpSuite(
         repetition,status:harness?"error":"fail",score:0,elapsedMs:Date.now()-started,
         checks:[{name:"bounded model and AAAAT journey completed",passed:false}],
         output:null,errorCategory:harness?error.category:"model_or_contract_miss",errorMessage:error.message,
-        evidence:{error:error.evidence,stage,workspace:connection ? state(root) : null},
+        evidence:{error:error.evidence,stage,workspace:failureState},
       });
     } finally {
       await connection?.close().catch(()=>undefined);
