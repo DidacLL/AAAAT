@@ -8,7 +8,7 @@ import { configureAiCredentialProtection, saveNamedAiConnection } from "../../sr
 import { AI_DEFAULT_INSTRUCTIONS, AiProviderError, createOpenAiCompatibleProvider } from "../../src/main/ai-provider";
 import { writeCvField, draftCoverLetter } from "../../src/main/ai-service";
 import { createCandidature, listCandidatures } from "../../src/main/candidature-service";
-import { listCandidatureFields } from "../../src/main/candidature-field-service";
+import { createCandidatureField, listCandidatureFields } from "../../src/main/candidature-field-service";
 import { createCoverLetter, createWorkingCv, listDocumentCollections } from "../../src/main/document-domain-service";
 import { addProfileItem } from "../../src/main/profile-service";
 import { updateProfileItemAiContextPreference } from "../../src/main/profile-ai-context-service";
@@ -125,8 +125,21 @@ async function run(scenario: typeof scenarios[number], root: string): Promise<{ 
   const signal = AbortSignal.timeout(evalTimeoutMs);
   const journey = scenario.journey;
   if (journey === "application_information_proposal") {
-    const targets = ["candidature.organization","candidature.role","candidature.location","candidature.compensation"]
-      .map(key => field(root, key).definition.id);
+    const extraFieldIds:string[]=[];
+    if (scenario.scenarioClass==="stress") {
+      for(let index=1;index<=24;index++) {
+        const created=createCandidatureField(root,{
+          label:"Application-specific information "+index,
+          description:"Use only exact statements from Source evidence. Question "+index,
+        });
+        extraFieldIds.push(created.definition.id);
+      }
+    }
+    const targets = [
+      ...["candidature.organization","candidature.role","candidature.location","candidature.compensation"]
+        .map(key => field(root, key).definition.id),
+      ...extraFieldIds,
+    ];
     const result = await extractJobWithPartialOutcomes(root, { sourceTitle: "Meridian role", sourceUrl: "", sourceText: text }, signal, targets);
     const checks: EvalCheck[] = [
       { name: "proposals use configured field scope", passed: result.proposals.every(p => targets.includes(p.fieldId)) },
