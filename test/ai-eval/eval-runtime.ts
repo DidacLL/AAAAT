@@ -12,6 +12,8 @@ export interface EvalCheck {
 export interface EvalTrial {
   readonly scenarioId: string;
   readonly title: string;
+  readonly journey: string;
+  readonly scenarioClass: string;
   readonly repetition: number;
   readonly status: EvalStatus;
   readonly score: number;
@@ -72,7 +74,7 @@ export const evalCredential = process.env.AAAAT_AI_EVAL_CREDENTIAL?.trim() ?? ""
 export const evalRepetitions = boundedInt(
   process.env.AAAAT_AI_EVAL_REPETITIONS,
   5,
-  2,
+  1,
   20,
 );
 export const evalTimeoutMs = boundedInt(
@@ -318,7 +320,7 @@ function percent(value: number): string {
 export function writeEvalReport(input: {
   readonly mode: string;
   readonly description: string;
-  readonly scenarios: readonly { id: string; title: string }[];
+  readonly scenarios: readonly { id: string; title: string; journey: string; scenarioClass: string }[];
   readonly trials: readonly EvalTrial[];
   readonly promptArtifacts?: Readonly<Record<string, string>>;
   readonly extra?: unknown;
@@ -345,9 +347,11 @@ export function writeEvalReport(input: {
     extra: input.extra ?? null,
     trials: input.trials,
   };
+  const reportKey = process.env.AAAAT_AI_EVAL_REPORT_KEY || input.mode;
+  if (!/^[a-zA-Z0-9_-]+$/u.test(reportKey)) throw new Error("Invalid report key.");
   writeFileSync(
-    path.join(directory, input.mode + ".json"),
-    JSON.stringify(report, null, 2) + "\n",
+    path.join(directory, reportKey + ".json"),
+    safeJson(report) + "\n",
     "utf8",
   );
 
@@ -361,8 +365,8 @@ export function writeEvalReport(input: {
     "- Repetitions per scenario: " + String(evalRepetitions),
     "- Trials: " + String(input.trials.length),
     "",
-    "| Scenario | Pass | Weak | Fail | Error | Average |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Journey | Scenario | Class | Pass | Weak | Fail | Error | Average |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
 
   for (const scenario of input.scenarios) {
@@ -374,7 +378,7 @@ export function writeEvalReport(input: {
         ? 0
         : current.reduce((sum, trial) => sum + trial.score, 0) / current.length;
     lines.push(
-      "| " + scenario.title +
+      "| " + scenario.journey + " | " + scenario.title + " | " + scenario.scenarioClass +
         " | " + count("pass") +
         " | " + count("weak") +
         " | " + count("fail") +
@@ -414,14 +418,29 @@ export function writeEvalReport(input: {
   lines.push(
     "",
     "Full model exchanges, tool calls, retained outputs and per-check details are in " +
-      input.mode +
+      reportKey +
       ".json.",
     "",
   );
   writeFileSync(
-    path.join(directory, input.mode + ".md"),
+    path.join(directory, reportKey + ".md"),
     lines.join("\n"),
     "utf8",
   );
   return directory;
+}
+
+
+// Scrub secrets from nested exchanges, tool results and model echoes.
+function safeJson(value: unknown): string {
+  const credential = evalCredential.replace(/^Bearer\s+/iu, "");
+  const scrub = (text: string): string => {
+    let clean = text.replace(/authorization\s*[:=]\s*bearer\s+[^\s"'\\]+/giu, "Authorization: [REDACTED]");
+    if (credential) clean = clean.split(credential).join("[REDACTED]");
+    return clean;
+  };
+  return JSON.stringify(value, (key: string, item: unknown) => {
+    if (/^(authorization|api[-_]?key|credential|token)$/iu.test(key)) return "[REDACTED]";
+    return typeof item === "string" ? scrub(item) : item;
+  }, 2);
 }
