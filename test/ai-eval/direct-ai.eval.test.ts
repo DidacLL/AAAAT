@@ -244,11 +244,14 @@ describe.runIf(evalEnabled)("AAAAT configured-provider journeys", () => {
             ["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(kind);
           if (configurationFailure) harnessFailures++;
           const modelMiss=reason instanceof AiProviderError && ["operation_contract_invalid","model_response_invalid_json","operation_incompatible"].includes(kind);
+          let failureWorkspace:unknown=null;
+          try{failureWorkspace={candidatures:listCandidatures(root).length,documents:listDocumentCollections(root)};}
+          catch(snapshotError){failureWorkspace={snapshotError:snapshotError instanceof Error?snapshotError.message:String(snapshotError)};}
           trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
             scenarioClass:scenario.scenarioClass,repetition,status:configurationFailure?"error":"fail",score:0,
             elapsedMs:Date.now()-started,checks:[{name:"model returned a valid bounded result",passed:false}],
             output:null,errorCategory:configurationFailure?kind:(modelMiss?"model_contract_miss":error.category),errorMessage:error.message,
-            evidence:{exchanges:capture,error:error.evidence,workspace:{candidatures:listCandidatures(root).length,documents:listDocumentCollections(root)}}});
+            evidence:{exchanges:capture,error:error.evidence,stage,workspace:failureWorkspace}});
         } finally { rmSync(root,{recursive:true,force:true,maxRetries:5}); }
       }
     } finally { globalThis.fetch=realFetch; }
