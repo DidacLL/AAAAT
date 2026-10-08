@@ -6,6 +6,7 @@ export type EvalStatus = "pass" | "weak" | "fail" | "error";
 export interface EvalCheck {
   readonly name: string;
   readonly passed: boolean;
+  readonly critical?: boolean;
   readonly detail?: string;
 }
 
@@ -276,8 +277,9 @@ export function evaluate(checks: readonly EvalCheck[]): {
 } {
   const passed = checks.filter((check) => check.passed).length;
   const score = checks.length === 0 ? 1 : passed / checks.length;
+  const criticalFailure = checks.some(check => check.critical === true && !check.passed);
   return {
-    status: score === 1 ? "pass" : score >= 0.5 ? "weak" : "fail",
+    status: criticalFailure ? "fail" : score === 1 ? "pass" : score >= 0.5 ? "weak" : "fail",
     score,
     checks,
   };
