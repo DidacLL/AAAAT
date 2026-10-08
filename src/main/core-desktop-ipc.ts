@@ -6,15 +6,10 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
-  historicalFieldDiscoveryRequestSchema,
-  historicalFieldDiscoveryResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
-  opportunityReviewPreviewSchema,
-  opportunityReviewRequestSchema,
-  opportunityReviewResultSchema,
   optionalAiConnectionStatusSchema,
 } from "../shared/ai-contracts";
 import {
@@ -25,10 +20,12 @@ import {
   cancellableAiConnectionValidationResultSchema,
   cancellableCoverLetterDraftRequestSchema,
   cancellableCoverLetterDraftResultSchema,
-  cancellableCvTailoringRequestSchema,
-  cancellableCvTailoringResultSchema,
+  cancellableCvWritingRequestSchema,
+  cancellableCvWritingResultSchema,
   cancellableJobExtractionRequestSchema,
   cancellableJobExtractionResultSchema,
+  cancellableTagInferenceRequestSchema,
+  cancellableTagInferenceResultSchema,
 } from "../shared/ai-task-cancellation-contracts";
 import {
   candidatureFavouriteOrderUpdateSchema,
@@ -74,23 +71,22 @@ import {
   workspaceRestoreResultSchema,
 } from "../shared/workspace-recovery-contracts";
 import {
-  discoverCandidatureFieldFromSources,
   draftCoverLetter,
   extractJob,
   getAiConnection,
-  previewOpportunityReview,
-  reviewOpportunity,
-  tailorCv,
+  writeCvField,
 } from "./ai-service";
 import {
   cancelCancellableAiConnectionValidation,
   cancelCancellableCoverLetterDraft,
-  cancelCancellableCvTailoring,
+  cancelCancellableCvWriting,
   cancelCancellableJobExtraction,
+  cancelCancellableTagInference,
   runCancellableAiConnectionValidation,
   runCancellableCoverLetterDraft,
-  runCancellableCvTailoring,
+  runCancellableCvWriting,
   runCancellableJobExtraction,
+  runCancellableTagInference,
 } from "./ai-task-cancellation";
 import {
   clearCandidatureFieldValue,
@@ -464,18 +460,6 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return optionalAiConnectionStatusSchema.parse(getAiConnection(requireWorkspaceRoot()));
   });
-  ipcMain.handle(aiChannels.opportunityReviewPreview, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return opportunityReviewPreviewSchema.parse(
-      previewOpportunityReview(requireWorkspaceRoot(), opportunityReviewRequestSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(aiChannels.opportunityReview, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return opportunityReviewResultSchema.parse(
-      await reviewOpportunity(requireWorkspaceRoot(), opportunityReviewRequestSchema.parse(input)),
-    );
-  });
   ipcMain.handle(aiChannels.jobExtract, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return jobExtractionResultSchema.parse(
@@ -495,6 +479,19 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
       cancelCancellableJobExtraction(aiTaskIdSchema.parse(taskId)),
     );
   });
+  ipcMain.handle(aiTaskCancellationChannels.tagInfer, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const parsed = cancellableTagInferenceRequestSchema.parse(input);
+    return cancellableTagInferenceResultSchema.parse(
+      await runCancellableTagInference(requireWorkspaceRoot(), parsed.taskId, parsed.request),
+    );
+  });
+  ipcMain.handle(aiTaskCancellationChannels.tagInferCancel, (event, taskId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return aiTaskCancellationResultSchema.parse(
+      cancelCancellableTagInference(aiTaskIdSchema.parse(taskId)),
+    );
+  });
   ipcMain.handle(aiTaskCancellationChannels.connectionValidate, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     const parsed = cancellableAiConnectionValidationRequestSchema.parse(input);
@@ -512,32 +509,23 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
       cancelCancellableAiConnectionValidation(aiTaskIdSchema.parse(taskId)),
     );
   });
-  ipcMain.handle(aiChannels.fieldDiscover, async (event, input: unknown) => {
+  ipcMain.handle(aiTaskCancellationChannels.cvWrite, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return historicalFieldDiscoveryResultSchema.parse(
-      await discoverCandidatureFieldFromSources(
-        requireWorkspaceRoot(),
-        historicalFieldDiscoveryRequestSchema.parse(input),
-      ),
+    const parsed = cancellableCvWritingRequestSchema.parse(input);
+    return cancellableCvWritingResultSchema.parse(
+      await runCancellableCvWriting(requireWorkspaceRoot(), parsed.taskId, parsed.request),
     );
   });
-  ipcMain.handle(aiTaskCancellationChannels.cvTailor, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    const parsed = cancellableCvTailoringRequestSchema.parse(input);
-    return cancellableCvTailoringResultSchema.parse(
-      await runCancellableCvTailoring(requireWorkspaceRoot(), parsed.taskId, parsed.request),
-    );
-  });
-  ipcMain.handle(aiTaskCancellationChannels.cvTailorCancel, (event, taskId: unknown) => {
+  ipcMain.handle(aiTaskCancellationChannels.cvWriteCancel, (event, taskId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return aiTaskCancellationResultSchema.parse(
-      cancelCancellableCvTailoring(aiTaskIdSchema.parse(taskId)),
+      cancelCancellableCvWriting(aiTaskIdSchema.parse(taskId)),
     );
   });
-  ipcMain.handle(aiChannels.cvTailor, async (event, input: unknown) => {
+  ipcMain.handle(aiChannels.cvWrite, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return cvTailoringResultSchema.parse(
-      await tailorCv(requireWorkspaceRoot(), cvTailoringRequestSchema.parse(input)),
+    return cvWritingResultSchema.parse(
+      await writeCvField(requireWorkspaceRoot(), cvWritingRequestSchema.parse(input)),
     );
   });
   ipcMain.handle(aiTaskCancellationChannels.coverLetterDraft, async (event, input: unknown) => {

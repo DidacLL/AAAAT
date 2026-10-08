@@ -20,7 +20,6 @@ import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
 import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
-import { createApplicationDocuments } from "./create-application-documents";
 import {
   candidatureCardRecognitionProjection,
   candidatureRecognitionProjection,
@@ -226,8 +225,9 @@ export function CandidaturesWorkspace({
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
-  const [selectedSources, setSelectedSources] = useState<CandidatureSource[]>([]);
   const [documentCreationBusy, setDocumentCreationBusy] = useState<"cv" | "cover_letter" | null>(null);
+  const [documentExternalAccessAllowed, setDocumentExternalAccessAllowed] = useState(false);
+  const [documentExternalAccessBusy, setDocumentExternalAccessBusy] = useState(false);
   const [applicationCvSource, setApplicationCvSource] = useState("profile");
   const [packetWorkingCvId, setPacketWorkingCvId] = useState("");
   const [packetLetterId, setPacketLetterId] = useState("");
@@ -295,6 +295,7 @@ export function CandidaturesWorkspace({
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
+    setDocumentExternalAccessAllowed(false); setDocumentExternalAccessBusy(false);
   }, []);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
@@ -353,6 +354,21 @@ export function CandidaturesWorkspace({
     void refreshCollections();
   }, [documentHandoff, refreshCollections]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const readAccess = window.aaaat.documentDomain.externalApplicationAccess;
+    if (typeof readAccess !== "function") return;
+    let active = true;
+    void readAccess(selectedId)
+      .then((access) => {
+        if (active) setDocumentExternalAccessAllowed(access.allowed);
+      })
+      .catch(() => {
+        if (active) setError("AAAAT could not read document access for your external AI.");
+      });
+    return () => { active = false; };
+  }, [selectedId]);
+
   const normalizedQuery = query.trim();
   useEffect(() => {
     if (!normalizedQuery) return;
@@ -392,20 +408,11 @@ export function CandidaturesWorkspace({
   }, [onTagContextChange, tagContext]);
   useEffect(() => () => onTagContextChange?.(null), [onTagContextChange]);
 
-  const selectedRecordId = mode === "selected" ? selectedId : null;
-  useEffect(() => {
-    if (!selectedRecordId) return;
-    let active = true;
-    void window.aaaat.candidatures.listSources(selectedRecordId).then((next) => { if (active) setSelectedSources(next); }).catch(() => { if (active) setSelectedSources([]); });
-    return () => { active = false; };
-  }, [selectedRecordId]);
-
   const confirmDiscard = () => !hasUnsavedChanges || window.confirm("Discard unsaved application edits?");
   const storeRecord = (record: CandidatureRecord) => setRecords((current) => current.map((candidate) => candidate.id === record.id ? record : candidate));
   const openRecord = (record: CandidatureRecord) => {
     if (!confirmDiscard()) return;
     setPreselectedId(record.id);
-    setSelectedSources([]);
     hydrate(record);
     setMode("selected");
   };
@@ -604,20 +611,41 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
   };
-  const createApplicationDocument = async (kind: "cv" | "cover_letter") => {
-    if (!selected || documentCreationBusy) return;
-    setDocumentCreationBusy(kind); setError(null);
+  const updateDocumentExternalAccess = async (allowed: boolean) => {
+    if (!selected || documentExternalAccessBusy) return;
+    setDocumentExternalAccessBusy(true);
+    setError(null);
     try {
-      const documents = await createApplicationDocuments({
+      const access = await window.aaaat.documentDomain.updateExternalApplicationAccess({
         candidatureId: selected.id,
-        sourceText: selectedSources.map((source) => source.sourceText).filter(Boolean).join("\n\n") || selected.sourceSearchText,
-        cv: kind === "cv", coverLetter: kind === "cover_letter",
+        allowed,
       });
-      const created = documents.find((candidate) => candidate.kind === kind);
-      if (!created) throw new Error("The document was not created.");
+      setDocumentExternalAccessAllowed(access.allowed);
+    } catch (reason) {
+      setError(
+        readableDocumentError(
+          reason,
+          "AAAAT could not update external AI access for these application documents.",
+        ),
+      );
+    } finally {
+      setDocumentExternalAccessBusy(false);
+    }
+  };
+
+  const createApplicationCoverLetter = async () => {
+    if (!selected || documentCreationBusy) return;
+    setDocumentCreationBusy("cover_letter"); setError(null);
+    try {
+      const created = await window.aaaat.documentDomain.createLetter({
+        candidatureId: selected.id,
+        title: "Application cover letter",
+        bodyParagraphs: [],
+      });
       await refreshCollections(); openDocument(created.id);
-    } catch { setError(kind === "cv" ? "AAAAT could not create the application CV." : "AAAAT could not create the cover letter."); }
-    finally { setDocumentCreationBusy(null); }
+    } catch (reason) {
+      setError(readableDocumentError(reason, "AAAAT could not create the cover letter."));
+    } finally { setDocumentCreationBusy(null); }
   };
   const createApplicationCvFromSource = async () => {
     if (!selected || documentCreationBusy) return;
@@ -1234,6 +1262,14 @@ export function CandidaturesWorkspace({
         </div>
       ) : null}
 
+      {initialTask ? null : (
+        <CandidatureOpportunityResearchAccessPanel
+          key={`external-ai-${selected.id}`}
+          candidatureId={selected.id}
+          contextDirty={taskContextDirty}
+        />
+      )}
+
       {sourceOwnsInitialContext ? (
         <CandidatureSourcesPanel
           candidatureId={selected.id}
@@ -1461,6 +1497,21 @@ export function CandidaturesWorkspace({
             <h3>CV + cover letter</h3>
             <p>Edit the two source documents separately. Create one application PDF when both are ready.</p>
           </div>
+          <label className="application-document-ai-access">
+            <input
+              type="checkbox"
+              checked={documentExternalAccessAllowed}
+              disabled={documentExternalAccessBusy || selected.archived}
+              onChange={(event) => void updateDocumentExternalAccess(event.target.checked)}
+            />
+            <span>
+              <strong>Work on these documents with my AI</strong>
+              <small>
+                This selects this application for external CV, cover-letter and rendering actions.
+                Application-information and interview access are separate.
+              </small>
+            </span>
+          </label>
         </div>
 
         <div className="application-document-pair">
@@ -1552,7 +1603,7 @@ export function CandidaturesWorkspace({
                 type="button"
                 className="compact-secondary"
                 disabled={documentCreationBusy !== null}
-                onClick={() => void createApplicationDocument("cover_letter")}
+                onClick={() => void createApplicationCoverLetter()}
               >
                 {documentCreationBusy === "cover_letter"
                   ? "Creating…"
@@ -1660,14 +1711,6 @@ export function CandidaturesWorkspace({
               onDirtyChange={setSourceDirty}
             />
           )}
-          {initialTask ? null : (
-            <CandidatureOpportunityResearchAccessPanel
-              key={`external-research-${selected.id}`}
-              candidatureId={selected.id}
-              contextDirty={taskContextDirty}
-            />
-          )}
-
           <section
             className="section-surface candidature-secondary-controls"
             aria-label="Application history"
@@ -1700,7 +1743,7 @@ export function CandidaturesWorkspace({
           targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
           taskId={`candidature-inference:${selected.id}:missing`}
           title="Fill missing information"
-          allowNewFields
+          includeTagInference
           onChanged={() => void refreshInformation()}
         />
       ) : null}

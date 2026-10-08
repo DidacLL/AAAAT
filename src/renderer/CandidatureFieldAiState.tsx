@@ -30,9 +30,6 @@ function extractionResult(task: AiTaskSnapshot): PartialJobExtractionResult | nu
   return Array.isArray(result.proposals)
     ? {
         proposals: result.proposals,
-        newFields: result.newFields ?? [],
-        existingTags: result.existingTags ?? [],
-        newTags: result.newTags ?? [],
         issues: result.issues ?? [],
         ...(result.exchange ? { exchange: result.exchange } : {}),
       }

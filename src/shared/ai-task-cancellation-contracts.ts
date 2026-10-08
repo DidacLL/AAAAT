@@ -9,26 +9,32 @@ import {
 import {
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
-  cvTailoringRequestSchema,
-  cvTailoringResultSchema,
+  cvWritingRequestSchema,
+  cvWritingResultSchema,
   jobExtractionRequestSchema,
+  tagInferenceRequestSchema,
   type CoverLetterDraft,
   type CoverLetterDraftRequest,
-  type CvTailoringRequest,
-  type CvTailoringResult,
+  type CvWritingRequest,
+  type CvWritingResult,
+  type TagInferenceRequest,
 } from "./ai-contracts";
 import {
   partialJobExtractionResultSchema,
+  partialTagInferenceResultSchema,
   type PartialJobExtractionResult,
+  type PartialTagInferenceResult,
 } from "./ai-proposal-outcomes";
 
 export const aiTaskCancellationChannels = Object.freeze({
   jobExtract: "aaaat:ai-task-job-extract",
   jobExtractCancel: "aaaat:ai-task-job-extract-cancel",
+  tagInfer: "aaaat:ai-task-tag-infer",
+  tagInferCancel: "aaaat:ai-task-tag-infer-cancel",
   connectionValidate: "aaaat:ai-task-connection-validate",
   connectionValidateCancel: "aaaat:ai-task-connection-validate-cancel",
-  cvTailor: "aaaat:ai-task-cv-tailor",
-  cvTailorCancel: "aaaat:ai-task-cv-tailor-cancel",
+  cvWrite: "aaaat:ai-task-cv-write",
+  cvWriteCancel: "aaaat:ai-task-cv-write-cancel",
   coverLetterDraft: "aaaat:ai-task-cover-letter-draft",
   coverLetterDraftCancel: "aaaat:ai-task-cover-letter-draft-cancel",
 } as const);
@@ -60,13 +66,17 @@ export const cancellableJobExtractionRequestSchema = z
   .strict();
 
 export const cancellableJobExtractionResultSchema = partialJobExtractionResultSchema;
-export const cancellableCvTailoringRequestSchema = z
+export const cancellableTagInferenceRequestSchema = z
+  .object({ taskId: aiTaskIdSchema, request: tagInferenceRequestSchema })
+  .strict();
+export const cancellableTagInferenceResultSchema = partialTagInferenceResultSchema;
+export const cancellableCvWritingRequestSchema = z
   .object({
     taskId: aiTaskIdSchema,
-    request: cvTailoringRequestSchema,
+    request: cvWritingRequestSchema,
   })
   .strict();
-export const cancellableCvTailoringResultSchema = cvTailoringResultSchema;
+export const cancellableCvWritingResultSchema = cvWritingResultSchema;
 
 export const cancellableCoverLetterDraftRequestSchema = z
   .object({
@@ -90,11 +100,16 @@ export interface AiTaskCancellationDesktopApi {
       request: CancellableJobExtractionTaskRequest,
     ) => Promise<PartialJobExtractionResult>;
     readonly cancelJobExtraction: (taskId: string) => Promise<boolean>;
-    readonly tailorCv: (
+    readonly inferTags: (
       taskId: string,
-      request: CvTailoringRequest,
-    ) => Promise<CvTailoringResult>;
-    readonly cancelCvTailoring: (taskId: string) => Promise<boolean>;
+      request: TagInferenceRequest,
+    ) => Promise<PartialTagInferenceResult>;
+    readonly cancelTagInference: (taskId: string) => Promise<boolean>;
+    readonly writeCvField: (
+      taskId: string,
+      request: CvWritingRequest,
+    ) => Promise<CvWritingResult>;
+    readonly cancelCvWriting: (taskId: string) => Promise<boolean>;
     readonly draftCoverLetter: (
       taskId: string,
       request: CoverLetterDraftRequest,

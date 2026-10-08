@@ -2,7 +2,6 @@ import type { BrowserWindow } from "electron";
 
 import { registerAiConnectionManagementIpc } from "./ai-connection-ipc";
 import { registerAiPromptIpc } from "./ai-prompt-ipc";
-import { registerApplicationHandoffIpc } from "./application-handoff-ipc";
 import { registerCandidatureActivityIpc } from "./candidature-activity-ipc";
 import { registerCandidatureOpportunityResearchAccessIpc } from "./candidature-opportunity-research-access-ipc";
 import { registerCandidatureSearchIpc } from "./candidature-search-ipc";
@@ -18,7 +17,6 @@ export function registerDesktopIpc(mainWindow: BrowserWindow): void {
   registerCoreDesktopIpc(mainWindow);
   registerAiConnectionManagementIpc(mainWindow);
   registerAiPromptIpc(mainWindow);
-  registerApplicationHandoffIpc(mainWindow);
   registerCandidatureActivityIpc(mainWindow);
   registerCandidatureOpportunityResearchAccessIpc(mainWindow);
   registerCandidatureSearchIpc(mainWindow);

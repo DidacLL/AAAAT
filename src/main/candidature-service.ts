@@ -25,6 +25,7 @@ import {
   readCandidatureFieldValuesInDatabase,
   setCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
+import { revokeApplicationDocumentExternalAccessInDatabase } from "./application-document-external-access-service";
 import { withWorkspaceDatabase } from "./workspace";
 
 interface CandidatureRow {
@@ -239,6 +240,9 @@ export function updateCandidature(
           .prepare("UPDATE candidatures SET opportunity_research_selected = 0 WHERE id = ?")
           .run(update.id);
         recordActivity(database, update.id, "candidature.opportunity-research-access.revoke", now);
+      }
+      if (update.archived) {
+        revokeApplicationDocumentExternalAccessInDatabase(database, update.id);
       }
       database
         .prepare("UPDATE candidatures SET archived = ?, updated_at = ? WHERE id = ?")

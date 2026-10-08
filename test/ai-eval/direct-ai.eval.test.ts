@@ -19,16 +19,10 @@ import {
   type ModelProvider,
 } from "../../src/main/ai-provider";
 import {
-  discoverCandidatureFieldFromSources,
   draftCoverLetter,
-  reviewOpportunity,
   tailorCv,
 } from "../../src/main/ai-service";
-import {
-  addCandidatureSource,
-  createCandidature,
-  listCandidatureSources,
-} from "../../src/main/candidature-service";
+import { createCandidature } from "../../src/main/candidature-service";
 import { listCandidatureFields } from "../../src/main/candidature-field-service";
 import { createCoverLetter, createWorkingCv } from "../../src/main/document-domain-service";
 import { addProfileItem } from "../../src/main/profile-service";
@@ -411,107 +405,6 @@ function extraction(input: {
   };
 }
 
-function historical(input: {
-  id: string;
-  title: string;
-  fieldKey: string;
-  expected: readonly string[];
-  sources: ReadonlyArray<{ title: string; text: string; kind?: CandidatureSourceKind }>;
-}): Scenario {
-  return {
-    id: input.id,
-    title: input.title,
-    operation: "historical_field_discovery",
-    async run({ root, provider }) {
-      const first = input.sources[0];
-      if (!first) throw new Error("Historical scenario has no Source.");
-      const candidature = application(root, first.title, first.text, {}, first.kind);
-      for (const source of input.sources.slice(1)) {
-        addCandidatureSource(root, {
-          candidatureId: candidature.id,
-          kind: source.kind ?? "other",
-          title: source.title,
-          url: "",
-          sourceText: source.text,
-        });
-      }
-      const target = field(root, input.fieldKey);
-      const result = await discoverCandidatureFieldFromSources(
-        root,
-        {
-          candidatureId: candidature.id,
-          fieldId: target.definition.id,
-          sourceIds: listCandidatureSources(root, candidature.id).map((source) => source.id),
-        },
-        provider,
-      );
-      return {
-        output: result,
-        evaluation: evaluate([
-          {
-            name: "recover " + target.definition.label,
-            passed:
-              result.proposal?.fieldId === target.definition.id &&
-              containsAny(result.proposal?.value, input.expected),
-            detail: JSON.stringify(result.proposal?.value ?? null),
-          },
-          {
-            name: "do not claim a pre-existing value",
-            passed: !result.existingValuePresent,
-          },
-        ]),
-      };
-    },
-  };
-}
-
-function review(input: {
-  id: string;
-  title: string;
-  values: Readonly<Record<string, CandidatureRuntimeValue>>;
-  anchors: readonly (readonly string[])[];
-  expectUncertainty?: boolean;
-}): Scenario {
-  return {
-    id: input.id,
-    title: input.title,
-    operation: "opportunity_review",
-    async run({ root, provider }) {
-      seedProfile(root);
-      const candidature = application(
-        root,
-        input.title,
-        "Synthetic Source retained locally; review uses the supplied candidature information and professional evidence.",
-        input.values,
-      );
-      const result = await reviewOpportunity(root, { candidatureId: candidature.id }, provider);
-      const text = [
-        result.summary,
-        ...result.relevantEvidence,
-        ...result.uncertainties,
-        ...result.questions,
-      ].join(" ");
-      const checks: Check[] = input.anchors.map((anchor, index) => ({
-        name: "use supplied review evidence " + String(index + 1),
-        passed: containsAny(text, anchor),
-        detail: anchor.join(" | "),
-      }));
-      checks.push({
-        name: "keep summary concise",
-        passed: result.summary.length <= 900,
-        detail: String(result.summary.length) + " characters",
-      });
-      if (input.expectUncertainty) {
-        checks.push({
-          name: "surface sparse-context uncertainty",
-          passed: result.uncertainties.length > 0 || result.questions.length > 0,
-        });
-      }
-      return { output: result, evaluation: evaluate(checks) };
-    },
-  };
-}
-
 function cv(input: {
   id: string;
   title: string;
@@ -674,90 +567,6 @@ const scenarios: Scenario[] = [
       "Remote within Spain. Six-month contract. The team is improving onboarding and internal tooling.",
     expected: { Location: ["Spain", "España"] },
     absent: ["Organisation", "Role", "Compensation"],
-  }),
-
-  historical({
-    id: "discover-role",
-    title: "Recover role from recruiter Source",
-    fieldKey: "candidature.role",
-    expected: ["Senior Backend Engineer"],
-    sources: [
-      {
-        title: "Recruiter follow-up",
-        kind: "recruiter_message",
-        text: "Confirming the title: Senior Backend Engineer. The team owns internal platform services.",
-      },
-    ],
-  }),
-  historical({
-    id: "discover-compensation",
-    title: "Recover compensation from retained Sources",
-    fieldKey: "candidature.compensation",
-    expected: ["60000", "60,000", "70000", "70,000"],
-    sources: [
-      {
-        title: "Original posting",
-        text: "The salary range is EUR 60,000 to EUR 70,000 gross per year.",
-      },
-      {
-        title: "Recruiter note",
-        kind: "recruiter_message",
-        text: "Benefits are separate; the salary range in the posting remains current.",
-      },
-    ],
-  }),
-  historical({
-    id: "discover-location",
-    title: "Recover later location clarification",
-    fieldKey: "candidature.location",
-    expected: ["Valencia"],
-    sources: [
-      { title: "Job page", text: "Location to be confirmed during interviews." },
-      {
-        title: "Recruiter clarification",
-        kind: "conversation",
-        text: "The position is hybrid in Valencia, with two office days each week.",
-      },
-    ],
-  }),
-
-  review({
-    id: "review-platform",
-    title: "Review platform opportunity",
-    values: {
-      "candidature.organization": "Northstar Robotics",
-      "candidature.role": "Platform Engineer",
-      "candidature.location": "Barcelona",
-    },
-    anchors: [
-      ["Platform Engineer"],
-      ["Northstar Robotics"],
-      ["TypeScript", "Kubernetes", "reliability", "event ingestion"],
-    ],
-  }),
-  review({
-    id: "review-analytics",
-    title: "Review analytics opportunity",
-    values: {
-      "candidature.organization": "Lumen Salud",
-      "candidature.role": "Data Analyst",
-      "candidature.location": "Madrid",
-    },
-    anchors: [
-      ["Data Analyst"],
-      ["Lumen Salud"],
-      ["SQL", "Python", "analytics", "dashboards"],
-    ],
-  }),
-  review({
-    id: "review-sparse",
-    title: "Review sparse opportunity",
-    values: {
-      "candidature.role": "Technical Operations Specialist",
-      "candidature.location": "Remote",
-    },
-    anchors: [["Technical Operations Specialist"], ["Remote"]],
-    expectUncertainty: true,
   }),
 
   cv({

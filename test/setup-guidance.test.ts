@@ -4,9 +4,7 @@ import { buildSetupGuidance } from "../src/renderer/setup-guidance";
 import type { SetupEnvironmentSnapshot } from "../src/shared/setup-environment-contracts";
 
 const operations = [
-  { operation: "opportunity_review" as const, available: false, connectionName: null },
   { operation: "job_extraction" as const, available: false, connectionName: null },
-  { operation: "historical_field_discovery" as const, available: false, connectionName: null },
   { operation: "cv_tailoring" as const, available: false, connectionName: null },
   { operation: "cover_letter_draft" as const, available: false, connectionName: null },
 ];
@@ -69,7 +67,7 @@ describe("shared setup harness projection", () => {
           configurationReadable: true,
           connectionCount: 1,
           operations: operations.map((status) =>
-            status.operation === "opportunity_review"
+            status.operation === "cover_letter_draft"
               ? { ...status, available: true, connectionName: "Private connection name" }
               : status,
           ),
@@ -80,7 +78,7 @@ describe("shared setup harness projection", () => {
     expect(installer.state).toBe("attention");
     expect(installer.checks.find((check) => check.label === "pdflatex")?.ready).toBe(false);
     expect(configurator.state).toBe("ready");
-    expect(configurator.checks.find((check) => check.label === "Opportunity review")?.ready).toBe(true);
+    expect(configurator.checks.find((check) => check.label === "Cover-letter drafting")?.ready).toBe(true);
     expect(JSON.stringify(configurator)).not.toContain("Private connection name");
   });
 });

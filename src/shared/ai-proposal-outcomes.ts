@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import {
-  jobExtractionNewFieldSchema,
-  jobExtractionNewTagSchema,
   jobExtractionProposalSchema,
+  tagInferenceNewTagSchema,
   type JobExtractionRequest,
+  type TagInferenceRequest,
 } from "./ai-contracts";
 import {
   aiExchangeDiagnosticSchema,
@@ -12,12 +12,7 @@ import {
   type AiExchangeDiagnostic,
 } from "./ai-diagnostics";
 
-export const jobExtractionProposalIssueKindSchema = z.enum([
-  "invalid",
-  "stale",
-  "new_field_invalid",
-  "tag_invalid",
-]);
+export const jobExtractionProposalIssueKindSchema = z.enum(["invalid", "stale"]);
 export type JobExtractionProposalIssueKind = z.infer<typeof jobExtractionProposalIssueKindSchema>;
 
 export const jobExtractionProposalIssueSchema = z
@@ -31,44 +26,66 @@ export const jobExtractionProposalIssueSchema = z
   .strict();
 export type JobExtractionProposalIssue = z.infer<typeof jobExtractionProposalIssueSchema>;
 
-export const jobExtractionExistingTagSchema = z
+export const tagInferenceExistingTagSchema = z
   .object({
     tagId: z.string().uuid(),
     name: z.string().trim().min(1).max(120),
     evidence: z.string().trim().min(1).max(1500).optional(),
   })
   .strict();
-export type JobExtractionExistingTag = z.infer<typeof jobExtractionExistingTagSchema>;
+export type TagInferenceExistingTag = z.infer<typeof tagInferenceExistingTagSchema>;
 
-export const jobExtractionExchangeSchema = z
+export const tagInferenceIssueSchema = z
   .object({
-    operation: z.literal("job_extraction"),
-    endpoint: z.string().url(),
-    model: z.string().min(1),
-    systemInstruction: z.string(),
-    userPayload: z.string(),
-    rawModelResponse: z.string(),
-    structuredOutputMode: aiStructuredOutputModeSchema,
-    providerValidationError: z.string(),
+    proposedValue: z.unknown(),
+    reason: z.string().trim().min(1).max(4000),
   })
   .strict();
+export type TagInferenceIssue = z.infer<typeof tagInferenceIssueSchema>;
+
+const exchangeFields = {
+  endpoint: z.string().url(),
+  model: z.string().min(1),
+  systemInstruction: z.string(),
+  userPayload: z.string(),
+  rawModelResponse: z.string(),
+  structuredOutputMode: aiStructuredOutputModeSchema,
+  providerValidationError: z.string(),
+} as const;
+
+export const jobExtractionExchangeSchema = z
+  .object({ operation: z.literal("job_extraction"), ...exchangeFields })
+  .strict();
 export type JobExtractionExchange = z.infer<typeof jobExtractionExchangeSchema>;
+
+export const tagInferenceExchangeSchema = z
+  .object({ operation: z.literal("tag_inference"), ...exchangeFields })
+  .strict();
+export type TagInferenceExchange = z.infer<typeof tagInferenceExchangeSchema>;
 
 export const partialJobExtractionResultSchema = z
   .object({
     proposals: z.array(jobExtractionProposalSchema).max(64),
-    newFields: z.array(jobExtractionNewFieldSchema).max(8).default([]),
-    existingTags: z.array(jobExtractionExistingTagSchema).max(100).default([]),
-    newTags: z.array(jobExtractionNewTagSchema).max(30).default([]),
     issues: z.array(jobExtractionProposalIssueSchema).max(100).default([]),
     exchange: jobExtractionExchangeSchema.optional(),
   })
   .strict();
 export type PartialJobExtractionResult = z.infer<typeof partialJobExtractionResultSchema>;
 
+export const partialTagInferenceResultSchema = z
+  .object({
+    existingTags: z.array(tagInferenceExistingTagSchema).max(30),
+    newTags: z.array(tagInferenceNewTagSchema).max(5),
+    issues: z.array(tagInferenceIssueSchema).max(50).default([]),
+    exchange: tagInferenceExchangeSchema.optional(),
+  })
+  .strict();
+export type PartialTagInferenceResult = z.infer<typeof partialTagInferenceResultSchema>;
+
 export type PartialJobExtractionRequest = JobExtractionRequest;
-export type InspectableAiExchange = JobExtractionExchange | AiExchangeDiagnostic;
+export type PartialTagInferenceRequest = TagInferenceRequest;
+export type InspectableAiExchange = JobExtractionExchange | TagInferenceExchange | AiExchangeDiagnostic;
 
 export function inspectableAiExchangeSchema() {
-  return z.union([jobExtractionExchangeSchema, aiExchangeDiagnosticSchema]);
+  return z.union([jobExtractionExchangeSchema, tagInferenceExchangeSchema, aiExchangeDiagnosticSchema]);
 }

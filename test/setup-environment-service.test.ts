@@ -49,7 +49,7 @@ describe("setup environment service", () => {
     });
     expect(snapshot.ai).toMatchObject({ configurationReadable: true, connectionCount: 1 });
     expect(snapshot.ai.operations).toContainEqual({
-      operation: "opportunity_review",
+      operation: "job_extraction",
       available: true,
       connectionName: "Local fit model",
     });

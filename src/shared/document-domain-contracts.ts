@@ -26,6 +26,8 @@ export const documentDomainChannels = Object.freeze({
   packetCreate: "aaaat:application-packet-create",
   packetOpen: "aaaat:application-packet-open",
   packetExport: "aaaat:application-packet-export",
+  externalApplicationAccessCurrent: "aaaat:application-document-external-access-current",
+  externalApplicationAccessUpdate: "aaaat:application-document-external-access-update",
 } as const);
 
 const optionalLanguageSchema = z.string().trim().min(1).max(40).optional();
@@ -47,6 +49,20 @@ export const renderLetterRequestSchema = z.object({
   letterId: z.string().uuid(),
 }).strict().readonly();
 export type RenderLetterRequest = z.infer<typeof renderLetterRequestSchema>;
+
+export const applicationDocumentExternalAccessSchema = z.object({
+  candidatureId: z.string().uuid(),
+  allowed: z.boolean(),
+}).strict();
+export type ApplicationDocumentExternalAccess = z.infer<
+  typeof applicationDocumentExternalAccessSchema
+>;
+export const applicationDocumentExternalAccessUpdateSchema =
+  applicationDocumentExternalAccessSchema;
+export type ApplicationDocumentExternalAccessUpdate = z.infer<
+  typeof applicationDocumentExternalAccessUpdateSchema
+>;
+
 
 export const cvContentSchema = profileItemContentSchema
   .extend({ kind: profileItemKindSchema })
@@ -303,6 +319,12 @@ export interface DocumentDomainDesktopApi {
   readonly documentDomain: {
     readonly collections: () => Promise<DocumentCollections>;
     readonly blueprints: () => Promise<BlueprintSummary[]>;
+    readonly externalApplicationAccess: (
+      candidatureId: string,
+    ) => Promise<ApplicationDocumentExternalAccess>;
+    readonly updateExternalApplicationAccess: (
+      input: ApplicationDocumentExternalAccessUpdate,
+    ) => Promise<ApplicationDocumentExternalAccess>;
     readonly createTemplate: (input: CvTemplateInput) => Promise<DocumentCollections>;
     readonly updateTemplate: (input: CvTemplateUpdate) => Promise<DocumentCollections>;
     readonly removeTemplate: (templateId: string) => Promise<DocumentCollections>;
