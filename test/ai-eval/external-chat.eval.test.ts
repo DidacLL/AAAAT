@@ -77,7 +77,7 @@ async function run(scenario: typeof scenarios[number], root: string) {
   const sent = JSON.stringify(messages);
   const checks: EvalCheck[] = [
     { name: "production reusable instructions supplied", passed: messages[0]?.content === externalAssistantGuidance.content },
-    { name: "disclosure withheld from provider", passed: !sent.includes(privateValue) },
+    { name: "disclosure withheld from provider", critical:true, passed: !sent.includes(privateValue) },
   ];
   if (isStale(scenario.scenarioClass)) {
     // Production prepared-intention switch invalidates the previous carrier result.
@@ -100,7 +100,7 @@ async function run(scenario: typeof scenarios[number], root: string) {
   const after = getCandidature(root,candidature.id);
   const docs = listDocumentCollections(root);
   checks.push({
-    name: "only selected intention returns through production carrier",
+    name: "only selected intention returns through production carrier", critical:true,
     passed: isStale(scenario.scenarioClass) ? Boolean(rejected) : information ? Boolean(pending) : retained,
     detail: rejected,
   });
