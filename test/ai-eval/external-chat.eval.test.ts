@@ -63,7 +63,7 @@ function modelRequest(task: string, scenario: typeof scenarios[number]) {
   ];
 }
 function isStale(scenarioClass: string) { return scenarioClass === "stale"; }
-async function run(scenario: typeof scenarios[number], root: string) {
+async function run(scenario: typeof scenarios[number], root: string, markStage:(stage:"model"|"outcome")=>void) {
   const candidature = setup(root, scenario.scenarioClass);
   const information = scenario.journey === "portable_application_information";
   if (information) prepareApplicationInformationTask(root);
@@ -72,7 +72,9 @@ async function run(scenario: typeof scenarios[number], root: string) {
   const before = getCandidature(root,candidature.id);
   const beforeDocuments = listDocumentCollections(root);
   const messages = modelRequest(task, scenario);
+  markStage("model");
   const completion = await chatCompletion({ messages });
+  markStage("outcome");
   const text = completion.message.content?.trim() || "";
   const sent = JSON.stringify(messages);
   const checks: EvalCheck[] = [
@@ -144,19 +146,20 @@ describe.runIf(evalEnabled)("AAAAT external chat task carriers",()=>{
     let harnessFailures=0;
     for(const scenario of scenarios)for(let repetition=1;repetition<=evalRepetitions;repetition++){
       const root=mkdtempSync(path.join(tmpdir(),"aaaat-chat-eval-")),started=Date.now();
+      let stage:"fixture"|"model"|"outcome"="fixture";
       try{
-        const result=await run(scenario,root),scored=evaluate(result.checks);
+        const result=await run(scenario,root,next=>{stage=next;}),scored=evaluate(result.checks);
         trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
           scenarioClass:scenario.scenarioClass,repetition,status:scored.status,score:scored.score,
           elapsedMs:Date.now()-started,checks:scored.checks,output:result.output,errorCategory:"",errorMessage:"",evidence:result.evidence});
       }catch(reason){
         const error=errorInfo(reason);
-        const transport=["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(error.category);
+        const transport=stage==="fixture" || stage==="outcome" || ["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(error.category);
         if(transport)harnessFailures++;
         trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
           scenarioClass:scenario.scenarioClass,repetition,status:transport?"error":"fail",score:0,
           elapsedMs:Date.now()-started,checks:[{name:"valid intention round trip",passed:false}],
-          output:null,errorCategory:transport?error.category:"model_or_return_contract_miss",errorMessage:error.message,evidence:error.evidence});
+          output:null,errorCategory:transport?error.category:"model_or_return_contract_miss",errorMessage:error.message,evidence:{error:error.evidence,stage}});
       }finally{rmSync(root,{recursive:true,force:true,maxRetries:5});}
     }
     writeEvalReport({mode:"chat",description:"Current task-carrier copy/paste and file returns, with normal review and Source retention.",
