@@ -191,7 +191,7 @@ async function run(scenario: typeof scenarios[number], root: string): Promise<{ 
   const after = JSON.stringify(listDocumentCollections(root));
   const checks = checksFor(scenario,result,root,before,after);
   checks.push({ name:"usable separate letter draft", passed: result.bodyParagraphs.length > 0 });
-  checks.push({ name:"no unrequested letter persistence", passed: listDocumentCollections(root).letters[0]?.bodyParagraphs.length === 0 });
+  checks.push({ name:"no unrequested letter persistence",critical:true, passed: listDocumentCollections(root).letters[0]?.bodyParagraphs.length === 0 });
   return { output:result,checks };
 }
 describe.runIf(evalEnabled)("AAAAT configured-provider journeys", () => {
