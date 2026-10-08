@@ -292,7 +292,7 @@ async function connectPackagedAaaat(
 describe.runIf(evalEnabled)("AAAAT packaged MCP and real local-model journeys", () => {
   it("preserves process startup diagnostics and evaluates the same current product journey catalog", async () => {
     const root=mkdtempSync(path.join(tmpdir(),"aaaat-host-preflight-"));
-    let diagnostics:PackagedMcpDiagnostics|null=null;
+    let diagnostics:PackagedMcpDiagnostics;
     try {
       createOrOpenWorkspace(root);
       const ready=await preflightPackagedAaaat(root);
