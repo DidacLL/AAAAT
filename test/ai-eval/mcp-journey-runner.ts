@@ -125,6 +125,7 @@ interface Fixture {
   readonly templateId?: string;
   readonly otherTemplateId?: string;
   readonly templateTitle?: string;
+  readonly staleTaskRef?: string;
 }
 function sourceText(scenario: Scenario): string {
   const normal = "Meridian Robotics invites a Platform Engineer in Barcelona. TypeScript, Node.js, Kubernetes and operational reliability are central to the role. No degree or compensation was specified.";
@@ -152,6 +153,7 @@ function prepare(root: string, scenario: Scenario): Fixture {
   createOrOpenWorkspace(root);
   const journey = scenario.journey, cls = scenario.scenarioClass;
   if (journey === "create_application") return {};
+  let staleTaskRef:string|undefined;
   const app = createCandidature(root, {
     source: {kind:"job_posting",title:"Meridian Platform opportunity",url:"",sourceText:sourceText(scenario)},
     values: [],
@@ -183,8 +185,11 @@ function prepare(root: string, scenario: Scenario): Fixture {
         prepareApplicationInformationTask(root);
         prepareInterviewPreparationContext(root);
       }
-      prepareApplicationInformationTask(root);
-      if (cls === "stale") prepareInterviewPreparationContext(root);
+      const prepared=prepareApplicationInformationTask(root);
+      if (cls === "stale") {
+        staleTaskRef=prepared.taskRef;
+        prepareInterviewPreparationContext(root);
+      }
     } else {
       if (cls==="stress") {
         prepareApplicationInformationTask(root);
@@ -287,7 +292,7 @@ function prepare(root: string, scenario: Scenario): Fixture {
       installerActionsAllowed: cls === "normal",
     });
   }
-  return { applicationId:app.id,otherApplicationId:other,templateId,otherTemplateId,templateTitle:"Core Platform CV" };
+  return { applicationId:app.id,otherApplicationId:other,templateId,otherTemplateId,staleTaskRef,templateTitle:"Core Platform CV" };
 }
 function state(root: string) {
   const apps=listCandidatures(root);
@@ -298,7 +303,7 @@ function state(root: string) {
     documents:docs, connections:listAiConnections(root),setup:getSetupAssistantAccess(root),
   };
 }
-function scenarioPrompt(scenario: Scenario): string {
+function scenarioPrompt(scenario: Scenario, fixture: Fixture): string {
   const suffix = [
     "Use the production AAAAT tools exactly as bounded by this intention.",
     "Application context Source: " + sourceText(scenario),
@@ -316,6 +321,8 @@ function scenarioPrompt(scenario: Scenario): string {
       ? "Retain only this one Source as a new application, without creating any CV or letter. Source kind is job_posting." : "",
     scenario.scenarioClass === "privacy_cross_document" ?
       "Inspect Core Platform CV, then inspect Other Private CV, then write ONLY the first chosen CV. Do not reuse second-CV placeholders." : "",
+    fixture.staleTaskRef
+      ? "Previously prepared taskRef "+fixture.staleTaskRef+" was invalidated by an intention switch. Any submission under it must be rejected; inspect only the current prepared task." : "",
     scenario.scenarioClass === "stale" ? "The earlier selected authority was revoked or switched before this request. Do not use the previous task or document reference." : "",
   ].filter(Boolean).join("\n");
   return scenario.prompt + "\n\n" + suffix;
@@ -397,6 +404,11 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
       checks.push({name:"accepted reviewed application value matches valid proposal exactly",
         passed:JSON.stringify(accepted.values.find(v=>v.fieldId===proposed.fieldId)?.value)===JSON.stringify(proposed.value)});
     }
+    if (cls==="stale" && fixture.staleTaskRef) {
+      checks.push({name:"stale task reference never produces a review result",critical:true,
+        passed:pending===null && !trace.toolCalls.some(call=>
+          call.name==="application_information_proposals_submit"&&!call.isError)});
+    }
     if (cls==="normal") checks.push({name:"supported employer proposed",passed:pending?.result.proposals.some(p=>JSON.stringify(p.value).includes("Meridian"))===true});
     if (cls==="malformed") checks.push({name:"partial proposal validation produces bounded issues",passed:Boolean(pending && pending.result.proposals.length+pending.result.issues.length>0)});
   } else if (journey==="interview_result") {
@@ -418,6 +430,8 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"listing does not create documents",passed:sameDocCount});
   } else if(journey==="reusable_cv_read") {
     checks.push({name:"one reusable CV inspected",passed:succeeded(trace,"reusable_cv_read")});
+    if (cls==="privacy_cross_document") checks.push({name:"two reusable CVs inspected for cross-document collision",
+      passed:calls(trace,"reusable_cv_read").filter(call=>!call.isError).length>=2});
     checks.push({name:"chosen reusable content does not expose private value",critical:true,passed:calls(trace,"reusable_cv_read").every(c=>!c.result.includes(privateValue))});
     checks.push({name:"reading does not create documents",passed:sameDocCount});
   } else if(journey==="application_cv_create") {
@@ -526,7 +540,7 @@ export async function runMcpSuite(
       const fixture=prepare(root,scenario);
       const before=state(root);
       connection=await connect(root);
-      const trace=await agent(connection.client,scenarioPrompt(scenario));
+      const trace=await agent(connection.client,scenarioPrompt(scenario,fixture));
       const after=state(root);
       const checks=checkOutcome(scenario,fixture,before,after,trace,root);
       const scored=evaluate(checks);
