@@ -536,11 +536,15 @@ export async function runMcpSuite(
     const root=mkdtempSync(path.join(tmpdir(),"aaaat-"+mode+"-eval-"));
     const started=Date.now();
     let connection:McpEvalConnection|null=null;
+    let stage:"fixture"|"connect"|"model"|"outcome"="fixture";
     try {
       const fixture=prepare(root,scenario);
       const before=state(root);
+      stage="connect";
       connection=await connect(root);
+      stage="model";
       const trace=await agent(connection.client,scenarioPrompt(scenario,fixture));
+      stage="outcome";
       const after=state(root);
       const checks=checkOutcome(scenario,fixture,before,after,trace,root);
       const scored=evaluate(checks);
@@ -552,15 +556,15 @@ export async function runMcpSuite(
       });
     } catch(reason) {
       const error=errorInfo(reason);
-      const harness=["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(error.category) ||
-        (connection===null && !String(error.message).includes("Source"));
+      const harness=stage==="fixture" || stage==="connect" || stage==="outcome" ||
+        ["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(error.category);
       if(harness)harnessFailures++;
       trials.push({
         scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,scenarioClass:scenario.scenarioClass,
         repetition,status:harness?"error":"fail",score:0,elapsedMs:Date.now()-started,
         checks:[{name:"bounded model and AAAAT journey completed",passed:false}],
         output:null,errorCategory:harness?error.category:"model_or_contract_miss",errorMessage:error.message,
-        evidence:{error:error.evidence,workspace:connection ? state(root) : null},
+        evidence:{error:error.evidence,stage,workspace:connection ? state(root) : null},
       });
     } finally {
       await connection?.close().catch(()=>undefined);
