@@ -175,6 +175,7 @@ function prepare(root: string, scenario: Scenario): Fixture {
     for(let index=1;index<=22;index++) createCandidatureField(root,{
       label:"Additional application question "+index,
       description:"Only fill from explicit retained Source evidence for information "+index,
+      valueType:"text",cardinality:"one",choices:[],enabled:true,
     });
   }
   if (journey === "application_information_return" || journey === "interview_result") {
