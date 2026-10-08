@@ -151,6 +151,7 @@ async function run(scenario: typeof scenarios[number], root: string): Promise<{ 
         const created=createCandidatureField(root,{
           label:"Application-specific information "+index,
           description:"Use only exact statements from Source evidence. Question "+index,
+          valueType:"text",cardinality:"one",choices:[],enabled:true,
         });
         extraFieldIds.push(created.definition.id);
       }
