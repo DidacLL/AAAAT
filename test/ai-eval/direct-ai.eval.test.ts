@@ -148,7 +148,12 @@ async function run(scenario: typeof scenarios[number], root: string): Promise<{ 
     return { output: result, checks: [...checks, ...checksFor(scenario,result,root,"","")].filter(c => c.name !== "bounded operation does not mutate retained workspace") };
   }
   seedProfile(root);
-  if (scenario.scenarioClass === "privacy") addProfileItem(root, {kind:"experience",title:"Non-disclosed private reference",description:"PRIVATE-CV-VALUE"});
+  if (scenario.scenarioClass === "privacy") {
+    const hidden=addProfileItem(root,{kind:"experience",title:"Non-disclosed private reference",description:"PRIVATE-CV-VALUE"});
+    const chosen=hidden.items.find(item=>item.title==="Non-disclosed private reference");
+    if(!chosen)throw new Error("Missing private profile fixture.");
+    updateProfileItemAiContextPreference(root,{itemId:chosen.id,aiUseAllowed:false});
+  }
   const application = createCandidature(root, {
     source: { kind: "job_posting", title: "Meridian role", url: "", sourceText: text },
     values: [{ fieldId: field(root,"candidature.organization").definition.id, value: "Meridian Robotics" }],
