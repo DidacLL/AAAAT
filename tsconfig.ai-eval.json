@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src", "test/ai-eval"],
+  "exclude": ["node_modules"]
+}
