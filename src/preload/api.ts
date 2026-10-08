@@ -4,13 +4,8 @@ import {
   coverLetterDraftSchema,
   cvWritingRequestSchema,
   cvWritingResultSchema,
-  historicalFieldDiscoveryRequestSchema,
-  historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
-  opportunityReviewPreviewSchema,
-  opportunityReviewRequestSchema,
-  opportunityReviewResultSchema,
   optionalAiConnectionStatusSchema,
   type AiDesktopApi,
 } from "../shared/ai-contracts";
@@ -198,25 +193,9 @@ export function createDesktopApi(
 
   const ai = Object.freeze({
     connection: async () => optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
-    previewOpportunityReview: async (
-      request: Parameters<AiDesktopApi["ai"]["previewOpportunityReview"]>[0],
-    ) =>
-      opportunityReviewPreviewSchema.parse(
-        await invoke(aiChannels.opportunityReviewPreview, opportunityReviewRequestSchema.parse(request)),
-      ),
-    reviewOpportunity: async (
-      request: Parameters<AiDesktopApi["ai"]["reviewOpportunity"]>[0],
-    ) =>
-      opportunityReviewResultSchema.parse(
-        await invoke(aiChannels.opportunityReview, opportunityReviewRequestSchema.parse(request)),
-      ),
     extractJob: async (request: Parameters<AiDesktopApi["ai"]["extractJob"]>[0]) =>
       jobExtractionResultSchema.parse(
         await invoke(aiChannels.jobExtract, jobExtractionRequestSchema.parse(request)),
-      ),
-    discoverField: async (request: Parameters<AiDesktopApi["ai"]["discoverField"]>[0]) =>
-      historicalFieldDiscoveryResultSchema.parse(
-        await invoke(aiChannels.fieldDiscover, historicalFieldDiscoveryRequestSchema.parse(request)),
       ),
     writeCvField: async (request: Parameters<AiDesktopApi["ai"]["writeCvField"]>[0]) =>
       cvWritingResultSchema.parse(

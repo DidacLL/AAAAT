@@ -12,6 +12,24 @@ import {
   externalInterviewPreparationResultSchema,
 } from "../shared/external-assistant-contracts";
 import {
+  externalApplicationCoverLetterCreateInputSchema,
+  externalApplicationCoverLetterCreateResultSchema,
+  externalApplicationCvCreateInputSchema,
+  externalApplicationCvCreateResultSchema,
+  externalApplicationDocumentTargetSchema,
+  externalCoverLetterWriteInputSchema,
+  externalCvFieldContextInputSchema,
+  externalCvFieldContextSchema,
+  externalCvFieldWriteInputSchema,
+  externalDocumentAppliedResultSchema,
+  externalDocumentRenderInputSchema,
+  externalDocumentRenderResultSchema,
+  externalDocumentRenderingStatusSchema,
+  externalReusableCvChoicesSchema,
+  externalReusableCvContentSchema,
+  externalReusableCvReadInputSchema,
+} from "../shared/external-document-contracts";
+import {
   externalConfiguratorConnectionInputSchema,
   externalConfiguratorConnectionResultSchema,
   externalConfiguratorDefaultResultSchema,
@@ -31,6 +49,7 @@ import {
   submitApplicationInformationProposals,
 } from "./candidature-opportunity-research-access-service";
 import { createCandidature } from "./candidature-service";
+import { createExternalDocumentSession } from "./external-document-service";
 import {
   requireConfiguratorActionsAllowed,
   requireInstallerActionsAllowed,
@@ -48,6 +67,16 @@ export const applicationInformationTaskReadToolName = "application_information_t
 export const applicationInformationProposalsSubmitToolName = "application_information_proposals_submit";
 export const interviewPreparationContextReadToolName = "interview_preparation_context_read";
 export const interviewPreparationResultSaveToolName = "interview_preparation_result_save";
+export const applicationDocumentTargetReadToolName = "application_document_target_read";
+export const reusableCvsListToolName = "reusable_cvs_list";
+export const reusableCvReadToolName = "reusable_cv_read";
+export const applicationCvCreateToolName = "application_cv_create";
+export const cvFieldContextReadToolName = "cv_field_context_read";
+export const cvFieldWriteToolName = "cv_field_write";
+export const applicationCoverLetterCreateToolName = "application_cover_letter_create";
+export const coverLetterWriteToolName = "cover_letter_write";
+export const documentRenderingStatusToolName = "document_rendering_status";
+export const documentRenderToolName = "document_render";
 export const installerStatusReadToolName = "installer_status_read";
 export const installerRenderingSelfTestToolName = "installer_rendering_self_test";
 export const configuratorStatusReadToolName = "configurator_status_read";
@@ -82,6 +111,7 @@ export function mcpWorkspaceFromInvocation(argv: readonly string[]): string {
 
 function createServerForWorkspace(rootPath: string): McpServer {
   const server = new McpServer({ name: "aaaat", version: "2.0.0-alpha.0" });
+  const documentSession = createExternalDocumentSession(rootPath);
 
   server.registerTool(
     candidatureCreateToolName,
@@ -91,11 +121,17 @@ function createServerForWorkspace(rootPath: string): McpServer {
     },
     async (input) => {
       const parsed = externalCandidatureCreateInputSchema.parse(input);
-      createCandidature(rootPath, { source: parsed.source, values: [] });
+      const created = createCandidature(rootPath, { source: parsed.source, values: [] });
+      const applicationRef = documentSession.bindApplication(created.id);
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify({ ok: true, capability: "candidature.create", created: true }),
+          text: JSON.stringify({
+            ok: true,
+            capability: "candidature.create",
+            created: true,
+            applicationRef,
+          }),
         }],
       };
     },
@@ -167,6 +203,163 @@ function createServerForWorkspace(rootPath: string): McpServer {
           text: JSON.stringify({ retained: true }),
         }],
       };
+    },
+  );
+
+  server.registerTool(
+    applicationDocumentTargetReadToolName,
+    {
+      description: "Bind the one existing application the user explicitly selected for external document work in AAAAT to a session-local reference. Application-information or interview access does not authorize this. Returns null when no application is selected for document work.",
+      inputSchema: emptyInputSchema,
+    },
+    async (input) => {
+      emptyInputSchema.parse(input);
+      const result = externalApplicationDocumentTargetSchema.parse(
+        documentSession.applicationTarget(),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    reusableCvsListToolName,
+    {
+      description: "After document work is authorized by a newly created application or the user's explicit existing-application document selection, list reusable AAAAT CV choices by user-facing name only. This never returns reusable CV contents, PDF metadata, document IDs, paths, PDFs, or other documents.",
+      inputSchema: emptyInputSchema,
+    },
+    async (input) => {
+      emptyInputSchema.parse(input);
+      const result = externalReusableCvChoicesSchema.parse(
+        documentSession.listReusableCvs(),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    reusableCvReadToolName,
+    {
+      description: "Read only the one reusable CV chosen from reusable_cvs_list. AAAAT fails closed for content without an AI-disclosure choice: private blocks expose only AAAAT-supplied USERPRIVATE placeholders, not semantic item metadata or values. Layout and Blueprint data are excluded.",
+      inputSchema: externalReusableCvReadInputSchema,
+    },
+    async (input) => {
+      const parsed = externalReusableCvReadInputSchema.parse(input);
+      const result = externalReusableCvContentSchema.parse(
+        documentSession.readReusableCv(parsed.cvRef),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    applicationCvCreateToolName,
+    {
+      description: "Create one editable application Working CV from the chosen reusable CV and the session-selected application. Returns only a session-local CV reference and its existing writable field references; it does not render or choose presentation.",
+      inputSchema: externalApplicationCvCreateInputSchema,
+    },
+    async (input) => {
+      const parsed = externalApplicationCvCreateInputSchema.parse(input);
+      const result = externalApplicationCvCreateResultSchema.parse(
+        documentSession.createApplicationCv(
+          parsed.applicationRef,
+          parsed.reusableCvRef,
+        ),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    cvFieldContextReadToolName,
+    {
+      description: "Read AAAAT's bounded writing context for one existing writable field of one session-bound Working CV. Private values are represented only by AAAAT-supplied USERPRIVATE placeholders.",
+      inputSchema: externalCvFieldContextInputSchema,
+    },
+    async (input) => {
+      const parsed = externalCvFieldContextInputSchema.parse(input);
+      const result = externalCvFieldContextSchema.parse(
+        documentSession.cvFieldContext(parsed.cvRef, parsed.fieldRef),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    cvFieldWriteToolName,
+    {
+      description: "Apply external-AI content to exactly one existing Working CV title, subtitle, or description field after its bounded context was read. AAAAT preserves sections, order, layout roles, Blueprint ownership, and all other fields.",
+      inputSchema: externalCvFieldWriteInputSchema,
+    },
+    async (input) => {
+      const parsed = externalCvFieldWriteInputSchema.parse(input);
+      const result = externalDocumentAppliedResultSchema.parse(
+        documentSession.writeCvField(
+          parsed.cvRef,
+          parsed.fieldRef,
+          parsed.content,
+        ),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    applicationCoverLetterCreateToolName,
+    {
+      description: "Create one empty editable cover letter for the session-selected application. Creation does not draft prose and is separate from writing or rendering.",
+      inputSchema: externalApplicationCoverLetterCreateInputSchema,
+    },
+    async (input) => {
+      const parsed = externalApplicationCoverLetterCreateInputSchema.parse(input);
+      const result = externalApplicationCoverLetterCreateResultSchema.parse(
+        documentSession.createApplicationCoverLetter(parsed.applicationRef),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    coverLetterWriteToolName,
+    {
+      description: "Apply one bounded external-AI cover-letter draft to the editable letter created in this session. AAAAT restores only exact private placeholders it supplied for this document work and rejects unresolved placeholder text. The result remains ordinary editable AAAAT letter content and this action does not render it.",
+      inputSchema: externalCoverLetterWriteInputSchema,
+    },
+    async (input) => {
+      const parsed = externalCoverLetterWriteInputSchema.parse(input);
+      const result = externalDocumentAppliedResultSchema.parse(
+        documentSession.writeCoverLetter(parsed.letterRef, parsed.draft),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    documentRenderingStatusToolName,
+    {
+      description: "Report only whether AAAAT's local document rendering is currently available.",
+      inputSchema: emptyInputSchema,
+    },
+    async (input) => {
+      emptyInputSchema.parse(input);
+      const result = externalDocumentRenderingStatusSchema.parse(
+        await documentSession.renderingStatus(),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+    },
+  );
+
+  server.registerTool(
+    documentRenderToolName,
+    {
+      description: "Render one session-bound Working CV or cover letter locally using AAAAT-owned presentation. Returns only whether rendering succeeded; no paths, TeX, commands, PDF content, Blueprint controls, or process access are exposed.",
+      inputSchema: externalDocumentRenderInputSchema,
+    },
+    async (input) => {
+      const parsed = externalDocumentRenderInputSchema.parse(input);
+      const result = externalDocumentRenderResultSchema.parse(
+        await documentSession.renderDocument(parsed.documentRef),
+      );
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
     },
   );
 

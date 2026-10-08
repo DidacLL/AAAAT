@@ -8,13 +8,8 @@ import {
   coverLetterDraftSchema,
   cvWritingRequestSchema,
   cvWritingResultSchema,
-  historicalFieldDiscoveryRequestSchema,
-  historicalFieldDiscoveryResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
-  opportunityReviewPreviewSchema,
-  opportunityReviewRequestSchema,
-  opportunityReviewResultSchema,
   optionalAiConnectionStatusSchema,
 } from "../shared/ai-contracts";
 import {
@@ -76,12 +71,9 @@ import {
   workspaceRestoreResultSchema,
 } from "../shared/workspace-recovery-contracts";
 import {
-  discoverCandidatureFieldFromSources,
   draftCoverLetter,
   extractJob,
   getAiConnection,
-  previewOpportunityReview,
-  reviewOpportunity,
   writeCvField,
 } from "./ai-service";
 import {
@@ -468,18 +460,6 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return optionalAiConnectionStatusSchema.parse(getAiConnection(requireWorkspaceRoot()));
   });
-  ipcMain.handle(aiChannels.opportunityReviewPreview, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return opportunityReviewPreviewSchema.parse(
-      previewOpportunityReview(requireWorkspaceRoot(), opportunityReviewRequestSchema.parse(input)),
-    );
-  });
-  ipcMain.handle(aiChannels.opportunityReview, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return opportunityReviewResultSchema.parse(
-      await reviewOpportunity(requireWorkspaceRoot(), opportunityReviewRequestSchema.parse(input)),
-    );
-  });
   ipcMain.handle(aiChannels.jobExtract, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return jobExtractionResultSchema.parse(
@@ -527,15 +507,6 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return aiTaskCancellationResultSchema.parse(
       cancelCancellableAiConnectionValidation(aiTaskIdSchema.parse(taskId)),
-    );
-  });
-  ipcMain.handle(aiChannels.fieldDiscover, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return historicalFieldDiscoveryResultSchema.parse(
-      await discoverCandidatureFieldFromSources(
-        requireWorkspaceRoot(),
-        historicalFieldDiscoveryRequestSchema.parse(input),
-      ),
     );
   });
   ipcMain.handle(aiTaskCancellationChannels.cvWrite, async (event, input: unknown) => {

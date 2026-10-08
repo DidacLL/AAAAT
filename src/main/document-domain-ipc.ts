@@ -2,6 +2,8 @@ import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
+  applicationDocumentExternalAccessSchema,
+  applicationDocumentExternalAccessUpdateSchema,
   applicationPacketCreateSchema,
   applicationPacketRecordSchema,
   availableBlueprintsSchema,
@@ -49,6 +51,10 @@ import {
   updateCvTemplate,
   updateWorkingCv,
 } from "./document-domain-service";
+import {
+  getApplicationDocumentExternalAccess,
+  updateApplicationDocumentExternalAccess,
+} from "./application-document-external-access-service";
 import { listAvailableBlueprints, resolveBlueprintSource } from "./document-blueprints";
 
 export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
@@ -62,6 +68,28 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return availableBlueprintsSchema.parse(listAvailableBlueprints(app.getPath("userData")));
   });
+  ipcMain.handle(
+    documentDomainChannels.externalApplicationAccessCurrent,
+    (event, candidatureId: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      const id = applicationDocumentExternalAccessSchema.shape.candidatureId.parse(candidatureId);
+      return applicationDocumentExternalAccessSchema.parse(
+        getApplicationDocumentExternalAccess(requireWorkspaceRoot(), id),
+      );
+    },
+  );
+  ipcMain.handle(
+    documentDomainChannels.externalApplicationAccessUpdate,
+    (event, input: unknown) => {
+      assertTrustedSender(event, mainWindow);
+      return applicationDocumentExternalAccessSchema.parse(
+        updateApplicationDocumentExternalAccess(
+          requireWorkspaceRoot(),
+          applicationDocumentExternalAccessUpdateSchema.parse(input),
+        ),
+      );
+    },
+  );
   ipcMain.handle(documentDomainChannels.templateCreate, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return documentCollectionsSchema.parse(createCvTemplate(requireWorkspaceRoot(), cvTemplateInputSchema.parse(input)));
