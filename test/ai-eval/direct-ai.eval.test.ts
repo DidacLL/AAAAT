@@ -16,7 +16,7 @@ import { createTag } from "../../src/main/tag-service";
 import { extractJobWithPartialOutcomes } from "../../src/main/robust-job-extraction";
 import { inferTagsWithPartialOutcomes } from "../../src/main/robust-tag-inference";
 import { createOrOpenWorkspace } from "../../src/main/workspace";
-import { journeyScenarios, selectedScenarios } from "./catalog.mjs";
+import { selectedScenarios } from "./catalog.mjs";
 import {
   evalEnabled, evalEndpoint, evalModel, evalCredential, evalRepetitions, evalTimeoutMs,
   evaluate, errorInfo, containsAny, writeEvalReport, type EvalTrial, type EvalCheck,
