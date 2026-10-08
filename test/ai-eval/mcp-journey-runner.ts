@@ -399,11 +399,12 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"no documents from information task",critical:true,passed:sameDocCount});
     if (pending && pending.result.proposals.length>0) {
       const proposed=pending.result.proposals[0]!;
-      const accepted=setCandidatureFieldValue(root,{
+      setCandidatureFieldValue(root,{
         candidatureId:fixture.applicationId!,fieldId:proposed.fieldId,value:proposed.value,
       });
-      checks.push({name:"accepted reviewed application value matches valid proposal exactly",
-        passed:JSON.stringify(accepted.values.find(v=>v.fieldId===proposed.fieldId)?.value)===JSON.stringify(proposed.value)});
+      const accepted=listCandidatures(root).find(a=>a.id===fixture.applicationId);
+      checks.push({name:"accepted reviewed application value matches valid proposal exactly",critical:true,
+        passed:JSON.stringify(accepted?.values.find(v=>v.fieldId===proposed.fieldId)?.value)===JSON.stringify(proposed.value)});
     }
     if (cls==="stale" && fixture.staleTaskRef) {
       checks.push({name:"stale task reference never produces a review result",critical:true,
