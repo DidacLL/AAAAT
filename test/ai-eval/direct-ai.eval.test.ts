@@ -144,7 +144,7 @@ async function run(scenario: typeof scenarios[number], root: string): Promise<{ 
     const checks: EvalCheck[] = [
       { name: "proposals use configured field scope", passed: result.proposals.every(p => targets.includes(p.fieldId)) },
       { name: "proposals are locally validated rather than applied", passed: listCandidatures(root).length === 0 },
-      { name: "no invented application fields", passed: true },
+      { name: "no invented application fields outside scope", passed: result.proposals.every(p => targets.includes(p.fieldId)) },
     ];
     if (scenario.scenarioClass === "sparse") checks.push({ name: "no unsupported employer", passed: result.proposals.length === 0 });
     if (scenario.scenarioClass === "normal") checks.push({ name: "supplied employer proposed", passed: result.proposals.some(p => JSON.stringify(p.value).includes("Meridian")) });
@@ -154,7 +154,7 @@ async function run(scenario: typeof scenarios[number], root: string): Promise<{ 
     createTag(root, { name: "Distributed systems", definition: "Platform and service reliability specialization", aliases: ["platform reliability"] });
     const result = await inferTagsWithPartialOutcomes(root, { sourceTitle: "Meridian role", sourceUrl: "", sourceText: text }, signal);
     const checks: EvalCheck[] = [
-      { name: "Tags are proposals, not persisted", passed: result.existingTags.length + result.newTags.length >= 0 && listCandidatures(root).length === 0 },
+      { name: "Tags are proposals, not application mutations", passed: listCandidatures(root).length === 0 && result.issues.every(issue=>Boolean(issue.reason)) },
       { name: "no field extraction in Tag response", passed: !("proposals" in result) },
     ];
     if (scenario.scenarioClass === "normal") checks.push({ name: "relevant Tag proposed", passed: result.existingTags.length + result.newTags.length > 0 });
