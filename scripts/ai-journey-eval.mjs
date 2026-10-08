@@ -355,7 +355,15 @@ async function main() {
   );
   const scenarios = selected.flatMap(item => catalogFor(item).filter(s => journeys.includes(s.journey)));
   if (!scenarios.length) throw new Error("Selection contains no scenarios.");
-  const packaged = selected.includes("host") ? await ensurePackagedExecutable() : "";
+  let packaged = "", packagingFailure = "";
+  if (selected.includes("host")) {
+    try { packaged = await ensurePackagedExecutable(); }
+    catch (reason) {
+      packagingFailure = redact(reason instanceof Error ? reason.message : String(reason),
+        models.map(m => m.credential));
+      stderr.write("Packaged AAAAT setup failed: " + packagingFailure + "\n");
+    }
+  }
   const runId = new Date().toISOString().replace(/[:.]/gu, "-");
   const reportDir = path.resolve("ai-eval-results", runId);
   mkdirSync(reportDir, { recursive: true });
@@ -371,6 +379,10 @@ async function main() {
       const key = "model-" + String(modelIndex + 1).padStart(2, "0") + "-" + item;
       stdout.write("\n=== " + connection.name + " / " + item + " ===\n");
       let code = 1, failure = "";
+      if (item === "host" && packagingFailure) {
+        records.push({ model: connection.name, mode: item, key, exitCode: 1, failure: packagingFailure });
+        continue;
+      }
       try {
         code = await runVitest(modeFiles[item], {
           AAAAT_AI_EVAL: "1",
