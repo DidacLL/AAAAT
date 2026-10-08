@@ -328,6 +328,14 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"field proposals entered AAAAT review",passed:cls==="stale" ? pending===null : Boolean(pending)});
     checks.push({name:"only scoped fields proposed",passed:!pending || pending.result.proposals.every(p=>pending.scopeFieldIds.includes(p.fieldId))});
     checks.push({name:"no documents from information task",passed:sameDocCount});
+    if (pending && pending.result.proposals.length>0) {
+      const proposed=pending.result.proposals[0]!;
+      const accepted=setCandidatureFieldValue(root,{
+        candidatureId:fixture.applicationId!,fieldId:proposed.fieldId,value:proposed.value,
+      });
+      checks.push({name:"accepted reviewed application value matches valid proposal exactly",
+        passed:JSON.stringify(accepted.values.find(v=>v.fieldId===proposed.fieldId)?.value)===JSON.stringify(proposed.value)});
+    }
     if (cls==="normal") checks.push({name:"supported employer proposed",passed:pending?.result.proposals.some(p=>JSON.stringify(p.value).includes("Meridian"))===true});
     if (cls==="malformed") checks.push({name:"partial proposal validation produces bounded issues",passed:Boolean(pending && pending.result.proposals.length+pending.result.issues.length>=0)});
   } else if (journey==="interview_result") {
@@ -440,7 +448,7 @@ export async function runMcpSuite(
         scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,scenarioClass:scenario.scenarioClass,
         repetition,status:scored.status,score:scored.score,elapsedMs:Date.now()-started,
         checks:scored.checks,output:trace.finalText,errorCategory:"",errorMessage:"",
-        evidence:{trace,fixture:{applicationSelected:Boolean(fixture.applicationId),chosenTemplate:"Core Platform CV"},workspace:{before,after}},
+        evidence:{trace,fixture:{applicationSelected:Boolean(fixture.applicationId),chosenTemplate:"Core Platform CV"},workspace:{before,after,afterReview:state(root)}},
       });
     } catch(reason) {
       const error=errorInfo(reason);
