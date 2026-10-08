@@ -15,7 +15,9 @@ const aaaatExecutable = evalEnabled ? requiredEnv("AAAAT_PACKAGED_EXECUTABLE") :
 function childEnvironment(): Record<string, string> {
   return Object.fromEntries(
     Object.entries(process.env).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
+      (entry): entry is [string, string] =>
+        typeof entry[1] === "string" &&
+        !["AAAAT_AI_EVAL_CREDENTIAL","AAAAT_AI_EVAL_CONNECTIONS_JSON"].includes(entry[0]),
     ),
   );
 }
