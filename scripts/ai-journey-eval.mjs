@@ -183,6 +183,9 @@ function writeSummary(reportDir, models, modes, journeys, repetitions, records) 
       harnessFailures.push({ model: record.model, mode: record.mode, failure: record.failure || "Harness exit " + record.exitCode, evidenceFile: existsSync(file) ? file : null });
     for (const scenario of catalogFor(record.mode).filter(s => journeys.includes(s.journey))) {
       const current = trials.filter(t => t.scenarioId === scenario.id);
+      if (current.length !== repetitions)
+        harnessFailures.push({model:record.model,mode:record.mode,
+          failure:"Missing trial evidence: " + scenario.id + " (" + current.length + "/" + repetitions + ")" });
       matrix.push({
         model: record.model, mode: record.mode, journey: scenario.journey, scenario: scenario.id,
         scenarioClass: scenario.scenarioClass, repetitions: current.length, expectedRepetitions: repetitions,
@@ -199,8 +202,11 @@ function writeSummary(reportDir, models, modes, journeys, repetitions, records) 
       }
     }
   }
-  const named = models.map(m => ({ name: m.name, endpoint: m.endpoint, model: m.model,
-    ...countStatuses(all.filter(t => t.model === m.name)) }));
+  const named = models.map((m,i) => {
+    const name=m.name+" ["+m.model+" #"+(i+1)+"]";
+    return {name,endpoint:m.endpoint,model:m.model,
+      ...countStatuses(all.filter(t=>t.model===name))};
+  });
   const ranked = map => [...map].sort((a,b) => b[1] - a[1]).map(([name,count]) => ({ name,count }));
   const summary = {
     generatedAt: new Date().toISOString(), models: named, modes, journeys, repetitions, matrix,
@@ -373,6 +379,7 @@ async function main() {
   const records = [], credentials = models.map(m => m.credential);
   for (let modelIndex = 0; modelIndex < models.length; modelIndex++) {
     const connection = models[modelIndex];
+    const modelLabel = connection.name + " [" + connection.model + " #" + (modelIndex + 1) + "]";
     for (const item of selected) {
       const ids = catalogFor(item).filter(s => journeys.includes(s.journey)).map(s => s.id);
       if (!ids.length) continue;
@@ -380,7 +387,7 @@ async function main() {
       stdout.write("\n=== " + connection.name + " / " + item + " ===\n");
       let code = 1, failure = "";
       if (item === "host" && packagingFailure) {
-        records.push({ model: connection.name, mode: item, key, exitCode: 1, failure: packagingFailure });
+        records.push({ model: modelLabel, mode: item, key, exitCode: 1, failure: packagingFailure });
         continue;
       }
       try {
@@ -400,7 +407,7 @@ async function main() {
         failure = redact(error instanceof Error ? error.message : String(error), credentials);
         stderr.write(failure + "\n");
       }
-      records.push({ model: connection.name, mode: item, key, exitCode: code, failure });
+      records.push({ model: modelLabel, mode: item, key, exitCode: code, failure });
     }
   }
   const summary = writeSummary(reportDir, models, selected, journeys, repetitions, records);
