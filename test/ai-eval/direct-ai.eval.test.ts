@@ -186,6 +186,7 @@ describe.runIf(evalEnabled)("AAAAT configured-provider journeys", () => {
     credentialProtection();
     globalThis.fetch = recordingFetch;
     const trials: EvalTrial[] = [];
+    let harnessFailures=0;
     try {
       for (const scenario of scenarios) for (let repetition=1; repetition<=evalRepetitions; repetition++) {
         const root = mkdtempSync(path.join(tmpdir(),"aaaat-direct-eval-"));
@@ -202,16 +203,20 @@ describe.runIf(evalEnabled)("AAAAT configured-provider journeys", () => {
               workspace:{candidatures:listCandidatures(root).length,documents:listDocumentCollections(root)}}});
         } catch(reason) {
           const error=errorInfo(reason);
-          const modelMiss=reason instanceof AiProviderError && ["operation_contract_invalid","model_response_invalid_json"].includes(reason.diagnostic?.failureKind || "");
+          const kind=reason instanceof AiProviderError ? reason.diagnostic?.failureKind || error.category : error.category;
+          const configurationFailure=["connection_unreachable","provider_http_failure","provider_envelope_invalid"].includes(kind);
+          if (configurationFailure) harnessFailures++;
+          const modelMiss=reason instanceof AiProviderError && ["operation_contract_invalid","model_response_invalid_json","operation_incompatible"].includes(kind);
           trials.push({scenarioId:scenario.id,title:scenario.title,journey:scenario.journey,
-            scenarioClass:scenario.scenarioClass,repetition,status:modelMiss?"fail": (["provider_http_failure","connection_unreachable"].includes(error.category) ? "error" : "fail"),score:0,
+            scenarioClass:scenario.scenarioClass,repetition,status:configurationFailure?"error":"fail",score:0,
             elapsedMs:Date.now()-started,checks:[{name:"model returned a valid bounded result",passed:false}],
-            output:null,errorCategory:modelMiss?"model_contract_miss":error.category,errorMessage:error.message,
+            output:null,errorCategory:configurationFailure?kind:(modelMiss?"model_contract_miss":error.category),errorMessage:error.message,
             evidence:{exchanges:capture,error:error.evidence,workspace:{candidatures:listCandidatures(root).length,documents:listDocumentCollections(root)}}});
         } finally { rmSync(root,{recursive:true,force:true,maxRetries:5}); }
       }
     } finally { globalThis.fetch=realFetch; }
     writeEvalReport({mode:"direct",description:"Current production configured-field proposals, Tags, one-field CV writing and separate cover-letter drafting.",
-      scenarios,trials,promptArtifacts:AI_DEFAULT_INSTRUCTIONS});
+      scenarios,trials,promptArtifacts:AI_DEFAULT_INSTRUCTIONS,extra:{harnessFailures}});
+    if (harnessFailures>0) throw new Error("Configured-provider evaluation had "+harnessFailures+" configuration/transport errors; all scheduled trials were recorded.");
   },14_400_000);
 });
