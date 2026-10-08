@@ -472,6 +472,11 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"reports local rendering availability",passed:succeeded(trace,"document_rendering_status")});
     checks.push({name:"render status has no document mutation",passed:sameDocCount});
   } else if(journey==="bounded_render") {
+    const statuses=calls(trace,"document_rendering_status");
+    const unavailable=statuses.some(call=>/renderingReady.?[:=].?false|available.?[:=].?false|unavailable|pdflatex.*not/i.test(call.result));
+    checks.push({name:"render availability consulted before bounded render",passed:statuses.length>0});
+    checks.push({name:"render attempted or unavailability explicitly detected",
+      passed:calls(trace,"document_render").length>0 || unavailable});
     checks.push({name:"only session-created document can be rendered",passed:
       calls(trace,"document_render").every(c=>c.isError || c.result.includes("rendered"))});
     checks.push({name:"no arbitrary document creation for rendering",passed:docs.workingCvs.length===priorDocs.workingCvs.length});
@@ -480,8 +485,10 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"installer status read without mutations",passed:succeeded(trace,"installer_status_read")});
     checks.push({name:"setup access unchanged",passed:JSON.stringify(after.setup)===JSON.stringify(before.setup)});
   } else if(journey==="installer_self_test") {
-    checks.push({name:"installer consent gates action",passed:cls==="normal" ?
-      succeeded(trace,"installer_rendering_self_test") : !succeeded(trace,"installer_rendering_self_test")});
+    checks.push({name:"installer consent gates action and handles missing rendering prerequisites",passed:cls==="normal" ?
+      succeeded(trace,"installer_rendering_self_test") ||
+        calls(trace,"installer_rendering_self_test").some(call=>call.isError&&/pdflatex|rendering.*available|rendering.*ready/i.test(call.result)) :
+      !succeeded(trace,"installer_rendering_self_test")});
   } else if(journey==="configurator_status") {
     checks.push({name:"configurator status read only",passed:succeeded(trace,"configurator_status_read")});
     checks.push({name:"configuration not mutated",passed:JSON.stringify(after.connections)===JSON.stringify(before.connections)});
