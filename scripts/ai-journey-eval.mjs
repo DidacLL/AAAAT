@@ -177,7 +177,7 @@ function writeSummary(reportDir, models, modes, journeys, repetitions, records) 
     let trials = [];
     if (existsSync(file)) {
       try { trials = JSON.parse(readFileSync(file, "utf8")).trials ?? []; }
-      catch (error) { harnessFailures.push({ model: record.model, mode: record.mode, failure: "Invalid evidence JSON" }); }
+      catch { harnessFailures.push({ model: record.model, mode: record.mode, failure: "Invalid evidence JSON" }); }
     }
     if (record.exitCode !== 0 || !existsSync(file))
       harnessFailures.push({ model: record.model, mode: record.mode, failure: record.failure || "Harness exit " + record.exitCode, evidenceFile: existsSync(file) ? file : null });
@@ -312,20 +312,6 @@ async function normalConnection() {
     process.env.AAAAT_AI_EVAL_CREDENTIAL?.trim() ??
     await askSecret("API key / Bearer credential (optional): ");
   return { endpoint, model, credential };
-}
-
-async function hostConnection() {
-  stdout.write(
-    "\nHost mode uses a llama.cpp/OpenAI-compatible server that is already running.\n" +
-      "The evaluator sends model requests to that server and connects directly to packaged AAAAT over stdio MCP.\n" +
-      "No second llama-server is started and no experimental llama.cpp MCP feature is required.\n\n",
-  );
-  const connection = await normalConnection();
-  const executable = await ensurePackagedExecutable();
-  return {
-    ...connection,
-    executable,
-  };
 }
 
 async function runVitest(file, environment) {
