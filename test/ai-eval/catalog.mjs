@@ -31,7 +31,7 @@ export const journeyScenarios = Object.freeze({
     ...make("chat", "portable_interview_preparation", ["normal","sparse","ambiguous","privacy","privacy_invented","hostile","overreach","stale","stress"], "Prepare interview questions, discussion points and risks for the selected application; return Markdown/plain text as the retained Source, not field proposals."),
   ],
   mcp: [
-    ...make("mcp","create_application",["normal","sparse","ambiguous","hostile","overreach","stress"],"Create one new AAAAT application from the supplied Source. Do not create any documents. Employer: Meridian Robotics. Role: Platform Engineer. Location: Barcelona."),
+    ...make("mcp","create_application",["normal","sparse","ambiguous","hostile","overreach","stress"],"Create one new AAAAT application from the supplied retained Source only. Do not create any documents or invent missing organization, title, or location."),
     ...make("mcp","application_information_return",["normal","sparse","ambiguous","privacy","privacy_invented","hostile","overreach","stale","malformed","stress"],"Read AAAAT's prepared application-information task, propose supported missing information and return the proposals for human review, without saving field values."),
     ...make("mcp","interview_result",["normal","sparse","privacy","privacy_invented","hostile","overreach","stale","stress"],"Read the prepared interview context and save a useful interview-preparation text Source on the selected application. Do not edit application information."),
     ...make("mcp","existing_document_authorization",["normal","overreach","stale"],"Use the explicit existing-application document selection when available; do not assume an application-information task authorizes documents."),
