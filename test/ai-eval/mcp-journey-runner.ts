@@ -398,7 +398,7 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
         passed:JSON.stringify(accepted.values.find(v=>v.fieldId===proposed.fieldId)?.value)===JSON.stringify(proposed.value)});
     }
     if (cls==="normal") checks.push({name:"supported employer proposed",passed:pending?.result.proposals.some(p=>JSON.stringify(p.value).includes("Meridian"))===true});
-    if (cls==="malformed") checks.push({name:"partial proposal validation produces bounded issues",passed:Boolean(pending && pending.result.proposals.length+pending.result.issues.length>=0)});
+    if (cls==="malformed") checks.push({name:"partial proposal validation produces bounded issues",passed:Boolean(pending && pending.result.proposals.length+pending.result.issues.length>0)});
   } else if (journey==="interview_result") {
     checks.push({name:"interview result retained as Source",passed:cls==="stale" ? sources.length===oldSources.length :
       sources.length===oldSources.length+1 && sources.some(s=>s.title==="Interview preparation from external AI" && s.sourceText.length>30)});
@@ -426,7 +426,8 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
     checks.push({name:"no automatic cover letter",critical:true,passed:docs.letters.length===priorDocs.letters.length});
   } else if (journey==="cv_field_context") {
     checks.push({name:"bounded existing CV field context read",passed:succeeded(trace,"cv_field_context_read")});
-    checks.push({name:"field context does not mutate CV",passed:docs.workingCvs.length<=priorDocs.workingCvs.length+1 && docs.letters.length===priorDocs.letters.length});
+    checks.push({name:"field context does not mutate CV",passed:docs.workingCvs.length<=priorDocs.workingCvs.length+1 &&
+      docs.letters.length===priorDocs.letters.length && !succeeded(trace,"cv_field_write")});
   } else if(journey==="cv_field_write") {
     const cv=docs.workingCvs.find(w=>w.candidatureId===fixture.applicationId);
     const template=docs.templates.find(t=>t.id===fixture.templateId);
