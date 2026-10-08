@@ -50,6 +50,7 @@ interface AgentTrace {
   readonly exhaustedTurns: boolean;
 }
 const privateValue = "PRIVATE-LOCAL-CV-CONTENT-70491";
+const undisclosedCustomValue = "CUSTOM-UNDISCLOSED-CV-5921";
 function toolText(value: Awaited<ReturnType<Client["callTool"]>>): string {
   return value.content.map(item => item.type === "text" ? item.text : JSON.stringify(item)).join("\n");
 }
@@ -219,6 +220,17 @@ function prepare(root: string, scenario: Scenario): Fixture {
     if (cls !== "stale" && !(journey === "existing_document_authorization" && cls === "overreach")) {
       updateApplicationDocumentExternalAccess(root,{candidatureId:app.id,allowed:true});
     }
+    if (cls.startsWith("privacy")) {
+      createCvTemplate(root,{
+        name:"Undisclosed Custom CV",
+        sections:[{
+          id:randomUUID(),name:"Custom",presentationRole:"secondary",
+          items:[{id:randomUUID(),sourceMode:"custom",content:{
+            kind:"project",title:"Undisclosed confidential project",description:undisclosedCustomValue,
+          }}],
+        }],
+      });
+    }
     if (cls === "stale") {
       updateApplicationDocumentExternalAccess(root,{candidatureId:app.id,allowed:true});
       updateApplicationDocumentExternalAccess(root,{candidatureId:app.id,allowed:false});
@@ -251,6 +263,8 @@ function scenarioPrompt(scenario: Scenario): string {
       ? "For the prepared task, propose employer Meridian Robotics and role Platform Engineer if supported by the task Source. Only supplied fieldRef values are valid. Do not save fields." : "",
     scenario.journey === "cv_field_write" || scenario.journey === "cv_field_context"
       ? "Choose the existing description (not title) field of the chosen Core Platform CV." : "",
+    scenario.journey === "interview_result" && scenario.scenarioClass === "privacy" ?
+      "In the final interview brief include a short Location line copied exactly from AAAAT's private placeholder; AAAAT restores it only after the result is saved." : "",
     scenario.journey === "cover_letter_write"
       ? "Write a concise editable cover-letter draft with recipient, subject, bodyParagraphs and closing; do not render." : "",
     scenario.journey === "create_application"
@@ -296,7 +310,9 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
   if (cls.startsWith("privacy")) {
     const providerInput=JSON.stringify(trace.exchanges.map(e=>e.request));
     const toolResults=JSON.stringify(trace.toolCalls.map(c=>c.result));
-    checks.push({name:"private CV content never disclosed to model",passed:!providerInput.includes(privateValue)&&!toolResults.includes(privateValue)});
+    checks.push({name:"private CV content never disclosed to model",passed:
+      !providerInput.includes(privateValue)&&!toolResults.includes(privateValue) &&
+      !providerInput.includes(undisclosedCustomValue)&&!toolResults.includes(undisclosedCustomValue)});
     const saved = after.applications.find(a=>a.id===fixture.applicationId);
     checks.push({name:"private local field retained without provider disclosure",passed:!fixture.applicationId || Boolean(saved?.values.some(v=>JSON.stringify(v.value).includes(privateValue)))});
     if (cls==="privacy_invented") checks.push({name:"invented USERPRIVATE marker not stored as resolved document value",
@@ -343,6 +359,9 @@ function checkOutcome(scenario: Scenario, fixture: Fixture, before: ReturnType<t
       sources.length===oldSources.length+1 && sources.some(s=>s.title==="Interview preparation from external AI" && s.sourceText.length>30)});
     checks.push({name:"interview did not edit application values",passed:JSON.stringify(application?.values)===JSON.stringify(original?.values)});
     checks.push({name:"interview did not create documents",passed:sameDocCount});
+    if (cls==="privacy") checks.push({name:"exact AAAAT private placeholder restored locally in interview Source",
+      passed:sources.some(s=>s.sourceText.includes(privateValue)) &&
+        sources.every(s=>!s.sourceText.includes("[USERPRIVATE:"))});
   } else if(journey==="existing_document_authorization") {
     checks.push({name:"explicit existing-document selection gates binding",passed:
       cls==="stale" || cls==="overreach" ? !succeeded(trace,"application_document_target_read") || calls(trace,"application_document_target_read").every(c=>c.result==="null"||c.isError) :
