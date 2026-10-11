@@ -586,6 +586,10 @@ export function setCandidatureFieldValue(
   const input = candidatureFieldValueSetSchema.parse(rawInput);
   withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
+      requireCandidature(database, input.candidatureId);
+      if (input.onlyIfEmpty && database.prepare(
+        "SELECT 1 FROM candidature_field_values WHERE candidature_id = ? AND field_id = ?",
+      ).get(input.candidatureId, input.fieldId)) return;
       const now = new Date().toISOString();
       setCandidatureFieldValueInDatabase(database, input, now);
       recordValueActivity(database, input.candidatureId, "candidature.field-value-set", now);

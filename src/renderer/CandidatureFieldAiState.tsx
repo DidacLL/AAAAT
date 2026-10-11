@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { PartialJobExtractionResult } from "../shared/ai-proposal-outcomes";
 import {
@@ -21,6 +21,8 @@ interface Props {
   readonly field: CandidatureFieldConfiguration;
   readonly currentValue?: CandidatureRuntimeValue;
   readonly onSaveValue: (value: CandidatureRuntimeValue) => Promise<void>;
+  readonly onFillEmpty: (value: CandidatureRuntimeValue) => Promise<boolean>;
+  readonly editing: boolean;
   readonly onRetry: () => void;
 }
 
@@ -63,11 +65,15 @@ export function CandidatureFieldAiState({
   field,
   currentValue,
   onSaveValue,
+  onFillEmpty,
+  editing,
   onRetry,
 }: Props) {
   const tasks = useAiTasks();
   const [editingProposal, setEditingProposal] = useState(false);
   const [editingIssue, setEditingIssue] = useState(false);
+  const [fillError, setFillError] = useState<string | null>(null);
+  const attempted = useRef<unknown>(null);
   const exactKey = `candidature-inference:${candidatureId}:${field.definition.id}`;
   const bulkKey = `candidature-inference:${candidatureId}:missing`;
   const candidates = tasks.filter(
@@ -96,6 +102,14 @@ export function CandidatureFieldAiState({
       task.status === "completed" &&
       (task.appliedFieldIds ?? []).includes(field.definition.id),
   );
+
+  useEffect(() => {
+    if (!proposal || !proposalTask || currentValue !== undefined || editing || !field.preferences.aiUseAllowed || attempted.current === proposal) return;
+    attempted.current = proposal;
+    void onFillEmpty(proposal.value).then((filled) => {
+      if (filled) markAiTaskFieldApplied(proposalTask.key, field.definition.id);
+    }).catch((reason) => setFillError(reason instanceof Error ? reason.message : "This value could not be saved."));
+  }, [proposal, proposalTask, currentValue, editing, field, onFillEmpty]);
 
   const accept = async (value: CandidatureRuntimeValue) => {
     if (!proposalTask) return;
@@ -181,15 +195,16 @@ export function CandidatureFieldAiState({
       <div className="candidature-field-ai-state candidature-field-ai-proposal" role="status">
         <div className="candidature-ai-proposal-heading">
           <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-          <strong>{currentValue === undefined ? "AI found a value" : "AI found another value"}</strong>
-          <span>{currentValue === undefined ? "Nothing is saved until you choose it." : "Your saved value will not be replaced unless you choose it."}</span>
+          <strong>{currentValue === undefined ? "AI suggestion" : "Another value found"}</strong>
+          <span>{currentValue === undefined ? "Your current edit stays unchanged." : "Replace the saved value only if you choose."}</span>
         </div>
+        {fillError ? <p className="error-message" role="alert">{fillError}</p> : null}
         {editingProposal ? (
           <CandidatureFieldValueEditor
             field={field}
             value={proposal.value}
             initialEditing
-            saveLabel="Use this value"
+            saveLabel="Use suggestion"
             clearLabel="Dismiss"
             onSave={accept}
             onClear={async () => reject()}
@@ -248,7 +263,7 @@ export function CandidatureFieldAiState({
     return (
       <div className="candidature-field-ai-state candidature-field-ai-applied" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-        <span><strong>AI filled</strong> · New</span>
+        <span>Filled with AI</span>
       </div>
     );
   }

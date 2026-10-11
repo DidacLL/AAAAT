@@ -1,348 +1,146 @@
 import { useEffect, useState } from "react";
+import type { DocumentCollections, CoverLetterRecord, WorkingCvRecord } from "../shared/document-domain-contracts";
+import { candidatureRecognitionProjection } from "./candidature-projections";
+import { rememberDocumentDraft } from "./document-drafts";
+import { useShellActions } from "./shell-actions";
+import "./documents.css";
 
-import type { DocumentCollections } from "../shared/document-domain-contracts";
-
-const emptyCollections: DocumentCollections = {
-  templates: [],
-  workingCvs: [],
-  renderedCvs: [],
-  letters: [],
-  renderedLetters: [],
-  applicationPackets: [],
-};
-
-function nextCvTitle(collections: DocumentCollections): string {
-  const used = new Set(
-    collections.workingCvs.map((document) => document.title.trim().toLocaleLowerCase()),
-  );
-  if (!used.has("cv")) return "CV";
+const emptyCollections: DocumentCollections = { templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [] };
+function uniqueTitle(base: string, titles: readonly string[]): string {
+  const used = new Set(titles.map((title) => title.trim().toLocaleLowerCase()));
+  if (!used.has(base.toLocaleLowerCase())) return base;
   let index = 2;
-  while (used.has(`cv ${String(index)}`)) index += 1;
-  return `CV ${String(index)}`;
+  while (used.has(`${base} ${index}`.toLocaleLowerCase())) index += 1;
+  return `${base} ${index}`;
 }
 
-export function DocumentsStartWorkspace({
-  onOpenDocument,
-  onDirtyChange,
-}: {
+export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   readonly onOpenDocument: (documentId: string) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
-  const [cvTitle, setCvTitle] = useState("");
-  const [cvSource, setCvSource] = useState("profile");
-  const [creating, setCreating] = useState<"cv" | "letter" | null>(null);
+  const [applicationLabels, setApplicationLabels] = useState<Record<string, string>>({});
+  const [creation, setCreation] = useState<"cv" | "letter" | null>(null);
+  const [title, setTitle] = useState("");
+  const [source, setSource] = useState("profile");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dirty = cvTitle.trim().length > 0 || cvSource !== "profile";
-
   useEffect(() => {
-    onDirtyChange?.(dirty);
+    onDirtyChange?.(Boolean(creation && title.trim()));
     return () => onDirtyChange?.(false);
-  }, [dirty, onDirtyChange]);
-
+  }, [creation, title, onDirtyChange]);
   useEffect(() => {
     let active = true;
-    void window.aaaat.documentDomain.collections()
-      .then((current) => { if (active) setCollections(current); })
-      .catch(() => { if (active) setError("AAAAT could not load your documents."); });
+    void Promise.all([window.aaaat.documentDomain.collections(), window.aaaat.candidatures.list(), window.aaaat.candidatures.listFields()])
+      .then(([documents, applications, fields]) => {
+        if (!active) return;
+        setCollections(documents);
+        setApplicationLabels(Object.fromEntries(applications.map((application) => {
+          const projection = candidatureRecognitionProjection(application, fields);
+          return [application.id, projection.primaryCues.map((cue) => cue.value).join(" · ") || projection.retainedSourceCue?.value || "Application"];
+        })));
+      }).catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Documents could not be loaded."); });
     return () => { active = false; };
   }, []);
-
-  const createCv = async () => {
-    if (creating) return;
-    setCreating("cv");
+  const start = (kind: "cv" | "letter") => { setCreation(kind); setTitle(""); setError(null); };
+  const openNew = async () => {
+    if (!creation || busy) return;
+    setBusy(true); setError(null);
+    try {
+      const draft = creation === "cv"
+        ? await window.aaaat.documentDomain.previewWorkingCv({
+          title: title.trim() || uniqueTitle("CV", collections.workingCvs.map((document) => document.title)),
+          candidatureId: null,
+          source: source.startsWith("template:") ? { kind: "template", templateId: source.slice(9) } : { kind: source === "blank" ? "blank" : "profile" },
+        })
+        : await window.aaaat.documentDomain.previewLetter({
+          title: title.trim() || uniqueTitle("Cover letter", collections.letters.map((document) => document.title)),
+          candidatureId: null, bodyParagraphs: [],
+        });
+      rememberDocumentDraft(draft);
+      setCreation(null); setTitle(""); onDirtyChange?.(false); onOpenDocument(draft.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be opened."); }
+    finally { setBusy(false); }
+  };
+  useShellActions({
+    title: creation ? creation === "cv" ? "New CV" : "New cover letter" : "Documents",
+    actions: creation ? [
+      { id: "document-create-cancel", label: "Cancel", onClick: () => { setCreation(null); setTitle(""); onDirtyChange?.(false); } },
+      { id: "document-create-open", label: "Open", onClick: () => { void openNew(); }, disabled: busy, primary: true },
+    ] : [
+      { id: "document-new-cv", label: "New CV", onClick: () => start("cv"), primary: true },
+      { id: "document-new-letter", label: "New letter", onClick: () => start("letter") },
+    ],
+  });
+  const rename = async (document: WorkingCvRecord | CoverLetterRecord) => {
+    const proposed = window.prompt("Document name", document.title)?.trim();
+    if (!proposed || proposed === document.title) return;
     setError(null);
     try {
-      const templateId = cvSource.startsWith("template:")
-        ? cvSource.slice("template:".length)
-        : null;
-      const source = templateId
-        ? { kind: "template" as const, templateId }
-        : cvSource === "blank"
-          ? { kind: "blank" as const }
-          : { kind: "profile" as const };
-      const created = await window.aaaat.documentDomain.createWorkingCv({
-        title: cvTitle.trim() || nextCvTitle(collections),
-        candidatureId: null,
-        source,
+      if ("sections" in document) await window.aaaat.documentDomain.updateWorkingCv({ id: document.id, title: proposed, language: document.language, sections: document.sections, pdfMetadata: document.pdfMetadata, parserSummary: document.parserSummary });
+      else await window.aaaat.documentDomain.updateLetter({ id: document.id, title: proposed, language: document.language, sender: document.sender, recipient: document.recipient, subject: document.subject, bodyParagraphs: document.bodyParagraphs, closing: document.closing });
+      setCollections(await window.aaaat.documentDomain.collections());
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be renamed."); }
+  };
+  const remove = async (document: WorkingCvRecord | CoverLetterRecord) => {
+    if (!window.confirm(`Delete "${document.title}"? Generated PDFs are kept.`)) return;
+    setError(null);
+    try { setCollections("sections" in document ? await window.aaaat.documentDomain.removeWorkingCv(document.id) : await window.aaaat.documentDomain.removeLetter(document.id)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be deleted."); }
+  };
+  const editRenderedCopy = async (rendered: DocumentCollections["renderedCvs"][number]) => {
+    setError(null);
+    try {
+      const preview = await window.aaaat.documentDomain.previewWorkingCv({
+        title: uniqueTitle(`${rendered.title} copy`, collections.workingCvs.map((document) => document.title)),
+        candidatureId: rendered.candidatureId, source: { kind: "blank" },
       });
-      setCvTitle("");
-      setCvSource("profile");
-      onOpenDocument(created.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create the CV.");
-    } finally {
-      setCreating(null);
-    }
+      const draft = { ...preview, ...rendered.snapshot, id: preview.id, title: preview.title, createdAt: preview.createdAt, updatedAt: preview.updatedAt };
+      rememberDocumentDraft(draft);
+      onOpenDocument(draft.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
   };
-
-  const createLetter = async () => {
-    if (creating) return;
-    setCreating("letter");
-    setError(null);
-    try {
-      const created = await window.aaaat.documentDomain.createLetter({
-        candidatureId: null,
-        title: "Cover letter",
-        bodyParagraphs: [],
-      });
-      onOpenDocument(created.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not create the cover letter.");
-    } finally {
-      setCreating(null);
-    }
-  };
-
-  const openTemplate = async (templateId: string, name: string) => {
-    if (creating) return;
-    setCreating("cv");
-    setError(null);
-    try {
-      const created = await window.aaaat.documentDomain.createWorkingCv({
-        title: name,
-        candidatureId: null,
-        source: { kind: "template", templateId },
-      });
-      onOpenDocument(created.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not use that template.");
-    } finally {
-      setCreating(null);
-    }
-  };
-
-  const renameTemplate = async (templateId: string) => {
-    const template = collections.templates.find((candidate) => candidate.id === templateId);
-    if (!template) return;
-    const proposed = window.prompt("Template name", template.name)?.trim();
-    if (!proposed || proposed === template.name) return;
-    try {
-      setCollections(await window.aaaat.documentDomain.updateTemplate({
-        id: template.id,
-        name: proposed,
-        language: template.language,
-        pdfMetadata: template.pdfMetadata,
-        parserSummary: template.parserSummary,
-        sections: template.sections,
-      }));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not rename this template.");
-    }
-  };
-
-  const duplicateRendered = async (renderedCvId: string) => {
-    if (creating) return;
-    setCreating("cv");
-    setError(null);
-    try {
-      const editable = await window.aaaat.documentDomain.duplicateRenderedCv(renderedCvId);
-      onOpenDocument(editable.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not make an editable copy.");
-    } finally {
-      setCreating(null);
-    }
-  };
-
-  const editableDocuments = [
-    ...collections.workingCvs.map((document) => ({
-      id: document.id,
-      kind: "CV" as const,
-      title: document.title,
-      applicationOwned: Boolean(document.candidatureId),
-      updatedAt: document.updatedAt,
-    })),
-    ...collections.letters.map((document) => ({
-      id: document.id,
-      kind: "Cover letter" as const,
-      title: document.title,
-      applicationOwned: Boolean(document.candidatureId),
-      updatedAt: document.updatedAt,
-    })),
-  ].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-
-  const generatedCount =
-    collections.renderedCvs.length +
-    collections.renderedLetters.length +
-    collections.applicationPackets.length;
-
-  return (
-    <section className="document-intent-home document-hub" aria-label="Documents">
-      <header className="document-console-heading document-hub-heading">
-        <div>
-          <p className="eyebrow">Documents</p>
-          <h1>Write first. Produce PDFs when you need them.</h1>
-          <p>CVs and cover letters stay editable. Generated files are kept separately.</p>
-        </div>
-      </header>
-
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
-
-      <section className="document-hub-create" aria-label="Create a document">
-        <article className="document-create-card">
-          <div>
-            <span className="item-kind">CV</span>
-            <h2>Start a CV</h2>
-            <p>Begin from My information, a reusable template, or a blank page.</p>
-          </div>
-          <div className="document-create-card-controls">
-            <label>
-              Start from
-              <select value={cvSource} onChange={(event) => setCvSource(event.target.value)}>
-                <option value="profile">My information</option>
-                <option value="blank">Blank CV</option>
-                {collections.templates.map((template) => (
-                  <option key={template.id} value={`template:${template.id}`}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <details>
-              <summary>Name it now</summary>
-              <label>
-                CV name
-                <input
-                  value={cvTitle}
-                  onChange={(event) => setCvTitle(event.target.value)}
-                  placeholder={nextCvTitle(collections)}
-                />
-              </label>
-            </details>
-            <button type="button" disabled={creating !== null} onClick={() => void createCv()}>
-              {creating === "cv" ? "Opening…" : "Create CV"}
-            </button>
-          </div>
-        </article>
-
-        <article className="document-create-card">
-          <div>
-            <span className="item-kind">Cover letter</span>
-            <h2>Write a cover letter</h2>
-            <p>Open a clean letter page. You can write yourself or ask AI for a draft inside the editor.</p>
-          </div>
-          <div className="document-create-card-controls">
-            <button type="button" disabled={creating !== null} onClick={() => void createLetter()}>
-              {creating === "letter" ? "Opening…" : "Create cover letter"}
-            </button>
-          </div>
-        </article>
-      </section>
-
-      <section className="document-hub-continue" aria-label="Editable documents">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Continue editing</p>
-            <h2>Your documents</h2>
-          </div>
-          <span>{editableDocuments.length}</span>
-        </div>
-        {editableDocuments.length === 0 ? (
-          <p className="document-intent-empty">No editable documents yet.</p>
-        ) : (
-          <div className="working-cv-document-grid document-editable-grid">
-            {editableDocuments.map((document) => (
-              <button
-                type="button"
-                className="working-cv-document-card"
-                key={document.id}
-                onClick={() => onOpenDocument(document.id)}
-              >
-                <span className="item-kind">{document.kind}</span>
-                <strong>{document.title}</strong>
-                <small>{document.applicationOwned ? "For an application" : "Standalone"}</small>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="document-hub-secondary">
-        <details className="document-library-disclosure">
-          <summary>CV templates <span>{collections.templates.length}</span></summary>
-          {collections.templates.length === 0 ? (
-            <p className="document-intent-empty">No templates yet.</p>
-          ) : (
-            <div className="document-intent-list">
-              {collections.templates.map((template) => (
-                <article key={template.id} className="document-intent-row">
-                  <button
-                    type="button"
-                    disabled={creating !== null}
-                    onClick={() => void openTemplate(template.id, template.name)}
-                  >
-                    <span className="item-kind">Template</span>
-                    <strong>{template.name}</strong>
-                    <small>Start a new CV</small>
-                  </button>
-                  <button
-                    type="button"
-                    className="compact-secondary"
-                    onClick={() => void renameTemplate(template.id)}
-                  >
-                    Rename
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </details>
-
-        <details className="document-library-disclosure">
-          <summary>Generated files <span>{generatedCount}</span></summary>
-          {generatedCount === 0 ? (
-            <p className="document-intent-empty">No generated PDFs yet.</p>
-          ) : (
-            <div className="document-intent-list">
-              {collections.renderedCvs.map((document) => (
-                <article key={document.id} className="document-intent-row">
-                  <button
-                    type="button"
-                    onClick={() => void window.aaaat.documentDomain.openRenderedCv(document.id)}
-                  >
-                    <span className="item-kind">CV PDF</span>
-                    <strong>{document.title}</strong>
-                    <small>Open PDF</small>
-                  </button>
-                  <button
-                    type="button"
-                    className="compact-secondary"
-                    disabled={creating !== null}
-                    onClick={() => void duplicateRendered(document.id)}
-                  >
-                    Edit a copy
-                  </button>
-                </article>
-              ))}
-              {collections.renderedLetters.map((document) => (
-                <article key={document.id} className="document-intent-row">
-                  <button
-                    type="button"
-                    onClick={() => void window.aaaat.documentDomain.openRenderedLetter(document.id)}
-                  >
-                    <span className="item-kind">Letter PDF</span>
-                    <strong>{document.title}</strong>
-                    <small>Open PDF</small>
-                  </button>
-                </article>
-              ))}
-              {collections.applicationPackets.map((document) => (
-                <article key={document.id} className="document-intent-row">
-                  <button
-                    type="button"
-                    onClick={() => void window.aaaat.documentDomain.openPacket(document.id)}
-                  >
-                    <span className="item-kind">Application PDF</span>
-                    <strong>{document.title}</strong>
-                    <small>Open PDF</small>
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </details>
-      </div>
-    </section>
-  );
+  const documents = [...collections.workingCvs, ...collections.letters].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const association = (candidatureId: string | null) => candidatureId ? applicationLabels[candidatureId] || "Application" : "Standalone";
+  return <section className="document-library" aria-label="Documents">
+    {error ? <p className="error-message" role="alert">{error}</p> : null}
+    {creation ? <div className="document-new-form">
+      <label>Name<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder={creation === "cv" ? "CV" : "Cover letter"} /></label>
+      {creation === "cv" ? <label>Start from<select value={source} onChange={(event) => setSource(event.target.value)}>
+        <option value="profile">My information</option><option value="blank">Blank page</option>
+        {collections.templates.map((template) => <option key={template.id} value={`template:${template.id}`}>{template.name}</option>)}
+      </select></label> : null}
+    </div> : <>
+      {documents.length === 0 ? <p className="compact-empty">Create a CV or letter to start writing.</p> : <div className="document-list">
+        {documents.map((document) => <article className="document-list-row" key={document.id}>
+          <button type="button" className="document-list-open" onClick={() => onOpenDocument(document.id)}>
+            <span className="item-kind">{"sections" in document ? "CV" : "Letter"}</span>
+            <strong>{document.title}</strong><small>{association(document.candidatureId)}</small>
+          </button>
+          <div><button type="button" onClick={() => { void rename(document); }}>Rename</button><button type="button" onClick={() => { void remove(document); }}>Delete</button></div>
+        </article>)}
+      </div>}
+      <details className="document-library-disclosure"><summary>CV templates · {collections.templates.length}</summary>
+        {collections.templates.map((template) => <article className="document-list-row" key={template.id}>
+          <strong>{template.name}</strong>
+          <button type="button" onClick={() => { setSource(`template:${template.id}`); setTitle(template.name); setCreation("cv"); }}>Use template</button>
+        </article>)}
+      </details>
+      <details className="document-library-disclosure"><summary>Generated PDFs · {collections.renderedCvs.length + collections.renderedLetters.length + collections.applicationPackets.length}</summary>
+        {collections.renderedCvs.map((document) => <article className="document-list-row" key={document.id}>
+          <button type="button" className="document-list-open" onClick={() => { void window.aaaat.documentDomain.openRenderedCv(document.id); }}><span className="item-kind">CV PDF</span><strong>{document.title}</strong><small>{association(document.candidatureId)}</small></button>
+          <button type="button" onClick={() => { void window.aaaat.documentDomain.exportRenderedCv(document.id); }}>Export</button>
+          <button type="button" onClick={() => { void editRenderedCopy(document); }}>Edit a copy</button>
+        </article>)}
+        {collections.renderedLetters.map((document) => <article className="document-list-row" key={document.id}>
+          <button type="button" className="document-list-open" onClick={() => { void window.aaaat.documentDomain.openRenderedLetter(document.id); }}><span className="item-kind">Letter PDF</span><strong>{document.title}</strong><small>{association(document.candidatureId)}</small></button>
+          <button type="button" onClick={() => { void window.aaaat.documentDomain.exportRenderedLetter(document.id); }}>Export</button>
+        </article>)}
+        {collections.applicationPackets.map((document) => <article className="document-list-row" key={document.id}>
+          <button type="button" className="document-list-open" onClick={() => { void window.aaaat.documentDomain.openPacket(document.id); }}><span className="item-kind">Application PDF</span><strong>{document.title}</strong><small>{association(document.candidatureId)}</small></button>
+          <button type="button" onClick={() => { void window.aaaat.documentDomain.exportPacket(document.id); }}>Export</button>
+        </article>)}
+      </details>
+    </>}
+  </section>;
 }

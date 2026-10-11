@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiTaskStatus } from "./AiTaskStatus";
+import { clearAllAiTasks, useAiTasks } from "./ai-task-store";
 import logoMachine from "./assets/aaaat-logo-dark.png";
 import logoPaper from "./assets/aaaat-logo-light.png";
 import loadingMachine from "./assets/aaaat-loading-dark.png";
@@ -13,6 +14,7 @@ import {
   type ProfessionalInformationHandoff,
   type SettingsHandoff,
 } from "./contextual-handoffs";
+import { clearDocumentDrafts, hasUnsavedDocumentDrafts } from "./document-drafts";
 import { DocumentsStartWorkspace } from "./DocumentsStartWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import "./intent-recovery.css";
@@ -21,6 +23,7 @@ import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
 import "./settings-rail-recovery.css";
+import { ShellActionsProvider, type ShellActions } from "./shell-actions";
 import "./shell.css";
 import { TagVisor, type ApplicationTagContext } from "./TagVisor";
 import { WorkspaceRailStatus } from "./WorkspaceRailStatus";
@@ -88,6 +91,9 @@ function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: bool
 }
 
 export function App() {
+  const aiTasks = useAiTasks();
+  const activeTaskCount = aiTasks.filter((task) => task.status === "queued" || task.status === "working").length;
+  const failedTaskCount = aiTasks.filter((task) => task.status === "failed").length;
   const [workspacePhase, setWorkspacePhase] = useState<WorkspacePhase>("loading");
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [recentWorkspacePath, setRecentWorkspacePath] = useState<string | null>(null);
@@ -111,6 +117,27 @@ export function App() {
     useState<ProfessionalInformationHandoff | null>(null);
   const [settingsHandoff, setSettingsHandoff] = useState<SettingsHandoff | null>(null);
   const [homeCandidatureId, setHomeCandidatureId] = useState<string | null>(null);
+  const [profileInitialItemId, setProfileInitialItemId] = useState<string | undefined>(undefined);
+  const [visitedViews, setVisitedViews] = useState<ReadonlySet<ProductView>>(new Set());
+  const [applicationActions, setApplicationActions] = useState<ShellActions | null>(null);
+  const [documentActions, setDocumentActions] = useState<ShellActions | null>(null);
+  const [informationActions, setInformationActions] = useState<ShellActions | null>(null);
+  const [supportPanel, setSupportPanel] = useState<"activity" | "tags" | null>(null);
+
+  const showProductView = useCallback((next: ProductView) => {
+    setVisitedViews((current) => current.has(next) ? current : new Set([...current, next]));
+    setProductView(next);
+    setWelcomeOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!supportPanel) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSupportPanel(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [supportPanel]);
 
   const refreshRailStatus = useCallback(() => {
     setRailStatusRevision((current) => current + 1);
@@ -156,7 +183,7 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const protectedWorkDirty = candidatureDirty || documentDirty || professionalInformationDirty;
+  const protectedWorkDirty = candidatureDirty || documentDirty || hasUnsavedDocumentDrafts() || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
 
   const resetHandoffs = () => {
@@ -165,6 +192,18 @@ export function App() {
     setSettingsHandoff(null);
     setHomeCandidatureId(null);
     setApplicationTagContext(null);
+  };
+
+  const resetWorkspaceContent = () => {
+    setWorkspaceContentRevision((current) => current + 1);
+    clearAllAiTasks();
+    clearDocumentDrafts();
+    setVisitedViews(new Set());
+    setProfileInitialItemId(undefined);
+    setApplicationActions(null);
+    setDocumentActions(null);
+    setInformationActions(null);
+    setSupportPanel(null);
   };
 
   const resetDirty = () => {
@@ -186,13 +225,14 @@ export function App() {
       }
       resetDirty();
       resetHandoffs();
+      resetWorkspaceContent();
       resetEnvironmentProjection();
       setWorkspace(selectedWorkspace);
       setRecentWorkspacePath(selectedWorkspace.rootPath);
       setDemoWorkspace(await window.aaaat.workspace.status().then((next) => next.demo).catch(() => false));
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("candidatures");
+      showProductView("candidatures");
       setWelcomeOpen(false);
     } catch (reason) {
       setWorkspacePhase(workspace ? "ready" : "idle");
@@ -205,16 +245,20 @@ export function App() {
   };
 
   const continueRecentWorkspace = async () => {
+    if (workspace && anyDirty && !window.confirm("Discard unsaved edits and reopen the previous workspace?")) return;
     setWorkspacePhase("choosing");
     setWorkspaceError(null);
     try {
       const selected = await window.aaaat.workspace.continueRecent();
       if (!selected) throw new Error("No previous workspace is available.");
+      resetWorkspaceContent();
+      resetDirty();
+      resetHandoffs();
       resetEnvironmentProjection();
       setWorkspace(selected);
       setDemoWorkspace((await window.aaaat.workspace.status()).demo);
       setWorkspacePhase("ready");
-      setWelcomeOpen(false);
+      showProductView(productView);
       setSettingsOpen(false);
     } catch (reason) {
       setWorkspacePhase("idle");
@@ -223,17 +267,13 @@ export function App() {
   };
 
   const openHome = () => {
-    if (anyDirty && !window.confirm("Discard unsaved edits and return home?")) return;
-    if (anyDirty) {
-      resetDirty();
-      setWorkspaceContentRevision((current) => current + 1);
-    }
-    resetHandoffs();
-    setSettingsOpen(false);
+    if (!leaveSettings()) return;
     setWelcomeOpen(true);
+    setSupportPanel(null);
   };
 
   const afterWorkspaceDeleted = () => {
+    resetWorkspaceContent();
     resetDirty();
     resetHandoffs();
     setAiAttentionConnectionName(null);
@@ -245,13 +285,13 @@ export function App() {
   };
 
   const afterWorkspaceReset = (resetWorkspace: WorkspaceInfo) => {
+    resetWorkspaceContent();
     resetDirty();
     resetHandoffs();
     setWorkspaceError(null);
     setWorkspace(resetWorkspace);
     setRecentWorkspacePath(resetWorkspace.rootPath);
     setDemoWorkspace(false);
-    setWorkspaceContentRevision((current) => current + 1);
     setAiAttentionConnectionName(null);
     refreshRailStatus();
     setWorkspacePhase("ready");
@@ -271,13 +311,14 @@ export function App() {
       }
       resetDirty();
       resetHandoffs();
+      resetWorkspaceContent();
       resetEnvironmentProjection();
       setWorkspace(selected);
       setRecentWorkspacePath(selected.rootPath);
       setDemoWorkspace(true);
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("candidatures");
+      showProductView("candidatures");
       setWelcomeOpen(false);
     } catch {
       setWorkspacePhase(workspace ? "ready" : "idle");
@@ -286,17 +327,17 @@ export function App() {
   };
 
   const openRestoredWorkspace = (restoredWorkspace: WorkspaceInfo) => {
+    resetWorkspaceContent();
     resetDirty();
     resetHandoffs();
     setWorkspaceError(null);
     setWorkspace(restoredWorkspace);
     setRecentWorkspacePath(restoredWorkspace.rootPath);
     setDemoWorkspace(false);
-    setWorkspaceContentRevision((current) => current + 1);
     resetEnvironmentProjection();
     setWorkspacePhase("ready");
     setSettingsOpen(false);
-    setProductView("candidatures");
+    showProductView("candidatures");
     setWelcomeOpen(false);
   };
 
@@ -310,44 +351,21 @@ export function App() {
   };
 
   const selectProductView = (next: ProductView) => {
-    if (welcomeOpen) {
-      resetHandoffs();
-      if (next === "candidatures") {
-        setCandidatureWorkspaceRevision((current) => current + 1);
-      } else if (next === "documents") {
-        setDocumentWorkspaceRevision((current) => current + 1);
-      }
-      setWelcomeOpen(false);
-      setSettingsOpen(false);
-      setProductView(next);
-      return;
-    }
-    if (next === productView && !settingsOpen) {
-      if (next === "documents" && documentHandoff) {
-        if (protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
-        setDocumentDirty(false);
-        setDocumentHandoff(null);
-        setProfessionalInformationHandoff(null);
-        setDocumentWorkspaceRevision((current) => current + 1);
-      }
-      return;
-    }
     if (!leaveSettings()) return;
-    if (next !== productView && protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
-    if (next === "candidatures" && documentHandoff?.candidatureId) {
-      setCandidatureWorkspaceRevision((current) => current + 1);
-    }
-    resetHandoffs();
-    setProductView(next);
+    setWelcomeOpen(false);
+    setSupportPanel(null);
+    showProductView(next);
   };
 
   const openCandidatureFromHome = (candidatureId: string) => {
-    resetHandoffs();
+    if (candidatureDirty && !window.confirm("Discard the current application's unsaved edits and open another application?")) return;
+    setCandidatureDirty(false);
+    setApplicationTagContext(null);
     setHomeCandidatureId(candidatureId);
     setCandidatureWorkspaceRevision((current) => current + 1);
     setSettingsOpen(false);
     setWelcomeOpen(false);
-    setProductView("candidatures");
+    showProductView("candidatures");
   };
 
   const openStandaloneDocument = (documentId: string) => {
@@ -359,11 +377,12 @@ export function App() {
     setDocumentDirty(false);
     setDocumentHandoff({ documentId });
     setDocumentWorkspaceRevision((current) => current + 1);
-    setProductView("documents");
+    showProductView("documents");
   };
 
   const openSettings = () => {
     if (settingsOpen) return;
+    setSupportPanel(null);
     setWelcomeOpen(false);
     setSettingsHandoff(null);
     setSettingsOpen(true);
@@ -375,39 +394,40 @@ export function App() {
       professionalInformationHandoff,
       settingsHandoff,
       openDocumentFromCandidature: (candidatureId: string, documentId?: string) => {
+        setDocumentDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
         setHomeCandidatureId(null);
         setDocumentHandoff({ candidatureId, ...(documentId ? { documentId } : {}) });
-        setProductView("documents");
+        setWelcomeOpen(false);
+        showProductView("documents");
       },
       returnToCandidature: () => {
-        if (documentDirty && !window.confirm("Discard unsaved document edits and return to this application?")) return;
         setSettingsOpen(false);
         setSettingsHandoff(null);
-        setProfessionalInformationHandoff(null);
-        setDocumentHandoff(null);
-        setProductView("candidatures");
+        setWelcomeOpen(false);
+        showProductView("candidatures");
       },
       returnToDocuments: () => {
-        if (documentDirty && !window.confirm("Discard unsaved document edits and return to Documents?")) return;
         setDocumentDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff(null);
         setDocumentHandoff(null);
         setDocumentWorkspaceRevision((current) => current + 1);
-        setProductView("documents");
+        showProductView("documents");
       },
       openProfessionalInformationItem: (documentId: string, itemId: string) => {
+        if (professionalInformationDirty && profileInitialItemId !== itemId
+          && !window.confirm("Discard unsaved My information edits and open another item?")) return;
+        setProfileInitialItemId(itemId);
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff({ documentId, itemId });
-        setProductView("professional-information");
+        showProductView("professional-information");
       },
       returnToDocument: () => {
-        if (professionalInformationDirty && !window.confirm("Discard unsaved My information edits and return to document?")) return;
         const returningDocumentId = professionalInformationHandoff?.documentId;
         setSettingsOpen(false);
         setSettingsHandoff(null);
@@ -417,14 +437,13 @@ export function App() {
             ...(current?.candidatureId ? { candidatureId: current.candidatureId } : {}),
             documentId: returningDocumentId,
           }));
-          setDocumentWorkspaceRevision((current) => current + 1);
         }
-        setProductView("documents");
+        showProductView("documents");
       },
       openSettingsFor: (view: SettingsHandoff["view"], origin: SettingsHandoff["origin"]) => {
         setSettingsDirty(false);
         setSettingsHandoff({ view, origin });
-        setProductView(origin);
+        showProductView(origin);
         setSettingsOpen(true);
       },
       returnFromSettings: () => {
@@ -433,37 +452,47 @@ export function App() {
         setSettingsDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
-        setProductView(origin);
+        showProductView(origin);
       },
     }),
     [
       documentDirty,
       documentHandoff,
       productView,
+      profileInitialItemId,
       professionalInformationDirty,
       professionalInformationHandoff,
       settingsDirty,
       settingsHandoff,
+      showProductView,
     ],
   );
 
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
-  const keepCandidaturesMounted = productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
-  const keepDocumentsMounted =
-    productView === "documents" ||
-    professionalInformationHandoff !== null ||
-    settingsHandoff?.origin === "documents";
-  const keepProfessionalInformationMounted = productView === "professional-information";
+  const keepCandidaturesMounted = visitedViews.has("candidatures")
+    || (!welcomeOpen && !settingsOpen && productView === "candidatures");
+  const keepDocumentsMounted = visitedViews.has("documents")
+    || (!welcomeOpen && !settingsOpen && productView === "documents");
+  const keepProfessionalInformationMounted = visitedViews.has("professional-information")
+    || (!welcomeOpen && !settingsOpen && productView === "professional-information");
   const documentDetailActive =
-    documentHandoff !== null || professionalInformationHandoff !== null || settingsHandoff?.origin === "documents";
+    documentHandoff !== null || professionalInformationHandoff !== null;
   const applicationContextActive =
     !welcomeOpen && !settingsOpen &&
     (productView === "candidatures" ||
       (productView === "documents" && Boolean(documentHandoff?.candidatureId)));
   const cvContextActive =
     !welcomeOpen && !settingsOpen && productView === "documents" && !documentHandoff?.candidatureId;
+
+  const currentActions = !welcomeOpen && !settingsOpen
+    ? productView === "candidatures" ? applicationActions
+      : productView === "documents" ? documentActions : informationActions
+    : null;
+  const headerTitle = !ready ? "Welcome" : welcomeOpen ? "Home" : settingsOpen ? "Settings"
+    : currentActions?.title ?? (productView === "candidatures" ? "Applications"
+      : productView === "documents" ? "Documents" : "My information");
 
   const welcomeContent = (
     <div className="welcome-console">
@@ -514,6 +543,38 @@ export function App() {
             <img className="brand-mark" src={logoMachine} alt="" />
             <span className="brand-name">AAAAT</span>
           </div>
+          <h1 className="shell-task-title" title={headerTitle}>{headerTitle}</h1>
+          {ready ? (
+            <div className="shell-task-actions" aria-label="Current work actions">
+              {settingsOpen && settingsHandoff ? (
+                <button type="button" className="compact-secondary" onClick={handoffApi.returnFromSettings}>Return</button>
+              ) : null}
+              {!welcomeOpen && !settingsOpen && productView === "professional-information" && professionalInformationHandoff ? (
+                <button type="button" className="compact-secondary" onClick={handoffApi.returnToDocument}>Return to document</button>
+              ) : null}
+              {currentActions?.actions.map((action) => (
+                <button key={action.id} type="button"
+                  className={action.primary ? "compact-primary" : "compact-secondary"}
+                  disabled={action.disabled} onClick={action.onClick}>{action.label}</button>
+              ))}
+              {currentActions?.moreActions?.length ? (
+                <details className="shell-more-actions">
+                  <summary>More</summary>
+                  <div>{currentActions.moreActions.map((action) => (
+                    <button key={action.id} type="button" disabled={action.disabled}
+                      onClick={(event) => {
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                        action.onClick();
+                      }}>{action.label}</button>
+                  ))}</div>
+                </details>
+              ) : null}
+              <button type="button" className="shell-activity-toggle" aria-expanded={supportPanel === "activity"}
+                onClick={() => setSupportPanel((current) => current === "activity" ? null : "activity")}>
+                Activity{activeTaskCount > 0 ? ` · ${activeTaskCount} working` : failedTaskCount > 0 ? ` · ${failedTaskCount} needs attention` : ""}
+              </button>
+            </div>
+          ) : null}
         </header>
 
         {ready ? (
@@ -532,14 +593,19 @@ export function App() {
                   <button type="button" className={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                   <button type="button" className={settingsOpen ? "active-work-destination" : ""} aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings</button>
                 </nav>
-                <WorkspaceRailStatus
-                  key={workspace.rootPath}
-                  demo={demoWorkspace}
-                  refreshRevision={railStatusRevision}
-                  attentionConnectionName={aiAttentionConnectionName}
-                />
-                <TagVisor applicationContext={applicationContextActive ? applicationTagContext : null} />
-                <AiTaskStatus />
+                <div className="rail-support">
+                  <button type="button" className="rail-reference-button" aria-expanded={supportPanel === "tags"}
+                    onClick={() => setSupportPanel((current) => current === "tags" ? null : "tags")}>Tags</button>
+                  <details className="rail-environment">
+                    <summary>{demoWorkspace ? "Demo workspace" : "Local workspace"}</summary>
+                    <WorkspaceRailStatus
+                      key={workspace.rootPath}
+                      demo={demoWorkspace}
+                      refreshRevision={railStatusRevision}
+                      attentionConnectionName={aiAttentionConnectionName}
+                    />
+                  </details>
+                </div>
               </aside>
 
               <section className="work-surface">
@@ -547,12 +613,6 @@ export function App() {
 
                 {!welcomeOpen && settingsOpen ? (
                   <div className="settings-area" key={`settings-${workspace.rootPath}-${String(workspaceContentRevision)}-${settingsHandoff?.view ?? "workspace"}`}>
-                    {settingsHandoff ? <div className="shell-section-heading">
-                      <h1 className="visually-hidden">Settings</h1>
-                      <button className="compact-secondary" type="button" onClick={handoffApi.returnFromSettings}>
-                        {settingsHandoff.origin === "documents" ? "Return to document" : "Return to application"}
-                      </button>
-                    </div> : null}
                     <SettingsWorkspace
                       currentWorkspace={workspace}
                       demoWorkspace={demoWorkspace}
@@ -571,6 +631,7 @@ export function App() {
 
                 {keepCandidaturesMounted ? (
                   <div hidden={welcomeOpen || settingsOpen || productView !== "candidatures"}>
+                    <ShellActionsProvider onChange={setApplicationActions}>
                     <CandidaturesArea
                       key={`candidatures-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(candidatureWorkspaceRevision)}`}
                       initialCandidatureId={homeCandidatureId ?? undefined}
@@ -578,11 +639,13 @@ export function App() {
                       onDirtyChange={setCandidatureDirty}
                       onTagContextChange={setApplicationTagContext}
                     />
+                    </ShellActionsProvider>
                   </div>
                 ) : null}
 
                 {keepDocumentsMounted ? (
                   <div hidden={welcomeOpen || settingsOpen || productView !== "documents"}>
+                    <ShellActionsProvider onChange={setDocumentActions}>
                     {documentDetailActive ? (
                       <DocumentsArea
                         key={`documents-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(documentWorkspaceRevision)}`}
@@ -595,24 +658,24 @@ export function App() {
                         onDirtyChange={setDocumentDirty}
                       />
                     )}
+                    </ShellActionsProvider>
                   </div>
                 ) : null}
 
                 {keepProfessionalInformationMounted ? (
                   <div hidden={welcomeOpen || settingsOpen || productView !== "professional-information"}>
+                    <ShellActionsProvider onChange={setInformationActions}>
                     {professionalInformationHandoff ? (
                       <div className="contextual-return-bar" role="status">
                         <span>Editing My information used by this document.</span>
-                        <button className="compact-secondary" type="button" onClick={handoffApi.returnToDocument}>
-                          Return to document
-                        </button>
                       </div>
                     ) : null}
                     <ProfileArea
                       key={`professional-information-${workspace.rootPath}-${String(workspaceContentRevision)}`}
-                      initialItemId={professionalInformationHandoff?.itemId}
+                      initialItemId={profileInitialItemId}
                       onDirtyChange={setProfessionalInformationDirty}
                     />
+                    </ShellActionsProvider>
                   </div>
                 ) : null}
               </section>
@@ -621,6 +684,14 @@ export function App() {
         ) : (
           <main className={loading ? "empty-state startup-state" : "empty-state first-run-state"}>{welcomeContent}</main>
         )}
+        {ready && supportPanel ? (
+          <section className="shell-support-panel" aria-label={supportPanel === "activity" ? "Activity" : "Tag glossary"}>
+            <header><h2>{supportPanel === "activity" ? "Activity" : "Tags"}</h2>
+              <button type="button" className="compact-secondary" onClick={() => setSupportPanel(null)}>Close</button>
+            </header>
+            {supportPanel === "activity" ? <AiTaskStatus /> : <TagVisor applicationContext={applicationTagContext} />}
+          </section>
+        ) : null}
       </div>
     </ContextualHandoffContext.Provider>
   );

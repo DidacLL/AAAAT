@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import type { CoverLetterDraft, CvWritingField, CvWritingResult } from "../shared/ai-contracts";
+import type { CoverLetterDraft, CvWritingField, CvWritingResult, PreparedDocumentAi } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
@@ -14,8 +14,11 @@ import type {
   WorkingCvSection,
 } from "../shared/document-domain-contracts";
 import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
-import { startAiTask, useAiTask } from "./ai-task-store";
+import { startAiTask, useAiTask, clearAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
+import { useShellActions } from "./shell-actions";
+import { DocumentAiContext } from "./DocumentAiContext";
+import { documentDraft, rememberDocumentDraft, forgetDocumentDraft } from "./document-drafts";
 import "./documents.css";
 
 const emptyCollections: DocumentCollections = {
@@ -216,6 +219,8 @@ export function WorkingCvEditor({
   onSaved,
   onCollections,
   onDirtyChange,
+  provisional = false,
+  onClose,
 }: {
   readonly document: WorkingCvRecord;
   readonly profile: readonly ProfileItem[];
@@ -224,10 +229,19 @@ export function WorkingCvEditor({
   readonly onSaved: (document: WorkingCvRecord) => void;
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly provisional?: boolean;
+  readonly onClose?: () => void;
 }) {
   const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
-  const [draft, setDraft] = useState<WorkingCvRecord>(document);
+  const [draft, setDraft] = useState<WorkingCvRecord>(() => (documentDraft(document.id) as WorkingCvRecord | undefined) ?? document);
+  const draftRef = useRef(draft);
+  useLayoutEffect(() => { draftRef.current = draft; }, [draft]);
+  const requestDraft = useRef<string | null>(null);
+  const preparedId = useRef<string | null>(null);
+  const mounted = useRef(false);
+  const [aiPreview, setAiPreview] = useState<PreparedDocumentAi | null>(null);
+  const [preparingAi, setPreparingAi] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingOptionalDetails, setEditingOptionalDetails] = useState<OptionalCvDetail[]>([]);
   const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
@@ -242,15 +256,14 @@ export function WorkingCvEditor({
     readonly itemId: string;
     readonly field: CvWritingField;
   } | null>(null);
-  const writingTaskKey = `document:cv-writing:${document.id}`;
+  const [writingTaskKey] = useState(() => `document:cv-writing:${document.id}:${crypto.randomUUID()}`);
   const writingTask = useAiTask<CvWritingResult>(writingTaskKey);
-  const handledWritingResult = useRef<CvWritingResult | null>(null);
   const writingActive =
     writingTask?.status === "queued" || writingTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
-  const dirty = JSON.stringify({
+  const dirty = provisional || JSON.stringify({
     title: draft.title,
     language: draft.language,
     pdfMetadata: draft.pdfMetadata,
@@ -269,31 +282,15 @@ export function WorkingCvEditor({
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
+  useEffect(() => { rememberDocumentDraft(draft, dirty); }, [draft, dirty]);
   useEffect(() => {
-    const result = writingTask?.status === "completed" ? writingTask.result : undefined;
-    if (!result || handledWritingResult.current === result) return;
-    handledWritingResult.current = result;
-    setDraft((current) => ({
-      ...current,
-      sections: current.sections.map((section) => ({
-        ...section,
-        items: section.items.map((item) =>
-          item.id === result.itemId
-            ? {
-                ...item,
-                sourceMode: item.sourceMode === "custom" ? "custom" : "override",
-                profileVariantId: null,
-                content: { ...item.content, [result.field]: result.content },
-              }
-            : item,
-        ),
-      })),
-    }));
-    setWritingTarget(null);
-    setWritingMessage(
-      `AI wrote ${result.field === "title" ? "Title" : result.field === "subtitle" ? "Subtitle" : "Description"}. Review or edit it, then Save when ready.`,
-    );
-  }, [writingTask]);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      clearAiTask(writingTaskKey);
+      if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current);
+    };
+  }, [writingTaskKey]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -329,7 +326,9 @@ export function WorkingCvEditor({
   };
 
   const persistDraft = async (): Promise<WorkingCvRecord> => {
-    const saved = await window.aaaat.documentDomain.updateWorkingCv({
+    const saved = provisional
+      ? await window.aaaat.documentDomain.keepWorkingCv(draft)
+      : await window.aaaat.documentDomain.updateWorkingCv({
       id: draft.id,
       title: draft.title,
       language: draft.language,
@@ -337,6 +336,7 @@ export function WorkingCvEditor({
       parserSummary: draft.parserSummary,
       sections: draft.sections,
     });
+    forgetDocumentDraft(saved.id);
     setDraft(saved);
     onSaved(saved);
     return saved;
@@ -496,34 +496,58 @@ export function WorkingCvEditor({
     }
   };
 
-  const askAiToWrite = (item: WorkingCvItem, field: CvWritingField) => {
-    if (writingActive) return;
+  const askAiToWrite = async (item: WorkingCvItem, field: CvWritingField) => {
+    if (writingActive || preparingAi) return;
     setError(null);
-    setWritingMessage(null);
-    const label = field === "title" ? "Title" : field === "subtitle" ? "Subtitle" : "Description";
+    setPreparingAi(true);
     setWritingTarget({ itemId: item.id, field });
-    startAiTask<CvWritingResult>(
-      writingTaskKey,
-      async (updateDetail, signal) => {
-        updateDetail(`Writing ${label.toLocaleLowerCase()} from the information assigned to this CV task…`);
-        const cancelProvider = () => {
-          void window.aaaat.aiTasks.cancelCvWriting(writingTaskKey).catch(() => undefined);
-        };
-        signal.addEventListener("abort", cancelProvider, { once: true });
-        try {
-          return await window.aaaat.aiTasks.writeCvField(writingTaskKey, {
-            workingCvId: draft.id,
-            itemId: item.id,
-            field,
-            sections: draft.sections,
-          });
-        } finally {
-          signal.removeEventListener("abort", cancelProvider);
-        }
-      },
-      `Write CV ${label.toLocaleLowerCase()}`,
-      () => "Draft ready",
-    );
+    try {
+      const current = draftRef.current;
+      const preview = await window.aaaat.ai.prepareCvWriting({
+        workingCvId: current.id, document: current, itemId: item.id, field, sections: current.sections,
+      });
+      if (!mounted.current) { void window.aaaat.ai.discardDocumentPreparation(preview.requestId); return; }
+      preparedId.current = preview.requestId;
+      requestDraft.current = JSON.stringify(current);
+      setAiPreview(preview);
+    } catch (reason) { setError(readableDocumentError(reason, "AI context could not be prepared.")); }
+    finally { setPreparingAi(false); }
+  };
+  const sendCvTask = () => {
+    if (!aiPreview || !writingTarget || writingActive) return;
+    const current = draftRef.current;
+    if (JSON.stringify(current) !== requestDraft.current) {
+      if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current);
+      preparedId.current = null;
+      setAiPreview(null); setError("The CV changed. Open AI again to use the updated information."); return;
+    }
+    const snapshot = requestDraft.current;
+    const target = writingTarget;
+    const preview = aiPreview;
+    preparedId.current = null;
+    setAiPreview(null);
+    startAiTask<CvWritingResult>(writingTaskKey, async (updateDetail, signal) => {
+      updateDetail("Writing…");
+      const cancel = () => { void window.aaaat.aiTasks.cancelCvWriting(writingTaskKey); };
+      signal.addEventListener("abort", cancel, { once: true });
+      try {
+        const result = await window.aaaat.aiTasks.writeCvField(writingTaskKey, {
+          workingCvId: current.id, document: current, itemId: target.itemId, field: target.field,
+          sections: current.sections, preparedId: preview.requestId,
+        });
+        if (!signal.aborted && JSON.stringify(draftRef.current) === snapshot) {
+          setDraft((value) => ({ ...value, sections: value.sections.map((section) => ({
+            ...section, items: section.items.map((item) => item.id === result.itemId ? {
+              ...item, sourceMode: item.sourceMode === "custom" ? "custom" : "override",
+              profileVariantId: null, content: { ...item.content, [result.field]: result.content },
+            } : item),
+          })) }));
+          setWritingMessage("AI text added to this draft.");
+        } else if (!signal.aborted) setWritingMessage("The CV changed while AI worked. Your edits were kept; request AI again if needed.");
+        setWritingTarget(null);
+        return result;
+      } finally { signal.removeEventListener("abort", cancel); }
+    }, "Write CV text");
   };
 
   const render = async () => {
@@ -548,29 +572,19 @@ export function WorkingCvEditor({
     }
   };
 
+  useShellActions({
+    title: draft.title || "CV",
+    actions: [
+      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(writingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
+      { id: "document-save", label: "Save", onClick: () => { void save().catch(() => undefined); }, disabled: !dirty || busy },
+      { id: "document-pdf", label: provisional || dirty ? "Save & PDF" : "Create PDF", onClick: () => { void render(); }, disabled: busy || !selectedBlueprintId, primary: true },
+    ],
+  }, 1);
+
   return (
     <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
-      <header className="document-editor-toolbar">
-        <div className="document-editor-context">
-          <button
-            type="button"
-            className="document-back-button"
-            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
-          >
-            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
-          </button>
-          <div>
-            <p className="eyebrow">CV</p>
-            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
-          </div>
-        </div>
-        <div className="document-editor-actions">
-          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>
-            {busy ? "Creating PDF…" : "Create PDF"}
-          </button>
-        </div>
-      </header>
+      <p className="document-save-state">{provisional ? "New CV · not saved" : dirty ? "Unsaved changes" : "Saved"}</p>
+      {aiPreview ? <DocumentAiContext preview={aiPreview} busy={writingActive} onSend={sendCvTask} onClose={() => { void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); preparedId.current = null; setAiPreview(null); }} /> : null}
 
       {error ? (
         <div className="document-editor-message">
@@ -1012,6 +1026,8 @@ function LetterEditor({
   onSaved,
   onCollections,
   onDirtyChange,
+  provisional = false,
+  onClose,
 }: {
   readonly document: CoverLetterRecord;
   readonly profile: readonly ProfileItem[];
@@ -1019,13 +1035,20 @@ function LetterEditor({
   readonly onSaved: (document: CoverLetterRecord) => void;
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
+  readonly provisional?: boolean;
+  readonly onClose?: () => void;
 }) {
   const { documentHandoff, returnToCandidature, returnToDocuments } = useContextualHandoffs();
-  const [draft, setDraft] = useState(document);
-  const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
-  const draftingTaskKey = `document:cover-letter-draft:${document.id}`;
+  const [draft, setDraft] = useState<CoverLetterRecord>(() => (documentDraft(document.id) as CoverLetterRecord | undefined) ?? document);
+  const [body, setBody] = useState(() => ((documentDraft(document.id) as CoverLetterRecord | undefined) ?? document).bodyParagraphs.join("\n\n"));
+  const [aiPreview, setAiPreview] = useState<PreparedDocumentAi | null>(null);
+  const [sourceIds, setSourceIds] = useState<string[]>([]);
+  const [preparingAi, setPreparingAi] = useState(false);
+  const requestDraft = useRef<string | null>(null);
+  const preparedId = useRef<string | null>(null);
+  const mounted = useRef(false);
+  const [draftingTaskKey] = useState(() => `document:cover-letter-draft:${document.id}:${crypto.randomUUID()}`);
   const draftingTask = useAiTask<CoverLetterDraft>(draftingTaskKey);
-  const handledDraftResult = useRef<CoverLetterDraft | null>(null);
   const draftingActive =
     draftingTask?.status === "queued" || draftingTask?.status === "working";
   const [busy, setBusy] = useState(false);
@@ -1036,29 +1059,31 @@ function LetterEditor({
     (candidate) => candidate.coverLetterId === document.id,
   ) ?? null;
   const profileSenderDefaults = useMemo(() => letterSenderFromProfile(profile), [profile]);
-  const bodyParagraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
-  const dirty = JSON.stringify({ ...draft, bodyParagraphs }) !== JSON.stringify(document);
+  const bodyParagraphs = useMemo(() => body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean), [body]);
+  const currentDraft = useMemo(() => ({ ...draft, bodyParagraphs }), [draft, bodyParagraphs]);
+  const draftRef = useRef(currentDraft);
+  useLayoutEffect(() => { draftRef.current = currentDraft; }, [currentDraft]);
+  const dirty = provisional || JSON.stringify(currentDraft) !== JSON.stringify(document);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
+  useEffect(() => { rememberDocumentDraft(currentDraft, dirty); }, [currentDraft, dirty]);
   useEffect(() => {
-    const suggestion = draftingTask?.status === "completed" ? draftingTask.result : undefined;
-    if (!suggestion || handledDraftResult.current === suggestion) return;
-    handledDraftResult.current = suggestion;
-    setDraft((current) => ({
-      ...current,
-      recipient: suggestion.recipient || undefined,
-      subject: suggestion.subject || undefined,
-      closing: suggestion.closing || undefined,
-    }));
-    setBody(suggestion.bodyParagraphs.join("\n\n"));
-  }, [draftingTask]);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      clearAiTask(draftingTaskKey);
+      if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current);
+    };
+  }, [draftingTaskKey]);
 
   const persistDraft = async (): Promise<CoverLetterRecord> => {
-    const saved = await window.aaaat.documentDomain.updateLetter({
+    const saved = provisional
+      ? await window.aaaat.documentDomain.keepLetter({ ...draft, bodyParagraphs })
+      : await window.aaaat.documentDomain.updateLetter({
       id: draft.id,
       title: draft.title,
       language: draft.language,
@@ -1068,6 +1093,7 @@ function LetterEditor({
       bodyParagraphs,
       closing: draft.closing,
     });
+    forgetDocumentDraft(saved.id);
     setDraft(saved);
     setBody(saved.bodyParagraphs.join("\n\n"));
     onSaved(saved);
@@ -1134,28 +1160,45 @@ function LetterEditor({
     }
   };
 
-  const askAi = () => {
-    if (draftingActive) return;
-    setError(null);
-    startAiTask<CoverLetterDraft>(
-      draftingTaskKey,
-      async (updateDetail, signal) => {
-        updateDetail("Drafting from the information assigned to this cover-letter task…");
-        const cancelProvider = () => {
-          void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey).catch(() => undefined);
-        };
-        signal.addEventListener("abort", cancelProvider, { once: true });
-        try {
-          return await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, {
-            coverLetterId: draft.id,
-          });
-        } finally {
-          signal.removeEventListener("abort", cancelProvider);
-        }
-      },
-      "Draft cover letter",
-      () => "Draft ready",
-    );
+  const askAi = async (includedSources = sourceIds) => {
+    if (draftingActive || preparingAi) return;
+    setPreparingAi(true); setError(null);
+    try {
+      const current = draftRef.current;
+      const preview = await window.aaaat.ai.prepareCoverLetter({ coverLetterId: current.id, document: current, sourceIds: includedSources });
+      if (!mounted.current) { void window.aaaat.ai.discardDocumentPreparation(preview.requestId); return; }
+      preparedId.current = preview.requestId;
+      requestDraft.current = JSON.stringify(current);
+      setSourceIds(includedSources); setAiPreview(preview);
+    } catch (reason) { setError(readableDocumentError(reason, "AI context could not be prepared.")); }
+    finally { setPreparingAi(false); }
+  };
+  const sendLetterTask = () => {
+    if (!aiPreview || draftingActive || preparingAi) return;
+    const current = draftRef.current;
+    if (JSON.stringify(current) !== requestDraft.current) {
+      if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current);
+      preparedId.current = null;
+      setAiPreview(null); setError("The letter changed. Open AI again to use the updated information."); return;
+    }
+    const preview = aiPreview;
+    const snapshot = requestDraft.current;
+    preparedId.current = null;
+    setAiPreview(null);
+    startAiTask<CoverLetterDraft>(draftingTaskKey, async (updateDetail, signal) => {
+      updateDetail("Drafting…");
+      const cancel = () => { void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey); };
+      signal.addEventListener("abort", cancel, { once: true });
+      try {
+        const result = await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, { coverLetterId: current.id, document: current, sourceIds, preparedId: preview.requestId });
+        if (!signal.aborted && JSON.stringify(draftRef.current) === snapshot) {
+          setDraft((value) => ({ ...value, recipient: result.recipient || undefined, subject: result.subject || undefined, closing: result.closing || undefined }));
+          setBody(result.bodyParagraphs.join("\n\n"));
+          setProductionMessage("AI text added to this draft.");
+        } else if (!signal.aborted) setProductionMessage("The letter changed while AI worked. Your edits were kept; request AI again if needed.");
+        return result;
+      } finally { signal.removeEventListener("abort", cancel); }
+    }, "Draft cover letter");
   };
 
   const renderLetter = async () => {
@@ -1189,32 +1232,20 @@ function LetterEditor({
     }
   };
 
+  useShellActions({
+    title: draft.title || "Cover letter",
+    actions: [
+      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(draftingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
+      { id: "document-save", label: "Save", onClick: () => { void save(); }, disabled: !dirty || busy },
+      { id: "document-ai", label: preparingAi ? "Preparing…" : "AI", onClick: () => { void askAi(); }, disabled: busy || draftingActive || preparingAi },
+      { id: "document-pdf", label: provisional || dirty ? "Save & PDF" : "Create PDF", onClick: () => { void renderLetter(); }, disabled: busy, primary: true },
+    ],
+  }, 1);
+
   return (
     <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
-      <header className="document-editor-toolbar">
-        <div className="document-editor-context">
-          <button
-            type="button"
-            className="document-back-button"
-            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
-          >
-            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
-          </button>
-          <div>
-            <p className="eyebrow">Cover letter</p>
-            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
-          </div>
-        </div>
-        <div className="document-editor-actions">
-          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={askAi}>
-            {draftingActive ? "AI working…" : "Draft with AI"}
-          </button>
-          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" className="compact-primary" disabled={busy} onClick={() => void renderLetter()}>
-            {busy ? "Creating PDF…" : "Create PDF"}
-          </button>
-        </div>
-      </header>
+      <p className="document-save-state">{provisional ? "New letter · not saved" : dirty ? "Unsaved changes" : "Saved"}</p>
+      {aiPreview ? <DocumentAiContext preview={aiPreview} busy={draftingActive || preparingAi} sourceIds={sourceIds} onSources={(ids) => { void askAi(ids); }} onSend={sendLetterTask} onClose={() => { void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); preparedId.current = null; setAiPreview(null); }} /> : null}
 
       {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
       {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
@@ -1374,6 +1405,7 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
   const [profile, setProfile] = useState<ProfileItem[]>([]);
   const [variants, setVariants] = useState<ProfileVariantRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [closedHandoff, setClosedHandoff] = useState<typeof documentHandoff | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -1395,20 +1427,21 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
   }, [documentHandoff?.documentId]);
 
   const id = documentHandoff?.documentId ?? null;
-  const working = useMemo(() => collections.workingCvs.find((candidate) => candidate.id === id) ?? null, [collections, id]);
-  const letter = useMemo(() => collections.letters.find((candidate) => candidate.id === id) ?? null, [collections, id]);
+  const working = useMemo(() => collections.workingCvs.find((candidate) => candidate.id === id) ?? (id && documentDraft(id) && "sections" in documentDraft(id)! ? documentDraft(id) as WorkingCvRecord : null), [collections, id]);
+  const letter = useMemo(() => collections.letters.find((candidate) => candidate.id === id) ?? (id && documentDraft(id) && "bodyParagraphs" in documentDraft(id)! ? documentDraft(id) as CoverLetterRecord : null), [collections, id]);
   const storeWorking = (saved: WorkingCvRecord) => setCollections((current) => ({
     ...current,
-    workingCvs: current.workingCvs.map((candidate) => candidate.id === saved.id ? saved : candidate),
+    workingCvs: [saved, ...current.workingCvs.filter((candidate) => candidate.id !== saved.id)],
   }));
   const storeLetter = (saved: CoverLetterRecord) => setCollections((current) => ({
     ...current,
-    letters: current.letters.map((candidate) => candidate.id === saved.id ? saved : candidate),
+    letters: [saved, ...current.letters.filter((candidate) => candidate.id !== saved.id)],
   }));
 
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
   if (!id) return <section className="document-work"><p className="compact-empty">Choose a CV or cover letter to edit.</p></section>;
-  if (working) return <WorkingCvEditor key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
-  if (letter) return <LetterEditor key={letter.id} document={letter} profile={profile} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (closedHandoff === documentHandoff) return null;
+  if (working) return <WorkingCvEditor key={working.id} document={working} provisional={!collections.workingCvs.some((candidate) => candidate.id === working.id)} onClose={() => setClosedHandoff(documentHandoff)} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (letter) return <LetterEditor key={letter.id} document={letter} provisional={!collections.letters.some((candidate) => candidate.id === letter.id)} onClose={() => setClosedHandoff(documentHandoff)} profile={profile} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
 }

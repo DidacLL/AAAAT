@@ -10,11 +10,11 @@ AAAAT backup is a transparent directory format with three parts:
 
 - `workspace.sqlite`, created with Node's supported `node:sqlite` backup API;
 - `files/`, containing regular non-secret workspace files under their original relative paths;
-- `manifest.json`, versioned as `aaaat-workspace-backup` format 1 and containing creation time, relative paths, sizes, SHA-256 hashes, migration metadata, and declared exclusions.
+- `manifest.json`, versioned as `aaaat-workspace-backup` format 1 and containing creation time, relative paths, sizes, SHA-256 hashes and declared exclusions.
 
 The portable manifest never stores absolute source, destination, executable, or machine paths. `ai-connection.json`, SQLite WAL/SHM sidecars, `.env` material, common private-key/certificate files, symbolic links, and special files are excluded by default.
 
-Restore accepts only an existing empty destination. Before copying anything, it validates the strict manifest, lexical relative paths, regular-file and no-symlink path components, payload hashes/sizes, SQLite integrity, and migration history compatibility. Source and destination must not overlap or nest. The source paths are checked again immediately before copying, and any activation failure removes copied destination state. A successful restore must open through normal workspace logic.
+Restore accepts only an existing empty destination. Before copying anything, it validates the strict manifest, lexical relative paths, regular-file and no-symlink path components, payload hashes/sizes, SQLite integrity and suitability for the current workspace format. Source and destination must not overlap or nest. The source paths are checked again immediately before copying, and any activation failure removes copied destination state. A successful restore must open through normal workspace logic.
 
 The packaged executable exposes only two fixed operations:
 
@@ -28,7 +28,7 @@ AAAAT --workspace-restore --backup <backup-directory> --destination <empty-works
 - Backup is consistent with live WAL-backed workspaces without raw-copy assumptions.
 - The format remains inspectable, dependency-free, and user-owned.
 - Restore treats backups as untrusted input and does not follow symbolic links or traversal paths.
-- Valid existing migration prefixes remain compatible through the established workspace migration validator.
+- Restore validates the current workspace format; it does not migrate discarded development schemas.
 - Configuration containing current or future credentials remains excluded unless a later demonstrated requirement deliberately changes the format.
 
 ## Alternatives rejected
