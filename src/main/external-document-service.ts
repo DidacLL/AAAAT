@@ -50,7 +50,6 @@ interface CvFieldBinding {
 
 interface CvFieldContextBinding {
   readonly replacements: PrivateReplacements;
-  readonly maxLength: number;
 }
 
 const visibleCvFields = Object.freeze([
@@ -494,7 +493,6 @@ export class ExternalDocumentSession {
         this.workingCvPrivateValues.get(cvRef) ?? new Map(),
         projected.replacements,
       ),
-      maxLength: projected.maxLength,
     });
     return externalCvFieldContextSchema.parse(projected.context);
   }
@@ -530,10 +528,8 @@ export class ExternalDocumentSession {
     }
 
     const content = restorePrivateValues(rawContent.trim(), context.replacements).trim();
-    if (!content || content.length > context.maxLength) {
-      throw new ExternalDocumentServiceError(
-        "The submitted CV content does not fit the requested field.",
-      );
+    if (!content) {
+      throw new ExternalDocumentServiceError("The submitted CV content is empty.");
     }
     requireNoPrivatePlaceholder(content);
 
