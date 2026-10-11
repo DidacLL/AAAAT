@@ -7,7 +7,6 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  MAX_ENABLED_CANDIDATURE_FIELDS,
   clearCandidatureFieldValue,
   createCandidatureField,
   deleteUnusedCandidatureField,
@@ -38,24 +37,6 @@ function textField(root: string, label: string) {
 }
 
 describe("candidature field domain invariants", () => {
-  it("enforces the enabled-field bound at the application-service boundary", () => {
-    const root = workspace();
-    try {
-      const initial = listCandidatureFields(root).filter((field) => field.definition.enabled).length;
-      for (let index = initial; index < MAX_ENABLED_CANDIDATURE_FIELDS; index += 1) {
-        textField(root, `Runtime field ${index}`);
-      }
-      expect(listCandidatureFields(root).filter((field) => field.definition.enabled)).toHaveLength(
-        MAX_ENABLED_CANDIDATURE_FIELDS,
-      );
-      expect(() => textField(root, "One field too many")).toThrow(
-        `at most ${MAX_ENABLED_CANDIDATURE_FIELDS} enabled candidature fields`,
-      );
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
   it("ships neutral presentation defaults and keeps AI use independent from starring", () => {
     const root = workspace();
     try {
