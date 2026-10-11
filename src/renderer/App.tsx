@@ -377,8 +377,8 @@ export function App() {
     showProductView("candidatures");
   };
 
-  const openStandaloneDocument = (documentId: string, origin: "documents" | "home" = "documents") => {
-    if (!(origin === "home" ? homeAreaVisible.current : documentsAreaVisible.current)) return;
+  const openStandaloneDocument = (documentId: string, origin: "documents" | "home" = "documents"): boolean => {
+    if (!(origin === "home" ? homeAreaVisible.current : documentsAreaVisible.current)) return false;
     setWelcomeOpen(false);
     setSettingsOpen(false);
     setSettingsHandoff(null);
@@ -388,6 +388,7 @@ export function App() {
     setDocumentHandoff({ documentId });
     setDocumentWorkspaceRevision((current) => current + 1);
     showProductView("documents");
+    return true;
   };
 
   const openSettings = () => {
