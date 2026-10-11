@@ -39,7 +39,7 @@ export const aiTaskCancellationChannels = Object.freeze({
   coverLetterDraftCancel: "aaaat:ai-task-cover-letter-draft-cancel",
 } as const);
 
-export const aiTaskIdSchema = z.string().trim().min(1).max(200);
+export const aiTaskIdSchema = z.string().trim().min(1);
 
 export const cancellableAiConnectionValidationRequestSchema = z
   .object({
@@ -51,7 +51,7 @@ export const cancellableAiConnectionValidationResultSchema = namedAiConnectionLi
 
 export const cancellableJobExtractionTaskRequestSchema = jobExtractionRequestSchema
   .extend({
-    targetFieldIds: z.array(z.string().uuid()).min(1).max(32).optional(),
+    targetFieldIds: z.array(z.string().uuid()).min(1).optional(),
   })
   .strict();
 export type CancellableJobExtractionTaskRequest = z.infer<
