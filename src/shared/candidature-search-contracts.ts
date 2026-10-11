@@ -5,7 +5,7 @@ export const candidatureSearchChannels = Object.freeze({
 } as const);
 
 export const candidatureSearchInputSchema = z
-  .object({ query: z.string().trim().min(1).max(200) })
+  .object({ query: z.string().trim().min(1) })
   .strict();
 export type CandidatureSearchInput = z.infer<typeof candidatureSearchInputSchema>;
 
