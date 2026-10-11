@@ -122,6 +122,7 @@ export function App() {
   const [applicationActions, setApplicationActions] = useState<ShellActions | null>(null);
   const [documentActions, setDocumentActions] = useState<ShellActions | null>(null);
   const [informationActions, setInformationActions] = useState<ShellActions | null>(null);
+  const [settingsActions, setSettingsActions] = useState<ShellActions | null>(null);
   const [supportPanel, setSupportPanel] = useState<"activity" | "tags" | null>(null);
 
   const applicationAreaVisible = useRef(false);
@@ -212,6 +213,7 @@ export function App() {
     setApplicationActions(null);
     setDocumentActions(null);
     setInformationActions(null);
+    setSettingsActions(null);
     setSupportPanel(null);
   };
 
@@ -498,11 +500,11 @@ export function App() {
   const cvContextActive =
     !welcomeOpen && !settingsOpen && productView === "documents" && !documentHandoff?.candidatureId;
 
-  const currentActions = !welcomeOpen && !settingsOpen
-    ? productView === "candidatures" ? applicationActions
+  const currentActions = !welcomeOpen
+    ? settingsOpen ? settingsActions : productView === "candidatures" ? applicationActions
       : productView === "documents" ? documentActions : informationActions
     : null;
-  const headerTitle = !ready ? "Welcome" : welcomeOpen ? "Home" : settingsOpen ? "Settings"
+  const headerTitle = !ready ? "Welcome" : welcomeOpen ? "Home" : settingsOpen ? currentActions?.title ?? "Settings"
     : currentActions?.title ?? (productView === "candidatures" ? "Applications"
       : productView === "documents" ? "Documents" : "My information");
 
@@ -625,6 +627,7 @@ export function App() {
 
                 {!welcomeOpen && settingsOpen ? (
                   <div className="settings-area" key={`settings-${workspace.rootPath}-${String(workspaceContentRevision)}-${settingsHandoff?.view ?? "workspace"}`}>
+                    <ShellActionsProvider onChange={setSettingsActions}>
                     <SettingsWorkspace
                       currentWorkspace={workspace}
                       demoWorkspace={demoWorkspace}
@@ -638,6 +641,7 @@ export function App() {
                       onWorkspaceDeleted={afterWorkspaceDeleted}
                       protectedWorkDirty={protectedWorkDirty}
                     />
+                    </ShellActionsProvider>
                   </div>
                 ) : null}
 
