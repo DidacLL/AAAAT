@@ -79,3 +79,15 @@
   .document-sheet { padding: 1rem; }
   .working-cv-section-heading, .working-cv-item-heading { align-items: start; }
 }
+
+.document-ai-summary { margin: 0; font-size: .88rem; }
+.document-ai-readable { display: grid; gap: .4rem; }
+.document-ai-information { font-size: .88rem; }
+.document-ai-information dl { display: grid; gap: .65rem; padding: .65rem; margin: .4rem 0 0; background: #fffdf8; border-radius: .25rem; max-height: 22rem; overflow: auto; }
+.document-ai-information dl > div { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .7rem; }
+.document-ai-information dt { font-weight: 600; color: #645e53; }
+.document-ai-information dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+.document-ai-information p { white-space: pre-wrap; line-height: 1.45; }
+.document-ai-empty { margin: .2rem 0; color: #645e53; font-size: .85rem; }
+.document-ai-excluded { color: #645e53; font-style: italic; }
+@media (max-width: 580px) { .document-ai-information dl > div { grid-template-columns: 1fr; gap: .15rem; } }
