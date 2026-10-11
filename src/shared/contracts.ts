@@ -53,7 +53,7 @@ export type WorkspaceInfo = z.infer<typeof workspaceInfoSchema>;
 export const workspaceStatusSchema = z.object({ demo: z.boolean() }).strict();
 export type WorkspaceStatus = z.infer<typeof workspaceStatusSchema>;
 
-const careerContextText = z.string().max(10000);
+const careerContextText = z.string();
 export const careerContextSchema = z
   .object({
     careerDirection: careerContextText,
@@ -69,17 +69,17 @@ export type CareerContext = z.infer<typeof careerContextSchema>;
 export const careerContextUpdateSchema = careerContextSchema;
 export type CareerContextUpdate = z.infer<typeof careerContextUpdateSchema>;
 
-export const profileItemKindSchema = z.string().trim().min(1).max(80);
+export const profileItemKindSchema = z.string().trim().min(1);
 export type ProfileItemKind = z.infer<typeof profileItemKindSchema>;
-const optionalShortText = z.string().max(300).optional();
-const optionalDateText = z.string().max(40).optional();
-const optionalUrl = z.string().url().max(2048).optional();
+const optionalShortText = z.string().optional();
+const optionalDateText = z.string().optional();
+const optionalUrl = z.string().url().optional();
 
 export const profileItemContentSchema = z
   .object({
-    title: z.string().min(1).max(200),
+    title: z.string().min(1),
     subtitle: optionalShortText,
-    description: z.string().max(5000).optional(),
+    description: z.string().optional(),
     startDate: optionalDateText,
     endDate: optionalDateText,
     url: optionalUrl,
@@ -113,9 +113,9 @@ export type CandidatureSourceKind = z.infer<typeof candidatureSourceKindSchema>;
 export const candidatureSourceDraftSchema = z
   .object({
     kind: candidatureSourceKindSchema.default("other"),
-    title: z.string().max(200).default(""),
-    url: z.string().max(2048).default(""),
-    sourceText: z.string().max(50000).default(""),
+    title: z.string().default(""),
+    url: z.string().default(""),
+    sourceText: z.string().default(""),
   })
   .strict();
 export type CandidatureSourceDraft = z.infer<typeof candidatureSourceDraftSchema>;
@@ -127,17 +127,17 @@ export type CandidatureFieldCardinality = z.infer<typeof candidatureFieldCardina
 export const candidaturePresentationSizeSchema = z.enum(["compact", "normal", "wide"]);
 export type CandidaturePresentationSize = z.infer<typeof candidaturePresentationSizeSchema>;
 
-export const candidatureChoiceDefinitionSchema = z.object({ id: z.string().uuid(), label: z.string().trim().min(1).max(120) }).strict();
+export const candidatureChoiceDefinitionSchema = z.object({ id: z.string().uuid(), label: z.string().trim().min(1) }).strict();
 export type CandidatureChoiceDefinition = z.infer<typeof candidatureChoiceDefinitionSchema>;
 export const candidatureFieldDefinitionSchema = z
   .object({
     id: z.string().uuid(),
-    systemKey: z.string().trim().min(1).max(200).nullable(),
-    label: z.string().trim().min(1).max(120),
-    description: z.string().max(2000),
+    systemKey: z.string().trim().min(1).nullable(),
+    label: z.string().trim().min(1),
+    description: z.string(),
     valueType: candidatureFieldValueTypeSchema,
     cardinality: candidatureFieldCardinalitySchema,
-    choices: z.array(candidatureChoiceDefinitionSchema).max(64),
+    choices: z.array(candidatureChoiceDefinitionSchema),
     enabled: z.boolean(),
     createdAt: z.string().min(1),
     updatedAt: z.string().min(1),
@@ -162,11 +162,11 @@ export const candidatureFieldListSchema = z.array(candidatureFieldConfigurationS
 
 export const candidatureFieldCreateSchema = z
   .object({
-    label: z.string().trim().min(1).max(120),
-    description: z.string().max(2000).default(""),
+    label: z.string().trim().min(1),
+    description: z.string().default(""),
     valueType: candidatureFieldValueTypeSchema.default("text"),
     cardinality: candidatureFieldCardinalitySchema.default("one"),
-    choices: z.array(candidatureChoiceDefinitionSchema).max(64).default([]),
+    choices: z.array(candidatureChoiceDefinitionSchema).default([]),
     enabled: z.boolean().default(true),
   })
   .strict();
@@ -176,15 +176,15 @@ export type CandidatureFieldUpdate = z.infer<typeof candidatureFieldUpdateSchema
 export const candidatureFieldPreferencesUpdateSchema = candidatureFieldPreferencesSchema;
 export type CandidatureFieldPreferencesUpdate = z.infer<typeof candidatureFieldPreferencesUpdateSchema>;
 export const candidatureFavouriteOrderUpdateSchema = z
-  .object({ fieldIds: z.array(z.string().uuid()).max(64) })
+  .object({ fieldIds: z.array(z.string().uuid()) })
   .strict()
   .refine((value) => new Set(value.fieldIds).size === value.fieldIds.length, {
     message: "Favourite field order cannot contain duplicates.",
   });
 export type CandidatureFavouriteOrderUpdate = z.infer<typeof candidatureFavouriteOrderUpdateSchema>;
 
-const candidatureScalarValueSchema = z.union([z.string().max(50000), z.number().finite(), z.boolean()]);
-export const candidatureRuntimeValueSchema = z.union([candidatureScalarValueSchema, z.array(candidatureScalarValueSchema).max(64)]);
+const candidatureScalarValueSchema = z.union([z.string(), z.number().finite(), z.boolean()]);
+export const candidatureRuntimeValueSchema = z.union([candidatureScalarValueSchema, z.array(candidatureScalarValueSchema)]);
 export type CandidatureRuntimeValue = z.infer<typeof candidatureRuntimeValueSchema>;
 export const candidatureFieldValueSchema = z
   .object({
@@ -207,7 +207,7 @@ export type CandidatureFieldValueClear = z.infer<typeof candidatureFieldValueCle
 export const candidatureInputSchema = z
   .object({
     source: candidatureSourceDraftSchema.optional(),
-    values: z.array(candidatureFieldValueSetSchema.omit({ candidatureId: true })).max(64).default([]),
+    values: z.array(candidatureFieldValueSetSchema.omit({ candidatureId: true })).default([]),
   })
   .strict();
 export type CandidatureInput = z.infer<typeof candidatureInputSchema>;
@@ -260,13 +260,13 @@ export const candidatureSourceSchema = candidatureSourceInputSchema
 export type CandidatureSource = z.infer<typeof candidatureSourceSchema>;
 export const candidatureSourceListSchema = z.array(candidatureSourceSchema);
 
-const tagAliasSchema = z.string().trim().min(1).max(120);
+const tagAliasSchema = z.string().trim().min(1);
 export const tagInputSchema = z
   .object({
-    name: z.string().trim().min(1).max(120),
-    definition: z.string().max(3000),
-    notes: z.string().max(5000).optional(),
-    aliases: z.array(tagAliasSchema).max(30),
+    name: z.string().trim().min(1),
+    definition: z.string(),
+    notes: z.string().optional(),
+    aliases: z.array(tagAliasSchema),
   })
   .strict()
   .refine((value) => new Set(value.aliases.map((alias) => alias.toLocaleLowerCase())).size === value.aliases.length, {
@@ -279,7 +279,7 @@ export const tagListSchema = z.array(tagRecordSchema);
 export const tagUpdateSchema = tagInputSchema.extend({ id: z.string().uuid() }).strict();
 export type TagUpdate = z.infer<typeof tagUpdateSchema>;
 export const candidatureTagSelectionSchema = z
-  .object({ candidatureId: z.string().uuid(), tagIds: z.array(z.string().uuid()).max(100) })
+  .object({ candidatureId: z.string().uuid(), tagIds: z.array(z.string().uuid()) })
   .strict()
   .refine((value) => new Set(value.tagIds).size === value.tagIds.length, { message: "Each tag can be associated only once." });
 export type CandidatureTagSelection = z.infer<typeof candidatureTagSelectionSchema>;
