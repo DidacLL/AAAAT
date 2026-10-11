@@ -195,7 +195,6 @@ export const providerCvWritingContextSchema = z
     target: z.object({
       field: cvWritingFieldSchema,
       title: z.string().trim().min(1),
-      maxLength: z.number().int().min(1),
     }).strict(),
     availableInformation: z.array(providerCvWritingInformationSchema),
   })
