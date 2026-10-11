@@ -1,3 +1,4 @@
+import { readableDocumentError } from "./document-error";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type {
@@ -57,14 +58,6 @@ const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 const emptyCollections: DocumentCollections = {
   templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [],
 };
-
-function readableDocumentError(reason: unknown, fallback: string): string {
-  if (!(reason instanceof Error) || !reason.message.trim()) return fallback;
-  return reason.message
-    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
-    .replace(/^Error:\s*/u, "")
-    .trim() || fallback;
-}
 
 function aliasesFromText(value: string): string[] {
   return value.split(",").map((alias) => alias.trim()).filter(Boolean);
