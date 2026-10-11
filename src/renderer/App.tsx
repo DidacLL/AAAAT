@@ -124,10 +124,11 @@ export function App() {
   const [informationActions, setInformationActions] = useState<ShellActions | null>(null);
   const [supportPanel, setSupportPanel] = useState<"activity" | "tags" | null>(null);
 
-  useEffect(() => {
-    if (!workspace || welcomeOpen || settingsOpen) return;
-    setVisitedViews((current) => current.has(productView) ? current : new Set([...current, productView]));
-  }, [productView, settingsOpen, welcomeOpen, workspace]);
+  const showProductView = useCallback((next: ProductView) => {
+    setVisitedViews((current) => current.has(next) ? current : new Set([...current, next]));
+    setProductView(next);
+    setWelcomeOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!supportPanel) return;
@@ -231,7 +232,7 @@ export function App() {
       setDemoWorkspace(await window.aaaat.workspace.status().then((next) => next.demo).catch(() => false));
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("candidatures");
+      showProductView("candidatures");
       setWelcomeOpen(false);
     } catch (reason) {
       setWorkspacePhase(workspace ? "ready" : "idle");
@@ -257,7 +258,7 @@ export function App() {
       setWorkspace(selected);
       setDemoWorkspace((await window.aaaat.workspace.status()).demo);
       setWorkspacePhase("ready");
-      setWelcomeOpen(false);
+      showProductView(productView);
       setSettingsOpen(false);
     } catch (reason) {
       setWorkspacePhase("idle");
@@ -317,7 +318,7 @@ export function App() {
       setDemoWorkspace(true);
       setWorkspacePhase("ready");
       setSettingsOpen(false);
-      setProductView("candidatures");
+      showProductView("candidatures");
       setWelcomeOpen(false);
     } catch {
       setWorkspacePhase(workspace ? "ready" : "idle");
@@ -333,11 +334,10 @@ export function App() {
     setWorkspace(restoredWorkspace);
     setRecentWorkspacePath(restoredWorkspace.rootPath);
     setDemoWorkspace(false);
-    setWorkspaceContentRevision((current) => current + 1);
     resetEnvironmentProjection();
     setWorkspacePhase("ready");
     setSettingsOpen(false);
-    setProductView("candidatures");
+    showProductView("candidatures");
     setWelcomeOpen(false);
   };
 
@@ -354,7 +354,7 @@ export function App() {
     if (!leaveSettings()) return;
     setWelcomeOpen(false);
     setSupportPanel(null);
-    setProductView(next);
+    showProductView(next);
   };
 
   const openCandidatureFromHome = (candidatureId: string) => {
@@ -365,12 +365,10 @@ export function App() {
     setCandidatureWorkspaceRevision((current) => current + 1);
     setSettingsOpen(false);
     setWelcomeOpen(false);
-    setProductView("candidatures");
+    showProductView("candidatures");
   };
 
   const openStandaloneDocument = (documentId: string) => {
-    if (documentDirty && documentHandoff?.documentId !== documentId
-      && !window.confirm("Discard the current document's unsaved edits and open another document?")) return;
     setWelcomeOpen(false);
     setSettingsOpen(false);
     setSettingsHandoff(null);
@@ -379,7 +377,7 @@ export function App() {
     setDocumentDirty(false);
     setDocumentHandoff({ documentId });
     setDocumentWorkspaceRevision((current) => current + 1);
-    setProductView("documents");
+    showProductView("documents");
   };
 
   const openSettings = () => {
@@ -396,8 +394,6 @@ export function App() {
       professionalInformationHandoff,
       settingsHandoff,
       openDocumentFromCandidature: (candidatureId: string, documentId?: string) => {
-        if (documentDirty && documentHandoff?.documentId !== documentId
-          && !window.confirm("Discard the current document's unsaved edits and open another document?")) return;
         setDocumentDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
@@ -405,13 +401,13 @@ export function App() {
         setHomeCandidatureId(null);
         setDocumentHandoff({ candidatureId, ...(documentId ? { documentId } : {}) });
         setWelcomeOpen(false);
-        setProductView("documents");
+        showProductView("documents");
       },
       returnToCandidature: () => {
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setWelcomeOpen(false);
-        setProductView("candidatures");
+        showProductView("candidatures");
       },
       returnToDocuments: () => {
         setDocumentDirty(false);
@@ -420,7 +416,7 @@ export function App() {
         setProfessionalInformationHandoff(null);
         setDocumentHandoff(null);
         setDocumentWorkspaceRevision((current) => current + 1);
-        setProductView("documents");
+        showProductView("documents");
       },
       openProfessionalInformationItem: (documentId: string, itemId: string) => {
         if (professionalInformationDirty && profileInitialItemId !== itemId
@@ -429,7 +425,7 @@ export function App() {
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProfessionalInformationHandoff({ documentId, itemId });
-        setProductView("professional-information");
+        showProductView("professional-information");
       },
       returnToDocument: () => {
         const returningDocumentId = professionalInformationHandoff?.documentId;
@@ -442,12 +438,12 @@ export function App() {
             documentId: returningDocumentId,
           }));
         }
-        setProductView("documents");
+        showProductView("documents");
       },
       openSettingsFor: (view: SettingsHandoff["view"], origin: SettingsHandoff["origin"]) => {
         setSettingsDirty(false);
         setSettingsHandoff({ view, origin });
-        setProductView(origin);
+        showProductView(origin);
         setSettingsOpen(true);
       },
       returnFromSettings: () => {
@@ -456,7 +452,7 @@ export function App() {
         setSettingsDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
-        setProductView(origin);
+        showProductView(origin);
       },
     }),
     [
@@ -468,6 +464,7 @@ export function App() {
       professionalInformationHandoff,
       settingsDirty,
       settingsHandoff,
+      showProductView,
     ],
   );
 
