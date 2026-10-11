@@ -65,7 +65,8 @@
 .rail-reference-button { padding: 8px 11px; border: 0; border-radius: 5px; color: #ecefdf; background: transparent; text-align: left; }
 .rail-reference-button:hover { background: #425046; }
 .rail-environment > summary { padding: 5px 8px; color: #c9cebb; cursor: pointer; font-size: 12px; }
-.rail-environment .rail-status { margin-top: 8px; border-color: #5c6b5d; border-radius: 5px; background: transparent; color: #e8ebde; }
+.rail-environment .rail-status { grid-template-columns: minmax(0, 1fr); margin-top: 8px; border-color: #5c6b5d; border-radius: 5px; background: transparent; color: #e8ebde; }
+.rail-environment .rail-status span { grid-template-columns: 7px auto minmax(0, 1fr); }
 .rail-environment .rail-status .compact-secondary { margin-top: 5px; color: #ecefdf; background: #425046; }
 .work-surface { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 20px 24px 32px; background: var(--paper); }
 .work-surface, .destination-area, .settings-area, .settings-workspace, .settings-detail, .settings-portability-stack { min-width: 0; }
@@ -104,6 +105,17 @@
 .settings-workspace {
   width: 100%;
 }
+
+.ai-connection-settings { gap: 20px; }
+.ai-connection-settings > .profile-column { padding: 16px; border: 1px solid var(--line-soft); border-radius: 6px; background: var(--paper-strong); }
+.ai-connection-settings > .settings-advanced-disclosure { margin-top: 0; }
+.settings-advanced-content { display: grid; gap: 16px; padding-top: 12px; }
+.settings-advanced-content p { margin: 0; line-height: 1.5; }
+.settings-advanced-content h3 { margin: 0 0 8px; font-size: 16px; }
+.settings-advanced-content .setup-action-authority { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 5px; background: var(--paper-strong); }
+.settings-advanced-content .checkbox-row { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.45; }
+.settings-advanced-content .checkbox-row input { flex: none; margin-top: 3px; }
+
 
 .settings-intro {
   max-width: 860px;

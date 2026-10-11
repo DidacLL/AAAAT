@@ -150,7 +150,7 @@ export function AiSettingsWorkspace({
     const issue = addressIssue(draft.endpoint);
     if (issue) { setAddressError(issue); return; }
     if (editingId && draft.credentialIntent === "replace" && !draft.credential.trim()) {
-      setError("Enter the replacement API key or Bearer credential, or keep the current credential.");
+      setError("Enter the replacement API key or keep the current key.");
       return;
     }
     setSaving(true);
@@ -219,7 +219,7 @@ export function AiSettingsWorkspace({
       setEditingId(null);
       setDraft(emptyDraft);
       setFormOpen(false);
-      setSaveNotice("Connection saved. AAAAT is checking reachability in the background. Capability checks remain explicit below.");
+      setSaveNotice("Connection saved.");
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "AAAAT could not save this AI connection.";
       if (/endpoint|address|url|https?|loopback/i.test(message)) setAddressError(message);
@@ -307,11 +307,11 @@ export function AiSettingsWorkspace({
   };
 
   return (
-    <div className="profile-workspace">
+    <div className="profile-workspace ai-connection-settings">
       {showConnections ? (
         <div className="profile-column">
           {view === "all" ? <div className="section-heading"><div><h2>AI connections</h2></div></div> : null}
-          <p>Connect a model server for help with offers, CVs and letters. AI is optional.</p>
+          <p>Choose the AI you want to use for offers, CVs and letters.</p>
           {error ? <p className="error-message" role="alert">{error}</p> : null}
           {saveNotice ? <p className="document-notice" role="status">{saveNotice}</p> : null}
 
@@ -350,10 +350,10 @@ export function AiSettingsWorkspace({
               </label>
               {addressError ? <small id="ai-address-error" className="error-message wide-field" role="alert">{addressError}</small> : null}
               <div className="wide-field">
-                <strong>API key / Bearer credential (optional)</strong>
+                <strong>API key (if required)</strong>
                 {editing?.hasCredential && draft.credentialIntent === "unchanged" ? (
                   <>
-                    <p>Credential configured. The stored secret is hidden and is sent only with requests to this model server.</p>
+                    <p>An API key is saved for this connection.</p>
                     <div className="button-row">
                       <button
                         type="button"
@@ -373,19 +373,19 @@ export function AiSettingsWorkspace({
                   </>
                 ) : editing?.hasCredential && draft.credentialIntent === "clear" ? (
                   <>
-                    <p>The configured credential will be cleared when you save this connection.</p>
+                    <p>The API key will be removed when you save.</p>
                     <button
                       type="button"
                       className="compact-secondary"
                       onClick={() => setDraft({ ...draft, credentialIntent: "unchanged", credential: "" })}
                     >
-                      Keep credential
+                      Keep key
                     </button>
                   </>
                 ) : (
                   <>
                     <label>
-                      {editing?.hasCredential ? "Replacement credential" : "Credential"}
+                      {editing?.hasCredential ? "Replacement key" : "API key"}
                       <input
                         type="password"
                         autoComplete="new-password"
@@ -403,11 +403,11 @@ export function AiSettingsWorkspace({
                               : "unchanged",
                           })
                         }
-                        placeholder="Optional API key or Bearer token"
+                        placeholder="Paste the key from your AI provider"
                       />
                     </label>
                     <p className="compact-help">
-                      Leave blank for servers that do not require authentication. AAAAT sends a configured credential as an Authorization: Bearer header and does not display it again after saving.
+                      Leave blank if your AI does not need a key. Saved keys stay hidden.
                     </p>
                     {editing?.hasCredential ? (
                       <button
@@ -415,7 +415,7 @@ export function AiSettingsWorkspace({
                         className="compact-secondary"
                         onClick={() => setDraft({ ...draft, credentialIntent: "unchanged", credential: "" })}
                       >
-                        Keep current credential
+                        Keep current key
                       </button>
                     ) : null}
                   </>
@@ -448,16 +448,16 @@ export function AiSettingsWorkspace({
                   <div>
                     <h3>{connection.name}</h3>
                     <p>Model: {connection.model} · Address: <code>{connection.endpoint}</code></p>
-                    <p>Authentication: {connection.hasCredential ? <strong>Credential configured</strong> : "None"}</p>
-                    {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
+                    <p>API key: {connection.hasCredential ? <strong>Saved</strong> : "Not saved"}</p>
+                    {connection.isDefault ? <p><strong>Default connection</strong></p> : null}
                   </div>
                   <div className="button-row">
-                    {!connection.isDefault ? <button type="button" className="compact-secondary" onClick={() => void setDefault(connection)} aria-label={`Use ${connection.name} as the general default`}>General default</button> : null}
+                    {!connection.isDefault ? <button type="button" className="compact-secondary" onClick={() => void setDefault(connection)} aria-label={`Use ${connection.name} as the general default`}>Use as default</button> : null}
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
                     {connection.hasCredential ? (
                       <>
-                        <button type="button" className="compact-secondary" onClick={() => beginEdit(connection, "replace")}>Replace credential</button>
-                        <button type="button" className="compact-secondary" onClick={() => beginEdit(connection, "clear")}>Clear credential</button>
+                        <button type="button" className="compact-secondary" onClick={() => beginEdit(connection, "replace")}>Replace key</button>
+                        <button type="button" className="compact-secondary" onClick={() => beginEdit(connection, "clear")}>Remove key</button>
                       </>
                     ) : null}
                     <button type="button" className="compact-secondary" onClick={() => void remove(connection)} aria-label={`Remove ${connection.name}`}>Remove</button>
@@ -472,24 +472,32 @@ export function AiSettingsWorkspace({
             </div>
           )}
 
-          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. Choose one unless every AI action has its own selected connection.</p> : null}
-          <p className="compact-help">One visible check runs the remaining supported AI actions in sequence. Each action is still checked separately, and you can keep using AAAAT while it runs.</p>
+          {connections.length > 0 && !defaultConnection ? <p className="error-message">Choose a default connection, or assign a connection to every AI feature below.</p> : null}
+
         </div>
       ) : null}
 
-      {showConnections ? <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} /> : null}
+      {showConnections ? (
+        <details className="settings-advanced-disclosure">
+          <summary>AI instructions</summary>
+          <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} />
+        </details>
+      ) : null}
 
       {showPortability ? (
-        <div className="profile-column">
-          <div className="section-heading"><div><p className="eyebrow">Configuration portability</p><h2>Portable AI setup</h2></div></div>
+        <details className="settings-advanced-disclosure" open={view === "portability"}>
+          <summary>Move AI connections between computers</summary>
+          <div className="settings-advanced-content">
+          
           {view === "portability" && error ? <p className="error-message" role="alert">{error}</p> : null}
-          <p>Export or import connection names, endpoints, models and the general default. This is configuration portability, not a workspace backup; local IDs and capability validation are excluded.</p>
+          <p>Save your connection settings to a file or load them on this computer. Check imported connections before using them.</p>
           <div className="button-row">
             <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void exportPortable()}>{portabilityBusy === "export" ? "Exporting…" : "Export AI setup"}</button>
             <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void importPortable()}>{portabilityBusy === "import" ? "Importing…" : "Import AI setup"}</button>
           </div>
           {portabilityStatus ? <p role="status">{portabilityStatus}</p> : null}
-        </div>
+          </div>
+        </details>
       ) : null}
     </div>
   );
