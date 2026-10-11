@@ -223,17 +223,14 @@ export function CandidatureInferencePanel({
     title,
   ]);
 
-  const attachExistingTag = async (proposal: TagInferenceExistingTag) => {
-    const current = (await window.aaaat.candidatures.list()).find(
-      (item) => item.id === candidature.id,
-    );
+  const attachExistingTags = async (proposals: readonly TagInferenceExistingTag[]) => {
+    const current = (await window.aaaat.candidatures.list()).find((item) => item.id === candidature.id);
     if (!current) return;
-
     await window.aaaat.candidatures.setTags({
       candidatureId: candidature.id,
-      tagIds: [...new Set([...current.tagIds, proposal.tagId])],
+      tagIds: [...new Set([...current.tagIds, ...proposals.map((proposal) => proposal.tagId)])],
     });
-    setHandledTags((handled) => new Set(handled).add(`existing:${proposal.tagId}`));
+    setHandledTags((handled) => new Set([...handled, ...proposals.map((proposal) => `existing:${proposal.tagId}`)]));
     await onChanged?.();
   };
 
@@ -307,6 +304,7 @@ export function CandidatureInferencePanel({
   const result = task?.status === "completed" ? task.result : undefined;
   if (!result) return null;
   const tagResult = result.tagInference;
+  const existingSuggestions = tagResult?.existingTags.filter((proposal) => !handledTags.has(`existing:${proposal.tagId}`) && !candidature.tagIds.includes(proposal.tagId)) ?? [];
   const hasTagReview = Boolean(
     includeTagInference
     && tagResult
@@ -351,6 +349,7 @@ export function CandidatureInferencePanel({
       {hasTagReview && tagResult ? (
         <>
           <h4>Tag suggestions</h4>
+          {existingSuggestions.length ? <button type="button" disabled={tagBusy} onClick={() => void handleTag(() => attachExistingTags(existingSuggestions))}>Attach suggested Tags</button> : null}
           {tagResult.existingTags.map((proposal) => {
             const key = `existing:${proposal.tagId}`;
             if (handledTags.has(key) || candidature.tagIds.includes(proposal.tagId)) return null;
@@ -359,9 +358,6 @@ export function CandidatureInferencePanel({
                 <strong>{proposal.name}</strong>
                 {proposal.evidence ? <p>{proposal.evidence}</p> : null}
                 <div className="button-row">
-                  <button type="button" disabled={tagBusy} onClick={() => void handleTag(() => attachExistingTag(proposal))}>
-                    Attach Tag
-                  </button>
                   <button
                     type="button"
                     className="compact-secondary"

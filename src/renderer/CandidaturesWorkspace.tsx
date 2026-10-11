@@ -40,7 +40,7 @@ import "./owner-feedback-recovery.css";
 import "./tag-glossary.css";
 
 type CandidatureMode = "corpus" | "selected";
-type InitialCandidatureTask = "manual" | "ai";
+type InitialCandidatureTask = "ai";
 interface InitialCandidatureSelection {
   readonly candidatureId: string;
   readonly task?: InitialCandidatureTask;
@@ -162,6 +162,7 @@ export function CandidaturesWorkspace({
   const [tagInferenceOpen, setTagInferenceOpen] = useState(false);
   const [externalAiOpen, setExternalAiOpen] = useState(false);
   const externalDialog = useRef<HTMLDialogElement>(null);
+  const protectedTaskFields = useRef(new Map<string, Set<string>>());
   useEffect(() => { if (externalAiOpen) externalDialog.current?.showModal(); }, [externalAiOpen]);
   const [bulkAiFeedback, setBulkAiFeedback] = useState<AiRequestFeedback | null>(null);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
@@ -330,9 +331,21 @@ export function CandidaturesWorkspace({
     onInitialSelectionCleared?.();
   };
 
-  const setEditorDirty = (fieldId: string, dirty: boolean) => setValueEditorDirty((current) => {
-    const next = new Set(current); if (dirty) next.add(fieldId); else next.delete(fieldId); return next;
-  });
+  const protectManualEdit = (fieldId: string) => {
+    if (!selected) return;
+    for (const key of [`candidature-inference:${selected.id}:${fieldId}`, `candidature-inference:${selected.id}:missing`]) {
+      if (!getAiTask(key)) continue;
+      const protectedFields = protectedTaskFields.current.get(key) ?? new Set<string>();
+      protectedFields.add(fieldId);
+      protectedTaskFields.current.set(key, protectedFields);
+    }
+  };
+  const setEditorDirty = (fieldId: string, dirty: boolean) => {
+    if (dirty) protectManualEdit(fieldId);
+    setValueEditorDirty((current) => {
+      const next = new Set(current); if (dirty) next.add(fieldId); else next.delete(fieldId); return next;
+    });
+  };
   const requestFieldEditor = (fieldId: string) => {
     if (activeFieldEditorId === fieldId) {
       if (valueEditorDirty.has(fieldId) && !window.confirm("Discard this field edit?")) return;
@@ -349,11 +362,12 @@ export function CandidaturesWorkspace({
   };
   const setValue = async (fieldId: string, value: CandidatureRuntimeValue) => {
     if (!selected) return;
+    protectManualEdit(fieldId);
     const updated = await window.aaaat.candidatures.setFieldValue({ candidatureId: selected.id, fieldId, value });
     storeRecord(updated); setEditorDirty(fieldId, false);
   };
-  const fillEmptyValue = async (fieldId: string, value: CandidatureRuntimeValue): Promise<boolean> => {
-    if (!selected || activeFieldEditorId === fieldId) return false;
+  const fillEmptyValue = async (fieldId: string, value: CandidatureRuntimeValue, taskKey: string): Promise<boolean> => {
+    if (!selected || activeFieldEditorId === fieldId || protectedTaskFields.current.get(taskKey)?.has(fieldId)) return false;
     const updated = await window.aaaat.candidatures.setFieldValue({
       candidatureId: selected.id, fieldId, value, onlyIfEmpty: true,
     });
@@ -362,6 +376,7 @@ export function CandidaturesWorkspace({
   };
   const clearValue = async (fieldId: string) => {
     if (!selected) return;
+    protectManualEdit(fieldId);
     const updated = await window.aaaat.candidatures.clearFieldValue({ candidatureId: selected.id, fieldId });
     storeRecord(updated); setEditorDirty(fieldId, false);
   };
@@ -436,6 +451,7 @@ export function CandidaturesWorkspace({
       return;
     }
     if (current) clearAiTask(taskId);
+    protectedTaskFields.current.delete(taskId);
     setDiscoveryFieldId(field.definition.id);
   };
 
@@ -621,6 +637,7 @@ export function CandidaturesWorkspace({
       return;
     }
     if (current) clearAiTask(taskId);
+    protectedTaskFields.current.delete(taskId);
     setBulkInferenceOpen(true);
   };
 
@@ -1093,7 +1110,7 @@ export function CandidaturesWorkspace({
           field={field}
           currentValue={retained?.value}
           onSaveValue={(value) => setValue(field.definition.id, value)}
-          onFillEmpty={(value) => fillEmptyValue(field.definition.id, value)}
+          onFillEmpty={(value, taskKey) => fillEmptyValue(field.definition.id, value, taskKey)}
           editing={activeFieldEditorId === field.definition.id}
           onRetry={() => void requestFieldInference(field)}
         />
