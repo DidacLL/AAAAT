@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { profileItemContentSchema } from "./contracts";
 export const profileVariantChannels = Object.freeze({ list: "aaaat:profile-variant-list", create: "aaaat:profile-variant-create", update: "aaaat:profile-variant-update", remove: "aaaat:profile-variant-remove" } as const);
-export const profileVariantInputSchema = z.object({ itemId: z.string().uuid(), name: z.string().trim().min(1).max(120), content: profileItemContentSchema }).strict();
+export const profileVariantInputSchema = z.object({ itemId: z.string().uuid(), name: z.string().trim().min(1), content: profileItemContentSchema }).strict();
 export type ProfileVariantInput = z.infer<typeof profileVariantInputSchema>;
 export const profileVariantRecordSchema = profileVariantInputSchema.extend({ id: z.string().uuid(), createdAt: z.string().min(1), updatedAt: z.string().min(1) }).strict();
 export type ProfileVariantRecord = z.infer<typeof profileVariantRecordSchema>;
