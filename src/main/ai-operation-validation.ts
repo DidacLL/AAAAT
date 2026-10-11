@@ -118,7 +118,7 @@ export async function validateAiOperation(
         return;
       case "cv_tailoring": {
         const context = providerCvWritingContextSchema.parse({
-          target: { field: "description", title: "Summary — Description", maxLength: 5000 },
+          target: { field: "description", title: "Summary — Description" },
           availableInformation: [
             {
               title: "Experience 1 — Description",
