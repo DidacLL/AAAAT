@@ -19,9 +19,9 @@ export const aiChannels = Object.freeze({
 
 export const aiConnectionInputSchema = z
   .object({
-    name: z.string().trim().min(1).max(120),
-    endpoint: z.string().trim().url().max(2048),
-    model: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1),
+    endpoint: z.string().trim().url(),
+    model: z.string().trim().min(1),
   })
   .strict();
 export type AiConnectionInput = z.infer<typeof aiConnectionInputSchema>;
@@ -32,25 +32,25 @@ export const optionalAiConnectionStatusSchema = aiConnectionStatusSchema.nullabl
 export const aiDiscoveryFieldSchema = z
   .object({
     id: z.string().uuid(),
-    label: z.string().trim().min(1).max(120),
-    description: z.string().max(2000),
+    label: z.string().trim().min(1),
+    description: z.string(),
     valueType: candidatureFieldValueTypeSchema,
     cardinality: candidatureFieldCardinalitySchema,
-    choices: z.array(candidatureChoiceDefinitionSchema).max(64),
+    choices: z.array(candidatureChoiceDefinitionSchema),
   })
   .strict();
 export type AiDiscoveryField = z.infer<typeof aiDiscoveryFieldSchema>;
 
 export const jobExtractionRequestSchema = z
   .object({
-    sourceText: z.string().trim().min(1).max(50000),
-    sourceTitle: z.string().trim().max(200).default(""),
-    sourceUrl: z.string().trim().max(2048).default(""),
+    sourceText: z.string().trim().min(1),
+    sourceTitle: z.string().trim().default(""),
+    sourceUrl: z.string().trim().default(""),
   })
   .strict();
 export type JobExtractionRequest = z.infer<typeof jobExtractionRequestSchema>;
 export const jobExtractionProviderRequestSchema = jobExtractionRequestSchema
-  .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1).max(64) })
+  .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1) })
   .strict();
 export type JobExtractionProviderRequest = z.infer<typeof jobExtractionProviderRequestSchema>;
 
@@ -61,17 +61,17 @@ export type JobExtractionProposal = z.infer<typeof jobExtractionProposalSchema>;
 
 export const tagInferenceNewTagSchema = z
   .object({
-    name: z.string().trim().min(1).max(120),
-    definition: z.string().trim().min(1).max(3000),
-    aliases: z.array(z.string().trim().min(1).max(120)).max(30).default([]),
-    evidence: z.string().trim().min(1).max(1500).optional(),
+    name: z.string().trim().min(1),
+    definition: z.string().trim().min(1),
+    aliases: z.array(z.string().trim().min(1)).default([]),
+    evidence: z.string().trim().min(1).optional(),
   })
   .strict();
 export type TagInferenceNewTag = z.infer<typeof tagInferenceNewTagSchema>;
 
 export const jobExtractionResultSchema = z
   .object({
-    proposals: z.array(jobExtractionProposalSchema).max(64),
+    proposals: z.array(jobExtractionProposalSchema),
   })
   .strict()
   .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldId)).size === result.proposals.length, { message: "Each discovery field may be proposed only once." });
@@ -84,7 +84,7 @@ export const cvWritingRequestSchema = z
     workingCvId: z.string().uuid(),
     itemId: z.string().uuid(),
     field: cvWritingFieldSchema,
-    sections: z.array(workingCvSectionSchema).max(40),
+    sections: z.array(workingCvSectionSchema),
   })
   .strict();
 export type CvWritingRequest = z.infer<typeof cvWritingRequestSchema>;
@@ -96,61 +96,61 @@ export const cvWritingResultSchema = z
     workingCvId: z.string().uuid(),
     itemId: z.string().uuid(),
     field: cvWritingFieldSchema,
-    content: z.string().min(1).max(5000),
+    content: z.string().min(1),
   })
   .strict();
 export type CvWritingResult = z.infer<typeof cvWritingResultSchema>;
 
 export const coverLetterDraftSchema = z
   .object({
-    recipient: z.string().trim().max(300),
-    subject: z.string().trim().max(300),
-    bodyParagraphs: z.array(z.string().trim().min(1).max(5000)).min(1).max(20),
-    closing: z.string().trim().max(500),
+    recipient: z.string().trim(),
+    subject: z.string().trim(),
+    bodyParagraphs: z.array(z.string().trim().min(1)).min(1),
+    closing: z.string().trim(),
   })
   .strict();
 export type CoverLetterDraft = z.infer<typeof coverLetterDraftSchema>;
 
-export const operationReferenceSchema = z.string().min(1).max(200).regex(/^aaaat_[a-z0-9_-]+$/);
+export const operationReferenceSchema = z.string().min(1).regex(/^aaaat_[a-z0-9_-]+$/);
 export type OperationReference = z.infer<typeof operationReferenceSchema>;
 
 export const providerDiscoveryChoiceSchema = z
-  .object({ choiceRef: operationReferenceSchema, label: z.string().trim().min(1).max(120) })
+  .object({ choiceRef: operationReferenceSchema, label: z.string().trim().min(1) })
   .strict();
 export const providerDiscoveryFieldSchema = z
   .object({
     fieldRef: operationReferenceSchema,
-    label: z.string().trim().min(1).max(120),
-    description: z.string().max(2000),
+    label: z.string().trim().min(1),
+    description: z.string(),
     valueType: candidatureFieldValueTypeSchema,
     cardinality: candidatureFieldCardinalitySchema,
-    choices: z.array(providerDiscoveryChoiceSchema).max(64),
+    choices: z.array(providerDiscoveryChoiceSchema),
   })
   .strict();
 export const providerTagGlossaryEntrySchema = z
   .object({
     tagRef: operationReferenceSchema,
-    name: z.string().trim().min(1).max(120),
-    aliases: z.array(z.string().trim().min(1).max(120)).max(8),
-    definition: z.string().trim().max(500),
+    name: z.string().trim().min(1),
+    aliases: z.array(z.string().trim().min(1)),
+    definition: z.string().trim(),
   })
   .strict();
 export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
   .extend({
-    fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
+    fields: z.array(providerDiscoveryFieldSchema).min(1),
   })
   .strict();
 export type ProviderJobExtractionRequest = z.infer<typeof providerJobExtractionRequestSchema>;
 export const providerJobExtractionEnvelopeSchema = z
   .object({
-    proposals: z.array(z.unknown()).max(64).default([]),
+    proposals: z.array(z.unknown()).default([]),
   })
   .strict();
 export type ProviderJobExtractionEnvelope = z.infer<typeof providerJobExtractionEnvelopeSchema>;
 
 export const providerJobExtractionResultSchema = z
   .object({
-    proposals: z.array(z.object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema }).strict()).max(64),
+    proposals: z.array(z.object({ fieldRef: operationReferenceSchema, value: candidatureRuntimeValueSchema }).strict()),
   })
   .strict()
   .refine((result) => new Set(result.proposals.map((proposal) => proposal.fieldRef)).size === result.proposals.length, { message: "Each extraction field may be proposed only once." });
@@ -160,15 +160,15 @@ export const tagInferenceRequestSchema = jobExtractionRequestSchema;
 export type TagInferenceRequest = z.infer<typeof tagInferenceRequestSchema>;
 export const providerTagInferenceRequestSchema = tagInferenceRequestSchema
   .extend({
-    fieldTitles: z.array(z.string().trim().min(1).max(120)).max(64),
-    tags: z.array(providerTagGlossaryEntrySchema).max(300),
+    fieldTitles: z.array(z.string().trim().min(1)),
+    tags: z.array(providerTagGlossaryEntrySchema),
   })
   .strict();
 export type ProviderTagInferenceRequest = z.infer<typeof providerTagInferenceRequestSchema>;
 export const providerTagInferenceEnvelopeSchema = z
   .object({
-    existingTags: z.array(z.unknown()).max(30).default([]),
-    newTags: z.array(z.unknown()).max(5).default([]),
+    existingTags: z.array(z.unknown()).default([]),
+    newTags: z.array(z.unknown()).default([]),
   })
   .strict();
 export type ProviderTagInferenceEnvelope = z.infer<typeof providerTagInferenceEnvelopeSchema>;
@@ -176,9 +176,9 @@ export const providerTagInferenceResultSchema = z
   .object({
     existingTags: z.array(z.object({
       tagRef: operationReferenceSchema,
-      evidence: z.string().trim().min(1).max(1500).optional(),
-    }).strict()).max(30),
-    newTags: z.array(tagInferenceNewTagSchema).max(5),
+      evidence: z.string().trim().min(1).optional(),
+    }).strict()),
+    newTags: z.array(tagInferenceNewTagSchema),
   })
   .strict()
   .refine((result) => new Set(result.existingTags.map((proposal) => proposal.tagRef)).size === result.existingTags.length, { message: "Each existing Tag may be proposed only once." });
@@ -186,40 +186,40 @@ export type ProviderTagInferenceResult = z.infer<typeof providerTagInferenceResu
 
 export const providerCvWritingInformationSchema = z
   .object({
-    title: z.string().trim().min(1).max(500),
-    value: z.string().max(1_000_000),
+    title: z.string().trim().min(1),
+    value: z.string(),
   })
   .strict();
 export const providerCvWritingContextSchema = z
   .object({
     target: z.object({
       field: cvWritingFieldSchema,
-      title: z.string().trim().min(1).max(500),
-      maxLength: z.number().int().min(1).max(5000),
+      title: z.string().trim().min(1),
+      maxLength: z.number().int().min(1),
     }).strict(),
-    availableInformation: z.array(providerCvWritingInformationSchema).max(30_000),
+    availableInformation: z.array(providerCvWritingInformationSchema),
   })
   .strict();
 export type ProviderCvWritingContext = z.infer<typeof providerCvWritingContextSchema>;
 
 export const providerCoverLetterSourceSchema = z
   .object({
-    title: z.string().max(200),
-    url: z.string().max(2048),
-    sourceText: z.string().max(50_000),
+    title: z.string(),
+    url: z.string(),
+    sourceText: z.string(),
   })
   .strict();
 export const providerCoverLetterInformationSchema = z
   .object({
-    title: z.string().trim().min(1).max(500),
-    value: z.string().max(1_000_000),
+    title: z.string().trim().min(1),
+    value: z.string(),
   })
   .strict();
 export const providerCoverLetterContextSchema = z
   .object({
     sources: z.array(providerCoverLetterSourceSchema),
-    applicationInformation: z.array(providerCoverLetterInformationSchema).max(64),
-    careerContext: z.array(providerCoverLetterInformationSchema).max(7),
+    applicationInformation: z.array(providerCoverLetterInformationSchema),
+    careerContext: z.array(providerCoverLetterInformationSchema),
     myInformation: z.array(providerCoverLetterInformationSchema),
   })
   .strict();
