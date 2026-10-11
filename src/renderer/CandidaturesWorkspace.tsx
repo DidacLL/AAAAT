@@ -156,6 +156,9 @@ export function CandidaturesWorkspace({
   const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [fieldDefinitionDraft, setFieldDefinitionDraft] = useState<SharedFieldDefinitionDraft | null>(null);
   const [discoveryFieldId, setDiscoveryFieldId] = useState<string | null>(null);
+  const [fieldRequestAttempt, setFieldRequestAttempt] = useState(0);
+  const [bulkRequestAttempt, setBulkRequestAttempt] = useState(0);
+  const [tagRequestAttempt, setTagRequestAttempt] = useState(0);
   const [fieldAiFeedback, setFieldAiFeedback] = useState<FieldAiRequestFeedback | null>(null);
   const [openFieldOptionsId, setOpenFieldOptionsId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
@@ -163,6 +166,11 @@ export function CandidaturesWorkspace({
   const [externalAiOpen, setExternalAiOpen] = useState(false);
   const externalDialog = useRef<HTMLDialogElement>(null);
   const protectedTaskFields = useRef(new Map<string, Set<string>>());
+  const tagMutationTail = useRef<Promise<void>>(Promise.resolve());
+  const alive = useRef(true);
+  const currentSelection = useRef(selectedId);
+  useEffect(() => { currentSelection.current = selectedId; }, [selectedId]);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { if (externalAiOpen) externalDialog.current?.showModal(); }, [externalAiOpen]);
   const [bulkAiFeedback, setBulkAiFeedback] = useState<AiRequestFeedback | null>(null);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
@@ -452,6 +460,7 @@ export function CandidaturesWorkspace({
     }
     if (current) clearAiTask(taskId);
     protectedTaskFields.current.delete(taskId);
+    setFieldRequestAttempt((attempt) => attempt + 1);
     setDiscoveryFieldId(field.definition.id);
   };
 
@@ -497,14 +506,27 @@ export function CandidaturesWorkspace({
     } catch { setError("AAAAT could not refresh AI-filled application information."); }
   };
 
-  const persistTagIds = async (nextIds: string[]) => {
-    if (!selected) return;
-    try {
-      const updated = await window.aaaat.candidatures.setTags({ candidatureId: selected.id, tagIds: nextIds });
-      storeRecord(updated); setSelectedTagIds(updated.tagIds);
-      setSelectedTagId((current) => current && updated.tagIds.includes(current) ? current : updated.tagIds[0] ?? null);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save Tag associations."); }
+  const mutateTagIds = (change: (current: readonly string[]) => string[]): Promise<void> => {
+    if (!selected) return Promise.resolve();
+    const candidatureId = selected.id;
+    const next = tagMutationTail.current.catch(() => undefined).then(async () => {
+      if (!alive.current) return;
+      const current = (await window.aaaat.candidatures.list()).find((record) => record.id === candidatureId);
+      if (!current || !alive.current) return;
+      const updated = await window.aaaat.candidatures.setTags({ candidatureId, tagIds: change(current.tagIds) });
+      if (!alive.current) return;
+      storeRecord(updated);
+      if (currentSelection.current === candidatureId) {
+        setSelectedTagIds(updated.tagIds);
+        setSelectedTagId((id) => id && updated.tagIds.includes(id) ? id : updated.tagIds[0] ?? null);
+      }
+    });
+    tagMutationTail.current = next;
+    return next;
   };
+  const attachTagIds = (ids: readonly string[]) => mutateTagIds((current) => [...new Set([...current, ...ids])]);
+  const detachTagId = (id: string) => mutateTagIds((current) => current.filter((candidate) => candidate !== id));
+  const reportTagFailure = (reason: unknown) => setError(reason instanceof Error ? reason.message : "The Tag association could not be saved.");
   const startNewTag = (initialName = "") => {
     if (tagEditorDirty && !window.confirm("Discard unsaved Tag edits?")) return;
     setTagEditorOpen(true); setEditingTagId(null); setTagEditorDraft({ ...emptyTag, name: initialName }); setTagAliasesText("");
@@ -527,7 +549,7 @@ export function CandidaturesWorkspace({
         const found = current.some((tag) => tag.id === saved.id);
         return (found ? current.map((tag) => tag.id === saved.id ? saved : tag) : [...current, saved]).sort((left, right) => left.name.localeCompare(right.name));
       });
-      if (isNew && selected) await persistTagIds([...new Set([...selectedTagIds, saved.id])]);
+      if (isNew && selected) await attachTagIds([saved.id]);
       setEditingTagId(saved.id); setTagEditorDraft(tagDraft(saved)); setTagAliasesText(saved.aliases.join(", ")); setSelectedTagId(saved.id); setTagQuery("");
       onTagGlossaryChange?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this Tag."); }
@@ -565,6 +587,7 @@ export function CandidaturesWorkspace({
 
   const createApplicationCoverLetter = async () => {
     if (!selected || documentCreationBusy) return;
+    const candidatureId = selected.id;
     setDocumentCreationBusy("cover_letter"); setError(null);
     try {
       const created = await window.aaaat.documentDomain.previewLetter({
@@ -572,13 +595,15 @@ export function CandidaturesWorkspace({
         title: `Letter · ${corpusActionIdentity(candidatureRecognitionProjection(selected, fields).primaryCues, candidatureRecognitionProjection(selected, fields).retainedSourceCue)}`.slice(0, 300),
         bodyParagraphs: [],
       });
+      if (!alive.current || currentSelection.current !== candidatureId) return;
       rememberDocumentDraft(created); openDocument(created.id);
     } catch (reason) {
       setError(readableDocumentError(reason, "AAAAT could not create the cover letter."));
-    } finally { setDocumentCreationBusy(null); }
+    } finally { if (alive.current) setDocumentCreationBusy(null); }
   };
   const createApplicationCvFromSource = async () => {
     if (!selected || documentCreationBusy) return;
+    const candidatureId = selected.id;
     setDocumentCreationBusy("cv"); setError(null);
     try {
       const templateId = applicationCvSource.startsWith("template:") ? applicationCvSource.slice("template:".length) : null;
@@ -592,10 +617,11 @@ export function CandidaturesWorkspace({
         candidatureId: selected.id,
         source,
       });
+      if (!alive.current || currentSelection.current !== candidatureId) return;
       rememberDocumentDraft(created); openDocument(created.id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not create the application CV.");
-    } finally { setDocumentCreationBusy(null); }
+    } finally { if (alive.current) setDocumentCreationBusy(null); }
   };
 
   const enabledFields = fields.filter((field) => field.definition.enabled);
@@ -638,6 +664,7 @@ export function CandidaturesWorkspace({
     }
     if (current) clearAiTask(taskId);
     protectedTaskFields.current.delete(taskId);
+    setBulkRequestAttempt((attempt) => attempt + 1);
     setBulkInferenceOpen(true);
   };
 
@@ -689,7 +716,7 @@ export function CandidaturesWorkspace({
       ...(onNewApplication ? [{ id: "new-application", label: "New", onClick: onNewApplication }] : []),
     ] : (onNewApplication ? [{ id: "new-application", label: "New", onClick: onNewApplication, primary: true }] : []),
     moreActions: mode === "selected" && selected ? [
-      { id: "find-tags", label: "Find Tags with AI", onClick: () => { const key = `candidature-inference:${selected.id}:tags`; const existing = getAiTask(key); if (existing?.status !== "working" && existing?.status !== "queued") clearAiTask(key); setTagInferenceOpen(true); } },
+      { id: "find-tags", label: "Find Tags with AI", onClick: () => { const key = `candidature-inference:${selected.id}:tags`; const existing = getAiTask(key); if (existing?.status !== "working" && existing?.status !== "queued") clearAiTask(key); setTagRequestAttempt((attempt) => attempt + 1); setTagInferenceOpen(true); } },
       { id: "external-ai", label: "Send to my AI…", onClick: () => setExternalAiOpen(true) },
       { id: "archive-application", label: selected.archived ? "Restore" : "Archive", onClick: () => void setArchived(!selected.archived) },
     ] : [],
@@ -1195,13 +1222,15 @@ export function CandidaturesWorkspace({
           candidature={selected}
           fields={fields}
           targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
+          key={`bulk:${selected.id}:${bulkRequestAttempt}`}
           taskId={`candidature-inference:${selected.id}:missing`}
+          onAttachTagIds={attachTagIds}
           title="Extract application"
           includeTagInference
           onChanged={() => void refreshInformation()}
         />
       ) : null}
-      {tagInferenceOpen ? <CandidatureInferencePanel candidature={selected} fields={fields} targetFieldIds={[]} taskId={`candidature-inference:${selected.id}:tags`} title="Find Tags" includeTagInference onChanged={() => void refreshInformation()} /> : null}
+      {tagInferenceOpen ? <CandidatureInferencePanel key={`tags:${selected.id}:${tagRequestAttempt}`} candidature={selected} fields={fields} targetFieldIds={[]} taskId={`candidature-inference:${selected.id}:tags`} title="Find Tags" onAttachTagIds={attachTagIds} includeTagInference onChanged={() => void refreshInformation()} /> : null}
         <div className="tag-chip-list" aria-label="Attached Tags">
           {attachedTags.length === 0 ? (
             <span className="compact-help">No Tags attached.</span>
@@ -1220,9 +1249,7 @@ export function CandidaturesWorkspace({
                   className="tag-chip-remove"
                   aria-label={`Remove ${tag.name}`}
                   onClick={() =>
-                    void persistTagIds(
-                      selectedTagIds.filter((id) => id !== tag.id),
-                    )
+                    void detachTagId(tag.id).catch(reportTagFailure)
                   }
                 >
                   ×
@@ -1248,7 +1275,7 @@ export function CandidaturesWorkspace({
                   type="button"
                   key={tag.id}
                   onClick={() => {
-                    void persistTagIds([...selectedTagIds, tag.id]);
+                    void attachTagIds([tag.id]).catch(reportTagFailure);
                     setTagQuery("");
                   }}
                 >
@@ -1606,7 +1633,9 @@ export function CandidaturesWorkspace({
           candidature={selected}
           fields={fields}
           targetFieldIds={[discoveryField.definition.id]}
+          key={`field:${selected.id}:${discoveryField.definition.id}:${fieldRequestAttempt}`}
           taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`}
+          onAttachTagIds={attachTagIds}
           title={`Fill ${discoveryField.definition.label}`}
         />
       ) : null}

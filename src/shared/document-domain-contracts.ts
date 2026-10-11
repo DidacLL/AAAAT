@@ -185,7 +185,7 @@ export type WorkingCvUpdate = z.infer<typeof workingCvUpdateSchema>;
 
 export const workingCvOwnershipTargetSchema = z.enum(["template", "profile_variant", "profile"]);
 export type WorkingCvOwnershipTarget = z.infer<typeof workingCvOwnershipTargetSchema>;
-export const workingCvSaveItemSchema = z.object({ workingCvId: z.string().uuid(), itemId: z.string().uuid(), target: workingCvOwnershipTargetSchema, variantName: z.string().trim().min(1).max(120).optional() }).strict();
+export const workingCvSaveItemSchema = z.object({ workingCvId: z.string().uuid(), document: workingCvRecordSchema.optional(), itemId: z.string().uuid(), target: workingCvOwnershipTargetSchema, variantName: z.string().trim().min(1).max(120).optional() }).strict();
 export type WorkingCvSaveItem = z.infer<typeof workingCvSaveItemSchema>;
 export const workingCvSaveTemplateSchema = z.object({ workingCvId: z.string().uuid(), name: z.string().trim().min(1).max(200) }).strict();
 export type WorkingCvSaveTemplate = z.infer<typeof workingCvSaveTemplateSchema>;
