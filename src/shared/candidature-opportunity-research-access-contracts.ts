@@ -46,14 +46,14 @@ export const candidatureExternalAiInstructionSchema = z
   .string()
   .trim()
   .min(1)
-  ;
+  .max(20_000);
 export type CandidatureExternalAiInstruction = z.infer<
   typeof candidatureExternalAiInstructionSchema
 >;
 
 export const candidatureExternalAiResultTextSchema = z
   .string()
-  ;
+  .max(64 * 1024);
 
 export const candidatureExternalAiCopyResultSchema = z.literal("copied");
 export type CandidatureExternalAiCopyResult = z.infer<

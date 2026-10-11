@@ -1,4 +1,3 @@
-import { readableDocumentError } from "./document-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverLetterDraft, CvWritingField, CvWritingResult } from "../shared/ai-contracts";
@@ -27,6 +26,14 @@ const emptyCollections: DocumentCollections = {
   renderedLetters: [],
   applicationPackets: [],
 };
+
+function readableDocumentError(reason: unknown, fallback: string): string {
+  if (!(reason instanceof Error) || !reason.message.trim()) return fallback;
+  return reason.message
+    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
+    .replace(/^Error:\s*/u, "")
+    .trim() || fallback;
+}
 
 function contactLabel(item: ProfileItem): string {
   return item.subtitle?.trim() || "Contact";

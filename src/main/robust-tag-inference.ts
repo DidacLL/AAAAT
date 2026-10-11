@@ -33,7 +33,11 @@ interface CapturedExchange {
 }
 
 function normalizeTerm(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase().trim();
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 function tagWireRequest(
@@ -42,17 +46,18 @@ function tagWireRequest(
   tags: readonly TagRecord[],
 ): TagWireRequest {
   const tagIds = new Map<string, string>();
-  const providerTags = tags.map((tag, index) => {
+  const providerTags = tags.slice(0, 300).map((tag, index) => {
     const tagRef = `aaaat_tag_${index + 1}`;
     tagIds.set(tagRef, tag.id);
     return {
       tagRef,
       name: tag.name,
-      aliases: tag.aliases,
-      definition: tag.definition,
+      aliases: tag.aliases.slice(0, 8),
+      definition: tag.definition.slice(0, 500),
     };
   });
   const fieldTitles = listCandidatureFields(rootPath)
+    .slice(0, 64)
     .map((field) => field.definition.label);
 
   return {
@@ -145,8 +150,8 @@ function looseEnvelope(value: unknown): LooseEnvelope | null {
   if (candidate.existingTags !== undefined && !Array.isArray(candidate.existingTags)) return null;
   if (candidate.newTags !== undefined && !Array.isArray(candidate.newTags)) return null;
   return {
-    existingTags: candidate.existingTags ?? [],
-    newTags: candidate.newTags ?? [],
+    existingTags: (candidate.existingTags ?? []).slice(0, 30),
+    newTags: (candidate.newTags ?? []).slice(0, 5),
   };
 }
 
@@ -183,6 +188,7 @@ function validateTagProposals(
   rawExisting: readonly unknown[],
   rawNew: readonly unknown[],
   tags: readonly TagRecord[],
+  fieldTitles: readonly string[],
 ): {
   readonly existingTags: TagInferenceExistingTag[];
   readonly newTags: TagInferenceNewTag[];
@@ -197,11 +203,15 @@ function validateTagProposals(
     glossaryTerms.set(normalizeTerm(tag.name), tag);
     for (const alias of tag.aliases) glossaryTerms.set(normalizeTerm(alias), tag);
   }
+  const fieldTerms = new Set(fieldTitles.map(normalizeTerm).filter(Boolean));
   const seenExisting = new Set<string>();
   const seenNewTerms = new Set<string>();
 
+  const representedByField = (tag: Pick<TagRecord, "name" | "aliases">): boolean =>
+    [tag.name, ...tag.aliases].some((term) => fieldTerms.has(normalizeTerm(term)));
+
   const addExisting = (tag: TagRecord, evidence?: string) => {
-    if (seenExisting.has(tag.id)) return;
+    if (seenExisting.has(tag.id) || representedByField(tag)) return;
     seenExisting.add(tag.id);
     existingTags.push({ tagId: tag.id, name: tag.name, ...(evidence ? { evidence } : {}) });
   };
@@ -218,8 +228,12 @@ function validateTagProposals(
       issues.push(tagIssue(raw, "AI referred to a Tag that was not supplied in the glossary."));
       continue;
     }
+    if (representedByField(tag)) {
+      issues.push(tagIssue(raw, "This Tag duplicates configured application information and was not suggested."));
+      continue;
+    }
     const evidence = typeof candidate.evidence === "string" && candidate.evidence.trim()
-      ? candidate.evidence.trim()
+      ? candidate.evidence.trim().slice(0, 1500)
       : undefined;
     addExisting(tag, evidence);
   }
@@ -232,6 +246,10 @@ function validateTagProposals(
     }
     const proposed = parsed.data;
     const proposedTerms = [proposed.name, ...proposed.aliases].map(normalizeTerm).filter(Boolean);
+    if (proposedTerms.some((term) => fieldTerms.has(term))) {
+      issues.push(tagIssue(raw, "This proposed Tag duplicates configured application information."));
+      continue;
+    }
     const existing = proposedTerms.map((term) => glossaryTerms.get(term)).find(Boolean);
     if (existing) {
       addExisting(existing, proposed.evidence);
@@ -256,6 +274,7 @@ export async function inferTagsWithPartialOutcomes(
   const connection = requireAiProviderConnectionForOperation(rootPath, "tag_inference");
   const tags = listTags(rootPath);
   const wire = tagWireRequest(rootPath, request, tags);
+  const fieldTitles = wire.request.fieldTitles;
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
@@ -279,7 +298,7 @@ export async function inferTagsWithPartialOutcomes(
 
   const envelope = looseEnvelope(rawResult);
   if (!envelope) throw new Error("The configured provider returned an invalid Tag inference result envelope.");
-  const proposals = validateTagProposals(wire, envelope.existingTags, envelope.newTags, tags);
+  const proposals = validateTagProposals(wire, envelope.existingTags, envelope.newTags, tags, fieldTitles);
   const exchange = capturedExchange(
     connection,
     capture.snapshot(),

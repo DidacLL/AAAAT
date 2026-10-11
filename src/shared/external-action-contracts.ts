@@ -10,7 +10,7 @@ export type ExternalConfiguratorConnectionInput = z.infer<
 
 export const externalConfiguratorOperationInputSchema = z
   .object({
-    connectionName: z.string().trim().min(1),
+    connectionName: z.string().trim().min(1).max(120),
     operation: aiOperationSchema,
   })
   .strict();

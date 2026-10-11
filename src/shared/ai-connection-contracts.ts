@@ -40,7 +40,7 @@ export type AiConnectionOperationInput = z.infer<typeof aiConnectionOperationInp
 export const namedAiConnectionInputSchema = aiConnectionInputSchema
   .extend({
     id: aiConnectionIdSchema.optional(),
-    credential: z.string().trim().min(1).nullable().optional(),
+    credential: z.string().trim().min(1).max(4096).nullable().optional(),
   })
   .strict();
 export type NamedAiConnectionInput = z.infer<typeof namedAiConnectionInputSchema>;
@@ -50,20 +50,20 @@ export const namedAiConnectionSchema = aiConnectionInputSchema
     id: aiConnectionIdSchema,
     hasCredential: z.boolean().optional(),
     isDefault: z.boolean(),
-    validatedOperations: z.array(aiOperationSchema),
-    defaultForOperations: z.array(aiOperationSchema),
+    validatedOperations: z.array(aiOperationSchema).max(aiOperations.length),
+    defaultForOperations: z.array(aiOperationSchema).max(aiOperations.length),
   })
   .strict();
 export type NamedAiConnection = z.infer<typeof namedAiConnectionSchema>;
-export const namedAiConnectionListSchema = z.array(namedAiConnectionSchema);
+export const namedAiConnectionListSchema = z.array(namedAiConnectionSchema).max(16);
 export type NamedAiConnectionList = z.infer<typeof namedAiConnectionListSchema>;
 
 export const portableAiSetupSchema = z
   .object({
     format: z.literal("aaaat-ai-setup"),
     version: z.literal(1),
-    connections: z.array(aiConnectionInputSchema),
-    defaultConnectionName: z.string().trim().min(1).nullable(),
+    connections: z.array(aiConnectionInputSchema).max(16),
+    defaultConnectionName: z.string().trim().min(1).max(120).nullable(),
   })
   .strict()
   .superRefine((setup, context) => {

@@ -1,4 +1,3 @@
-import { readableDocumentError } from "./document-error";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type {
@@ -34,6 +33,9 @@ import { clearAiTask, getAiTask } from "./ai-task-store";
 import { candidatureInferenceContext } from "./candidature-inference-context";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
+import "./candidature-recovery.css";
+import "./owner-feedback-recovery.css";
+import "./tag-glossary.css";
 
 type CandidatureMode = "corpus" | "selected";
 type InitialCandidatureTask = "manual" | "ai";
@@ -55,6 +57,14 @@ const emptyTag: TagInput = { name: "", definition: "", notes: "", aliases: [] };
 const emptyCollections: DocumentCollections = {
   templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [],
 };
+
+function readableDocumentError(reason: unknown, fallback: string): string {
+  if (!(reason instanceof Error) || !reason.message.trim()) return fallback;
+  return reason.message
+    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
+    .replace(/^Error:\s*/u, "")
+    .trim() || fallback;
+}
 
 function aliasesFromText(value: string): string[] {
   return value.split(",").map((alias) => alias.trim()).filter(Boolean);

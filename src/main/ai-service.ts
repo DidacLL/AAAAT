@@ -80,10 +80,10 @@ export async function extractJob(rootPath: string, rawRequest: JobExtractionRequ
   return jobExtractionResultSchema.parse({ proposals: result.proposals });
 }
 
-const cvWritingFieldDetails: Readonly<Record<CvWritingField, { readonly label: string }>> = Object.freeze({
-  title: { label: "Title" },
-  subtitle: { label: "Subtitle" },
-  description: { label: "Description" },
+const cvWritingFieldDetails: Readonly<Record<CvWritingField, { readonly label: string; readonly maxLength: number }>> = Object.freeze({
+  title: { label: "Title", maxLength: 200 },
+  subtitle: { label: "Subtitle", maxLength: 300 },
+  description: { label: "Description", maxLength: 5000 },
 });
 
 const cvInformationFields = Object.freeze([
@@ -315,10 +315,11 @@ export function cvWritingContext(
   const targetTitle = `${targetLocation.section.name} ${targetLocation.itemIndex + 1} — ${targetDetail.label}`;
   return {
     context: providerCvWritingContextSchema.parse({
-      target: { field, title: targetTitle },
+      target: { field, title: targetTitle, maxLength: targetDetail.maxLength },
       availableInformation,
     }),
     replacements,
+    maxLength: targetDetail.maxLength,
   };
 }
 
@@ -343,6 +344,9 @@ export async function writeCvField(
   const written = await provider.writeCvField(stored, projection.context, signal);
   const content = restorePrivateValues(written, projection.replacements).trim();
   if (!content) throw new AiServiceError("The configured provider returned empty CV content.");
+  if (content.length > projection.maxLength) {
+    throw new AiServiceError("The configured provider returned CV content that is too long for this field.");
+  }
   return cvWritingResultSchema.parse({
     workingCvId: workingCv.id,
     itemId: request.itemId,

@@ -18,12 +18,12 @@ export type ExternalApplicationDocumentTarget = z.infer<
 export const externalReusableCvChoiceSchema = z
   .object({
     cvRef: operationReferenceSchema,
-    name: z.string().trim().min(1),
+    name: z.string().trim().min(1).max(200),
   })
   .strict();
 export const externalReusableCvChoicesSchema = z
   .array(externalReusableCvChoiceSchema)
-  ;
+  .max(200);
 export type ExternalReusableCvChoice = z.infer<typeof externalReusableCvChoiceSchema>;
 
 export const externalReusableCvReadInputSchema = z
@@ -36,19 +36,19 @@ export const externalPrivatePlaceholderSchema = z
 
 const externalCvVisibleBlockSchema = z
   .object({
-    kind: z.string().trim().min(1),
-    title: z.string(),
-    subtitle: z.string().optional(),
-    description: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    url: z.string().optional(),
+    kind: z.string().trim().min(1).max(80),
+    title: z.string().max(200),
+    subtitle: z.string().max(300).optional(),
+    description: z.string().max(5000).optional(),
+    startDate: z.string().max(40).optional(),
+    endDate: z.string().max(40).optional(),
+    url: z.string().max(2048).optional(),
   })
   .strict();
 
 const externalCvPrivateBlockSchema = z
   .object({
-    placeholders: z.array(externalPrivatePlaceholderSchema).min(1),
+    placeholders: z.array(externalPrivatePlaceholderSchema).min(1).max(6),
   })
   .strict();
 
@@ -60,13 +60,13 @@ export type ExternalReusableCvBlock = z.infer<typeof externalReusableCvBlockSche
 
 export const externalReusableCvContentSchema = z
   .object({
-    name: z.string().trim().min(1),
+    name: z.string().trim().min(1).max(200),
     sections: z.array(
       z.object({
-        name: z.string().trim().min(1),
-        blocks: z.array(externalReusableCvBlockSchema),
+        name: z.string().trim().min(1).max(120),
+        blocks: z.array(externalReusableCvBlockSchema).max(100),
       }).strict(),
-    ),
+    ).max(40),
   })
   .strict();
 export type ExternalReusableCvContent = z.infer<typeof externalReusableCvContentSchema>;
@@ -81,7 +81,7 @@ export const externalApplicationCvCreateInputSchema = z
 export const externalCvEditableFieldSchema = z
   .object({
     fieldRef: operationReferenceSchema,
-    title: z.string().trim().min(1),
+    title: z.string().trim().min(1).max(500),
     field: cvWritingFieldSchema,
   })
   .strict();
@@ -90,7 +90,7 @@ export const externalApplicationCvCreateResultSchema = z
   .object({
     created: z.literal(true),
     cvRef: operationReferenceSchema,
-    editableFields: z.array(externalCvEditableFieldSchema),
+    editableFields: z.array(externalCvEditableFieldSchema).max(12_000),
   })
   .strict();
 export type ExternalApplicationCvCreateResult = z.infer<
@@ -111,7 +111,7 @@ export const externalCvFieldWriteInputSchema = z
   .object({
     cvRef: operationReferenceSchema,
     fieldRef: operationReferenceSchema,
-    content: z.string().trim().min(1),
+    content: z.string().trim().min(1).max(5000),
   })
   .strict();
 

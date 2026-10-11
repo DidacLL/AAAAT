@@ -12,7 +12,7 @@ import {
 
 const externalCareerContextValueSchema = z
   .string()
-  
+  .max(10000)
   .refine((value) => value.trim().length > 0, {
     message: "External career-context values must contain non-whitespace text.",
   });
@@ -34,12 +34,12 @@ export type ExternalCareerContext = z.infer<typeof externalCareerContextSchema>;
 export const externalOpportunityResearchContextRequestSchema = z.object({}).strict();
 export const externalOpportunityResearchInformationSchema = z
   .object({
-    label: z.string().trim().min(1),
+    label: z.string().trim().min(1).max(120),
     value: candidatureRuntimeValueSchema,
   })
   .strict();
 export const externalOpportunityResearchContextSchema = z
-  .object({ information: z.array(externalOpportunityResearchInformationSchema) })
+  .object({ information: z.array(externalOpportunityResearchInformationSchema).max(64) })
   .strict()
   .nullable();
 export type ExternalOpportunityResearchContext = z.infer<
@@ -67,9 +67,9 @@ export type ExternalCandidatureSourceAddResult = z.infer<
 export const externalApplicationInformationTaskSchema = z
   .object({
     taskRef: operationReferenceSchema,
-    instruction: z.string().trim().min(1),
-    context: z.string().trim().min(1),
-    fields: z.array(providerDiscoveryFieldSchema).min(1),
+    instruction: z.string().trim().min(1).max(20_000),
+    context: z.string().trim().min(1).max(50_000),
+    fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
   })
   .strict();
 export type ExternalApplicationInformationTask = z.infer<
@@ -79,7 +79,7 @@ export type ExternalApplicationInformationTask = z.infer<
 export const externalApplicationInformationProposalInputSchema = z
   .object({
     taskRef: operationReferenceSchema,
-    proposals: z.array(z.unknown()),
+    proposals: z.array(z.unknown()).max(64),
   })
   .strict();
 export type ExternalApplicationInformationProposalInput = z.infer<
@@ -90,7 +90,7 @@ export const externalApplicationInformationPendingResultSchema = z
   .object({
     resultRef: operationReferenceSchema,
     taskRef: operationReferenceSchema,
-    scopeFieldIds: z.array(z.string().uuid()).min(1),
+    scopeFieldIds: z.array(z.string().uuid()).min(1).max(64),
     result: partialJobExtractionResultSchema,
   })
   .strict();
@@ -103,23 +103,23 @@ export const externalApplicationInformationPendingResultOptionalSchema =
 
 export const externalInterviewPreparationInformationSchema = z
   .object({
-    label: z.string().trim().min(1),
-    value: z.string(),
+    label: z.string().trim().min(1).max(120),
+    value: z.string().max(50_000),
   })
   .strict();
 
 export const externalInterviewPreparationSourceSchema = z
   .object({
-    title: z.string(),
-    url: z.string(),
-    sourceText: z.string(),
+    title: z.string().max(500),
+    url: z.string().max(2048),
+    sourceText: z.string().max(12_000),
   })
   .strict();
 
 export const externalInterviewPreparationContextSchema = z
   .object({
-    information: z.array(externalInterviewPreparationInformationSchema),
-    sources: z.array(externalInterviewPreparationSourceSchema),
+    information: z.array(externalInterviewPreparationInformationSchema).max(64),
+    sources: z.array(externalInterviewPreparationSourceSchema).max(20),
   })
   .strict();
 export type ExternalInterviewPreparationContext = z.infer<
@@ -127,7 +127,7 @@ export type ExternalInterviewPreparationContext = z.infer<
 >;
 
 export const externalInterviewPreparationResultSchema = z
-  .object({ text: z.string().trim().min(1) })
+  .object({ text: z.string().trim().min(1).max(64 * 1024) })
   .strict();
 export type ExternalInterviewPreparationResult = z.infer<
   typeof externalInterviewPreparationResultSchema

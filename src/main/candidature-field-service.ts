@@ -26,6 +26,8 @@ import {
 } from "../shared/contracts";
 import { withWorkspaceDatabase } from "./workspace";
 
+export const MAX_ENABLED_CANDIDATURE_FIELDS = 64;
+
 interface FieldRow {
   readonly id: string;
   readonly systemKey: string | null;
@@ -204,6 +206,13 @@ function validateChoices(input: {
   }
 }
 
+function countEnabled(database: DatabaseSync): number {
+  const row = database
+    .prepare("SELECT COUNT(*) AS count FROM candidature_fields WHERE enabled = 1")
+    .get() as { count: number };
+  return row.count;
+}
+
 export function createCandidatureField(
   rootPath: string,
   rawInput: CandidatureFieldCreate,
@@ -212,6 +221,11 @@ export function createCandidatureField(
   validateChoices(input);
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
+      if (input.enabled && countEnabled(database) >= MAX_ENABLED_CANDIDATURE_FIELDS) {
+        throw new CandidatureFieldServiceError(
+          `AAAAT supports at most ${MAX_ENABLED_CANDIDATURE_FIELDS} enabled candidature fields.`,
+        );
+      }
       const id = randomUUID();
       const now = new Date().toISOString();
       database
@@ -272,6 +286,11 @@ export function updateCandidatureField(
       if (!sameShape(current, input) && fieldHasValues(database, input.id)) {
         throw new CandidatureFieldServiceError(
           "Clear or explicitly convert retained values before changing field type, cardinality, or choice IDs.",
+        );
+      }
+      if (!current.enabled && input.enabled && countEnabled(database) >= MAX_ENABLED_CANDIDATURE_FIELDS) {
+        throw new CandidatureFieldServiceError(
+          `AAAAT supports at most ${MAX_ENABLED_CANDIDATURE_FIELDS} enabled candidature fields.`,
         );
       }
       const now = new Date().toISOString();
@@ -395,10 +414,10 @@ function validateScalar(
 ): string | number | boolean | null {
   switch (field.valueType) {
     case "text":
-      if (typeof value !== "string") break;
+      if (typeof value !== "string" || value.length > 5000) break;
       return value.trim().length === 0 ? null : value;
     case "long_text":
-      if (typeof value !== "string") break;
+      if (typeof value !== "string" || value.length > 50000) break;
       return value.trim().length === 0 ? null : value;
     case "number":
       if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -410,7 +429,7 @@ function validateScalar(
       if (typeof value === "string" && validDate(value)) return value;
       break;
     case "url":
-      if (typeof value === "string") {
+      if (typeof value === "string" && value.length <= 2048) {
         if (value.trim().length === 0) return null;
         try {
           const url = new URL(value);

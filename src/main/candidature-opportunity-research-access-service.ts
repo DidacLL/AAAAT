@@ -62,18 +62,18 @@ const applicationInformationResultKey = "external_ai.application_information_res
 const interviewPreparationTaskKey = "external_ai.interview_preparation_task.v1";
 
 const storedPrivateReplacementSchema = z.object({
-  placeholder: z.string().trim().min(1),
+  placeholder: z.string().trim().min(1).max(240),
   value: z.string().nullable(),
 }).strict();
 
 const storedFieldBindingSchema = z.object({
   fieldRef: operationReferenceSchema,
   fieldId: z.string().uuid(),
-  label: z.string().trim().min(1),
+  label: z.string().trim().min(1).max(120),
   choices: z.array(z.object({
     choiceRef: operationReferenceSchema,
     choiceId: z.string().uuid(),
-  }).strict()),
+  }).strict()).max(64),
 }).strict();
 
 const storedApplicationInformationTaskSchema = z.object({
@@ -81,8 +81,8 @@ const storedApplicationInformationTaskSchema = z.object({
   taskRef: operationReferenceSchema,
   instruction: candidatureExternalAiInstructionSchema,
   request: providerJobExtractionRequestSchema,
-  fields: z.array(storedFieldBindingSchema).min(1),
-  privateReplacements: z.array(storedPrivateReplacementSchema),
+  fields: z.array(storedFieldBindingSchema).min(1).max(64),
+  privateReplacements: z.array(storedPrivateReplacementSchema).max(64),
 }).strict();
 type StoredApplicationInformationTask = z.infer<
   typeof storedApplicationInformationTaskSchema
@@ -96,7 +96,7 @@ const storedApplicationInformationResultSchema = z.object({
 const storedInterviewPreparationTaskSchema = z.object({
   candidatureId: z.string().uuid(),
   context: externalInterviewPreparationContextSchema,
-  privateReplacements: z.array(storedPrivateReplacementSchema),
+  privateReplacements: z.array(storedPrivateReplacementSchema).max(64),
 }).strict();
 type StoredInterviewPreparationTask = z.infer<
   typeof storedInterviewPreparationTaskSchema
@@ -346,6 +346,7 @@ function applicationContext(
   const byId = new Map(fields.map((field) => [field.definition.id, field]));
   const replacements: PrivateReplacements = new Map();
   const sources = listCandidatureSourcesInDatabase(database, candidatureId)
+    .slice(0, 20)
     .map((source, index) =>
       [
         `Retained Source ${index + 1}`,
@@ -372,7 +373,7 @@ function applicationContext(
     parts.push(`Existing application information:\n${retained.join("\n")}`);
   }
   return {
-    text: parts.join("\n\n---\n\n").trim(),
+    text: parts.join("\n\n---\n\n").slice(0, 50_000).trim(),
     replacements,
   };
 }
@@ -750,10 +751,11 @@ function buildInterviewPreparationContext(
       }];
     });
   const sources = listCandidatureSourcesInDatabase(database, candidatureId)
+    .slice(0, 20)
     .map((source) => ({
       title: source.title,
       url: source.url,
-      sourceText: compactSourceText(source.sourceText),
+      sourceText: compactSourceText(source.sourceText).slice(0, 12_000),
     }));
   return {
     context: externalInterviewPreparationContextSchema.parse({ information, sources }),
@@ -837,7 +839,7 @@ function interviewContextText(context: ExternalInterviewPreparationContext): str
     sourceParts.length > 0 ? "---" : "",
     "Application information:",
     ...information,
-  ].filter(Boolean).join("\n\n");
+  ].filter(Boolean).join("\n\n").slice(0, 50_000);
 }
 
 export function buildInterviewPreparationPortableTask(
