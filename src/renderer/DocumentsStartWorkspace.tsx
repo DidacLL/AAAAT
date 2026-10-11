@@ -88,6 +88,18 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     try { setCollections("sections" in document ? await window.aaaat.documentDomain.removeWorkingCv(document.id) : await window.aaaat.documentDomain.removeLetter(document.id)); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be deleted."); }
   };
+  const editRenderedCopy = async (rendered: DocumentCollections["renderedCvs"][number]) => {
+    setError(null);
+    try {
+      const preview = await window.aaaat.documentDomain.previewWorkingCv({
+        title: uniqueTitle(`${rendered.title} copy`, collections.workingCvs.map((document) => document.title)),
+        candidatureId: rendered.candidatureId, source: { kind: "blank" },
+      });
+      const draft = { ...preview, ...rendered.snapshot, id: preview.id, title: preview.title, createdAt: preview.createdAt, updatedAt: preview.updatedAt };
+      rememberDocumentDraft(draft);
+      onOpenDocument(draft.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
+  };
   const documents = [...collections.workingCvs, ...collections.letters].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   const association = (candidatureId: string | null) => candidatureId ? applicationLabels[candidatureId] || "Application" : "Standalone";
   return <section className="document-library" aria-label="Documents">
@@ -118,7 +130,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
         {collections.renderedCvs.map((document) => <article className="document-list-row" key={document.id}>
           <button type="button" className="document-list-open" onClick={() => { void window.aaaat.documentDomain.openRenderedCv(document.id); }}><span className="item-kind">CV PDF</span><strong>{document.title}</strong><small>{association(document.candidatureId)}</small></button>
           <button type="button" onClick={() => { void window.aaaat.documentDomain.exportRenderedCv(document.id); }}>Export</button>
-          <button type="button" onClick={() => { void window.aaaat.documentDomain.duplicateRenderedCv(document.id).then((copy) => onOpenDocument(copy.id)); }}>Edit a copy</button>
+          <button type="button" onClick={() => { void editRenderedCopy(document); }}>Edit a copy</button>
         </article>)}
         {collections.renderedLetters.map((document) => <article className="document-list-row" key={document.id}>
           <button type="button" className="document-list-open" onClick={() => { void window.aaaat.documentDomain.openRenderedLetter(document.id); }}><span className="item-kind">Letter PDF</span><strong>{document.title}</strong><small>{association(document.candidatureId)}</small></button>

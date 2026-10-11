@@ -238,8 +238,8 @@ CREATE INDEX rendered_cvs_candidature_idx ON rendered_cvs(candidature_id, create
 CREATE TABLE application_packets (
   id TEXT PRIMARY KEY,
   candidature_id TEXT NOT NULL REFERENCES candidatures(id) ON DELETE CASCADE,
-  working_cv_id TEXT NOT NULL REFERENCES working_cvs(id) ON DELETE RESTRICT,
-  cover_letter_id TEXT NOT NULL REFERENCES cover_letters(id) ON DELETE RESTRICT,
+  working_cv_id TEXT REFERENCES working_cvs(id) ON DELETE SET NULL,
+  cover_letter_id TEXT REFERENCES cover_letters(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   letter_snapshot_json TEXT NOT NULL CHECK (json_valid(letter_snapshot_json)),
   project_relative_path TEXT NOT NULL,

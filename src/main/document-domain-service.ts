@@ -123,8 +123,8 @@ interface RenderedLetterRow {
 interface PacketRow {
   readonly id: string;
   readonly candidatureId: string;
-  readonly workingCvId: string;
-  readonly coverLetterId: string;
+  readonly workingCvId: string|null;
+  readonly coverLetterId: string|null;
   readonly title: string;
   readonly projectRelativePath: string;
   readonly createdAt: string;
@@ -556,7 +556,8 @@ function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] 
   ];
   const grouped = new Map<string, WorkingCvItem[]>();
   for (const item of items) {
-    const name = sectionNameByKind[item.kind] ?? 'Other';
+    const name = sectionNameByKind[item.kind] ?? item.kind;
+    if (!order.includes(name)) order.push(name);
     const current = grouped.get(name) ?? [];
     current.push({
       id: randomUUID(),
@@ -1004,10 +1005,6 @@ export function updateCoverLetter(
 export function removeCoverLetter(rootPath: string, letterId: string): DocumentCollections {
   return withWorkspaceDatabase(rootPath, (database) => {
     requireLetter(database, letterId);
-    if (database.prepare('SELECT 1 FROM application_packets WHERE cover_letter_id = ? LIMIT 1')
-            .get(letterId))
-      throw new DocumentDomainServiceError(
-          'This cover letter belongs to a retained Application packet and cannot be removed.');
     database.prepare('DELETE FROM cover_letters WHERE id = ?').run(letterId);
     return documentCollectionsSchema.parse({
       templates: readTemplates(database),
