@@ -520,9 +520,9 @@ export function WorkingCvEditor({
     const snapshot = requestDraft.current;
     const target = writingTarget;
     const preview = aiPreview;
-    preparedId.current = null;
     setAiPreview(null);
     startAiTask<CvWritingResult>(writingTaskKey, async (updateDetail, signal) => {
+      preparedId.current = null;
       updateDetail("Writing…");
       const cancel = () => { void window.aaaat.aiTasks.cancelCvWriting(writingTaskKey); };
       signal.addEventListener("abort", cancel, { once: true });
@@ -571,7 +571,7 @@ export function WorkingCvEditor({
   useShellActions({
     title: draft.title || "CV",
     actions: [
-      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; mounted.current = false; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(writingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
+      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; mounted.current = false; forgetDocumentDraft(draft.id); if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current); preparedId.current = null; clearAiTask(writingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
       { id: "document-save", label: "Save", onClick: () => { void save().catch(() => undefined); }, disabled: !dirty || busy },
       { id: "document-pdf", label: provisional || dirty ? "Save & PDF" : "Create PDF", onClick: () => { void render(); }, disabled: busy || !selectedBlueprintId, primary: true },
     ],
@@ -1179,9 +1179,9 @@ function LetterEditor({
     }
     const preview = aiPreview;
     const snapshot = requestDraft.current;
-    preparedId.current = null;
     setAiPreview(null);
     startAiTask<CoverLetterDraft>(draftingTaskKey, async (updateDetail, signal) => {
+      preparedId.current = null;
       updateDetail("Drafting…");
       const cancel = () => { void window.aaaat.aiTasks.cancelCoverLetterDraft(draftingTaskKey); };
       signal.addEventListener("abort", cancel, { once: true });
@@ -1231,7 +1231,7 @@ function LetterEditor({
   useShellActions({
     title: draft.title || "Cover letter",
     actions: [
-      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; mounted.current = false; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(draftingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
+      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; mounted.current = false; forgetDocumentDraft(draft.id); if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current); preparedId.current = null; clearAiTask(draftingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
       { id: "document-save", label: "Save", onClick: () => { void save(); }, disabled: !dirty || busy },
       { id: "document-ai", label: preparingAi ? "Preparing…" : "AI", onClick: () => { void askAi(); }, disabled: busy || draftingActive || preparingAi },
       { id: "document-pdf", label: provisional || dirty ? "Save & PDF" : "Create PDF", onClick: () => { void renderLetter(); }, disabled: busy, primary: true },
