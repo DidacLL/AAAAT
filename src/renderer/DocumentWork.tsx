@@ -35,6 +35,7 @@ function readableDocumentError(reason: unknown, fallback: string): string {
   return reason.message
     .replace(/^Error invoking remote method '[^']+':\s*/u, "")
     .replace(/^Error:\s*/u, "")
+    .replace(/^AiServiceError:\s*/u, "")
     .trim() || fallback;
 }
 
