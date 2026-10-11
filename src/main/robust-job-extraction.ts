@@ -27,6 +27,7 @@ import {
   listCandidatureFieldsInDatabase,
   validateCandidatureFieldValueInDatabase,
 } from "./candidature-field-service";
+import { projectSavedApplicationInferenceRequest } from "./candidature-ai-source-projection";
 import { withWorkspaceDatabase } from "./workspace";
 
 export interface CandidatureFieldProposalWire {
@@ -70,7 +71,8 @@ export function buildCandidatureFieldProposalWire(
   });
   return {
     request: providerJobExtractionRequestSchema.parse({
-      ...request,
+      sourceTitle: request.sourceTitle,
+      sourceUrl: request.sourceUrl,
       sourceText: compactSourceText(request.sourceText),
       fields: providerFields,
     }),
@@ -366,7 +368,7 @@ export async function extractJobWithPartialOutcomes(
     throw new Error("Allow AI use for at least one application information item first.");
   }
 
-  const wire = buildCandidatureFieldProposalWire(request, fields);
+  const wire = buildCandidatureFieldProposalWire(projectSavedApplicationInferenceRequest(rootPath, request), fields);
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
