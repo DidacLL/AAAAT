@@ -34,8 +34,6 @@ import { clearAiTask, getAiTask } from "./ai-task-store";
 import { candidatureInferenceContext } from "./candidature-inference-context";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
-import "./owner-feedback-recovery.css";
-import "./tag-glossary.css";
 
 type CandidatureMode = "corpus" | "selected";
 type InitialCandidatureTask = "manual" | "ai";
