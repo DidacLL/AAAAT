@@ -450,7 +450,7 @@ export function createOpenAiCompatibleProvider(
         "cv_tailoring",
         instructionFor("cv_tailoring"),
         context,
-        z.string().trim().min(1).max(context.target.maxLength),
+        z.string().trim().min(1),
         timeout,
         signal,
       );
