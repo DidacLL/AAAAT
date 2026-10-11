@@ -29,7 +29,7 @@ import {
   type CandidatureRecognitionCue,
   type RecencyFilter,
 } from "./candidature-projections";
-import { clearAiTask, getAiTask } from "./ai-task-store";
+import { clearAiTask, getAiTask, markAiTaskFieldHandled } from "./ai-task-store";
 import { useShellActions } from "./shell-actions";
 import { rememberDocumentDraft } from "./document-drafts";
 import { candidatureInferenceContext } from "./candidature-inference-context";
@@ -343,6 +343,7 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     for (const key of [`candidature-inference:${selected.id}:${fieldId}`, `candidature-inference:${selected.id}:missing`]) {
       if (!getAiTask(key)) continue;
+      markAiTaskFieldHandled(key, fieldId);
       const protectedFields = protectedTaskFields.current.get(key) ?? new Set<string>();
       protectedFields.add(fieldId);
       protectedTaskFields.current.set(key, protectedFields);
