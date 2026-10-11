@@ -219,8 +219,11 @@ export function withWorkspaceDatabase<T>(
   action: (database: DatabaseSync) => T,
 ): T {
   const canonicalPath = canonicalizeWorkspaceRoot(rootPath);
-  verifyExistingWorkspace(canonicalPath);
-  const database = new DatabaseSync(databasePathFor(canonicalPath));
+  const databasePath = databasePathFor(canonicalPath);
+  if (!existsSync(databasePath)) {
+    throw new WorkspaceError("The selected folder is not an initialized AAAAT workspace.");
+  }
+  const database = new DatabaseSync(databasePath);
   try {
     configureDatabase(database);
     return action(database);
