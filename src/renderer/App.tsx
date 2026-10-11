@@ -14,7 +14,7 @@ import {
   type ProfessionalInformationHandoff,
   type SettingsHandoff,
 } from "./contextual-handoffs";
-import { clearDocumentDrafts } from "./document-drafts";
+import { clearDocumentDrafts, hasUnsavedDocumentDrafts } from "./document-drafts";
 import { DocumentsStartWorkspace } from "./DocumentsStartWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import "./intent-recovery.css";
@@ -183,7 +183,7 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const protectedWorkDirty = candidatureDirty || documentDirty || professionalInformationDirty;
+  const protectedWorkDirty = candidatureDirty || documentDirty || hasUnsavedDocumentDrafts() || professionalInformationDirty;
   const anyDirty = protectedWorkDirty || settingsDirty;
 
   const resetHandoffs = () => {
