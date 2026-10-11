@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiTaskStatus } from "./AiTaskStatus";
@@ -123,6 +123,11 @@ export function App() {
   const [documentActions, setDocumentActions] = useState<ShellActions | null>(null);
   const [informationActions, setInformationActions] = useState<ShellActions | null>(null);
   const [supportPanel, setSupportPanel] = useState<"activity" | "tags" | null>(null);
+
+  const applicationAreaVisible = useRef(false);
+  useLayoutEffect(() => {
+    applicationAreaVisible.current = !welcomeOpen && !settingsOpen && productView === "candidatures";
+  }, [productView, settingsOpen, welcomeOpen]);
 
   const showProductView = useCallback((next: ProductView) => {
     setVisitedViews((current) => current.has(next) ? current : new Set([...current, next]));
@@ -394,6 +399,7 @@ export function App() {
       professionalInformationHandoff,
       settingsHandoff,
       openDocumentFromCandidature: (candidatureId: string, documentId?: string) => {
+        if (!applicationAreaVisible.current) return;
         setDocumentDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);

@@ -9,5 +9,6 @@ export function rememberDocumentDraft(draft: WorkingCvRecord | CoverLetterRecord
 }
 export function documentDraft(id: string): WorkingCvRecord | CoverLetterRecord | undefined { return drafts.get(id); }
 export function hasUnsavedDocumentDrafts(): boolean { return unsaved.size > 0; }
+export function unsavedDocumentDrafts(): readonly (WorkingCvRecord | CoverLetterRecord)[] { return [...drafts.values()].filter((draft) => unsaved.has(draft.id)); }
 export function forgetDocumentDraft(id: string): void { drafts.delete(id); unsaved.delete(id); }
 export function clearDocumentDrafts(): void { drafts.clear(); unsaved.clear(); }
