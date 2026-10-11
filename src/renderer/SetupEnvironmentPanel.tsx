@@ -39,8 +39,8 @@ export function SetupActionAuthority({
   return (
     <section className="setup-action-authority" aria-label="Assistant setup permissions">
       <div>
-        <h3>What this assistant may change</h3>
-        <p>Your assistant can read setup status. Choose whether it may also check PDF creation or change AI connections.</p>
+        <h3>What connected assistants may change</h3>
+        <p>Connected assistants can read setup status. Choose whether they may also check PDF creation or change AI connections.</p>
       </div>
       <label className="checkbox-row">
         <input
@@ -51,7 +51,7 @@ export function SetupActionAuthority({
         />
         <span>
           <strong>Check PDF creation</strong><br />
-          Allow the assistant to run AAAAT's PDF check using a temporary document.
+          Allow connected assistants to run AAAAT's PDF check using a temporary document.
         </span>
       </label>
       <label className="checkbox-row">
@@ -63,7 +63,7 @@ export function SetupActionAuthority({
         />
         <span>
           <strong>Manage AI connections</strong><br />
-          Allow the assistant to save and check connections, and choose the AI used for each feature.
+          Allow connected assistants to save and check connections, and choose the AI used for each feature.
         </span>
       </label>
     </section>
