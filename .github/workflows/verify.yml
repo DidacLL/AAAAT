@@ -11,6 +11,7 @@ on:
       - "scripts/**"
       - "package.json"
       - "package-lock.json"
+      - ".npmrc"
       - "vite*.ts"
       - "vite*.mts"
       - "forge.config.*"
@@ -23,6 +24,7 @@ on:
       - "scripts/**"
       - "package.json"
       - "package-lock.json"
+      - ".npmrc"
       - "vite*.ts"
       - "vite*.mts"
       - "forge.config.*"
@@ -51,9 +53,23 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+  windows-npm12:
+    name: Windows npm 12 install and package
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm install --global npm@12.2.0
+      - run: npm ci
+      - run: npm run verify
+      - run: npm run package
   gate:
     name: Verification gate
-    needs: verify
+    needs: [verify, windows-npm12]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -61,10 +77,15 @@ jobs:
       - name: Require static hygiene
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
+          WINDOWS_NPM12_RESULT: ${{ needs.windows-npm12.result }}
         shell: bash
         run: |
           if [[ "$VERIFY_RESULT" != "success" ]]; then
             echo "Static typecheck/lint hygiene finished as $VERIFY_RESULT" >&2
             exit 1
           fi
-          echo "Static hygiene passed. This check is branch-protection plumbing, not product acceptance." >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$WINDOWS_NPM12_RESULT" != "success" ]]; then
+            echo "Windows npm 12 install/package finished as $WINDOWS_NPM12_RESULT" >&2
+            exit 1
+          fi
+          echo "Static hygiene and Windows npm 12 install/package passed. This check is branch-protection plumbing, not product acceptance." >> "$GITHUB_STEP_SUMMARY"
