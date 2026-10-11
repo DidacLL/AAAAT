@@ -156,7 +156,7 @@ function looseEnvelope(value: unknown): LooseEnvelope | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as { proposals?: unknown };
   if (!Array.isArray(candidate.proposals)) return null;
-  return { proposals: candidate.proposals.slice(0, 64) };
+  return { proposals: candidate.proposals };
 }
 
 function recoverableJsonText(raw: string): string {
@@ -180,7 +180,7 @@ function recoverableJsonText(raw: string): string {
 function parseRecoverableModelResult(raw: string): LooseEnvelope | null {
   try {
     const parsed = JSON.parse(recoverableJsonText(raw)) as unknown;
-    if (Array.isArray(parsed)) return { proposals: parsed.slice(0, 64) };
+    if (Array.isArray(parsed)) return { proposals: parsed };
     return looseEnvelope(parsed);
   } catch {
     return null;
