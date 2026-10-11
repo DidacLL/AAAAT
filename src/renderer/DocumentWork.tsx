@@ -575,7 +575,7 @@ export function WorkingCvEditor({
   useShellActions({
     title: draft.title || "CV",
     actions: [
-      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(writingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
+      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; mounted.current = false; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(writingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
       { id: "document-save", label: "Save", onClick: () => { void save().catch(() => undefined); }, disabled: !dirty || busy },
       { id: "document-pdf", label: provisional || dirty ? "Save & PDF" : "Create PDF", onClick: () => { void render(); }, disabled: busy || !selectedBlueprintId, primary: true },
     ],
@@ -1235,7 +1235,7 @@ function LetterEditor({
   useShellActions({
     title: draft.title || "Cover letter",
     actions: [
-      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(draftingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
+      { id: "document-close", label: provisional ? "Cancel" : "Close", onClick: () => { if (dirty && !window.confirm("Discard unsaved changes?")) return; mounted.current = false; forgetDocumentDraft(draft.id); preparedId.current = null; if (aiPreview) void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); clearAiTask(draftingTaskKey); onDirtyChange?.(false); onClose?.(); if (documentHandoff?.candidatureId) returnToCandidature(); else returnToDocuments(); } },
       { id: "document-save", label: "Save", onClick: () => { void save(); }, disabled: !dirty || busy },
       { id: "document-ai", label: preparingAi ? "Preparing…" : "AI", onClick: () => { void askAi(); }, disabled: busy || draftingActive || preparingAi },
       { id: "document-pdf", label: provisional || dirty ? "Save & PDF" : "Create PDF", onClick: () => { void renderLetter(); }, disabled: busy, primary: true },

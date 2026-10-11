@@ -93,7 +93,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     if (!window.confirm(saved ? `Delete "${document.title}"? Generated PDFs are kept.` : `Discard "${document.title}"?`)) return;
     if (!saved) { forgetDocumentDraft(document.id); refreshDrafts((value) => value + 1); return; }
     setError(null);
-    try { forgetDocumentDraft(document.id); setCollections("sections" in document ? await window.aaaat.documentDomain.removeWorkingCv(document.id) : await window.aaaat.documentDomain.removeLetter(document.id)); }
+    try { const next = "sections" in document ? await window.aaaat.documentDomain.removeWorkingCv(document.id) : await window.aaaat.documentDomain.removeLetter(document.id); forgetDocumentDraft(document.id); setCollections(next); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be deleted."); }
   };
   const editRenderedCopy = async (rendered: DocumentCollections["renderedCvs"][number]) => {
