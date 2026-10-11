@@ -30,16 +30,16 @@ export const documentDomainChannels = Object.freeze({
   externalApplicationAccessUpdate: "aaaat:application-document-external-access-update",
 } as const);
 
-const optionalLanguageSchema = z.string().trim().min(1).max(40).optional();
+const optionalLanguageSchema = z.string().trim().min(1).optional();
 const optionalUuidSchema = z.string().uuid().nullable();
 
-export const blueprintIdSchema = z.string().trim().min(1).max(240);
+export const blueprintIdSchema = z.string().trim().min(1);
 export const blueprintSummarySchema = z.object({
   id: blueprintIdSchema,
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1),
 }).strict();
 export type BlueprintSummary = z.infer<typeof blueprintSummarySchema>;
-export const availableBlueprintsSchema = z.array(blueprintSummarySchema).min(1).max(200);
+export const availableBlueprintsSchema = z.array(blueprintSummarySchema).min(1);
 export const renderCvRequestSchema = z.object({
   cvId: z.string().uuid(),
   blueprintId: blueprintIdSchema,
@@ -70,10 +70,10 @@ export const cvContentSchema = profileItemContentSchema
 export type CvContent = z.infer<typeof cvContentSchema>;
 
 export const cvPdfMetadataSchema = z.object({
-  title: z.string().max(500),
-  author: z.string().max(500),
-  subject: z.string().max(500),
-  keywords: z.string().max(500).default(""),
+  title: z.string(),
+  author: z.string(),
+  subject: z.string(),
+  keywords: z.string().default(""),
 }).strict();
 export type CvPdfMetadata = z.infer<typeof cvPdfMetadataSchema>;
 export const emptyCvPdfMetadata: CvPdfMetadata = Object.freeze({
@@ -82,7 +82,7 @@ export const emptyCvPdfMetadata: CvPdfMetadata = Object.freeze({
   subject: "",
   keywords: "",
 });
-export const cvParserSummarySchema = z.string().max(8_000);
+export const cvParserSummarySchema = z.string();
 
 const templateCurrentItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("current"), profileItemId: z.string().uuid() }).strict();
 const templateVariantItemSchema = z.object({ id: z.string().uuid(), sourceMode: z.literal("variant"), profileItemId: z.string().uuid(), profileVariantId: z.string().uuid() }).strict();
@@ -100,17 +100,17 @@ export const cvSectionPresentationRoleSchema = z.enum(["header", "main", "second
 export type CvSectionPresentationRole = z.infer<typeof cvSectionPresentationRoleSchema>;
 export const cvTemplateSectionSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1),
   presentationRole: cvSectionPresentationRoleSchema,
-  items: z.array(cvTemplateItemSchema).max(100),
+  items: z.array(cvTemplateItemSchema),
 }).strict();
 export type CvTemplateSection = z.infer<typeof cvTemplateSectionSchema>;
 export const cvTemplateInputSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1),
   language: optionalLanguageSchema,
   pdfMetadata: cvPdfMetadataSchema.default(emptyCvPdfMetadata),
   parserSummary: cvParserSummarySchema.default(""),
-  sections: z.array(cvTemplateSectionSchema).max(40),
+  sections: z.array(cvTemplateSectionSchema),
 }).strict();
 export type CvTemplateInput = z.input<typeof cvTemplateInputSchema>;
 export const cvTemplateRecordSchema = cvTemplateInputSchema.extend({
@@ -137,9 +137,9 @@ export const workingCvItemSchema = z.object({
 export type WorkingCvItem = z.infer<typeof workingCvItemSchema>;
 export const workingCvSectionSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1),
   presentationRole: cvSectionPresentationRoleSchema,
-  items: z.array(workingCvItemSchema).max(100),
+  items: z.array(workingCvItemSchema),
 }).strict();
 export type WorkingCvSection = z.infer<typeof workingCvSectionSchema>;
 
@@ -150,7 +150,7 @@ export const workingCvSourceSchema = z.discriminatedUnion("kind", [
 ]);
 export type WorkingCvSource = z.infer<typeof workingCvSourceSchema>;
 export const workingCvCreateSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1),
   language: optionalLanguageSchema,
   candidatureId: optionalUuidSchema,
   source: workingCvSourceSchema,
@@ -158,13 +158,13 @@ export const workingCvCreateSchema = z.object({
 export type WorkingCvCreate = z.infer<typeof workingCvCreateSchema>;
 export const workingCvRecordSchema = z.object({
   id: z.string().uuid(),
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1),
   language: optionalLanguageSchema,
   sourceTemplateId: optionalUuidSchema,
   candidatureId: optionalUuidSchema,
   pdfMetadata: cvPdfMetadataSchema,
   parserSummary: cvParserSummarySchema,
-  sections: z.array(workingCvSectionSchema).max(40),
+  sections: z.array(workingCvSectionSchema),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 }).strict();
@@ -181,9 +181,9 @@ export type WorkingCvUpdate = z.infer<typeof workingCvUpdateSchema>;
 
 export const workingCvOwnershipTargetSchema = z.enum(["template", "profile_variant", "profile"]);
 export type WorkingCvOwnershipTarget = z.infer<typeof workingCvOwnershipTargetSchema>;
-export const workingCvSaveItemSchema = z.object({ workingCvId: z.string().uuid(), itemId: z.string().uuid(), target: workingCvOwnershipTargetSchema, variantName: z.string().trim().min(1).max(120).optional() }).strict();
+export const workingCvSaveItemSchema = z.object({ workingCvId: z.string().uuid(), itemId: z.string().uuid(), target: workingCvOwnershipTargetSchema, variantName: z.string().trim().min(1).optional() }).strict();
 export type WorkingCvSaveItem = z.infer<typeof workingCvSaveItemSchema>;
-export const workingCvSaveTemplateSchema = z.object({ workingCvId: z.string().uuid(), name: z.string().trim().min(1).max(200) }).strict();
+export const workingCvSaveTemplateSchema = z.object({ workingCvId: z.string().uuid(), name: z.string().trim().min(1) }).strict();
 export type WorkingCvSaveTemplate = z.infer<typeof workingCvSaveTemplateSchema>;
 
 export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({
@@ -201,15 +201,15 @@ export type RenderedCvRecord = z.infer<typeof renderedCvRecordSchema>;
 
 export const coverLetterSenderDetailSchema = z.object({
   id: z.string().uuid(),
-  label: z.string().max(80),
-  value: z.string().max(500),
+  label: z.string(),
+  value: z.string(),
 }).strict();
 export type CoverLetterSenderDetail = z.infer<typeof coverLetterSenderDetailSchema>;
 
 export const coverLetterSenderSchema = z.object({
-  name: z.string().max(200),
-  headline: z.string().max(300),
-  details: z.array(coverLetterSenderDetailSchema).max(20),
+  name: z.string(),
+  headline: z.string(),
+  details: z.array(coverLetterSenderDetailSchema),
 }).strict();
 export type CoverLetterSender = z.infer<typeof coverLetterSenderSchema>;
 
@@ -217,13 +217,13 @@ const emptyCoverLetterSender: CoverLetterSender = { name: "", headline: "", deta
 
 export const coverLetterInputSchema = z.object({
   candidatureId: optionalUuidSchema,
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1),
   language: optionalLanguageSchema,
   sender: coverLetterSenderSchema.optional(),
-  recipient: z.string().max(300).optional(),
-  subject: z.string().max(300).optional(),
-  bodyParagraphs: z.array(z.string().max(5000)).max(20).default([]),
-  closing: z.string().max(500).optional(),
+  recipient: z.string().optional(),
+  subject: z.string().optional(),
+  bodyParagraphs: z.array(z.string()).default([]),
+  closing: z.string().optional(),
 }).strict();
 export type CoverLetterInput = z.infer<typeof coverLetterInputSchema>;
 
@@ -280,7 +280,7 @@ export const applicationPacketCreateSchema = z.object({
   renderedCvId: z.string().uuid().optional(),
   coverLetterId: z.string().uuid(),
   blueprintId: blueprintIdSchema.default("builtin:default"),
-  title: z.string().trim().min(1).max(200).optional(),
+  title: z.string().trim().min(1).optional(),
 }).strict().superRefine((input, context) => {
   if ((input.workingCvId ? 1 : 0) + (input.renderedCvId ? 1 : 0) !== 1) {
     context.addIssue({
