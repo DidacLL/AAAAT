@@ -1,17 +1,14 @@
-import { useEffect, useState } from "react";
-
-import type {
-  CandidatureFieldConfiguration,
-  CandidatureRuntimeValue,
-} from "../shared/contracts";
+import { useEffect, useRef, useState } from "react";
+import type { PartialJobExtractionResult, PartialTagInferenceResult } from "../shared/ai-proposal-outcomes";
+import type { CandidatureFieldConfiguration, CandidatureRuntimeValue } from "../shared/contracts";
+import { compactSourceText } from "../shared/source-text";
+import { useShellActions } from "./shell-actions";
 
 interface EntryProps {
-  readonly title: string;
   readonly onCancel: () => void;
-  readonly onCreated: (candidatureId: string) => void;
+  readonly onCreated: (candidatureId: string, tags?: PartialTagInferenceResult) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }
-
 interface FieldDraft {
   readonly text: string;
   readonly choices: readonly string[];
@@ -68,55 +65,56 @@ function parseDraft(
   return draft.text.trim();
 }
 
-function enabledFieldsInDefinitionOrder(fields: readonly CandidatureFieldConfiguration[]) {
-  return fields.filter((field) => field.definition.enabled);
+
+function valueDraft(field: CandidatureFieldConfiguration, value: CandidatureRuntimeValue): FieldDraft {
+  if (field.definition.valueType === "choice") return { text: "", choices: Array.isArray(value) ? value.map(String) : [String(value)] };
+  return { text: Array.isArray(value) ? value.map(String).join("\n") : String(value), choices: [] };
 }
 
-export function CandidatureManualEntryPanel({
-  title,
-  onCancel,
-  onCreated,
-  onDirtyChange,
-}: EntryProps) {
+export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange }: EntryProps) {
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [drafts, setDrafts] = useState<Record<string, FieldDraft>>({});
-  const [baseline, setBaseline] = useState<Record<string, FieldDraft>>({});
+  const [source, setSource] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const [fieldsLoading, setFieldsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<PartialJobExtractionResult["proposals"]>([]);
+  const [tagResult, setTagResult] = useState<PartialTagInferenceResult>();
+  const edits = useRef<Record<string, number>>({});
+  const sourceRevision = useRef(0);
+  const currentDrafts = useRef(drafts);
+  const active = useRef(true);
+  const taskId = useRef("application-draft:" + crypto.randomUUID());
 
   useEffect(() => {
-    let active = true;
-    void window.aaaat.candidatures.listFields()
-      .then((nextFields) => {
-        if (!active) return;
-        const ordered = enabledFieldsInDefinitionOrder(nextFields);
-        const nextDrafts = draftsFor(ordered);
-        setFields(ordered);
-        setDrafts(nextDrafts);
-        setBaseline(nextDrafts);
-        setFieldsLoading(false);
-      })
-      .catch(() => {
-        if (active) {
-          setFieldsLoading(false);
-          setError("Application information could not be loaded. You can retain raw material instead.");
-        }
-      });
+    active.current = true;
+    const requestId = taskId.current;
+    void window.aaaat.candidatures.listFields().then((next) => {
+      if (!active.current) return;
+      const enabled = next.filter((field) => field.definition.enabled);
+      const initial = draftsFor(enabled);
+      currentDrafts.current = initial;
+      setFields(enabled); setDrafts(initial); setFieldsLoading(false);
+    }).catch(() => {
+      if (active.current) { setFieldsLoading(false); setError("Application fields could not be loaded."); }
+    });
     return () => {
-      active = false;
+      active.current = false;
+      void window.aaaat.aiTasks.cancelJobExtraction(requestId).catch(() => undefined);
+      void window.aaaat.aiTasks.cancelTagInference(requestId + ":tags").catch(() => undefined);
     };
   }, []);
 
-  const dirty = JSON.stringify(drafts) !== JSON.stringify(baseline);
-
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
-  }, [dirty, onDirtyChange]);
+  const dirty = source.length > 0 || Boolean(tagResult) || Object.values(drafts).some((draft) => draft.text.length > 0 || draft.choices.length > 0);
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
 
   const setDraft = (fieldId: string, draft: FieldDraft) => {
-    setDrafts((current) => ({ ...current, [fieldId]: draft }));
+    edits.current[fieldId] = (edits.current[fieldId] ?? 0) + 1;
+    currentDrafts.current = { ...currentDrafts.current, [fieldId]: draft };
+    setDrafts(currentDrafts.current);
+    setConflicts((current) => current.filter((proposal) => proposal.fieldId !== fieldId));
     setError(null);
   };
 
@@ -207,182 +205,105 @@ export function CandidatureManualEntryPanel({
     );
   };
 
+
+  const extract = async () => {
+    if (extracting || !source.trim()) return;
+    setExtracting(true); setError(null); setMessage(null);
+    const versions = { ...edits.current };
+    const sourceAtRequest = sourceRevision.current;
+    const targets = fields.filter((field) => field.preferences.aiUseAllowed && !(currentDrafts.current[field.definition.id]?.text.trim() || currentDrafts.current[field.definition.id]?.choices.length));
+    const request = { sourceTitle: "", sourceUrl: "", sourceText: compactSourceText(source).slice(0, 50000) };
+    try {
+      const [information, tags] = await Promise.allSettled([
+        targets.length ? window.aaaat.aiTasks.extractJob(taskId.current, { ...request, targetFieldIds: targets.map((field) => field.definition.id) }) : Promise.resolve<PartialJobExtractionResult>({ proposals: [], issues: [] }),
+        window.aaaat.aiTasks.inferTags(taskId.current + ":tags", request),
+      ]);
+      if (!active.current) return;
+      if (sourceRevision.current !== sourceAtRequest) { setMessage("The material changed while AI was working. Extract again to use the new text."); return; }
+      if (tags.status === "fulfilled") setTagResult(tags.value);
+      const skipped: PartialJobExtractionResult["proposals"] = [];
+      let count = 0;
+      if (information.status === "fulfilled") {
+        const next = { ...currentDrafts.current };
+        for (const proposal of information.value.proposals) {
+          const field = targets.find((candidate) => candidate.definition.id === proposal.fieldId);
+          if (!field) continue;
+          if ((edits.current[proposal.fieldId] ?? 0) !== (versions[proposal.fieldId] ?? 0) || Boolean(next[proposal.fieldId]?.text.trim() || next[proposal.fieldId]?.choices.length)) {
+            skipped.push(proposal); continue;
+          }
+          next[proposal.fieldId] = valueDraft(field, proposal.value); count += 1;
+        }
+        currentDrafts.current = next; setDrafts(next); setConflicts(skipped);
+        setMessage(`${count} field${count === 1 ? "" : "s"} filled. Edit anything before saving.`);
+        if (information.value.issues.length) setError(information.value.issues.map((issue) => issue.reason).join(" "));
+      } else setError(information.reason instanceof Error ? information.reason.message : "Information extraction was unavailable.");
+      if (tags.status === "rejected") setError((current) => [current, "Tag suggestions were unavailable."].filter(Boolean).join(" "));
+    } catch (reason) {
+      if (active.current) setError(reason instanceof Error ? reason.message : "AI could not extract this material.");
+    } finally { if (active.current) setExtracting(false); }
+  };
+
   const save = async () => {
-    const parsedValues: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
+    if (saving || extracting) return;
+    const values: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
     try {
       for (const field of fields) {
-        const value = parseDraft(
-          field,
-          drafts[field.definition.id] ?? { text: "", choices: [] },
-        );
-        if (value !== null && (!Array.isArray(value) || value.length > 0)) {
-          parsedValues.push({ fieldId: field.definition.id, value });
-        }
+        const value = parseDraft(field, currentDrafts.current[field.definition.id] ?? { text: "", choices: [] });
+        if (value !== null && (!Array.isArray(value) || value.length)) values.push({ fieldId: field.definition.id, value });
       }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Check the application information.");
-      return;
-    }
-
-    if (parsedValues.length === 0) {
-      setError("Enter any application information you want to keep.");
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    try {
-      const created = await window.aaaat.candidatures.create({ values: parsedValues });
-      onCreated(created.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not save this application.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const cancel = () => {
-    if (dirty && !window.confirm("Discard unsaved candidature edits?")) return;
-    onCancel();
-  };
-
-  return (
-    <section className="candidature-manual-entry" aria-label={title}>
-      <div className="candidature-editor-heading">
-        <div>
-          <p className="eyebrow">New application</p>
-          <h2>{title}</h2>
-        </div>
-        <button type="button" className="compact-secondary" disabled={saving} onClick={cancel}>
-          Back
-        </button>
-      </div>
-
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
-
-      <form
-        className="manual-fields-pane"
-        aria-label="Application information"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        {fieldsLoading ? (
-          <p className="manual-fields-loading">Loading information…</p>
-        ) : fields.length === 0 ? (
-          <p className="manual-fields-loading">No application information is configured yet. Retain raw material instead.</p>
-        ) : (
-          <div className="manual-field-grid manual-open">
-            {fields.map((field) => (
-              <label className="manual-field" key={field.definition.id}>
-                <span className="manual-field-label">{field.definition.label}</span>
-                {field.definition.description ? (
-                  <span className="field-hint">{field.definition.description}</span>
-                ) : null}
-                {renderInput(field)}
-              </label>
-            ))}
-          </div>
-        )}
-        <div className="manual-entry-actions">
-          <p className="compact-help">Save only what you know. A Source and AI are not required.</p>
-          <button type="submit" disabled={saving || fieldsLoading || fields.length === 0}>
-            {saving ? "Saving…" : "Save application"}
-          </button>
-        </div>
-      </form>
-    </section>
-  );
-}
-
-export function CandidatureRawCapturePanel({
-  title,
-  onCancel,
-  onCreated,
-  onDirtyChange,
-}: EntryProps) {
-  const [source, setSource] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const dirty = source.length > 0;
-
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
-  }, [dirty, onDirtyChange]);
-
-  const cancel = () => {
-    if (dirty && !window.confirm("Discard unsaved candidature edits?")) return;
-    onCancel();
-  };
-
-  const save = async () => {
-    if (!source.trim()) {
-      setError("Paste or write the material you want to retain.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
+      if (!source.trim() && !values.length) { setError("Add an offer, note, or application detail."); return; }
+      setSaving(true); setError(null);
       const created = await window.aaaat.candidatures.create({
-        values: [],
-        source: {
-          kind: "other",
-          title: "",
-          url: "",
-          sourceText: source,
-        },
+        values,
+        ...(source.trim() ? { source: { kind: "other" as const, title: "", url: "", sourceText: source } } : {}),
       });
-      onCreated(created.id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "AAAAT could not retain this material.");
-    } finally {
-      setSaving(false);
-    }
+      onCreated(created.id, tagResult);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "The application could not be saved."); }
+    finally { setSaving(false); }
   };
+  const cancel = () => {
+    if (dirty && !window.confirm("Discard this application draft?")) return;
+    onCancel();
+  };
+  useShellActions({
+    title: "New application",
+    actions: [
+      { id: "save-application", label: saving ? "Saving…" : "Save", onClick: () => void save(), primary: true, disabled: saving || extracting || !dirty },
+      { id: "extract-draft", label: extracting ? "Extracting…" : "Extract with AI", onClick: () => void extract(), disabled: !source.trim() || extracting || saving || fieldsLoading },
+      { id: "close-application", label: "Cancel", onClick: cancel, disabled: saving },
+    ],
+  }, 1);
 
   return (
-    <section className="candidature-manual-entry candidature-raw-capture" aria-label={title}>
-      <div className="candidature-editor-heading">
-        <div>
-          <p className="eyebrow">New application</p>
-          <h2>{title}</h2>
-        </div>
-        <button type="button" className="compact-secondary" disabled={saving} onClick={cancel}>
-          Back
-        </button>
-      </div>
+    <section className="application-draft" aria-label="New application">
       {error ? <p className="error-message" role="alert">{error}</p> : null}
-      <form
-        className="manual-source-pane"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <label>
-          Raw material
-          <textarea
-            aria-label="Application raw material"
-            rows={12}
-            maxLength={50000}
-            value={source}
-            disabled={saving}
-            onChange={(event) => {
-              setSource(event.target.value);
-              setError(null);
-            }}
-            placeholder="Offer, recruiter message, application form text, conversation, or notes"
-          />
+      {message ? <p role="status">{message}</p> : null}
+      <div className="application-draft-columns">
+        <label className="application-draft-source">
+          <span>Offer or notes</span>
+          <textarea rows={18} maxLength={50000} value={source} disabled={saving} onChange={(event) => { sourceRevision.current += 1; setSource(event.target.value); setTagResult(undefined); }} placeholder="Paste an offer, recruiter message, link, or notes" />
+          <small>Extract with AI sends this material to your configured AI to fill fields and suggest Tags.</small>
         </label>
-        <div className="manual-entry-actions">
-          <p className="compact-help">AAAAT will retain this material as a Source. No AI is needed.</p>
-          <button type="submit" disabled={saving}>
-            {saving ? "Retaining…" : "Retain raw material"}
-          </button>
+        <div className="application-draft-fields">
+          {fieldsLoading ? <p>Loading fields…</p> : (
+            <div className="manual-field-grid">
+              {fields.map((field) => (
+                <div className="manual-field" key={field.definition.id}>
+                  <label className="manual-field-label">{field.definition.label}</label>
+                  {renderInput(field)}
+                  {field.definition.description ? <details className="field-description"><summary>About this field</summary><p>{field.definition.description}</p></details> : null}
+                </div>
+              ))}
+            </div>
+          )}
+          {conflicts.map((proposal) => {
+            const field = fields.find((candidate) => candidate.definition.id === proposal.fieldId);
+            if (!field) return null;
+            return <div className="application-draft-conflict" key={proposal.fieldId}><strong>{field.definition.label}: another value found</strong><p>{Array.isArray(proposal.value) ? proposal.value.join(", ") : String(proposal.value)}</p><button type="button" onClick={() => setDraft(proposal.fieldId, valueDraft(field, proposal.value))}>Use suggestion</button><button type="button" onClick={() => setConflicts((current) => current.filter((item) => item.fieldId !== proposal.fieldId))}>Dismiss</button></div>;
+          })}
+          {tagResult && (tagResult.existingTags.length + tagResult.newTags.length > 0) ? <div className="application-draft-tags"><strong>Suggested Tags</strong><p>{[...tagResult.existingTags.map((tag) => tag.name), ...tagResult.newTags.map((tag) => tag.name)].join(" · ")}</p><small>Review these Tags with the saved application.</small></div> : null}
         </div>
-      </form>
+      </div>
     </section>
   );
 }

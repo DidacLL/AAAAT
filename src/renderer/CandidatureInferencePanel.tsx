@@ -49,7 +49,7 @@ function routeReady(
 ): boolean {
   return connections.some(
     (connection) =>
-      connection.defaultForOperations.includes("job_extraction") || connection.isDefault,
+      connection.defaultForOperations.includes("job_extraction") || connection.defaultForOperations.includes("tag_inference") || connection.isDefault,
   );
 }
 
@@ -67,6 +67,8 @@ export function CandidatureInferencePanel({
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
+  const [tagError, setTagError] = useState<string | null>(null);
+  const [tagBusy, setTagBusy] = useState(false);
   const targetSet = useMemo(() => new Set(targetFieldIds), [targetFieldIds]);
   const requestedFields = useMemo(
     () =>
@@ -114,13 +116,15 @@ export function CandidatureInferencePanel({
   );
 
   useEffect(() => {
-    if (task || aiReady !== true || !fieldContext || requestedFields.length === 0) return;
+    const canExtract = requestedFields.length > 0 && Boolean(fieldContext);
+    const canFindTags = includeTagInference && Boolean(tagContext);
+    if (task || aiReady !== true || (!canExtract && !canFindTags)) return;
 
     startAiTask<InferenceTaskResult>(
       taskId,
       async (updateDetail, signal) => {
         updateDetail(
-          requestedFields.length === 1
+          requestedFields.length === 0 ? "Finding Tags…" : requestedFields.length === 1
             ? `Finding ${requestedFields[0]?.definition.label ?? "this information"}…`
             : `Finding ${requestedFields.length} missing values…`,
         );
@@ -135,12 +139,12 @@ export function CandidatureInferencePanel({
         signal.addEventListener("abort", cancelProvider, { once: true });
 
         try {
-          const fieldPromise = window.aaaat.aiTasks.extractJob(taskId, {
+          const fieldPromise = canExtract ? window.aaaat.aiTasks.extractJob(taskId, {
             sourceTitle: "Retained AAAAT candidature context",
             sourceUrl: "",
             sourceText: fieldContext,
             targetFieldIds: [...targetFieldIds],
-          });
+          }) : Promise.resolve<PartialJobExtractionResult>({ proposals: [], issues: [] });
 
           if (!includeTagInference || !tagContext) return await fieldPromise;
 
@@ -234,11 +238,12 @@ export function CandidatureInferencePanel({
   };
 
   const createAndAttachTag = async (proposal: TagInferenceNewTag, index: number) => {
-    const tag = await window.aaaat.candidatures.createTag({
-      name: proposal.name,
-      definition: proposal.definition,
-      aliases: proposal.aliases,
-    });
+    const glossary = await window.aaaat.candidatures.listTags();
+    const normalizedName = proposal.name.trim().toLocaleLowerCase();
+    const tag = glossary.find((candidate) => [candidate.name, ...candidate.aliases].some((term) => term.trim().toLocaleLowerCase() === normalizedName))
+      ?? await window.aaaat.candidatures.createTag({
+        name: proposal.name, definition: proposal.definition, aliases: proposal.aliases,
+      });
     const current = (await window.aaaat.candidatures.list()).find(
       (item) => item.id === candidature.id,
     );
@@ -252,7 +257,14 @@ export function CandidatureInferencePanel({
     await onChanged?.();
   };
 
-  if (requestedFields.length === 0) {
+  const handleTag = async (action: () => Promise<void>) => {
+    if (tagBusy) return;
+    setTagBusy(true); setTagError(null);
+    try { await action(); } catch (reason) { setTagError(reason instanceof Error ? reason.message : "The Tag could not be saved."); }
+    finally { setTagBusy(false); }
+  };
+
+  if (requestedFields.length === 0 && !includeTagInference) {
     return <p className="compact-help">This information is not available for AI use.</p>;
   }
   if (
@@ -277,7 +289,7 @@ export function CandidatureInferencePanel({
       </div>
     );
   }
-  if (!fieldContext) {
+  if (!fieldContext && !(includeTagInference && tagContext)) {
     return (
       <p className="compact-help candidature-inline-ai-message">
         Keep some Source text or retained information available to AI before asking for this value.
@@ -313,6 +325,7 @@ export function CandidatureInferencePanel({
 
   return (
     <section className="candidature-tag-proposals" aria-label="AI suggestions">
+      {tagError ? <p className="error-message" role="alert">{tagError}</p> : null}
       {result.fieldInferenceError ? (
         <div className="ai-task-failure candidature-inline-ai-message" role="alert">
           <span>
@@ -346,7 +359,7 @@ export function CandidatureInferencePanel({
                 <strong>{proposal.name}</strong>
                 {proposal.evidence ? <p>{proposal.evidence}</p> : null}
                 <div className="button-row">
-                  <button type="button" onClick={() => void attachExistingTag(proposal)}>
+                  <button type="button" disabled={tagBusy} onClick={() => void handleTag(() => attachExistingTag(proposal))}>
                     Attach Tag
                   </button>
                   <button
@@ -378,7 +391,7 @@ export function CandidatureInferencePanel({
                 <div className="button-row">
                   <button
                     type="button"
-                    onClick={() => void createAndAttachTag(proposal, index)}
+                    disabled={tagBusy} onClick={() => void handleTag(() => createAndAttachTag(proposal, index))}
                   >
                     Create and attach
                   </button>

@@ -34,9 +34,11 @@ function reviewDetail(result: ExternalApplicationInformationPendingResult): stri
 export function CandidatureOpportunityResearchAccessPanel({
   candidatureId,
   contextDirty,
+  onClose,
 }: {
   readonly candidatureId: string;
   readonly contextDirty: boolean;
+  readonly onClose?: () => void;
 }) {
   const [access, setAccess] = useState<CandidatureOpportunityResearchAccess | null>(null);
   const [intent, setIntent] = useState<Intent | null>(null);
@@ -57,14 +59,14 @@ export function CandidatureOpportunityResearchAccessPanel({
     recordCompletedAiTask(
       `candidature-inference:${candidatureId}:missing`,
       pending.result,
-      "Fill application information with my AI",
+      "Fill application details",
       reviewDetail(pending),
       pending.scopeFieldIds,
     );
     setMessage(
       pending.result.issues.length > 0
         ? "Suggestions are ready on the application fields. AAAAT kept usable suggestions and marked the others for review."
-        : "Suggestions are ready on the application fields. Nothing has been saved yet.",
+        : "Empty fields are filled on the application. Existing values and active edits stay unchanged; review any alternatives.",
     );
   }, [candidatureId]);
 
@@ -312,7 +314,7 @@ export function CandidatureOpportunityResearchAccessPanel({
 
   const close = async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (!api) return;
+    if (!api) { onClose?.(); return; }
     setBusy("close");
     setMessage(null);
     setError(null);
@@ -323,6 +325,7 @@ export function CandidatureOpportunityResearchAccessPanel({
       setApplicationTask(null);
       setInterviewContext(null);
       setResultText("");
+      onClose?.();
     } catch {
       setError("AAAAT could not close this AI task.");
     } finally {
@@ -334,13 +337,13 @@ export function CandidatureOpportunityResearchAccessPanel({
 
   return (
     <section className="manual-source-warning" aria-label="Use my AI for this application">
-      <h3>Use my AI</h3>
+      <header className="external-task-heading"><h2>Send to my AI</h2><button type="button" disabled={disabled} onClick={() => void close()}>Close</button></header>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       {message ? <p>{message}</p> : null}
 
       {!intent ? (
         <>
-          <p>Choose what you want your AI to help with. AAAAT keeps validation and saving under your control.</p>
+
           {contextDirty ? <p className="compact-help">Save or discard the application edits first.</p> : null}
           <div className="button-row">
             <button
@@ -350,7 +353,7 @@ export function CandidatureOpportunityResearchAccessPanel({
             >
               {busy === "open-application-information"
                 ? "Preparing…"
-                : "Fill application information with my AI"}
+                : "Fill application details"}
             </button>
             <button
               type="button"
@@ -360,16 +363,16 @@ export function CandidatureOpportunityResearchAccessPanel({
             >
               {busy === "open-interview"
                 ? "Preparing…"
-                : "Prepare for interview with my AI"}
+                : "Interview notes"}
             </button>
           </div>
         </>
       ) : intent === "application-information" ? (
         <>
-          <h4>Fill application information with my AI</h4>
+          <h4>Fill application details</h4>
           <p className="compact-help">
             Your AI can suggest values only for the application information AAAAT lists here.
-            Suggestions are checked locally and appear on the existing fields for Use, Edit, or Dismiss.
+            Empty fields can be filled directly. Alternatives to existing values remain for review.
           </p>
 
           <label htmlFor={`application-information-instruction-${candidatureId}`}>
@@ -385,7 +388,7 @@ export function CandidatureOpportunityResearchAccessPanel({
 
           {applicationTask ? (
             <details>
-              <summary>Review what will be shared</summary>
+              <summary>Shared context</summary>
               <p><strong>Application information your AI may propose:</strong></p>
               <ul>
                 {applicationTask.fields.map((field) => (
@@ -458,7 +461,7 @@ export function CandidatureOpportunityResearchAccessPanel({
         </>
       ) : (
         <>
-          <h4>Prepare for interview with my AI</h4>
+          <h4>Interview notes</h4>
           <p className="compact-help">
             This is a separate writing task. Returned interview preparation is retained as a Source; it does not propose application fields.
           </p>
@@ -524,7 +527,7 @@ export function CandidatureOpportunityResearchAccessPanel({
               disabled={disabled || !resultText.trim()}
               onClick={() => void retainInterviewResult()}
             >
-              {busy === "retain" ? "Saving…" : "Save as Source"}
+              {busy === "retain" ? "Saving…" : "Save notes"}
             </button>
             <button
               type="button"

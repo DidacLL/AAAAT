@@ -1,28 +1,15 @@
-import { useState } from "react";
-
-import {
-  CandidatureManualEntryPanel,
-  CandidatureRawCapturePanel,
-} from "./CandidatureManualEntryPanel";
+import { useCallback, useState } from "react";
+import type { PartialTagInferenceResult } from "../shared/ai-proposal-outcomes";
+import { CandidatureManualEntryPanel } from "./CandidatureManualEntryPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
+import { recordCompletedAiTask } from "./ai-task-store";
+import { useShellActions } from "./shell-actions";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidature-capture.css";
 
-type NewApplicationIntent = "direct" | "raw";
-type ContinuationTask = "manual" | "ai";
-
-interface InitialSelection {
-  readonly candidatureId: string;
-  readonly rawRetained: boolean;
-  readonly task?: ContinuationTask;
-}
-
 export function CandidaturesAiWorkspace({
-  initialCandidatureId,
-  onInitialCandidatureCleared,
-  onDirtyChange,
-  onTagGlossaryChange,
-  onTagContextChange,
+  initialCandidatureId, onInitialCandidatureCleared, onDirtyChange,
+  onTagGlossaryChange, onTagContextChange,
 }: {
   readonly initialCandidatureId?: string;
   readonly onInitialCandidatureCleared?: () => void;
@@ -30,163 +17,45 @@ export function CandidaturesAiWorkspace({
   readonly onTagGlossaryChange?: () => void;
   readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
-  const [view, setView] = useState<"applications" | "new">("applications");
-  const [newIntent, setNewIntent] = useState<NewApplicationIntent | null>(null);
+  const [creating, setCreating] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [selection, setSelection] = useState<InitialSelection | null>(() =>
-    initialCandidatureId ? { candidatureId: initialCandidatureId, rawRetained: false } : null,
+  const [selection, setSelection] = useState<{ candidatureId: string; task?: "ai" } | null>(
+    initialCandidatureId ? { candidatureId: initialCandidatureId } : null,
   );
   const [dirty, setDirty] = useState(false);
-
-  const reportDirty = (next: boolean) => {
-    setDirty(next);
-    onDirtyChange?.(next);
-  };
-
-  const switchView = (next: "applications" | "new") => {
-    if (next === view) return;
+  const reportDirty = useCallback((next: boolean) => {
+    setDirty(next); onDirtyChange?.(next);
+  }, [onDirtyChange]);
+  const newApplication = () => {
     if (dirty && !window.confirm("Discard unsaved application edits?")) return;
-    reportDirty(false);
-    if (next === "new") {
-      setSelection(null);
-      setNotice(null);
-      setNewIntent(null);
-    } else {
-      setNewIntent(null);
-    }
-    setView(next);
+    setCreating(true); reportDirty(false);
   };
-
-  const createdDirectly = (candidatureId: string) => {
-    reportDirty(false);
-    setRevision((current) => current + 1);
-    setSelection({ candidatureId, rawRetained: false });
-    setNotice("Application saved. Add or change information whenever you need.");
-    setNewIntent(null);
-    setView("applications");
+  const created = (candidatureId: string, tags?: PartialTagInferenceResult) => {
+    if (tags) recordCompletedAiTask(
+      `candidature-inference:${candidatureId}:missing`,
+      { proposals: [], issues: [], tagInference: tags }, "Extract application", "Tag suggestions ready", [],
+    );
+    reportDirty(false); setRevision((current) => current + 1);
+    setSelection({ candidatureId, ...(tags ? { task: "ai" as const } : {}) }); setCreating(false);
   };
-
-  const retainedRaw = (candidatureId: string) => {
-    reportDirty(false);
-    setRevision((current) => current + 1);
-    setSelection({ candidatureId, rawRetained: true });
-    setNotice("Raw material retained as a Source.");
-    setNewIntent(null);
-    setView("applications");
-  };
-
-  const chooseContinuation = (task: ContinuationTask) => {
-    if (!selection?.rawRetained) return;
-    if (dirty && !window.confirm("Discard unsaved application edits?")) return;
-    reportDirty(false);
-    setSelection({ ...selection, task });
-  };
-
-  const clearInitialSelection = () => {
-    setSelection(null);
-    onInitialCandidatureCleared?.();
-  };
-  const workspaceKey = `${revision}:${selection?.candidatureId ?? "corpus"}:${selection?.task ?? "review"}`;
-
+  useShellActions({
+    title: "Applications",
+    actions: [{ id: "new-application", label: "New", onClick: newApplication, primary: true }],
+  });
   return (
     <div className="candidature-capture-owner">
-      <nav className="application-view-switcher" aria-label="Application view">
-        <span className="console-section-code" aria-hidden="true">APPLICATIONS / LOCAL INDEX</span>
-        <div>
-          <button
-            type="button"
-            className={view === "applications" ? "active" : ""}
-            aria-pressed={view === "applications"}
-            onClick={() => switchView("applications")}
-          >
-            Applications
-          </button>
-          <button
-            type="button"
-            aria-label="New application"
-            className={view === "new" ? "active new-application-switch" : "new-application-switch"}
-            aria-pressed={view === "new"}
-            onClick={() => switchView("new")}
-          >
-            ＋ New
-          </button>
-        </div>
-      </nav>
-
-      {view === "new" ? (
-        newIntent === "direct" ? (
-          <CandidatureManualEntryPanel
-            title="Enter information directly"
-            onCancel={() => setNewIntent(null)}
-            onCreated={createdDirectly}
-            onDirtyChange={reportDirty}
-          />
-        ) : newIntent === "raw" ? (
-          <CandidatureRawCapturePanel
-            title="Retain raw material"
-            onCancel={() => setNewIntent(null)}
-            onCreated={retainedRaw}
-            onDirtyChange={reportDirty}
-          />
-        ) : (
-          <section className="new-application-start" aria-label="New application">
-            <div>
-              <p className="eyebrow">New application</p>
-              <h2>How do you want to start?</h2>
-              <p className="compact-help">Both paths create the same application. Start with what you already have.</p>
-            </div>
-            <div className="new-application-intention-grid">
-              <button type="button" onClick={() => setNewIntent("direct")}>
-                <strong>Enter information directly</strong>
-                <span>Use your current application information fields. No Source or AI is required.</span>
-              </button>
-              <button type="button" onClick={() => setNewIntent("raw")}>
-                <strong>Retain raw material</strong>
-                <span>Keep an offer, message, form copy, conversation, or notes first.</span>
-              </button>
-            </div>
-          </section>
-        )
+      {creating ? (
+        <CandidatureManualEntryPanel onCancel={() => { setCreating(false); reportDirty(false); }} onCreated={created} onDirtyChange={reportDirty} />
       ) : (
-        <>
-          {notice ? <p className="application-save-notice" role="status">{notice}</p> : null}
-          {selection?.rawRetained ? (
-            <section className="new-application-continuation" aria-label="Raw material continuation">
-              <div>
-                <p className="eyebrow">Source retained</p>
-                <strong>Continue with the same application</strong>
-              </div>
-              <div className="new-application-continuation-actions">
-                <button
-                  type="button"
-                  className={selection.task === "ai" ? "active" : ""}
-                  onClick={() => chooseContinuation("ai")}
-                >
-                  Use AI to suggest information
-                </button>
-                <button
-                  type="button"
-                  className={selection.task === "manual" ? "active" : ""}
-                  onClick={() => chooseContinuation("manual")}
-                >
-                  Fill information manually
-                </button>
-              </div>
-            </section>
-          ) : null}
-          <CandidaturesWorkspace
-            key={workspaceKey}
-            initialSelection={selection ? {
-              candidatureId: selection.candidatureId,
-              task: selection.task,
-            } : undefined}
-            onInitialSelectionCleared={clearInitialSelection}
-            onDirtyChange={reportDirty}
-            onTagGlossaryChange={onTagGlossaryChange}
-            onTagContextChange={onTagContextChange}
-          />
-        </>
+        <CandidaturesWorkspace
+          key={revision}
+          initialSelection={selection ?? undefined}
+          onInitialSelectionCleared={() => { setSelection(null); onInitialCandidatureCleared?.(); }}
+          onDirtyChange={reportDirty}
+          onTagGlossaryChange={onTagGlossaryChange}
+          onTagContextChange={onTagContextChange}
+          onNewApplication={newApplication}
+        />
       )}
     </div>
   );

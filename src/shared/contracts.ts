@@ -198,7 +198,7 @@ export const candidatureFieldValueSchema = z
 export type CandidatureFieldValue = z.infer<typeof candidatureFieldValueSchema>;
 export const candidatureFieldValueListSchema = z.array(candidatureFieldValueSchema);
 export const candidatureFieldValueSetSchema = z
-  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema })
+  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema, onlyIfEmpty: z.literal(true).optional() })
   .strict();
 export type CandidatureFieldValueSet = z.infer<typeof candidatureFieldValueSetSchema>;
 export const candidatureFieldValueClearSchema = z.object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid() }).strict();
