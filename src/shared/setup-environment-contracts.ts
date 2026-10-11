@@ -14,16 +14,16 @@ export const setupEnvironmentChannels = Object.freeze({
 export const externalAssistantConnectionSchema = z
   .object({
     packaged: z.boolean(),
-    executablePath: z.string().min(1).max(4096),
-    workspacePath: z.string().min(1).max(4096),
+    executablePath: z.string().min(1),
+    workspacePath: z.string().min(1),
   })
   .strict();
 export type ExternalAssistantConnection = z.infer<typeof externalAssistantConnectionSchema>;
 
 export const externalAssistantGuidanceSchema = z
   .object({
-    title: z.string().min(1).max(120),
-    content: z.string().min(1).max(12_000),
+    title: z.string().min(1),
+    content: z.string().min(1),
   })
   .strict();
 export type ExternalAssistantGuidance = z.infer<typeof externalAssistantGuidanceSchema>;
@@ -38,7 +38,7 @@ export const setupTexCommandStatusSchema = z
   .object({
     command: setupTexCommandSchema,
     available: z.boolean(),
-    version: z.string().min(1).max(160).nullable(),
+    version: z.string().min(1).nullable(),
   })
   .strict()
   .superRefine((status, context) => {
@@ -52,7 +52,7 @@ export const setupAiOperationStatusSchema = z
   .object({
     operation: aiOperationSchema,
     available: z.boolean(),
-    connectionName: z.string().min(1).max(120).nullable(),
+    connectionName: z.string().min(1).nullable(),
   })
   .strict()
   .superRefine((status, context) => {
@@ -97,7 +97,7 @@ export const setupEnvironmentSnapshotSchema = z
     ai: z
       .object({
         configurationReadable: z.boolean(),
-        connectionCount: z.number().int().min(0).max(16),
+        connectionCount: z.number().int().min(0),
         operations: setupAiOperationListSchema,
       })
       .strict(),
