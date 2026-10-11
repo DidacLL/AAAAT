@@ -40,7 +40,7 @@ import "./owner-feedback-recovery.css";
 import "./tag-glossary.css";
 
 type CandidatureMode = "corpus" | "selected";
-type InitialCandidatureTask = "ai";
+type InitialCandidatureTask = "tags";
 interface InitialCandidatureSelection {
   readonly candidatureId: string;
   readonly task?: InitialCandidatureTask;
@@ -258,7 +258,7 @@ export function CandidaturesWorkspace({
         : undefined;
       if (requested) {
         hydrate(requested);
-        setBulkInferenceOpen(initialTask === "ai");
+        setTagInferenceOpen(initialTask === "tags");
         setMode("selected");
       }
     }).catch(() => { if (active) setError("AAAAT could not load applications."); });
