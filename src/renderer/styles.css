@@ -9,8 +9,8 @@
   --machine-font: "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
   --document-font: Georgia, Cambria, "Times New Roman", serif;
   --canvas: #6f766b;
-  --paper: #eadfc9;
-  --paper-strong: #f5ecdc;
+  --paper: #f4efe4;
+  --paper-strong: #fffaf1;
   --paper-sheet: #fbf5e8;
   --panel: #717968;
   --panel-deep: #505a50;
@@ -20,8 +20,8 @@
   --machine-edge: #676f66;
   --machine-highlight: #8f9589;
   --ink: #1d2827;
-  --muted-ink: #58625d;
-  --line: #7d806f;
+  --muted-ink: #4d5b52;
+  --line: #92988b;
   --line-soft: #bab59f;
   --accent: #b6542b;
   --accent-dark: #803b23;
@@ -38,6 +38,8 @@
   box-sizing: border-box;
 }
 
+[hidden] { display: none !important; }
+
 html,
 body,
 #root {
@@ -51,12 +53,7 @@ body {
   overflow: hidden;
   color: var(--ink);
   background-color: var(--machine-deep);
-  background-image:
-    linear-gradient(135deg, rgb(27 33 29 / 48%), rgb(48 55 48 / 22%)),
-    url("./assets/aaaat-bg-machine.png");
-  background-position: center;
-  background-size: cover;
-  background-attachment: fixed;
+
 }
 
 button,

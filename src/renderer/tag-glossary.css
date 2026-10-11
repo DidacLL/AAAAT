@@ -138,20 +138,7 @@
   max-width: 34rem;
 }
 
-.work-rail {
-  max-height: calc(100vh - 78px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-right: 1px;
-}
-
 @media (max-width: 900px) {
-  .work-rail {
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-  }
-
   .tag-visor {
     grid-template-columns: auto minmax(0, 1fr);
     max-width: none;

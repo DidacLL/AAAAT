@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ProfileItem, ProfileItemInput, ProfileSnapshot } from "../shared/contracts";
 import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
 import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
+import { useShellActions } from "./shell-actions";
 
 interface ItemFormState {
   kind: string;
@@ -432,17 +433,28 @@ export function ProfileWorkspace({
     }
   };
 
+  useShellActions({
+    title: editingVariant ? "Edit variation" : creating ? "New information"
+      : editingItem ? selected?.title ?? "Edit information" : "My information",
+    actions: editingVariant ? [
+      { id: "save-variation", label: busy ? "Saving…" : "Save", primary: true,
+        disabled: !variant.name.trim() || !variant.title.trim() || busy, onClick: () => void saveVariant() },
+      { id: "close-variation", label: "Close", disabled: busy, onClick: closeVariant },
+    ] : editingItem ? [
+      { id: "save-information", label: busy ? "Saving…" : "Save", primary: true,
+        disabled: !draft.title.trim() || busy, onClick: () => void saveItem() },
+      { id: "close-information", label: "Close", disabled: busy, onClick: cancelItemEdit },
+    ] : [
+      ...(selected ? [{ id: "edit-information", label: "Edit", onClick: startItemEdit }] : []),
+      { id: "new-information", label: "New", primary: true, onClick: startNew },
+    ],
+    moreActions: editingVariant
+      ? editingVariantId ? [{ id: "remove-variation", label: "Remove variation", disabled: busy, onClick: () => void removeVariant() }] : []
+      : selected ? [{ id: "remove-information", label: "Remove information", disabled: busy, onClick: () => void removeItem() }] : [],
+  }, 1);
+
   return (
     <section className="profile-workspace professional-information-area" aria-label="My information">
-      <header className="document-console-heading">
-        <div>
-          <p className="eyebrow">Reusable professional information</p>
-          <h1>My information</h1>
-        </div>
-        <button type="button" className="compact-primary" onClick={startNew}>
-          ＋ Add information
-        </button>
-      </header>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       <div className="professional-information-layout">
@@ -487,25 +499,28 @@ export function ProfileWorkspace({
                 <div className="professional-information-item-editor" aria-label={creating ? "Edit new information" : `Edit ${selected?.title ?? "information"}`}>
                   <div className="profile-item-form">
                     <label>
-                      Information type
-                      <select
-                        value={informationTypes.some(([value]) => value === draft.kind) ? draft.kind : "other"}
+                      Group
+                      <input
+                        list="profile-information-groups"
+                        maxLength={80}
+                        value={informationTypes.find(([value]) => value === draft.kind)?.[1] ?? draft.kind}
+                        placeholder="Experience, volunteering…"
                         onChange={(event) => {
-                          const kind = event.target.value;
+                          const entered = event.target.value;
+                          const kind = informationTypes.find(([, label]) => label.toLocaleLowerCase() === entered.toLocaleLowerCase())?.[0] ?? entered;
                           setDraft((current) => ({
                             ...current,
                             kind,
-                            subtitle:
-                              kind === "contact" && !current.subtitle.trim()
-                                ? "Email"
-                                : current.subtitle,
+                            subtitle: kind === "contact" && !current.subtitle.trim() ? "Email" : current.subtitle,
                           }));
                         }}
-                      >
-                        {informationTypes.map(([value, label]) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
+                      />
+                      <datalist id="profile-information-groups">
+                        {[...new Set([
+                          ...informationTypes.map(([, label]) => label),
+                          ...groups.map((kind) => informationTypes.find(([value]) => value === kind)?.[1] ?? kind),
+                        ])].map((group) => <option key={group} value={group} />)}
+                      </datalist>
                     </label>
                     {draft.kind === "contact" ? (
                       <label>
@@ -575,17 +590,7 @@ export function ProfileWorkspace({
                     </label>
                   ) : null}
 
-                  <div className="button-row">
-                    <button type="button" disabled={!draft.title.trim() || busy} onClick={() => void saveItem()}>
-                      {busy ? "Saving…" : "Save"}
-                    </button>
-                    <button type="button" className="compact-secondary" onClick={cancelItemEdit}>Cancel</button>
-                    {selected ? (
-                      <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeItem()}>
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
+
                 </div>
               ) : selected ? (
                 <>
@@ -599,10 +604,7 @@ export function ProfileWorkspace({
                       <p className="profile-item-meta"><span>Link</span><span>{selected.url}</span></p>
                     ) : null}
                   </div>
-                  <div className="button-row profile-item-primary-actions">
-                    <button type="button" onClick={startItemEdit}>Edit</button>
-                    <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeItem()}>Remove</button>
-                  </div>
+
                 </>
               ) : null}
 
@@ -614,7 +616,7 @@ export function ProfileWorkspace({
                   </summary>
                   <div className="profile-variations-content">
                     <div className="profile-variations-heading">
-                      <p className="compact-help">Optional reusable alternate content for this item. The base information above remains the primary record.</p>
+                      <p className="compact-help">Save alternate wording for this information.</p>
                       {!editingVariant ? (
                         <button type="button" className="compact-secondary" onClick={() => editVariant()}>
                           New variation
@@ -623,7 +625,7 @@ export function ProfileWorkspace({
                     </div>
 
                     {selectedVariants.length === 0 && !editingVariant ? (
-                      <p className="compact-empty">No saved variations. None is required for ordinary use.</p>
+                      <p className="compact-empty">No saved variations.</p>
                     ) : null}
 
                     {selectedVariants.length > 0 ? (
@@ -707,15 +709,7 @@ export function ProfileWorkspace({
                           </label>
                         ) : null}
 
-                        <div className="button-row profile-variant-actions">
-                          <button type="button" disabled={!variant.name.trim() || !variant.title.trim() || busy} onClick={() => void saveVariant()}>
-                            {busy ? "Saving…" : "Save variation"}
-                          </button>
-                          {editingVariantId ? (
-                            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeVariant()}>Remove variation</button>
-                          ) : null}
-                          <button type="button" className="compact-secondary" onClick={closeVariant}>Close</button>
-                        </div>
+
                       </div>
                     ) : null}
                   </div>
