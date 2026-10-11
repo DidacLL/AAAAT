@@ -4,6 +4,8 @@ This local, stochastic evaluation harness collects product evidence. It is not a
 
 ## Product Owner workflow
 
+Windows 10 prerequisites: Node.js 24.15+ (major 24) and npm 11 or npm 12. Run the usual `npm ci` without downgrading a global npm 12 installation or passing special command-line flags. AAAAT's project `.npmrc` opts into the single pinned Electron Forge 7.x Git dependency that npm 12 otherwise blocks (`EALLOWGIT`); this is a project-scoped trust exception, not an npm security setting change for other repositories. Do not move this setting to your user/global `.npmrc`. CI checks clean npm 12 installation and packaging on Windows.
+
 1. Install dependencies with npm ci. For packaged testing, run npm run package first or let the launcher package AAAAT when needed.
 2. Start your OpenAI-compatible model endpoints, including llama.cpp if desired. The evaluator does not launch a model server or use experimental llama.cpp server-side MCP.
 3. Run npm run eval:ai. Select all modes or a subset and then all journeys or selected ones. Inventory and counts are derived from test/ai-eval/catalog.mjs.
