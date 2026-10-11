@@ -8,6 +8,10 @@ export const documentDomainChannels = Object.freeze({
   templateCreate: "aaaat:cv-template-create",
   templateUpdate: "aaaat:cv-template-update",
   templateRemove: "aaaat:cv-template-remove",
+  workingPreview: "aaaat:working-cv-preview",
+  workingKeep: "aaaat:working-cv-keep",
+  letterPreview: "aaaat:cover-letter-preview",
+  letterKeep: "aaaat:cover-letter-keep",
   workingCreate: "aaaat:working-cv-create",
   workingUpdate: "aaaat:working-cv-update",
   workingRemove: "aaaat:working-cv-remove",
@@ -328,6 +332,10 @@ export interface DocumentDomainDesktopApi {
     readonly createTemplate: (input: CvTemplateInput) => Promise<DocumentCollections>;
     readonly updateTemplate: (input: CvTemplateUpdate) => Promise<DocumentCollections>;
     readonly removeTemplate: (templateId: string) => Promise<DocumentCollections>;
+    readonly previewWorkingCv: (input: WorkingCvCreate) => Promise<WorkingCvRecord>;
+    readonly keepWorkingCv: (input: WorkingCvRecord) => Promise<WorkingCvRecord>;
+    readonly previewLetter: (input: CoverLetterInput) => Promise<CoverLetterRecord>;
+    readonly keepLetter: (input: CoverLetterRecord) => Promise<CoverLetterRecord>;
     readonly createWorkingCv: (input: WorkingCvCreate) => Promise<WorkingCvRecord>;
     readonly updateWorkingCv: (input: WorkingCvUpdate) => Promise<WorkingCvRecord>;
     readonly removeWorkingCv: (workingCvId: string) => Promise<DocumentCollections>;

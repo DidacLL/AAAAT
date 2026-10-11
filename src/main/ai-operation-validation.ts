@@ -131,6 +131,7 @@ export async function validateAiOperation(
       }
       case "cover_letter_draft": {
         const context = providerCoverLetterContextSchema.parse({
+          currentLetter: { recipient: "", subject: "", bodyParagraphs: [], closing: "", language: "" },
           sources: [{
             title: "Validation Source",
             url: "",

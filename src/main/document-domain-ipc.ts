@@ -33,6 +33,10 @@ import {
   createCoverLetter,
   createCvTemplate,
   createWorkingCv,
+  previewWorkingCv,
+  keepWorkingCv,
+  previewCoverLetter,
+  keepCoverLetter,
   duplicateRenderedCv,
   exportApplicationPacketProject,
   exportRenderedCoverLetterProject,
@@ -101,6 +105,22 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(documentDomainChannels.templateRemove, (event, templateId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return documentCollectionsSchema.parse(removeCvTemplate(requireWorkspaceRoot(), cvTemplateRecordSchema.shape.id.parse(templateId)));
+  });
+  ipcMain.handle(documentDomainChannels.workingPreview, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return previewWorkingCv(requireWorkspaceRoot(), workingCvCreateSchema.parse(input));
+  });
+  ipcMain.handle(documentDomainChannels.workingKeep, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return keepWorkingCv(requireWorkspaceRoot(), workingCvRecordSchema.parse(input));
+  });
+  ipcMain.handle(documentDomainChannels.letterPreview, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return previewCoverLetter(requireWorkspaceRoot(), coverLetterInputSchema.parse(input));
+  });
+  ipcMain.handle(documentDomainChannels.letterKeep, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return keepCoverLetter(requireWorkspaceRoot(), coverLetterRecordSchema.parse(input));
   });
   ipcMain.handle(documentDomainChannels.workingCreate, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);

@@ -643,7 +643,7 @@ export function removeCvTemplate(rootPath: string, templateId: string): Document
     });
   });
 }
-export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
+export function previewWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
   const input = workingCvCreateSchema.parse(rawInput);
   let sourceTemplateId: string|null = null;
   let language = input.language;
@@ -670,18 +670,28 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
         }));
   }
   pdfMetadata ??= defaultCvPdfMetadata(input.title, sections);
-  return withWorkspaceDatabase(rootPath, (database) => {
-    if (input.candidatureId) requireCandidature(database, input.candidatureId);
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    database
-        .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, input.title, nullable(language), sourceTemplateId, input.candidatureId,
-            JSON.stringify(pdfMetadata), parserSummary, JSON.stringify(sections), now, now);
-    return requireWorkingCv(database, id);
+  if (input.candidatureId) withWorkspaceDatabase(rootPath, (database) => requireCandidature(database, input.candidatureId as string));
+  const now = new Date().toISOString();
+  return workingCvRecordSchema.parse({
+    id: randomUUID(), title: input.title, language, sourceTemplateId,
+    candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections,
+    createdAt: now, updatedAt: now,
   });
+}
+export function keepWorkingCv(rootPath: string, rawDraft: WorkingCvRecord): WorkingCvRecord {
+  const draft = workingCvRecordSchema.parse(rawDraft);
+  return withWorkspaceDatabase(rootPath, (database) => {
+    if (draft.candidatureId) requireCandidature(database, draft.candidatureId);
+    if (draft.sourceTemplateId) requireTemplate(database, draft.sourceTemplateId);
+    const now = new Date().toISOString();
+    database.prepare(`INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(draft.id, draft.title, nullable(draft.language), draft.sourceTemplateId, draft.candidatureId,
+        JSON.stringify(draft.pdfMetadata), draft.parserSummary, JSON.stringify(draft.sections), now, now);
+    return requireWorkingCv(database, draft.id);
+  });
+}
+export function createWorkingCv(rootPath: string, input: WorkingCvCreate): WorkingCvRecord {
+  return keepWorkingCv(rootPath, previewWorkingCv(rootPath, input));
 }
 export function updateWorkingCv(rootPath: string, rawInput: WorkingCvUpdate): WorkingCvRecord {
   const input = workingCvUpdateSchema.parse(rawInput);
@@ -953,23 +963,28 @@ export function exportRenderedCvProject(
   return exportPortableProject(
       renderedProjectPath(rootPath, row), row.title, row.id, targetParent, 'cv');
 }
-export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
+export function previewCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
-  const sender = input.sender ?? defaultLetterSender(rootPath);
-  return withWorkspaceDatabase(rootPath, (database) => {
-    if (input.candidatureId) requireCandidature(database, input.candidatureId);
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    database
-        .prepare(
-            `INSERT INTO cover_letters(id, candidature_id, title, language, recipient, subject, body_json, closing, created_at, updated_at, sender_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, input.candidatureId, input.title, nullable(input.language),
-            nullable(input.recipient), nullable(input.subject),
-            JSON.stringify(input.bodyParagraphs), nullable(input.closing), now, now,
-            JSON.stringify(sender));
-    return requireLetter(database, id);
+  if (input.candidatureId) withWorkspaceDatabase(rootPath, (database) => requireCandidature(database, input.candidatureId as string));
+  const now = new Date().toISOString();
+  return coverLetterRecordSchema.parse({
+    ...input, sender: input.sender ?? defaultLetterSender(rootPath),
+    id: randomUUID(), createdAt: now, updatedAt: now,
   });
+}
+export function keepCoverLetter(rootPath: string, rawDraft: CoverLetterRecord): CoverLetterRecord {
+  const draft = coverLetterRecordSchema.parse(rawDraft);
+  return withWorkspaceDatabase(rootPath, (database) => {
+    if (draft.candidatureId) requireCandidature(database, draft.candidatureId);
+    const now = new Date().toISOString();
+    database.prepare(`INSERT INTO cover_letters(id, candidature_id, title, language, recipient, subject, body_json, closing, created_at, updated_at, sender_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(draft.id, draft.candidatureId, draft.title, nullable(draft.language), nullable(draft.recipient), nullable(draft.subject),
+        JSON.stringify(draft.bodyParagraphs), nullable(draft.closing), now, now, JSON.stringify(draft.sender));
+    return requireLetter(database, draft.id);
+  });
+}
+export function createCoverLetter(rootPath: string, input: CoverLetterInput): CoverLetterRecord {
+  return keepCoverLetter(rootPath, previewCoverLetter(rootPath, input));
 }
 export function updateCoverLetter(
     rootPath: string, rawInput: CoverLetterUpdate): CoverLetterRecord {

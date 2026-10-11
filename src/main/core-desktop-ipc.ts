@@ -72,6 +72,9 @@ import {
 } from "../shared/workspace-recovery-contracts";
 import {
   draftCoverLetter,
+  prepareCoverLetterDraft,
+  discardDocumentPreparation,
+  prepareCvWriting,
   extractJob,
   getAiConnection,
   writeCvField,
@@ -540,6 +543,18 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     return aiTaskCancellationResultSchema.parse(
       cancelCancellableCoverLetterDraft(aiTaskIdSchema.parse(taskId)),
     );
+  });
+  ipcMain.handle(aiChannels.documentPreparationDiscard, (event, requestId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    discardDocumentPreparation(requireWorkspaceRoot(), coverLetterDraftRequestSchema.shape.coverLetterId.parse(requestId));
+  });
+  ipcMain.handle(aiChannels.coverLetterPrepare, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return prepareCoverLetterDraft(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input));
+  });
+  ipcMain.handle(aiChannels.cvPrepare, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return prepareCvWriting(requireWorkspaceRoot(), cvWritingRequestSchema.parse(input));
   });
   ipcMain.handle(aiChannels.coverLetterDraft, async (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
