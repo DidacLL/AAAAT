@@ -35,7 +35,7 @@ import { validateAiOperation } from "./ai-operation-validation";
 const storedConnectionSchema = aiConnectionInputSchema
   .extend({
     id: aiConnectionIdSchema,
-    credentialCiphertext: z.string().min(1).max(32768).optional(),
+    credentialCiphertext: z.string().min(1).optional(),
     validatedOperations: z.array(aiOperationSchema).max(aiOperations.length),
   })
   .strict();
@@ -56,7 +56,7 @@ type OperationDefaults = z.infer<typeof operationDefaultsSchema>;
 const storedConnectionConfigurationSchema = z
   .object({
     version: z.literal(4),
-    connections: z.array(storedConnectionSchema).max(16),
+    connections: z.array(storedConnectionSchema),
     defaultConnectionId: aiConnectionIdSchema.nullable(),
     operationDefaults: operationDefaultsSchema,
   })
@@ -478,9 +478,6 @@ export function saveNamedAiConnection(
     );
   }
 
-  if (configuration.connections.length >= 16) {
-    throw new AiConnectionServiceError("AAAAT supports at most 16 AI connections.");
-  }
   const id = randomUUID();
   const credentialCiphertext =
     typeof input.credential === "string" ? encryptCredential(input.credential) : undefined;
