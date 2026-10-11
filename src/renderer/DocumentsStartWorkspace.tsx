@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DocumentCollections, CoverLetterRecord, WorkingCvRecord } from "../shared/document-domain-contracts";
 import { candidatureRecognitionProjection } from "./candidature-projections";
 import { rememberDocumentDraft, unsavedDocumentDrafts, forgetDocumentDraft } from "./document-drafts";
@@ -23,6 +23,9 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   const [creation, setCreation] = useState<"cv" | "letter" | null>(null);
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("profile");
+  const mounted = useRef(false);
+  const requestGeneration = useRef(0);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; requestGeneration.current += 1; }; }, []);
   const [busy, setBusy] = useState(false);
   const [, refreshDrafts] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +46,10 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       }).catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Documents could not be loaded."); });
     return () => { active = false; };
   }, []);
-  const start = (kind: "cv" | "letter") => { setCreation(kind); setTitle(""); setError(null); };
+  const start = (kind: "cv" | "letter") => { requestGeneration.current += 1; setBusy(false); setCreation(kind); setTitle(""); setError(null); };
   const openNew = async () => {
     if (!creation || busy) return;
+    const generation = ++requestGeneration.current;
     setBusy(true); setError(null);
     try {
       const draft = creation === "cv"
@@ -58,15 +62,16 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
           title: title.trim() || uniqueTitle("Cover letter", documents.filter((document) => "bodyParagraphs" in document).map((document) => document.title)),
           candidatureId: null, bodyParagraphs: [],
         });
+      if (!mounted.current || generation !== requestGeneration.current) return;
       rememberDocumentDraft(draft);
       setCreation(null); setTitle(""); onDirtyChange?.(false); onOpenDocument(draft.id);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be opened."); }
-    finally { setBusy(false); }
+    } catch (reason) { if (mounted.current && generation === requestGeneration.current) setError(reason instanceof Error ? reason.message : "The document could not be opened."); }
+    finally { if (mounted.current && generation === requestGeneration.current) setBusy(false); }
   };
   useShellActions({
     title: creation ? creation === "cv" ? "New CV" : "New cover letter" : "Documents",
     actions: creation ? [
-      { id: "document-create-cancel", label: "Cancel", onClick: () => { setCreation(null); setTitle(""); onDirtyChange?.(false); } },
+      { id: "document-create-cancel", label: "Cancel", onClick: () => { requestGeneration.current += 1; setBusy(false); setCreation(null); setTitle(""); onDirtyChange?.(false); } },
       { id: "document-create-open", label: "Open", onClick: () => { void openNew(); }, disabled: busy, primary: true },
     ] : [
       { id: "document-new-cv", label: "New CV", onClick: () => start("cv"), primary: true },
@@ -97,6 +102,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be deleted."); }
   };
   const editRenderedCopy = async (rendered: DocumentCollections["renderedCvs"][number]) => {
+    const generation = ++requestGeneration.current;
     setError(null);
     try {
       const preview = await window.aaaat.documentDomain.previewWorkingCv({
@@ -104,9 +110,10 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
         candidatureId: rendered.candidatureId, source: { kind: "blank" },
       });
       const draft = { ...preview, ...rendered.snapshot, id: preview.id, title: preview.title, createdAt: preview.createdAt, updatedAt: preview.updatedAt };
+      if (!mounted.current || generation !== requestGeneration.current) return;
       rememberDocumentDraft(draft);
       onOpenDocument(draft.id);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
+    } catch (reason) { if (mounted.current && generation === requestGeneration.current) setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
   };
   const unsaved = unsavedDocumentDrafts();
   const documents = [...new Map([...collections.workingCvs, ...collections.letters, ...unsaved].map((document) => [document.id, document])).values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
