@@ -442,15 +442,14 @@ export function WorkingCvEditor({
     if (target === "profile_variant" && !variantName) return;
     setError(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
       const refreshed = await window.aaaat.documentDomain.saveWorkingItem({
-        workingCvId: saved.id,
+        workingCvId: draft.id,
+        document: draft,
         itemId: item.id,
         target,
         ...(target === "profile_variant" ? { variantName } : {}),
       });
       setDraft(refreshed);
-      onSaved(refreshed);
       setReuseChoiceByItem((current) => ({ ...current, [item.id]: "" }));
       if (target === "profile_variant") {
         setVariantNameByItem((current) => ({ ...current, [item.id]: "" }));
@@ -466,14 +465,13 @@ export function WorkingCvEditor({
     if (!template) return;
     setError(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
       onCollections(await window.aaaat.documentDomain.updateTemplate({
         id: template.id,
         name: template.name,
-        language: saved.language,
-        pdfMetadata: saved.pdfMetadata,
-        parserSummary: saved.parserSummary,
-        sections: templateSections(saved),
+        language: draft.language,
+        pdfMetadata: draft.pdfMetadata,
+        parserSummary: draft.parserSummary,
+        sections: templateSections(draft),
       }));
       setCvTemplateReuseChoice("");
     } catch (reason) {
@@ -486,9 +484,7 @@ export function WorkingCvEditor({
     if (!name) return;
     setError(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
-      await window.aaaat.documentDomain.saveWorkingAsTemplate({ workingCvId: saved.id, name });
-      onCollections(await window.aaaat.documentDomain.collections());
+      onCollections(await window.aaaat.documentDomain.createTemplate({ name, language: draft.language, pdfMetadata: draft.pdfMetadata, parserSummary: draft.parserSummary, sections: templateSections(draft) }));
       setTemplateName("");
       setCvTemplateReuseChoice("");
     } catch (reason) {
