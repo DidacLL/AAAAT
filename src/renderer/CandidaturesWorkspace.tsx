@@ -708,8 +708,10 @@ export function CandidaturesWorkspace({
   };
 
   const shellRecognition = selected ? candidatureRecognitionProjection(selected, fields) : null;
+  const shellIdentity = shellRecognition ? corpusActionIdentity(shellRecognition.primaryCues.slice(0, 2), shellRecognition.retainedSourceCue) : "Applications";
+  const shellTitle = shellIdentity.length > 72 ? `${shellIdentity.slice(0, 71).trimEnd()}…` : shellIdentity;
   useShellActions({
-    title: mode === "selected" && shellRecognition ? corpusActionIdentity(shellRecognition.primaryCues, shellRecognition.retainedSourceCue) : "Applications",
+    title: mode === "selected" ? shellTitle : "Applications",
     actions: mode === "selected" ? [
       { id: "back-applications", label: "Close", onClick: returnToCorpus },
       { id: "extract-application", label: "Extract with AI", onClick: () => void requestBulkInference() },
