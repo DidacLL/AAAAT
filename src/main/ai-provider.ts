@@ -92,8 +92,7 @@ const jobExtractionInstruction = [
 const tagInferenceInstruction = [
   "Suggest only useful reusable Tags supported by the supplied context.",
   'Return one JSON object with existingTags and newTags arrays. Existing matches use {"tagRef":"..."}.',
-  "Strongly prefer a supplied Tag when its name, alias, or definition fits. Propose at most 3 new Tags only when the glossary genuinely lacks a reusable category.",
-  "Do not suggest Tags for information represented by the supplied fieldTitles, including tech stack, remote work, compensation, or location when those fields exist. Do not create a Tag for every fact.",
+  "Prefer existing supplied Tags where their meanings fit. Propose new Tags when the glossary lacks them.",
   "Do not include reasoning or persist anything.",
 ].join(" ");
 
