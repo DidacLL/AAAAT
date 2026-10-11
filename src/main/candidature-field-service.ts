@@ -395,10 +395,10 @@ function validateScalar(
 ): string | number | boolean | null {
   switch (field.valueType) {
     case "text":
-      if (typeof value !== "string" || value.length > 5000) break;
+      if (typeof value !== "string") break;
       return value.trim().length === 0 ? null : value;
     case "long_text":
-      if (typeof value !== "string" || value.length > 50000) break;
+      if (typeof value !== "string") break;
       return value.trim().length === 0 ? null : value;
     case "number":
       if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -410,7 +410,7 @@ function validateScalar(
       if (typeof value === "string" && validDate(value)) return value;
       break;
     case "url":
-      if (typeof value === "string" && value.length <= 2048) {
+      if (typeof value === "string") {
         if (value.trim().length === 0) return null;
         try {
           const url = new URL(value);
