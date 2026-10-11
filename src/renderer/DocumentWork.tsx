@@ -1257,7 +1257,9 @@ function LetterEditor({
           <small>{draft.candidatureId ? "Application cover letter" : "Standalone cover letter"}</small>
         </header>
 
-        <section className="letter-sender-editor" aria-label="Sender information for this letter">
+        <details className="letter-sender-options">
+          <summary>From · {draft.sender.name.trim() || "Add your name"}</summary>
+          <section className="letter-sender-editor" aria-label="Sender information for this letter">
           <div className="letter-sender-heading">
             <span>From</span>
             {letterSenderHasContent(profileSenderDefaults) ? (
@@ -1321,10 +1323,9 @@ function LetterEditor({
           <button type="button" className="working-cv-link-button" onClick={addSenderDetail}>
             ＋ Add sender detail
           </button>
-          <small>
-            These fields belong to this letter only. AI access is controlled separately in My information.
-          </small>
-        </section>
+          <small>Sender details stay in this letter. The AI task shows the information it will send.</small>
+          </section>
+        </details>
 
         <div className="letter-address-block">
           <label>

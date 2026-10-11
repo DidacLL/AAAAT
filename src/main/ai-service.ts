@@ -369,14 +369,11 @@ function letterForRequest(rootPath: string, request: CoverLetterDraftRequest): C
 }
 type PreparedRequest = {
   rootPath: string; operation: "cv_tailoring" | "cover_letter_draft";
-  request: CvWritingRequest | CoverLetterDraftRequest; signature: string; preparedAt: number; expiry: ReturnType<typeof setTimeout>;
+  request: CvWritingRequest | CoverLetterDraftRequest; signature: string; preparedAt: number;
 };
 const preparedRequests = new Map<string, PreparedRequest>();
 export function discardDocumentPreparation(rootPath: string, requestId: string): void {
-  const prepared = preparedRequests.get(requestId);
-  if (prepared?.rootPath !== rootPath) return;
-  clearTimeout(prepared.expiry);
-  preparedRequests.delete(requestId);
+  if (preparedRequests.get(requestId)?.rootPath === rootPath) preparedRequests.delete(requestId);
 }
 function prepareSignature(rootPath: string, operation: PreparedRequest["operation"], context: unknown): string {
   return JSON.stringify({
@@ -387,12 +384,9 @@ function prepareSignature(rootPath: string, operation: PreparedRequest["operatio
 }
 function rememberPreparation(rootPath: string, operation: PreparedRequest["operation"], request: PreparedRequest["request"], context: unknown, sources: PreparedDocumentAi["sources"]): PreparedDocumentAi {
   // Retain only the current preview for each operation in this workspace.
-  for (const [key, value] of preparedRequests) if (Date.now() - value.preparedAt > 15 * 60 * 1000 || value.operation === operation) discardDocumentPreparation(value.rootPath, key);
+  for (const [key, value] of preparedRequests) if (Date.now() - value.preparedAt > 15 * 60 * 1000 || value.operation === operation) preparedRequests.delete(key);
   const requestId = randomUUID();
-  const signature = prepareSignature(rootPath, operation, context);
-  const expiry = setTimeout(() => preparedRequests.delete(requestId), 15 * 60 * 1000);
-  expiry.unref();
-  preparedRequests.set(requestId, { rootPath, operation, request, signature, preparedAt: Date.now(), expiry });
+  preparedRequests.set(requestId, { rootPath, operation, request, signature: prepareSignature(rootPath, operation, context), preparedAt: Date.now() });
   const connection = requireStoredConnection(rootPath, operation);
   return {
     requestId, connection: { name: connection.name, endpoint: connection.endpoint, model: connection.model },
@@ -404,7 +398,7 @@ function preparedInput<T extends CvWritingRequest | CoverLetterDraftRequest>(roo
   if (!request.preparedId) throw new AiServiceError("Review this document's AI context before sending.");
   const prepared = preparedRequests.get(request.preparedId);
   if (!prepared || prepared.rootPath !== rootPath || prepared.operation !== operation || Date.now() - prepared.preparedAt > 15 * 60 * 1000) throw new AiServiceError("Prepare this AI task again.");
-  discardDocumentPreparation(rootPath, request.preparedId);
+  preparedRequests.delete(request.preparedId);
   return { ...prepared.request, preparedId: request.preparedId } as T;
 }
 function assertPreparationCurrent(rootPath: string, operation: PreparedRequest["operation"], context: unknown, signature: string): void {

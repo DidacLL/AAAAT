@@ -15,7 +15,7 @@ function uniqueTitle(base: string, titles: readonly string[]): string {
 }
 
 export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
-  readonly onOpenDocument: (documentId: string) => void;
+  readonly onOpenDocument: (documentId: string) => boolean;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
@@ -63,8 +63,9 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
           candidatureId: null, bodyParagraphs: [],
         });
       if (!mounted.current || generation !== requestGeneration.current) return;
+      if (!onOpenDocument(draft.id)) return;
       rememberDocumentDraft(draft);
-      setCreation(null); setTitle(""); onDirtyChange?.(false); onOpenDocument(draft.id);
+      setCreation(null); setTitle(""); onDirtyChange?.(false);
     } catch (reason) { if (mounted.current && generation === requestGeneration.current) setError(reason instanceof Error ? reason.message : "The document could not be opened."); }
     finally { if (mounted.current && generation === requestGeneration.current) setBusy(false); }
   };
@@ -111,8 +112,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       });
       const draft = { ...preview, ...rendered.snapshot, id: preview.id, title: preview.title, createdAt: preview.createdAt, updatedAt: preview.updatedAt };
       if (!mounted.current || generation !== requestGeneration.current) return;
-      rememberDocumentDraft(draft);
-      onOpenDocument(draft.id);
+      if (onOpenDocument(draft.id)) rememberDocumentDraft(draft);
     } catch (reason) { if (mounted.current && generation === requestGeneration.current) setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
   };
   const unsaved = unsavedDocumentDrafts();

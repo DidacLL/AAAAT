@@ -733,7 +733,6 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
   const working = input.document ??
       withWorkspaceDatabase(rootPath, (database) => requireWorkingCv(database, input.workingCvId));
   if (working.id !== input.workingCvId) throw new DocumentDomainServiceError("Choose the document being edited.");
-  validateWorkingItems(rootPath, working.sections);
   const item = findWorkingItem(working, input.itemId);
   if (input.target === 'profile') {
     if (!item.profileItemId)

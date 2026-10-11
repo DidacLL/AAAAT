@@ -52,7 +52,12 @@
 .letter-document { max-width: 52rem; }
 .letter-document input, .letter-document textarea { width: 100%; box-sizing: border-box; }
 .letter-document label { display: grid; gap: .3rem; margin-bottom: .8rem; }
-.letter-sender-editor { display: grid; gap: .4rem; margin-bottom: 1.5rem; }
+.letter-sender-options { margin-bottom: 1rem; border-bottom: 1px solid #d9d0bf; padding-bottom: .6rem; }
+.letter-sender-options > summary { cursor: pointer; font-size: .9rem; color: #645e53; }
+.letter-sender-editor { display: grid; gap: .4rem; margin-top: .8rem; }
+.letter-document input, .letter-document textarea { padding: .55rem .65rem; border: 1px solid #baad94; border-radius: .3rem; font: inherit; color: inherit; background: #fffdf8; }
+.letter-address-block { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.letter-document label > span { font-size: .85rem; font-weight: 600; color: #645e53; }
 .letter-sender-name input { font-weight: 600; }
 .letter-sender-detail { display: grid; grid-template-columns: minmax(5rem, 1fr) minmax(8rem, 2fr) auto; gap: .4rem; }
 .letter-address-block { margin-bottom: 1.4rem; }
@@ -70,7 +75,7 @@
   .document-list-open { flex-basis: 100%; }
   .document-new-form, .working-cv-edit-fields, .document-editor-secondary-body, .working-cv-reuse-body { grid-template-columns: 1fr; }
   .working-cv-wide-field { grid-column: auto; }
-  .letter-sender-detail { grid-template-columns: 1fr; }
+  .letter-sender-detail, .letter-address-block { grid-template-columns: 1fr; }
   .document-sheet { padding: 1rem; }
   .working-cv-section-heading, .working-cv-item-heading { align-items: start; }
 }
