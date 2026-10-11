@@ -326,6 +326,7 @@ export function WorkingCvEditor({
   };
 
   const persistDraft = async (): Promise<WorkingCvRecord> => {
+    const submitted = JSON.stringify(draft);
     const saved = provisional
       ? await window.aaaat.documentDomain.keepWorkingCv(draft)
       : await window.aaaat.documentDomain.updateWorkingCv({
@@ -336,8 +337,9 @@ export function WorkingCvEditor({
       parserSummary: draft.parserSummary,
       sections: draft.sections,
     });
-    forgetDocumentDraft(saved.id);
-    setDraft(saved);
+    const retained = documentDraft(saved.id);
+    if (!retained || JSON.stringify(retained) === submitted) forgetDocumentDraft(saved.id);
+    setDraft((current) => JSON.stringify(current) === submitted ? saved : current);
     onSaved(saved);
     return saved;
   };
@@ -442,14 +444,13 @@ export function WorkingCvEditor({
     if (target === "profile_variant" && !variantName) return;
     setError(null);
     try {
-      const refreshed = await window.aaaat.documentDomain.saveWorkingItem({
+      await window.aaaat.documentDomain.saveWorkingItem({
         workingCvId: draft.id,
         document: draft,
         itemId: item.id,
         target,
         ...(target === "profile_variant" ? { variantName } : {}),
       });
-      setDraft(refreshed);
       setReuseChoiceByItem((current) => ({ ...current, [item.id]: "" }));
       if (target === "profile_variant") {
         setVariantNameByItem((current) => ({ ...current, [item.id]: "" }));
@@ -1077,6 +1078,7 @@ function LetterEditor({
   }, [draftingTaskKey]);
 
   const persistDraft = async (): Promise<CoverLetterRecord> => {
+    const submitted = JSON.stringify(currentDraft);
     const saved = provisional
       ? await window.aaaat.documentDomain.keepLetter({ ...draft, bodyParagraphs })
       : await window.aaaat.documentDomain.updateLetter({
@@ -1089,9 +1091,12 @@ function LetterEditor({
       bodyParagraphs,
       closing: draft.closing,
     });
-    forgetDocumentDraft(saved.id);
-    setDraft(saved);
-    setBody(saved.bodyParagraphs.join("\n\n"));
+    const retained = documentDraft(saved.id);
+    if (!retained || JSON.stringify(retained) === submitted) forgetDocumentDraft(saved.id);
+    if (JSON.stringify(draftRef.current) === submitted) {
+      setDraft(saved);
+      setBody(saved.bodyParagraphs.join("\n\n"));
+    }
     onSaved(saved);
     return saved;
   };
