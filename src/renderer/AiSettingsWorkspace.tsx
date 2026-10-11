@@ -335,6 +335,7 @@ export function AiSettingsWorkspace({
                 void save();
               }}
             >
+              <button type="submit" hidden disabled={saving}>Save connection</button>
               <div className="section-heading wide-field">
                 <div><h3>{editing ? "Edit connection" : "Add connection"}</h3></div>
 
