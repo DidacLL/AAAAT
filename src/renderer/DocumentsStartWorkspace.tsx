@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { DocumentCollections, CoverLetterRecord, WorkingCvRecord } from "../shared/document-domain-contracts";
 import { candidatureRecognitionProjection } from "./candidature-projections";
-import { rememberDocumentDraft } from "./document-drafts";
+import { rememberDocumentDraft, unsavedDocumentDrafts, forgetDocumentDraft } from "./document-drafts";
 import { useShellActions } from "./shell-actions";
 import "./documents.css";
 
@@ -24,6 +24,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("profile");
   const [busy, setBusy] = useState(false);
+  const [, refreshDrafts] = useState(0);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     onDirtyChange?.(Boolean(creation && title.trim()));
@@ -49,12 +50,12 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     try {
       const draft = creation === "cv"
         ? await window.aaaat.documentDomain.previewWorkingCv({
-          title: title.trim() || uniqueTitle("CV", collections.workingCvs.map((document) => document.title)),
+          title: title.trim() || uniqueTitle("CV", documents.filter((document) => "sections" in document).map((document) => document.title)),
           candidatureId: null,
           source: source.startsWith("template:") ? { kind: "template", templateId: source.slice(9) } : { kind: source === "blank" ? "blank" : "profile" },
         })
         : await window.aaaat.documentDomain.previewLetter({
-          title: title.trim() || uniqueTitle("Cover letter", collections.letters.map((document) => document.title)),
+          title: title.trim() || uniqueTitle("Cover letter", documents.filter((document) => "bodyParagraphs" in document).map((document) => document.title)),
           candidatureId: null, bodyParagraphs: [],
         });
       rememberDocumentDraft(draft);
@@ -77,22 +78,29 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     if (!proposed || proposed === document.title) return;
     setError(null);
     try {
+      if (unsavedDocumentDrafts().some((draft) => draft.id === document.id)) {
+        rememberDocumentDraft({ ...document, title: proposed });
+        refreshDrafts((value) => value + 1);
+        return;
+      }
       if ("sections" in document) await window.aaaat.documentDomain.updateWorkingCv({ id: document.id, title: proposed, language: document.language, sections: document.sections, pdfMetadata: document.pdfMetadata, parserSummary: document.parserSummary });
       else await window.aaaat.documentDomain.updateLetter({ id: document.id, title: proposed, language: document.language, sender: document.sender, recipient: document.recipient, subject: document.subject, bodyParagraphs: document.bodyParagraphs, closing: document.closing });
       setCollections(await window.aaaat.documentDomain.collections());
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be renamed."); }
   };
   const remove = async (document: WorkingCvRecord | CoverLetterRecord) => {
-    if (!window.confirm(`Delete "${document.title}"? Generated PDFs are kept.`)) return;
+    const saved = [...collections.workingCvs, ...collections.letters].some((candidate) => candidate.id === document.id);
+    if (!window.confirm(saved ? `Delete "${document.title}"? Generated PDFs are kept.` : `Discard "${document.title}"?`)) return;
+    if (!saved) { forgetDocumentDraft(document.id); refreshDrafts((value) => value + 1); return; }
     setError(null);
-    try { setCollections("sections" in document ? await window.aaaat.documentDomain.removeWorkingCv(document.id) : await window.aaaat.documentDomain.removeLetter(document.id)); }
+    try { forgetDocumentDraft(document.id); setCollections("sections" in document ? await window.aaaat.documentDomain.removeWorkingCv(document.id) : await window.aaaat.documentDomain.removeLetter(document.id)); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be deleted."); }
   };
   const editRenderedCopy = async (rendered: DocumentCollections["renderedCvs"][number]) => {
     setError(null);
     try {
       const preview = await window.aaaat.documentDomain.previewWorkingCv({
-        title: uniqueTitle(`${rendered.title} copy`, collections.workingCvs.map((document) => document.title)),
+        title: uniqueTitle(`${rendered.title} copy`, documents.filter((document) => "sections" in document).map((document) => document.title)),
         candidatureId: rendered.candidatureId, source: { kind: "blank" },
       });
       const draft = { ...preview, ...rendered.snapshot, id: preview.id, title: preview.title, createdAt: preview.createdAt, updatedAt: preview.updatedAt };
@@ -100,7 +108,8 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       onOpenDocument(draft.id);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
   };
-  const documents = [...collections.workingCvs, ...collections.letters].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const unsaved = unsavedDocumentDrafts();
+  const documents = [...new Map([...collections.workingCvs, ...collections.letters, ...unsaved].map((document) => [document.id, document])).values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   const association = (candidatureId: string | null) => candidatureId ? applicationLabels[candidatureId] || "Application" : "Standalone";
   return <section className="document-library" aria-label="Documents">
     {error ? <p className="error-message" role="alert">{error}</p> : null}
@@ -115,9 +124,9 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
         {documents.map((document) => <article className="document-list-row" key={document.id}>
           <button type="button" className="document-list-open" onClick={() => onOpenDocument(document.id)}>
             <span className="item-kind">{"sections" in document ? "CV" : "Letter"}</span>
-            <strong>{document.title}</strong><small>{association(document.candidatureId)}</small>
+            <strong>{document.title}</strong><small>{association(document.candidatureId)}{unsaved.some((draft) => draft.id === document.id) ? " · Unsaved" : ""}</small>
           </button>
-          <div><button type="button" onClick={() => { void rename(document); }}>Rename</button><button type="button" onClick={() => { void remove(document); }}>Delete</button></div>
+          <div><button type="button" onClick={() => { void rename(document); }}>Rename</button><button type="button" onClick={() => { void remove(document); }}>{[...collections.workingCvs, ...collections.letters].some((saved) => saved.id === document.id) ? "Delete" : "Discard"}</button></div>
         </article>)}
       </div>}
       <details className="document-library-disclosure"><summary>CV templates · {collections.templates.length}</summary>
