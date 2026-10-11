@@ -730,8 +730,10 @@ function findWorkingItem(working: WorkingCvRecord, itemId: string): WorkingCvIte
 }
 export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem): WorkingCvRecord {
   const input = workingCvSaveItemSchema.parse(rawInput);
-  const working =
+  const working = input.document ??
       withWorkspaceDatabase(rootPath, (database) => requireWorkingCv(database, input.workingCvId));
+  if (working.id !== input.workingCvId) throw new DocumentDomainServiceError("Choose the document being edited.");
+  validateWorkingItems(rootPath, working.sections);
   const item = findWorkingItem(working, input.itemId);
   if (input.target === 'profile') {
     if (!item.profileItemId)
@@ -781,7 +783,7 @@ export function saveWorkingCvItem(rootPath: string, rawInput: WorkingCvSaveItem)
       sections
     });
   }
-  return withWorkspaceDatabase(rootPath, (database) => requireWorkingCv(database, working.id));
+  return working;
 }
 function templateSectionsFromWorking(working: WorkingCvRecord): CvTemplateSection[] {
   return working.sections.map(

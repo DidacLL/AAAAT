@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { AiExchangeDiagnostic } from "../shared/ai-diagnostics";
 import type {
@@ -42,6 +42,7 @@ interface Props {
   readonly title: string;
   readonly includeTagInference?: boolean;
   readonly onChanged?: () => void | Promise<void>;
+  readonly onAttachTagIds: (ids: readonly string[]) => Promise<void>;
 }
 
 function routeReady(
@@ -61,6 +62,7 @@ export function CandidatureInferencePanel({
   title,
   includeTagInference = false,
   onChanged,
+  onAttachTagIds,
 }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
   const task = useAiTask<InferenceTaskResult>(taskId);
@@ -69,6 +71,7 @@ export function CandidatureInferencePanel({
   const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
   const [tagError, setTagError] = useState<string | null>(null);
   const [tagBusy, setTagBusy] = useState(false);
+  const startedTask = useRef<string | null>(null);
   const targetSet = useMemo(() => new Set(targetFieldIds), [targetFieldIds]);
   const requestedFields = useMemo(
     () =>
@@ -118,7 +121,9 @@ export function CandidatureInferencePanel({
   useEffect(() => {
     const canExtract = requestedFields.length > 0 && Boolean(fieldContext);
     const canFindTags = includeTagInference && Boolean(tagContext);
-    if (task || aiReady !== true || (!canExtract && !canFindTags)) return;
+    if (task) { startedTask.current = taskId; return; }
+    if (startedTask.current === taskId || aiReady !== true || (!canExtract && !canFindTags)) return;
+    startedTask.current = taskId;
 
     startAiTask<InferenceTaskResult>(
       taskId,
@@ -223,17 +228,9 @@ export function CandidatureInferencePanel({
     title,
   ]);
 
-  const attachExistingTag = async (proposal: TagInferenceExistingTag) => {
-    const current = (await window.aaaat.candidatures.list()).find(
-      (item) => item.id === candidature.id,
-    );
-    if (!current) return;
-
-    await window.aaaat.candidatures.setTags({
-      candidatureId: candidature.id,
-      tagIds: [...new Set([...current.tagIds, proposal.tagId])],
-    });
-    setHandledTags((handled) => new Set(handled).add(`existing:${proposal.tagId}`));
+  const attachExistingTags = async (proposals: readonly TagInferenceExistingTag[]) => {
+    await onAttachTagIds(proposals.map((proposal) => proposal.tagId));
+    setHandledTags((handled) => new Set([...handled, ...proposals.map((proposal) => `existing:${proposal.tagId}`)]));
     await onChanged?.();
   };
 
@@ -244,15 +241,7 @@ export function CandidatureInferencePanel({
       ?? await window.aaaat.candidatures.createTag({
         name: proposal.name, definition: proposal.definition, aliases: proposal.aliases,
       });
-    const current = (await window.aaaat.candidatures.list()).find(
-      (item) => item.id === candidature.id,
-    );
-    if (!current) return;
-
-    await window.aaaat.candidatures.setTags({
-      candidatureId: candidature.id,
-      tagIds: [...new Set([...current.tagIds, tag.id])],
-    });
+    await onAttachTagIds([tag.id]);
     setHandledTags((handled) => new Set(handled).add(`new:${index}`));
     await onChanged?.();
   };
@@ -307,6 +296,7 @@ export function CandidatureInferencePanel({
   const result = task?.status === "completed" ? task.result : undefined;
   if (!result) return null;
   const tagResult = result.tagInference;
+  const existingSuggestions = tagResult?.existingTags.filter((proposal) => !handledTags.has(`existing:${proposal.tagId}`) && !candidature.tagIds.includes(proposal.tagId)) ?? [];
   const hasTagReview = Boolean(
     includeTagInference
     && tagResult
@@ -351,6 +341,7 @@ export function CandidatureInferencePanel({
       {hasTagReview && tagResult ? (
         <>
           <h4>Tag suggestions</h4>
+          {existingSuggestions.length ? <button type="button" disabled={tagBusy} onClick={() => void handleTag(() => attachExistingTags(existingSuggestions))}>Attach suggested Tags</button> : null}
           {tagResult.existingTags.map((proposal) => {
             const key = `existing:${proposal.tagId}`;
             if (handledTags.has(key) || candidature.tagIds.includes(proposal.tagId)) return null;
@@ -359,9 +350,6 @@ export function CandidatureInferencePanel({
                 <strong>{proposal.name}</strong>
                 {proposal.evidence ? <p>{proposal.evidence}</p> : null}
                 <div className="button-row">
-                  <button type="button" disabled={tagBusy} onClick={() => void handleTag(() => attachExistingTag(proposal))}>
-                    Attach Tag
-                  </button>
                   <button
                     type="button"
                     className="compact-secondary"

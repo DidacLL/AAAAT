@@ -21,7 +21,7 @@ interface Props {
   readonly field: CandidatureFieldConfiguration;
   readonly currentValue?: CandidatureRuntimeValue;
   readonly onSaveValue: (value: CandidatureRuntimeValue) => Promise<void>;
-  readonly onFillEmpty: (value: CandidatureRuntimeValue) => Promise<boolean>;
+  readonly onFillEmpty: (value: CandidatureRuntimeValue, taskKey: string) => Promise<boolean>;
   readonly editing: boolean;
   readonly onRetry: () => void;
 }
@@ -97,16 +97,11 @@ export function CandidatureFieldAiState({
   const activeTask = candidates.find(
     (task) => task.status === "queued" || task.status === "working",
   );
-  const appliedTask = candidates.find(
-    (task) =>
-      task.status === "completed" &&
-      (task.appliedFieldIds ?? []).includes(field.definition.id),
-  );
 
   useEffect(() => {
     if (!proposal || !proposalTask || currentValue !== undefined || editing || !field.preferences.aiUseAllowed || attempted.current === proposal) return;
     attempted.current = proposal;
-    void onFillEmpty(proposal.value).then((filled) => {
+    void onFillEmpty(proposal.value, proposalTask.key).then((filled) => {
       if (filled) markAiTaskFieldApplied(proposalTask.key, field.definition.id);
     }).catch((reason) => setFillError(reason instanceof Error ? reason.message : "This value could not be saved."));
   }, [proposal, proposalTask, currentValue, editing, field, onFillEmpty]);
@@ -218,7 +213,7 @@ export function CandidatureFieldAiState({
               {Array.isArray(proposal.value) ? proposal.value.map(String).join(", ") : String(proposal.value)}
             </p>
             <div className="button-row candidature-ai-review-actions">
-              <button type="button" onClick={() => void accept(proposal.value)}>Use this value</button>
+              <button type="button" onClick={() => void accept(proposal.value)}>Use suggestion</button>
               <button type="button" className="compact-secondary" onClick={() => setEditingProposal(true)}>Edit</button>
               <button type="button" className="compact-secondary" onClick={reject}>Dismiss</button>
             </div>
@@ -259,14 +254,6 @@ export function CandidatureFieldAiState({
     );
   }
 
-  if (appliedTask && currentValue !== undefined) {
-    return (
-      <div className="candidature-field-ai-state candidature-field-ai-applied" role="status">
-        <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-        <span>Filled with AI</span>
-      </div>
-    );
-  }
 
   return null;
 }
