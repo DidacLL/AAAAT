@@ -29,7 +29,7 @@ import {
   type CandidatureRecognitionCue,
   type RecencyFilter,
 } from "./candidature-projections";
-import { clearAiTask, getAiTask } from "./ai-task-store";
+import { clearAiTask, getAiTask, markAiTaskFieldHandled } from "./ai-task-store";
 import { useShellActions } from "./shell-actions";
 import { rememberDocumentDraft } from "./document-drafts";
 import { candidatureInferenceContext } from "./candidature-inference-context";
@@ -214,16 +214,16 @@ export function CandidaturesWorkspace({
     setTagAliasesText(""); setActivityOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
     setDocumentExternalAccessAllowed(false); setDocumentExternalAccessBusy(false);
-  }, []);
+  }, [setSelectedTagIds, setSelectedTagId, setTagQuery, setSourceDirty, setValueEditorDirty, setActiveFieldEditorId, setFieldDefinitionsDirty, setFieldDefinitionDraft, setDiscoveryFieldId, setFieldAiFeedback, setOpenFieldOptionsId, setBulkInferenceOpen, setTagInferenceOpen, setExternalAiOpen, setBulkAiFeedback, setTagEditorOpen, setEditingTagId, setTagEditorDraft, setTagAliasesText, setActivityOpen, setApplicationCvSource, setPacketWorkingCvId, setPacketLetterId, setDocumentExternalAccessAllowed, setDocumentExternalAccessBusy]);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
     setSelectedId(record.id); resetEditorDrafts(record); setError(null);
-  }, [resetEditorDrafts]);
+  }, [resetEditorDrafts, setSelectedId, setError]);
 
   const refreshCollections = useCallback(async () => {
     try { setCollections(await window.aaaat.documentDomain.collections()); }
     catch { setError("AAAAT could not refresh application documents."); }
-  }, []);
+  }, [setCollections, setError]);
 
   useEffect(() => {
     let active = true;
@@ -343,6 +343,7 @@ export function CandidaturesWorkspace({
     if (!selected) return;
     for (const key of [`candidature-inference:${selected.id}:${fieldId}`, `candidature-inference:${selected.id}:missing`]) {
       if (!getAiTask(key)) continue;
+      markAiTaskFieldHandled(key, fieldId);
       const protectedFields = protectedTaskFields.current.get(key) ?? new Set<string>();
       protectedFields.add(fieldId);
       protectedTaskFields.current.set(key, protectedFields);
@@ -558,7 +559,7 @@ export function CandidaturesWorkspace({
   const handleSourcesChanged = useCallback(async () => {
     try { setRecords(await window.aaaat.candidatures.list()); setSourceDirty(false); }
     catch { setError("AAAAT could not refresh the application after the Source changed."); }
-  }, []);
+  }, [setRecords, setSourceDirty, setError]);
   const openDocument = (documentId: string) => {
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
@@ -708,8 +709,10 @@ export function CandidaturesWorkspace({
   };
 
   const shellRecognition = selected ? candidatureRecognitionProjection(selected, fields) : null;
+  const shellIdentity = shellRecognition ? corpusActionIdentity(shellRecognition.primaryCues.slice(0, 2), shellRecognition.retainedSourceCue) : "Applications";
+  const shellTitle = shellIdentity.length > 72 ? `${shellIdentity.slice(0, 71).trimEnd()}…` : shellIdentity;
   useShellActions({
-    title: mode === "selected" && shellRecognition ? corpusActionIdentity(shellRecognition.primaryCues, shellRecognition.retainedSourceCue) : "Applications",
+    title: mode === "selected" ? shellTitle : "Applications",
     actions: mode === "selected" ? [
       { id: "back-applications", label: "Close", onClick: returnToCorpus },
       { id: "extract-application", label: "Extract with AI", onClick: () => void requestBulkInference() },

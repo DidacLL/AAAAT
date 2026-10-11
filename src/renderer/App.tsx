@@ -125,8 +125,12 @@ export function App() {
   const [supportPanel, setSupportPanel] = useState<"activity" | "tags" | null>(null);
 
   const applicationAreaVisible = useRef(false);
+  const documentsAreaVisible = useRef(false);
+  const homeAreaVisible = useRef(false);
   useLayoutEffect(() => {
     applicationAreaVisible.current = !welcomeOpen && !settingsOpen && productView === "candidatures";
+    documentsAreaVisible.current = !welcomeOpen && !settingsOpen && productView === "documents";
+    homeAreaVisible.current = welcomeOpen && !settingsOpen;
   }, [productView, settingsOpen, welcomeOpen]);
 
   const showProductView = useCallback((next: ProductView) => {
@@ -373,7 +377,8 @@ export function App() {
     showProductView("candidatures");
   };
 
-  const openStandaloneDocument = (documentId: string) => {
+  const openStandaloneDocument = (documentId: string, origin: "documents" | "home" = "documents"): boolean => {
+    if (!(origin === "home" ? homeAreaVisible.current : documentsAreaVisible.current)) return false;
     setWelcomeOpen(false);
     setSettingsOpen(false);
     setSettingsHandoff(null);
@@ -383,6 +388,7 @@ export function App() {
     setDocumentHandoff({ documentId });
     setDocumentWorkspaceRevision((current) => current + 1);
     showProductView("documents");
+    return true;
   };
 
   const openSettings = () => {
@@ -535,7 +541,7 @@ export function App() {
       workspaceName={folderName(workspace.rootPath)}
       demoWorkspace={demoWorkspace}
       onOpenApplication={openCandidatureFromHome}
-      onOpenDocument={openStandaloneDocument}
+      onOpenDocument={(documentId) => openStandaloneDocument(documentId, "home")}
       onOpenApplications={() => selectProductView("candidatures")}
       onOpenDocuments={() => selectProductView("documents")}
     />

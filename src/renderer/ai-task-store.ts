@@ -232,7 +232,7 @@ export function startAiTask<T>(
           detail: completionDetail?.(result) ?? "Completed",
           result,
           completedExchanges,
-          handledFieldIds: appliedFieldIds,
+          handledFieldIds: [...new Set([...(active.handledFieldIds ?? []), ...appliedFieldIds])],
           appliedFieldIds,
           scopeFieldIds: completedScope(active.scopeFieldIds, scopeFieldIds, appliedFieldIds),
         });
@@ -304,7 +304,7 @@ export function cancelAiTask(key: string): void {
 
 function markFieldHandled(key: string, fieldId: string, applied: boolean): void {
   const current = tasks.get(key);
-  if (!current || current.status !== "completed") return;
+  if (!current || !["queued", "working", "completed"].includes(current.status)) return;
   const handled = new Set(current.handledFieldIds ?? []);
   const appliedIds = new Set(current.appliedFieldIds ?? []);
   handled.add(fieldId);
@@ -315,7 +315,7 @@ function markFieldHandled(key: string, fieldId: string, applied: boolean): void 
     ...current,
     handledFieldIds: Array.from(handled),
     appliedFieldIds: Array.from(appliedIds),
-    detail: reviewed ? "Completed · information applied/reviewed" : current.detail,
+    detail: current.status === "completed" && reviewed ? "Completed · information applied/reviewed" : current.detail,
   });
   emit();
 }

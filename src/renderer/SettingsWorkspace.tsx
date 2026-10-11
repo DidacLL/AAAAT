@@ -87,26 +87,24 @@ function ExternalAssistantGuidancePanel() {
   };
 
   return (
-    <section className="profile-column" aria-label="Use AAAAT with another AI">
+    <section className="profile-column" aria-label="Reusable assistant instructions">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">External AI</p>
-          <h2>Use AAAAT with another AI</h2>
+          <h3>Reusable instructions</h3>
         </div>
       </div>
       <p>
-        Give your preferred AI these reusable AAAAT instructions once, for example as project instructions,
-        custom instructions or a skill. Individual tasks can then stay focused on the work itself.
+        Copy these instructions into your assistant's project or custom instructions.
       </p>
       {guidance ? (
         <details>
-          <summary>Preview reusable instructions</summary>
+          <summary>Read instructions</summary>
           <pre className="external-ai-guidance-preview">{guidance.content}</pre>
         </details>
       ) : null}
       <div className="button-row">
         <button type="button" disabled={busy !== null || !guidance} onClick={() => void copy()}>
-          {busy === "copy" ? "Copying…" : "Copy reusable instructions"}
+          {busy === "copy" ? "Copying…" : "Copy instructions"}
         </button>
         <button
           type="button"
@@ -147,7 +145,7 @@ function ExternalAssistantConnectionPanel() {
       {!connection && !failed ? <p>Reading connection details…</p> : null}
       {connection?.packaged ? (
         <>
-          <p>For a compatible assistant that can start a local tool, use:</p>
+          <p>Add these connection details in your assistant's MCP settings:</p>
           <dl className="external-connection-details">
             <dt>Command</dt><dd><code>{connection.executablePath}</code></dd>
             <dt>Arguments</dt><dd><code>--mcp --workspace "{connection.workspacePath}"</code></dd>
@@ -276,25 +274,18 @@ export function SettingsWorkspace({
               onEnvironmentChange={onEnvironmentChange}
               onValidationState={onAiValidationState}
             />
-            <section className="profile-column" aria-label="Connect another AI to AAAAT">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">External AI</p>
-                  <h2>Connect another AI to AAAAT</h2>
-                </div>
+            <details className="settings-advanced-disclosure">
+              <summary>Use AAAAT with an external assistant</summary>
+              <div className="settings-advanced-content">
+                <p>Connect an assistant you already use to work with the AAAAT information you choose to share.</p>
+                <details>
+                  <summary>Connection details</summary>
+                  <ExternalAssistantConnectionPanel />
+                </details>
+                <SetupActionAuthorityPanel />
+                <ExternalAssistantGuidancePanel />
               </div>
-              <p>
-                A compatible local or tool-capable AI can connect directly to AAAAT's bounded local tools.
-                AAAAT uses a local MCP connection for this; the existing privacy projections and explicit
-                action controls still apply.
-              </p>
-              <details>
-                <summary>Connection setup</summary>
-                <ExternalAssistantConnectionPanel />
-              </details>
-              <SetupActionAuthorityPanel />
-            </section>
-            <ExternalAssistantGuidancePanel />
+            </details>
           </>
         ) : null}
 

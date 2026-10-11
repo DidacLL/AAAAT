@@ -44,8 +44,9 @@ function parseDraft(
     }
     if (definition.valueType === "boolean") {
       return items.map((item) => {
-        if (item === "true") return true;
-        if (item === "false") return false;
+        const normalized = item.toLocaleLowerCase();
+        if (normalized === "yes" || normalized === "true") return true;
+        if (normalized === "no" || normalized === "false") return false;
         throw new Error("Enter Yes or No for each value.");
       });
     }
@@ -181,7 +182,7 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
           value={draft.text}
           disabled={saving}
           onChange={(event) => setText(event.target.value)}
-          placeholder={field.definition.cardinality === "many" ? "One value per line" : undefined}
+          placeholder={field.definition.cardinality === "many" ? field.definition.valueType === "boolean" ? "Yes or No, one per line" : "One value per line" : undefined}
         />
       );
     }

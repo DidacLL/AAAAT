@@ -37,14 +37,10 @@ export function SetupActionAuthority({
   readonly onChange: (next: SetupAssistantAccess) => void;
 }) {
   return (
-    <section className="setup-action-authority" aria-label="External setup action authority">
+    <section className="setup-action-authority" aria-label="Assistant setup permissions">
       <div>
-        <p className="eyebrow">Explicit local control</p>
-        <h3>Allow bounded setup actions</h3>
-        <p>
-          Status can always be inspected. Mutating setup actions stay denied until you enable them here,
-          and these switches grant only the typed AAAAT actions described below.
-        </p>
+        <h3>What connected assistants may change</h3>
+        <p>Connected assistants can read setup status. Choose whether they may also check PDF creation or change AI connections.</p>
       </div>
       <label className="checkbox-row">
         <input
@@ -54,8 +50,8 @@ export function SetupActionAuthority({
           onChange={(event) => onChange({ ...access, installerActionsAllowed: event.target.checked })}
         />
         <span>
-          <strong>installer.ai actions</strong><br />
-          Allow AAAAT's fixed rendering self-test. No command, path, filesystem or package-manager input is exposed.
+          <strong>Check PDF creation</strong><br />
+          Allow connected assistants to run AAAAT's PDF check using a temporary document.
         </span>
       </label>
       <label className="checkbox-row">
@@ -66,8 +62,8 @@ export function SetupActionAuthority({
           onChange={(event) => onChange({ ...access, configuratorActionsAllowed: event.target.checked })}
         />
         <span>
-          <strong>configurator.ai actions</strong><br />
-          Allow save, capability validation and per-operation default selection for typed AAAAT AI connections only.
+          <strong>Manage AI connections</strong><br />
+          Allow connected assistants to save and check connections, and choose the AI used for each feature.
         </span>
       </label>
     </section>
