@@ -214,16 +214,16 @@ export function CandidaturesWorkspace({
     setTagAliasesText(""); setActivityOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
     setDocumentExternalAccessAllowed(false); setDocumentExternalAccessBusy(false);
-  }, []);
+  }, [setSelectedTagIds, setSelectedTagId, setTagQuery, setSourceDirty, setValueEditorDirty, setActiveFieldEditorId, setFieldDefinitionsDirty, setFieldDefinitionDraft, setDiscoveryFieldId, setFieldAiFeedback, setOpenFieldOptionsId, setBulkInferenceOpen, setTagInferenceOpen, setExternalAiOpen, setBulkAiFeedback, setTagEditorOpen, setEditingTagId, setTagEditorDraft, setTagAliasesText, setActivityOpen, setApplicationCvSource, setPacketWorkingCvId, setPacketLetterId, setDocumentExternalAccessAllowed, setDocumentExternalAccessBusy]);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
     setSelectedId(record.id); resetEditorDrafts(record); setError(null);
-  }, [resetEditorDrafts]);
+  }, [resetEditorDrafts, setSelectedId, setError]);
 
   const refreshCollections = useCallback(async () => {
     try { setCollections(await window.aaaat.documentDomain.collections()); }
     catch { setError("AAAAT could not refresh application documents."); }
-  }, []);
+  }, [setCollections, setError]);
 
   useEffect(() => {
     let active = true;
@@ -558,7 +558,7 @@ export function CandidaturesWorkspace({
   const handleSourcesChanged = useCallback(async () => {
     try { setRecords(await window.aaaat.candidatures.list()); setSourceDirty(false); }
     catch { setError("AAAAT could not refresh the application after the Source changed."); }
-  }, []);
+  }, [setRecords, setSourceDirty, setError]);
   const openDocument = (documentId: string) => {
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
