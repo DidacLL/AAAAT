@@ -5,6 +5,7 @@ import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
 import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
 import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
+import { useShellActions } from "./shell-actions";
 
 type CredentialIntent = "unchanged" | "replace" | "clear";
 
@@ -306,6 +307,17 @@ export function AiSettingsWorkspace({
     }
   };
 
+  useShellActions({
+    title: showConnections && formOpen ? editing ? "Edit AI connection" : "New AI connection" : "AI settings",
+    actions: !showConnections ? [] : formOpen ? [
+      { id: "save-ai-connection", label: saving ? "Saving…" : "Save", primary: true,
+        disabled: saving, onClick: () => void save() },
+      { id: "close-ai-connection", label: "Cancel", disabled: saving, onClick: closeForm },
+    ] : [
+      { id: "new-ai-connection", label: "Add connection", primary: true, onClick: beginNew },
+    ],
+  }, 1);
+
   return (
     <div className="profile-workspace ai-connection-settings">
       {showConnections ? (
@@ -323,11 +335,10 @@ export function AiSettingsWorkspace({
                 void save();
               }}
             >
+              <button type="submit" hidden disabled={saving}>Save connection</button>
               <div className="section-heading wide-field">
                 <div><h3>{editing ? "Edit connection" : "Add connection"}</h3></div>
-                {(view === "connections" || initialFormOpen === false) ? (
-                  <button type="button" className="compact-secondary" onClick={closeForm}>Cancel</button>
-                ) : null}
+
               </div>
               <label>
                 Connection name
@@ -421,14 +432,9 @@ export function AiSettingsWorkspace({
                   </>
                 )}
               </div>
-              <div className="form-actions wide-field">
-                <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
-                {editing && view === "all" ? <button type="button" className="compact-secondary" onClick={beginNew}>Add another</button> : null}
-              </div>
+
             </form>
-          ) : (
-            <button className="compact-primary" type="button" onClick={beginNew}>Add connection</button>
-          )}
+          ) : null}
         </div>
       ) : null}
 

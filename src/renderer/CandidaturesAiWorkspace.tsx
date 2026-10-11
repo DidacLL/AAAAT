@@ -19,7 +19,7 @@ export function CandidaturesAiWorkspace({
 }) {
   const [creating, setCreating] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [selection, setSelection] = useState<{ candidatureId: string; task?: "ai" } | null>(
+  const [selection, setSelection] = useState<{ candidatureId: string; task?: "tags" } | null>(
     initialCandidatureId ? { candidatureId: initialCandidatureId } : null,
   );
   const [dirty, setDirty] = useState(false);
@@ -32,11 +32,11 @@ export function CandidaturesAiWorkspace({
   };
   const created = (candidatureId: string, tags?: PartialTagInferenceResult) => {
     if (tags) recordCompletedAiTask(
-      `candidature-inference:${candidatureId}:missing`,
-      { proposals: [], issues: [], tagInference: tags }, "Extract application", "Tag suggestions ready", [],
+      `candidature-inference:${candidatureId}:tags`,
+      { proposals: [], issues: [], tagInference: tags }, "Find Tags", "Tag suggestions ready", [],
     );
     reportDirty(false); setRevision((current) => current + 1);
-    setSelection({ candidatureId, ...(tags ? { task: "ai" as const } : {}) }); setCreating(false);
+    setSelection({ candidatureId, ...(tags ? { task: "tags" as const } : {}) }); setCreating(false);
   };
   useShellActions({
     title: "Applications",
