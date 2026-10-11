@@ -26,8 +26,6 @@ import {
 } from "../shared/contracts";
 import { withWorkspaceDatabase } from "./workspace";
 
-export const MAX_ENABLED_CANDIDATURE_FIELDS = 64;
-
 interface FieldRow {
   readonly id: string;
   readonly systemKey: string | null;
@@ -206,13 +204,6 @@ function validateChoices(input: {
   }
 }
 
-function countEnabled(database: DatabaseSync): number {
-  const row = database
-    .prepare("SELECT COUNT(*) AS count FROM candidature_fields WHERE enabled = 1")
-    .get() as { count: number };
-  return row.count;
-}
-
 export function createCandidatureField(
   rootPath: string,
   rawInput: CandidatureFieldCreate,
@@ -221,11 +212,6 @@ export function createCandidatureField(
   validateChoices(input);
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
-      if (input.enabled && countEnabled(database) >= MAX_ENABLED_CANDIDATURE_FIELDS) {
-        throw new CandidatureFieldServiceError(
-          `AAAAT supports at most ${MAX_ENABLED_CANDIDATURE_FIELDS} enabled candidature fields.`,
-        );
-      }
       const id = randomUUID();
       const now = new Date().toISOString();
       database
@@ -286,11 +272,6 @@ export function updateCandidatureField(
       if (!sameShape(current, input) && fieldHasValues(database, input.id)) {
         throw new CandidatureFieldServiceError(
           "Clear or explicitly convert retained values before changing field type, cardinality, or choice IDs.",
-        );
-      }
-      if (!current.enabled && input.enabled && countEnabled(database) >= MAX_ENABLED_CANDIDATURE_FIELDS) {
-        throw new CandidatureFieldServiceError(
-          `AAAAT supports at most ${MAX_ENABLED_CANDIDATURE_FIELDS} enabled candidature fields.`,
         );
       }
       const now = new Date().toISOString();
