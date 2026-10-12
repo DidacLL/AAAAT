@@ -6,6 +6,8 @@ import {
   candidatureExternalAiCopyResultSchema,
   candidatureExternalAiExportResultSchema,
   candidatureExternalAiInstructionSchema,
+  candidaturePreparedTaskSchema,
+  candidaturePreparedTaskTargetSchema,
   candidatureExternalAiTaskTextSchema,
   candidatureExternalAiResultTextSchema,
   candidatureInterviewResultImportResultSchema,
@@ -19,8 +21,9 @@ import {
   externalInterviewPreparationContextSchema,
 } from "../shared/candidature-opportunity-research-access-contracts";
 import {
-  buildApplicationInformationPortableTask,
   buildInterviewPreparationPortableTask,
+  assertGuiTaskCurrent,
+  closePrivateTask,
   importApplicationInformationPortableResult,
   prepareInterviewPreparationContext,
   preparePrivateInterviewPreparationContext,
@@ -88,33 +91,25 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.privateApplicationInformationTask, (event, rawCandidatureId: unknown, rawInstruction: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return externalApplicationInformationTaskSchema.parse(preparePrivateApplicationInformationTask(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId), candidatureExternalAiInstructionSchema.parse(rawInstruction)));
+    return candidaturePreparedTaskSchema.parse(preparePrivateApplicationInformationTask(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId), candidatureExternalAiInstructionSchema.parse(rawInstruction)));
   });
 
-  ipcMain.handle(candidatureOpportunityResearchAccessChannels.useConnectedApplicationInformationTask, (event, rawText: unknown) => {
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.useConnectedApplicationInformationTask, (event, rawTarget: unknown, rawText: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return externalApplicationInformationTaskSchema.parse(useConnectedApplicationInformationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
+    return externalApplicationInformationTaskSchema.parse(useConnectedApplicationInformationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText), candidaturePreparedTaskTargetSchema.parse(rawTarget)));
   });
 
-  ipcMain.handle(
-    candidatureOpportunityResearchAccessChannels.takeApplicationInformationResult,
-    (event, candidatureId: unknown) => {
-      assertTrustedSender(event, mainWindow);
-      return externalApplicationInformationPendingResultOptionalSchema.parse(
-        takeApplicationInformationResult(
-          requireWorkspaceRoot(),
-          candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId),
-        ),
-      );
-    },
-  );
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.takeApplicationInformationResult, (event, rawTarget: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const target = candidaturePreparedTaskTargetSchema.parse(rawTarget);
+    return externalApplicationInformationPendingResultOptionalSchema.parse(takeApplicationInformationResult(requireWorkspaceRoot(), target.candidatureId, target));
+  });
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.copyApplicationInformationTask,
     (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
       const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
-      buildApplicationInformationPortableTask(requireWorkspaceRoot());
       clipboard.writeText(taskText);
       return candidatureExternalAiCopyResultSchema.parse("copied");
     },
@@ -145,12 +140,13 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.submitApplicationInformationResult,
-    (event, rawResultText: unknown) => {
+    (event, rawTarget: unknown, rawResultText: unknown) => {
       assertTrustedSender(event, mainWindow);
       return externalApplicationInformationPendingResultSchema.parse(
         importApplicationInformationPortableResult(
           requireWorkspaceRoot(),
           candidatureExternalAiResultTextSchema.parse(rawResultText),
+          candidaturePreparedTaskTargetSchema.parse(rawTarget),
         ),
       );
     },
@@ -158,8 +154,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.importApplicationInformationResult,
-    async (event) => {
+    async (event, rawTarget: unknown) => {
       assertTrustedSender(event, mainWindow);
+      const target = candidaturePreparedTaskTargetSchema.parse(rawTarget);
+      const rootPath = requireWorkspaceRoot();
+      assertGuiTaskCurrent(rootPath, target, "application");
       const selection = await dialog.showOpenDialog(mainWindow, {
         title: "Import application information suggestions",
         buttonLabel: "Import suggestions",
@@ -172,10 +171,12 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
       if (selection.canceled || !filePath) {
         return candidatureApplicationInformationResultImportResultSchema.parse("cancelled");
       }
+      if (requireWorkspaceRoot() !== rootPath) throw new Error("The workspace changed while choosing this file.");
       return candidatureApplicationInformationResultImportResultSchema.parse(
         importApplicationInformationPortableResult(
-          requireWorkspaceRoot(),
+          rootPath,
           requirePortableResultFile(filePath),
+          target,
         ),
       );
     },
@@ -190,7 +191,12 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.privateInterviewContext, (event, rawCandidatureId: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return externalInterviewPreparationContextSchema.parse(preparePrivateInterviewPreparationContext(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId)));
+    return candidaturePreparedTaskSchema.parse(preparePrivateInterviewPreparationContext(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId)));
+  });
+
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.closePrivateTask, (event, rawTarget: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    closePrivateTask(requireWorkspaceRoot(), candidaturePreparedTaskTargetSchema.parse(rawTarget));
   });
 
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.disableConnectedTaskAccess, (event, rawCandidatureId: unknown) => {
@@ -198,9 +204,9 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     return candidatureOpportunityResearchAccessSchema.parse(disableConnectedTaskAccess(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId)));
   });
 
-  ipcMain.handle(candidatureOpportunityResearchAccessChannels.useConnectedInterviewTask, (event, rawText: unknown) => {
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.useConnectedInterviewTask, (event, rawTarget: unknown, rawText: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return candidatureExternalAiTaskTextSchema.parse(useConnectedInterviewPreparationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
+    return candidatureExternalAiTaskTextSchema.parse(useConnectedInterviewPreparationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText), candidaturePreparedTaskTargetSchema.parse(rawTarget)));
   });
 
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.interviewTaskText, (event) => {
@@ -213,7 +219,6 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
       const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
-      buildInterviewPreparationPortableTask(requireWorkspaceRoot());
       clipboard.writeText(taskText);
       return candidatureExternalAiCopyResultSchema.parse("copied");
     },
@@ -244,11 +249,12 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.retainInterviewResult,
-    (event, rawResultText: unknown) => {
+    (event, rawTarget: unknown, rawResultText: unknown) => {
       assertTrustedSender(event, mainWindow);
       const retained = retainInterviewPreparationResult(
         requireWorkspaceRoot(),
         candidatureExternalAiResultTextSchema.parse(rawResultText),
+        candidaturePreparedTaskTargetSchema.parse(rawTarget),
       );
       if (!retained) {
         throw new Error("Choose interview preparation with my AI on an application first.");
@@ -259,8 +265,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.importInterviewResult,
-    async (event) => {
+    async (event, rawTarget: unknown) => {
       assertTrustedSender(event, mainWindow);
+      const target = candidaturePreparedTaskTargetSchema.parse(rawTarget);
+      const rootPath = requireWorkspaceRoot();
+      assertGuiTaskCurrent(rootPath, target, "interview");
       const selection = await dialog.showOpenDialog(mainWindow, {
         title: "Import interview preparation",
         buttonLabel: "Import result",
@@ -273,9 +282,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
       if (selection.canceled || !filePath) {
         return candidatureInterviewResultImportResultSchema.parse("cancelled");
       }
+      if (requireWorkspaceRoot() !== rootPath) throw new Error("The workspace changed while choosing this file.");
       retainInterviewPreparationResult(
-        requireWorkspaceRoot(),
+        rootPath,
         requirePortableResultFile(filePath),
+        target,
       );
       return candidatureInterviewResultImportResultSchema.parse("imported");
     },
