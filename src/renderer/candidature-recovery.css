@@ -78,3 +78,7 @@ dialog.application-external-ai::backdrop { background: rgb(0 0 0 / 40%); }
 .application-task-text textarea, .application-task-result textarea { width: 100%; box-sizing: border-box; resize: vertical; }
 .application-secondary-task { padding-top: .5rem; }
 .application-secondary-task button { margin-top: .6rem; }
+
+.candidature-selected .candidature-information-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; min-width: 0; }
+.candidature-selected .candidature-information-tools > details { margin-top: 0; min-width: 0; }
+.candidature-information-tools > details[open], .candidature-information-tools > .candidature-bulk-ai-review { flex-basis: 100%; }

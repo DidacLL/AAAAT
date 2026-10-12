@@ -670,6 +670,9 @@ export function CandidaturesWorkspace({
       return enabledFields.indexOf(left) - enabledFields.indexOf(right);
     });
   const remainingFields = enabledFields.filter((field) => !field.preferences.favourite);
+  const retainedRemainingFields = selected
+    ? remainingFields.filter((field) => selected.values.some((value) => value.fieldId === field.definition.id))
+    : [];
   const enabledMissingFields = selected
     ? enabledFields.filter(
         (field) =>
@@ -1227,19 +1230,21 @@ export function CandidaturesWorkspace({
       </section>
 
       <section
-        className="section-surface candidature-information-surface"
-        aria-label="Remaining application information"
+        className={retainedRemainingFields.length > 0 ? "section-surface candidature-information-surface" : "candidature-information-surface candidature-information-tools"}
+        aria-label={retainedRemainingFields.length > 0 ? "Remaining application information" : "Application information controls"}
       >
+        {retainedRemainingFields.length > 0 ? (
         <div className="candidature-editor-heading candidature-information-heading">
           <div>
             <p className="eyebrow">Information</p>
             <h3>Details</h3>
           </div>
         </div>
+        ) : null}
         <CandidatureBulkAiReview candidature={selected} fields={fields} onRetry={() => void requestBulkInference()} />
-        {remainingFields.some((field) => selected.values.some((value) => value.fieldId === field.definition.id)) ? (
+        {retainedRemainingFields.length > 0 ? (
           <div className="retained-information-list candidature-information-grid">
-            {remainingFields.filter((field) => selected.values.some((value) => value.fieldId === field.definition.id)).map(renderInformationField)}
+            {retainedRemainingFields.map(renderInformationField)}
           </div>
         ) : null}
         <details className="application-add-information"><summary>Add information</summary><div className="candidature-information-grid">{enabledFields.filter((field) => !selected.values.some((value) => value.fieldId === field.definition.id)).map(renderInformationField)}</div></details>
