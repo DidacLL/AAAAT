@@ -79,7 +79,7 @@ export function CandidatureBulkAiReview({
       <div className="candidature-bulk-ai-review" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
         <span>
-          {appliedCount > 0 ? `${appliedCount} filled · ` : ""}
+          {appliedCount > 0 ? `${appliedCount} filled and saved · ` : ""}
           {suggestionCount > 0
             ? `${suggestionCount} AI suggestion${suggestionCount === 1 ? "" : "s"} ready to review`
             : `${issues.length} suggestion${issues.length === 1 ? "" : "s"} need review`}
@@ -96,7 +96,7 @@ export function CandidatureBulkAiReview({
     return (
       <div className="candidature-bulk-ai-review" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
-        <span>{appliedCount} AI suggestion{appliedCount === 1 ? "" : "s"} filled</span>
+        <span>{appliedCount} field{appliedCount === 1 ? "" : "s"} filled and saved. Edit or Clear a value to correct it.</span>
       </div>
     );
   }

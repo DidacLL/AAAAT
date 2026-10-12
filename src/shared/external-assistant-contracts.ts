@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import {
   operationReferenceSchema,
-  providerDiscoveryFieldSchema,
 } from "./ai-contracts";
 import { partialJobExtractionResultSchema } from "./ai-proposal-outcomes";
 import {
@@ -67,9 +66,7 @@ export type ExternalCandidatureSourceAddResult = z.infer<
 export const externalApplicationInformationTaskSchema = z
   .object({
     taskRef: operationReferenceSchema,
-    instruction: z.string().trim().min(1).max(20_000),
-    context: z.string().trim().min(1).max(50_000),
-    fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
+    taskText: z.string().min(1).max(1024 * 1024).refine((text) => text.trim().length > 0, { message: "Write a task before copying or publishing it." }),
   })
   .strict();
 export type ExternalApplicationInformationTask = z.infer<
@@ -125,6 +122,9 @@ export const externalInterviewPreparationContextSchema = z
 export type ExternalInterviewPreparationContext = z.infer<
   typeof externalInterviewPreparationContextSchema
 >;
+
+export const externalInterviewPreparationTaskSchema = z.object({ taskText: externalApplicationInformationTaskSchema.shape.taskText }).strict();
+export type ExternalInterviewPreparationTask = z.infer<typeof externalInterviewPreparationTaskSchema>;
 
 export const externalInterviewPreparationResultSchema = z
   .object({ text: z.string().trim().min(1).max(64 * 1024) })

@@ -66,3 +66,10 @@ dialog.application-external-ai::backdrop { background: rgb(0 0 0 / 40%); }
 .external-task-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 .external-task-heading h2 { font-size: 1.1rem; margin: 0; }
 .application-external-ai textarea { width: 100%; }
+
+.application-external-task { display: grid; gap: .8rem; }
+.application-external-task .external-task-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.application-task-text, .application-task-result { display: grid; gap: .4rem; }
+.application-task-text textarea, .application-task-result textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.application-secondary-task { padding-top: .5rem; }
+.application-secondary-task button { margin-top: .6rem; }

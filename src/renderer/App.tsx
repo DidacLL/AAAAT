@@ -418,9 +418,12 @@ export function App() {
         showProductView("documents");
       },
       returnToCandidature: () => {
+        setDocumentDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
-        setWelcomeOpen(false);
+        setProfessionalInformationHandoff(null);
+        setDocumentHandoff(null);
+        setDocumentWorkspaceRevision((current) => current + 1);
         showProductView("candidatures");
       },
       returnToDocuments: () => {

@@ -87,11 +87,12 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
   const sourceRevision = useRef(0);
   const currentDrafts = useRef(drafts);
   const active = useRef(true);
-  const taskId = useRef("application-draft:" + crypto.randomUUID());
+  const taskId = useRef({ id: "application-draft:" + crypto.randomUUID() });
+  const extractionGeneration = useRef(0);
 
   useEffect(() => {
     active.current = true;
-    const requestId = taskId.current;
+    const requestHolder = taskId.current;
     void window.aaaat.candidatures.listFields().then((next) => {
       if (!active.current) return;
       const enabled = next.filter((field) => field.definition.enabled);
@@ -103,6 +104,7 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
     });
     return () => {
       active.current = false;
+      const requestId = requestHolder.id;
       void window.aaaat.aiTasks.cancelJobExtraction(requestId).catch(() => undefined);
       void window.aaaat.aiTasks.cancelTagInference(requestId + ":tags").catch(() => undefined);
     };
@@ -207,8 +209,18 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
   };
 
 
+  const stopExtraction = () => {
+    extractionGeneration.current += 1;
+    setExtracting(false);
+    const requestId = taskId.current.id;
+    void window.aaaat.aiTasks.cancelJobExtraction(requestId).catch(() => undefined);
+    void window.aaaat.aiTasks.cancelTagInference(requestId + ":tags").catch(() => undefined);
+  };
   const extract = async () => {
     if (extracting || !source.trim()) return;
+    const generation = ++extractionGeneration.current;
+    taskId.current.id = "application-draft:" + crypto.randomUUID();
+    const requestId = taskId.current.id;
     setExtracting(true); setError(null); setMessage(null);
     const versions = { ...edits.current };
     const sourceAtRequest = sourceRevision.current;
@@ -216,10 +228,10 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
     const request = { sourceTitle: "", sourceUrl: "", sourceText: compactSourceText(source).slice(0, 50000) };
     try {
       const [information, tags] = await Promise.allSettled([
-        targets.length ? window.aaaat.aiTasks.extractJob(taskId.current, { ...request, targetFieldIds: targets.map((field) => field.definition.id) }) : Promise.resolve<PartialJobExtractionResult>({ proposals: [], issues: [] }),
-        window.aaaat.aiTasks.inferTags(taskId.current + ":tags", request),
+        targets.length ? window.aaaat.aiTasks.extractJob(requestId, { ...request, targetFieldIds: targets.map((field) => field.definition.id) }) : Promise.resolve<PartialJobExtractionResult>({ proposals: [], issues: [] }),
+        window.aaaat.aiTasks.inferTags(requestId + ":tags", request),
       ]);
-      if (!active.current) return;
+      if (!active.current || generation !== extractionGeneration.current) return;
       if (sourceRevision.current !== sourceAtRequest) { setMessage("The material changed while AI was working. Extract again to use the new text."); return; }
       if (tags.status === "fulfilled") setTagResult(tags.value);
       const skipped: PartialJobExtractionResult["proposals"] = [];
@@ -235,17 +247,18 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
           next[proposal.fieldId] = valueDraft(field, proposal.value); count += 1;
         }
         currentDrafts.current = next; setDrafts(next); setConflicts(skipped);
-        setMessage(`${count} field${count === 1 ? "" : "s"} filled. Edit anything before saving.`);
+        setMessage(`${count} field${count === 1 ? "" : "s"} filled. These are draft values. Edit anything before saving.`);
         if (information.value.issues.length) setError(information.value.issues.map((issue) => issue.reason).join(" "));
       } else setError(information.reason instanceof Error ? information.reason.message : "Information extraction was unavailable.");
       if (tags.status === "rejected") setError((current) => [current, "Tag suggestions were unavailable."].filter(Boolean).join(" "));
     } catch (reason) {
-      if (active.current) setError(reason instanceof Error ? reason.message : "AI could not extract this material.");
-    } finally { if (active.current) setExtracting(false); }
+      if (active.current && generation === extractionGeneration.current) setError(reason instanceof Error ? reason.message : "AI could not extract this material.");
+    } finally { if (active.current && generation === extractionGeneration.current) setExtracting(false); }
   };
 
   const save = async () => {
-    if (saving || extracting) return;
+    if (saving) return;
+    if (extracting) stopExtraction();
     const values: { fieldId: string; value: CandidatureRuntimeValue }[] = [];
     try {
       for (const field of fields) {
@@ -269,8 +282,9 @@ export function CandidatureManualEntryPanel({ onCancel, onCreated, onDirtyChange
   useShellActions({
     title: "New application",
     actions: [
-      { id: "save-application", label: saving ? "Saving…" : "Save", onClick: () => void save(), primary: true, disabled: saving || extracting || !dirty },
+      { id: "save-application", label: saving ? "Saving…" : "Save", onClick: () => void save(), primary: true, disabled: saving || !dirty },
       { id: "extract-draft", label: extracting ? "Extracting…" : "Extract with AI", onClick: () => void extract(), disabled: !source.trim() || extracting || saving || fieldsLoading },
+      ...(extracting ? [{ id: "stop-extraction", label: "Stop AI", onClick: () => { stopExtraction(); setMessage("AI stopped. Keep editing or save this draft."); }, disabled: saving }] : []),
       { id: "close-application", label: "Cancel", onClick: cancel, disabled: saving },
     ],
   }, 1);

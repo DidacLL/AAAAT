@@ -145,6 +145,7 @@ export function CandidatureInferencePanel({
 
         try {
           const fieldPromise = canExtract ? window.aaaat.aiTasks.extractJob(taskId, {
+            candidatureId: candidature.id,
             sourceTitle: "Retained AAAAT candidature context",
             sourceUrl: "",
             sourceText: fieldContext,
@@ -154,6 +155,7 @@ export function CandidatureInferencePanel({
           if (!includeTagInference || !tagContext) return await fieldPromise;
 
           const tagPromise = window.aaaat.aiTasks.inferTags(tagProviderTaskId, {
+            candidatureId: candidature.id,
             sourceTitle: "Retained AAAAT candidature Sources",
             sourceUrl: "",
             sourceText: tagContext,
@@ -217,6 +219,7 @@ export function CandidatureInferencePanel({
     );
   }, [
     aiReady,
+    candidature.id,
     fieldContext,
     includeTagInference,
     requestedFields,

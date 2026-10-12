@@ -895,46 +895,46 @@ export function renderedCvPdfPath(rootPath: string, renderedCvId: string): strin
     return pdf;
   });
 }
-export function duplicateRenderedCv(rootPath: string, renderedCvId: string): WorkingCvRecord {
+export function previewRenderedCv(rootPath: string, renderedCvId: string): WorkingCvRecord {
   const row =
-      withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
+    withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
   const snapshot = parseJson(
-      row.snapshotJson, (value) => renderedCvSnapshotSchema.parse(value),
-      'Stored Rendered CV snapshot is invalid.');
+    row.snapshotJson, (value) => renderedCvSnapshotSchema.parse(value),
+    'Stored Rendered CV snapshot is invalid.');
   const liveProfileItemIds = new Set(getProfile(rootPath).items.map((item) => item.id));
-  return withWorkspaceDatabase(rootPath, (database) => {
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    const sections = snapshot.sections.map(
-        (section) => ({
-          ...section,
-          id: randomUUID(),
-          items: section.items.map(
-              (item):
-                  WorkingCvItem => {
-                    const retainedProfileItemId =
-                        item.profileItemId && liveProfileItemIds.has(item.profileItemId) ?
-                        item.profileItemId :
-                        null;
-                    return {
-                      ...item,
-                      id: randomUUID(),
-                      templateItemId: null,
-                      sourceMode: retainedProfileItemId ? 'override' : 'custom',
-                      profileItemId: retainedProfileItemId,
-                      profileVariantId: null
-                    };
-                  })
-        }));
-    database
-        .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, `${snapshot.title} copy`, nullable(snapshot.language), row.sourceTemplateId,
-            row.candidatureId, JSON.stringify(snapshot.pdfMetadata), snapshot.parserSummary,
-            JSON.stringify(sections), now, now);
-    return requireWorkingCv(database, id);
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const copySuffix = " copy";
+  const sections = snapshot.sections.map(
+      (section) => ({
+        ...section,
+        id: randomUUID(),
+        items: section.items.map(
+            (item):
+                WorkingCvItem => {
+                  const retainedProfileItemId =
+                      item.profileItemId && liveProfileItemIds.has(item.profileItemId) ?
+                      item.profileItemId :
+                      null;
+                  return {
+                    ...item,
+                    id: randomUUID(),
+                    templateItemId: null,
+                    sourceMode: retainedProfileItemId ? 'override' : 'custom',
+                    profileItemId: retainedProfileItemId,
+                    profileVariantId: null
+                  };
+                })
+      }));
+  return workingCvRecordSchema.parse({
+    id, title: snapshot.title.slice(0, 200 - copySuffix.length) + copySuffix, language: snapshot.language,
+    sourceTemplateId: row.sourceTemplateId, candidatureId: row.candidatureId,
+    pdfMetadata: snapshot.pdfMetadata, parserSummary: snapshot.parserSummary,
+    sections, createdAt: now, updatedAt: now,
   });
+}
+export function duplicateRenderedCv(rootPath: string, renderedCvId: string): WorkingCvRecord {
+  return keepWorkingCv(rootPath, previewRenderedCv(rootPath, renderedCvId));
 }
 function safeProjectName(title: string, id: string): string {
   const slug =

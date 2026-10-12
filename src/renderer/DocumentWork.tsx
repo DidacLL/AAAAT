@@ -212,6 +212,26 @@ function populatedOptionalDetails(content: WorkingCvItem["content"]): OptionalCv
     .map(({ key }) => key);
 }
 
+function cvFieldValue(document: WorkingCvRecord, itemId: string, field: CvWritingField): string | null {
+  const item = document.sections.flatMap((section) => section.items).find((candidate) => candidate.id === itemId);
+  return item ? item.content[field] ?? "" : null;
+}
+function withCvWriting(document: WorkingCvRecord, result: CvWritingResult): WorkingCvRecord {
+  return { ...document, sections: document.sections.map((section) => ({
+    ...section, items: section.items.map((item) => item.id === result.itemId ? {
+      ...item, sourceMode: item.sourceMode === "custom" ? "custom" : "override",
+      profileVariantId: null, content: { ...item.content, [result.field]: result.content },
+    } : item),
+  })) };
+}
+const letterAiFields = ["recipient", "subject", "bodyParagraphs", "closing"] as const;
+type LetterAiField = typeof letterAiFields[number];
+const letterAiFieldLabels: Record<LetterAiField, string> = {
+  recipient: "To", subject: "Subject", bodyParagraphs: "Letter", closing: "Closing",
+};
+function letterAiValues(document: CoverLetterRecord): CoverLetterDraft {
+  return { recipient: document.recipient ?? "", subject: document.subject ?? "", bodyParagraphs: document.bodyParagraphs, closing: document.closing ?? "" };
+}
 export function WorkingCvEditor({
   document,
   profile,
@@ -238,7 +258,7 @@ export function WorkingCvEditor({
   const [draft, setDraft] = useState<WorkingCvRecord>(() => (documentDraft(document.id) as WorkingCvRecord | undefined) ?? document);
   const draftRef = useRef(draft);
   useLayoutEffect(() => { draftRef.current = draft; }, [draft]);
-  const requestDraft = useRef<string | null>(null);
+  const requestDraft = useRef<WorkingCvRecord | null>(null);
   const preparedId = useRef<string | null>(null);
   const mounted = useRef(false);
   const [aiPreview, setAiPreview] = useState<PreparedDocumentAi | null>(null);
@@ -252,6 +272,7 @@ export function WorkingCvEditor({
   const [cvTemplateReuseChoice, setCvTemplateReuseChoice] = useState<CvTemplateReuseChoice>("");
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
   const [reuseChoiceByItem, setReuseChoiceByItem] = useState<Record<string, CvReuseTarget>>({});
+  const [writingAlternative, setWritingAlternative] = useState<CvWritingResult | null>(null);
   const [writingMessage, setWritingMessage] = useState<string | null>(null);
   const [writingTarget, setWritingTarget] = useState<{
     readonly itemId: string;
@@ -506,21 +527,17 @@ export function WorkingCvEditor({
       });
       if (!mounted.current) { void window.aaaat.ai.discardDocumentPreparation(preview.requestId); return; }
       preparedId.current = preview.requestId;
-      requestDraft.current = JSON.stringify(current);
+      requestDraft.current = current;
       setAiPreview(preview);
     } catch (reason) { setError(readableDocumentError(reason, "AI context could not be prepared.")); }
     finally { setPreparingAi(false); }
   };
   const sendCvTask = () => {
     if (!aiPreview || !writingTarget || writingActive) return;
-    const current = draftRef.current;
-    if (JSON.stringify(current) !== requestDraft.current) {
-      if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current);
-      preparedId.current = null;
-      setAiPreview(null); setError("The CV changed. Open AI again to use the updated information."); return;
-    }
-    const snapshot = requestDraft.current;
+    const current = requestDraft.current;
+    if (!current) return;
     const target = writingTarget;
+    const snapshot = cvFieldValue(current, target.itemId, target.field);
     const preview = aiPreview;
     setAiPreview(null);
     startAiTask<CvWritingResult>(writingTaskKey, async (updateDetail, signal) => {
@@ -533,15 +550,16 @@ export function WorkingCvEditor({
           workingCvId: current.id, document: current, itemId: target.itemId, field: target.field,
           sections: current.sections, preparedId: preview.requestId,
         });
-        if (!signal.aborted && JSON.stringify(draftRef.current) === snapshot) {
-          setDraft((value) => ({ ...value, sections: value.sections.map((section) => ({
-            ...section, items: section.items.map((item) => item.id === result.itemId ? {
-              ...item, sourceMode: item.sourceMode === "custom" ? "custom" : "override",
-              profileVariantId: null, content: { ...item.content, [result.field]: result.content },
-            } : item),
-          })) }));
-          setWritingMessage("AI text added to this draft.");
-        } else if (!signal.aborted) setWritingMessage("The CV changed while AI worked. Your edits were kept; request AI again if needed.");
+        if (!signal.aborted) {
+          if (snapshot !== null && cvFieldValue(draftRef.current, result.itemId, result.field) === snapshot) {
+            setDraft((value) => cvFieldValue(value, result.itemId, result.field) === snapshot ? withCvWriting(value, result) : value);
+            setWritingAlternative(null);
+            setWritingMessage("AI text added to this draft.");
+          } else {
+            setWritingAlternative(result);
+            setWritingMessage("Your edited text was kept. The AI text is available below.");
+          }
+        }
         setWritingTarget(null);
         return result;
       } finally { signal.removeEventListener("abort", cancel); }
@@ -583,7 +601,17 @@ export function WorkingCvEditor({
     <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
       <p className="document-save-state">{provisional ? "New CV · not saved" : dirty ? "Unsaved changes" : "Saved"}</p>
       {aiPreview ? <DocumentAiContext preview={aiPreview} busy={writingActive} onSend={sendCvTask} onClose={() => { void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); preparedId.current = null; setAiPreview(null); }} /> : null}
+      {writingAlternative ? <details className="document-ai-alternative" open>
+        <summary>AI alternative · {writingAlternative.field}</summary>
+        <textarea aria-label="AI alternative" value={writingAlternative.content} onChange={(event) => setWritingAlternative({ ...writingAlternative, content: event.target.value })} />
+        <div><button type="button" disabled={cvFieldValue(draft, writingAlternative.itemId, writingAlternative.field) === null}
+          onClick={() => { setDraft((current) => withCvWriting(current, writingAlternative)); setWritingAlternative(null); }}>Use this text</button>
+          <button type="button" onClick={() => setWritingAlternative(null)}>Dismiss</button></div>
+      </details> : null}
 
+      {writingTask?.status === "failed" ? <p className="error-message document-editor-message" role="alert">
+        AI{writingTarget ? ` · ${writingTarget.field}` : ""}: {readableDocumentError(new Error(writingTask.error ?? ""), "AI could not write this text.")}
+      </p> : null}
       {error ? (
         <div className="document-editor-message">
           <p className="error-message" role="alert">{error}</p>
@@ -1042,7 +1070,7 @@ function LetterEditor({
   const [aiPreview, setAiPreview] = useState<PreparedDocumentAi | null>(null);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
   const [preparingAi, setPreparingAi] = useState(false);
-  const requestDraft = useRef<string | null>(null);
+  const requestDraft = useRef<CoverLetterRecord | null>(null);
   const preparedId = useRef<string | null>(null);
   const mounted = useRef(false);
   const [draftingTaskKey] = useState(() => `document:cover-letter-draft:${document.id}:${crypto.randomUUID()}`);
@@ -1051,6 +1079,7 @@ function LetterEditor({
     draftingTask?.status === "queued" || draftingTask?.status === "working";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiAlternative, setAiAlternative] = useState<Partial<CoverLetterDraft> | null>(null);
   const [productionMessage, setProductionMessage] = useState<string | null>(null);
 
   const latestRendered = collections.renderedLetters.find(
@@ -1170,21 +1199,17 @@ function LetterEditor({
       const preview = await window.aaaat.ai.prepareCoverLetter({ coverLetterId: current.id, document: current, sourceIds: includedSources });
       if (!mounted.current) { void window.aaaat.ai.discardDocumentPreparation(preview.requestId); return; }
       preparedId.current = preview.requestId;
-      requestDraft.current = JSON.stringify(current);
+      requestDraft.current = current;
       setSourceIds(includedSources); setAiPreview(preview);
     } catch (reason) { setError(readableDocumentError(reason, "AI context could not be prepared.")); }
     finally { setPreparingAi(false); }
   };
   const sendLetterTask = () => {
     if (!aiPreview || draftingActive || preparingAi) return;
-    const current = draftRef.current;
-    if (JSON.stringify(current) !== requestDraft.current) {
-      if (preparedId.current) void window.aaaat.ai.discardDocumentPreparation(preparedId.current);
-      preparedId.current = null;
-      setAiPreview(null); setError("The letter changed. Open AI again to use the updated information."); return;
-    }
+    const current = requestDraft.current;
+    if (!current) return;
     const preview = aiPreview;
-    const snapshot = requestDraft.current;
+    const snapshot = letterAiValues(current);
     setAiPreview(null);
     startAiTask<CoverLetterDraft>(draftingTaskKey, async (updateDetail, signal) => {
       preparedId.current = null;
@@ -1193,11 +1218,22 @@ function LetterEditor({
       signal.addEventListener("abort", cancel, { once: true });
       try {
         const result = await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, { coverLetterId: current.id, document: current, sourceIds, preparedId: preview.requestId });
-        if (!signal.aborted && JSON.stringify(draftRef.current) === snapshot) {
-          setDraft((value) => ({ ...value, recipient: result.recipient || undefined, subject: result.subject || undefined, closing: result.closing || undefined }));
-          setBody(result.bodyParagraphs.join("\n\n"));
-          setProductionMessage("AI text added to this draft.");
-        } else if (!signal.aborted) setProductionMessage("The letter changed while AI worked. Your edits were kept; request AI again if needed.");
+        if (!signal.aborted) {
+          const latest = letterAiValues(draftRef.current);
+          const unchanged = new Set(letterAiFields.filter((field) => JSON.stringify(latest[field]) === JSON.stringify(snapshot[field])));
+          setDraft((value) => ({
+            ...value,
+            recipient: unchanged.has("recipient") && (value.recipient ?? "") === snapshot.recipient ? result.recipient || undefined : value.recipient,
+            subject: unchanged.has("subject") && (value.subject ?? "") === snapshot.subject ? result.subject || undefined : value.subject,
+            closing: unchanged.has("closing") && (value.closing ?? "") === snapshot.closing ? result.closing || undefined : value.closing,
+          }));
+          if (unchanged.has("bodyParagraphs")) setBody((value) =>
+            JSON.stringify(value.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean)) === JSON.stringify(snapshot.bodyParagraphs)
+              ? result.bodyParagraphs.join("\n\n") : value);
+          const alternatives = Object.fromEntries(letterAiFields.filter((field) => !unchanged.has(field)).map((field) => [field, result[field]])) as Partial<CoverLetterDraft>;
+          setAiAlternative(Object.keys(alternatives).length ? alternatives : null);
+          setProductionMessage(Object.keys(alternatives).length ? "Your edited text was kept. AI alternatives are available below." : "AI text added to this draft.");
+        }
         return result;
       } finally { signal.removeEventListener("abort", cancel); }
     }, "Draft cover letter");
@@ -1248,7 +1284,25 @@ function LetterEditor({
     <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
       <p className="document-save-state">{provisional ? "New letter · not saved" : dirty ? "Unsaved changes" : "Saved"}</p>
       {aiPreview ? <DocumentAiContext preview={aiPreview} busy={draftingActive || preparingAi} sourceIds={sourceIds} onSources={(ids) => { void askAi(ids); }} onSend={sendLetterTask} onClose={() => { void window.aaaat.ai.discardDocumentPreparation(aiPreview.requestId); preparedId.current = null; setAiPreview(null); }} /> : null}
+      {aiAlternative ? <details className="document-ai-alternative" open><summary>AI alternatives</summary>
+        {letterAiFields.filter((field) => aiAlternative[field] !== undefined).map((field) => {
+          const value = aiAlternative[field];
+          const text = Array.isArray(value) ? value.join("\n\n") : value ?? "";
+          return <label key={field}>{letterAiFieldLabels[field]}
+            <textarea value={text} onChange={(event) => setAiAlternative((current) => ({ ...current, [field]: field === "bodyParagraphs" ? event.target.value.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean) : event.target.value }))} />
+            <button type="button" onClick={() => {
+              if (field === "bodyParagraphs") setBody(text);
+              else setDraft((current) => ({ ...current, [field]: text || undefined }));
+              setAiAlternative((current) => { const remaining = { ...current }; delete remaining[field]; return Object.keys(remaining).length ? remaining : null; });
+            }}>Use this text</button>
+          </label>;
+        })}
+        <button type="button" onClick={() => setAiAlternative(null)}>Dismiss</button>
+      </details> : null}
 
+      {draftingTask?.status === "failed" ? <p className="error-message document-editor-message" role="alert">
+        {readableDocumentError(new Error(draftingTask.error ?? ""), "AI could not draft this letter.")}
+      </p> : null}
       {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
       {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
 

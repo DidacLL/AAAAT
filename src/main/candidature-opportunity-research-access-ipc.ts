@@ -6,6 +6,7 @@ import {
   candidatureExternalAiCopyResultSchema,
   candidatureExternalAiExportResultSchema,
   candidatureExternalAiInstructionSchema,
+  candidatureExternalAiTaskTextSchema,
   candidatureExternalAiResultTextSchema,
   candidatureInterviewResultImportResultSchema,
   candidatureInterviewResultRetainResultSchema,
@@ -24,6 +25,8 @@ import {
   prepareInterviewPreparationContext,
   maxExternalAiPortableResultBytes,
   prepareApplicationInformationTask,
+  publishApplicationInformationTask,
+  publishInterviewPreparationTask,
   retainInterviewPreparationResult,
   takeApplicationInformationResult,
   getCandidatureOpportunityResearchAccess,
@@ -80,6 +83,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     },
   );
 
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.publishApplicationInformationTask, (event, rawText: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return externalApplicationInformationTaskSchema.parse(publishApplicationInformationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
+  });
+
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.takeApplicationInformationResult,
     (event, candidatureId: unknown) => {
@@ -95,25 +103,21 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.copyApplicationInformationTask,
-    (event, rawInstruction: unknown) => {
+    (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-      clipboard.writeText(
-        buildApplicationInformationPortableTask(requireWorkspaceRoot(), instruction),
-      );
+      const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
+      buildApplicationInformationPortableTask(requireWorkspaceRoot());
+      clipboard.writeText(taskText);
       return candidatureExternalAiCopyResultSchema.parse("copied");
     },
   );
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.exportApplicationInformationTask,
-    async (event, rawInstruction: unknown) => {
+    async (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-      const task = buildApplicationInformationPortableTask(
-        requireWorkspaceRoot(),
-        instruction,
-      );
+      const task = candidatureExternalAiTaskTextSchema.parse(rawText);
+      buildApplicationInformationPortableTask(requireWorkspaceRoot());
       const selection = await dialog.showSaveDialog(mainWindow, {
         title: "Export application information task",
         buttonLabel: "Export task",
@@ -176,27 +180,33 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     );
   });
 
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.publishInterviewTask, (event, rawText: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureExternalAiTaskTextSchema.parse(publishInterviewPreparationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
+  });
+
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.interviewTaskText, (event) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureExternalAiTaskTextSchema.parse(buildInterviewPreparationPortableTask(requireWorkspaceRoot()));
+  });
+
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.copyInterviewTask,
-    (event, rawInstruction: unknown) => {
+    (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-      clipboard.writeText(
-        buildInterviewPreparationPortableTask(requireWorkspaceRoot(), instruction),
-      );
+      const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
+      buildInterviewPreparationPortableTask(requireWorkspaceRoot());
+      clipboard.writeText(taskText);
       return candidatureExternalAiCopyResultSchema.parse("copied");
     },
   );
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.exportInterviewTask,
-    async (event, rawInstruction: unknown) => {
+    async (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-      const task = buildInterviewPreparationPortableTask(
-        requireWorkspaceRoot(),
-        instruction,
-      );
+      const task = candidatureExternalAiTaskTextSchema.parse(rawText);
+      buildInterviewPreparationPortableTask(requireWorkspaceRoot());
       const selection = await dialog.showSaveDialog(mainWindow, {
         title: "Export interview preparation task",
         buttonLabel: "Export task",

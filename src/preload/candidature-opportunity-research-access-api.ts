@@ -3,6 +3,7 @@ import {
   candidatureExternalAiCopyResultSchema,
   candidatureExternalAiExportResultSchema,
   candidatureExternalAiInstructionSchema,
+  candidatureExternalAiTaskTextSchema,
   candidatureExternalAiResultTextSchema,
   candidatureInterviewResultImportResultSchema,
   candidatureInterviewResultRetainResultSchema,
@@ -48,6 +49,7 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
             candidatureExternalAiInstructionSchema.parse(instruction),
           ),
         ),
+      publishApplicationInformationTask: async (taskText: string) => externalApplicationInformationTaskSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.publishApplicationInformationTask, candidatureExternalAiTaskTextSchema.parse(taskText))),
       takeApplicationInformationResult: async (candidatureId: string) =>
         externalApplicationInformationPendingResultOptionalSchema.parse(
           await invoke(
@@ -56,21 +58,21 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
           ),
         ),
       copyApplicationInformationTask: async (
-        instruction: Parameters<ResearchApi["copyApplicationInformationTask"]>[0],
+        taskText: Parameters<ResearchApi["copyApplicationInformationTask"]>[0],
       ) =>
         candidatureExternalAiCopyResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.copyApplicationInformationTask,
-            candidatureExternalAiInstructionSchema.parse(instruction),
+            candidatureExternalAiTaskTextSchema.parse(taskText),
           ),
         ),
       exportApplicationInformationTask: async (
-        instruction: Parameters<ResearchApi["exportApplicationInformationTask"]>[0],
+        taskText: Parameters<ResearchApi["exportApplicationInformationTask"]>[0],
       ) =>
         candidatureExternalAiExportResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.exportApplicationInformationTask,
-            candidatureExternalAiInstructionSchema.parse(instruction),
+            candidatureExternalAiTaskTextSchema.parse(taskText),
           ),
         ),
       submitApplicationInformationResult: async (resultText: string) =>
@@ -90,22 +92,24 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
         externalInterviewPreparationContextSchema.parse(
           await invoke(candidatureOpportunityResearchAccessChannels.interviewContext),
         ),
+      interviewTaskText: async () => candidatureExternalAiTaskTextSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.interviewTaskText)),
+      publishInterviewTask: async (taskText: string) => candidatureExternalAiTaskTextSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.publishInterviewTask, candidatureExternalAiTaskTextSchema.parse(taskText))),
       copyInterviewTask: async (
-        instruction: Parameters<ResearchApi["copyInterviewTask"]>[0],
+        taskText: Parameters<ResearchApi["copyInterviewTask"]>[0],
       ) =>
         candidatureExternalAiCopyResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.copyInterviewTask,
-            candidatureExternalAiInstructionSchema.parse(instruction),
+            candidatureExternalAiTaskTextSchema.parse(taskText),
           ),
         ),
       exportInterviewTask: async (
-        instruction: Parameters<ResearchApi["exportInterviewTask"]>[0],
+        taskText: Parameters<ResearchApi["exportInterviewTask"]>[0],
       ) =>
         candidatureExternalAiExportResultSchema.parse(
           await invoke(
             candidatureOpportunityResearchAccessChannels.exportInterviewTask,
-            candidatureExternalAiInstructionSchema.parse(instruction),
+            candidatureExternalAiTaskTextSchema.parse(taskText),
           ),
         ),
       retainInterviewResult: async (resultText: string) =>

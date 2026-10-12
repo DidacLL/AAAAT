@@ -38,6 +38,7 @@ import {
   previewCoverLetter,
   keepCoverLetter,
   duplicateRenderedCv,
+  previewRenderedCv,
   exportApplicationPacketProject,
   exportRenderedCoverLetterProject,
   exportRenderedCvProject,
@@ -149,6 +150,10 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     return renderedCvRecordSchema.parse(
       await renderWorkingCv(requireWorkspaceRoot(), request.cvId, blueprintSource),
     );
+  });
+  ipcMain.handle(documentDomainChannels.previewRenderedCv, (event, renderedCvId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return workingCvRecordSchema.parse(previewRenderedCv(requireWorkspaceRoot(), renderedCvRecordSchema.shape.id.parse(renderedCvId)));
   });
   ipcMain.handle(documentDomainChannels.duplicateRenderedCv, (event, renderedCvId: unknown) => {
     assertTrustedSender(event, mainWindow);

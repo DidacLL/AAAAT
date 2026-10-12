@@ -91,3 +91,14 @@
 .document-ai-empty { margin: .2rem 0; color: #645e53; font-size: .85rem; }
 .document-ai-excluded { color: #645e53; font-style: italic; }
 @media (max-width: 580px) { .document-ai-information dl > div { grid-template-columns: 1fr; gap: .15rem; } }
+
+.document-ai-alternative { padding: .8rem; border: 1px solid #6f9694; border-radius: .4rem; background: #eef4ef; }
+.document-ai-alternative summary { cursor: pointer; font-weight: 600; }
+.document-ai-alternative textarea { width: 100%; box-sizing: border-box; min-height: 6rem; margin: .6rem 0; padding: .6rem; font: inherit; line-height: 1.5; resize: vertical; }
+.document-ai-alternative label { display: grid; margin: .8rem 0; font-size: .88rem; font-weight: 600; }
+.document-ai-alternative label button { justify-self: start; }
+.document-ai-alternative > div { display: flex; gap: .5rem; }
+
+.document-name-editor { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; width: 100%; }
+.document-name-editor label { display: grid; gap: .3rem; flex: 1; min-width: 12rem; font-size: .85rem; }
+.document-name-editor input { width: 100%; box-sizing: border-box; padding: .5rem .6rem; font: inherit; }

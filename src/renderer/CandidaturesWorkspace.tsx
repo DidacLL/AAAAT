@@ -31,7 +31,7 @@ import {
 } from "./candidature-projections";
 import { clearAiTask, getAiTask, markAiTaskFieldHandled } from "./ai-task-store";
 import { useShellActions } from "./shell-actions";
-import { rememberDocumentDraft } from "./document-drafts";
+import { rememberDocumentDraft, unsavedDocumentDrafts } from "./document-drafts";
 import { candidatureInferenceContext } from "./candidature-inference-context";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
@@ -443,6 +443,7 @@ export function CandidaturesWorkspace({
 
   const requestFieldInference = async (field: CandidatureFieldConfiguration) => {
     if (!selected || !field.preferences.aiUseAllowed) return;
+    if (sourceDirty) { setFieldAiFeedback({ fieldId: field.definition.id, kind: "context-unavailable" }); return; }
     setFieldAiFeedback(null);
 
     const feedback = await inferencePreflight([field.definition.id]);
@@ -556,10 +557,29 @@ export function CandidaturesWorkspace({
     } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this Tag."); }
   };
 
+  const invalidateSourceTasks = useCallback(() => {
+    if (!selectedId) return;
+    for (const suffix of ["missing", "tags", ...fields.map((field) => field.definition.id)]) {
+      clearAiTask(`candidature-inference:${selectedId}:${suffix}`);
+    }
+  }, [selectedId, fields]);
+  const beforeSourcesChange = async () => {
+    invalidateSourceTasks();
+    if (selectedId) {
+      const api = window.aaaat.candidatureOpportunityResearchAccess;
+      const access = await api.current(selectedId);
+      if (access.allowed) await api.update({ candidatureId: selectedId, allowed: false });
+    }
+  };
+  const handleSourceDirty = useCallback((dirty: boolean) => {
+    if (dirty) invalidateSourceTasks();
+    setSourceDirty(dirty);
+  }, [invalidateSourceTasks]);
   const handleSourcesChanged = useCallback(async () => {
+    invalidateSourceTasks();
     try { setRecords(await window.aaaat.candidatures.list()); setSourceDirty(false); }
     catch { setError("AAAAT could not refresh the application after the Source changed."); }
-  }, [setRecords, setSourceDirty, setError]);
+  }, [invalidateSourceTasks, setRecords, setSourceDirty, setError]);
   const openDocument = (documentId: string) => {
     if (!selected) return;
     openDocumentFromCandidature(selected.id, documentId);
@@ -586,6 +606,15 @@ export function CandidaturesWorkspace({
     }
   };
 
+  const newDocumentTitle = (base: string, kind: "cv" | "letter"): string => {
+    if (!selected) return base;
+    const documents = [...collections.workingCvs, ...collections.letters, ...unsavedDocumentDrafts()];
+    const titles = new Set(documents.filter((document) => document.candidatureId === selected.id && (kind === "cv" ? "sections" in document : "bodyParagraphs" in document)).map((document) => document.title.trim().toLocaleLowerCase()));
+    if (!titles.has(base.toLocaleLowerCase())) return base;
+    let index = 2;
+    while (titles.has(`${base} ${index}`.toLocaleLowerCase())) index += 1;
+    return `${base} ${index}`;
+  };
   const createApplicationCoverLetter = async () => {
     if (!selected || documentCreationBusy) return;
     const candidatureId = selected.id;
@@ -593,7 +622,7 @@ export function CandidaturesWorkspace({
     try {
       const created = await window.aaaat.documentDomain.previewLetter({
         candidatureId: selected.id,
-        title: `Letter · ${corpusActionIdentity(candidatureRecognitionProjection(selected, fields).primaryCues, candidatureRecognitionProjection(selected, fields).retainedSourceCue)}`.slice(0, 300),
+        title: newDocumentTitle(`Letter · ${corpusActionIdentity(candidatureRecognitionProjection(selected, fields).primaryCues, candidatureRecognitionProjection(selected, fields).retainedSourceCue)}`, "letter"),
         bodyParagraphs: [],
       });
       if (!alive.current || currentSelection.current !== candidatureId) return;
@@ -614,7 +643,7 @@ export function CandidaturesWorkspace({
           ? { kind: "blank" as const }
           : { kind: "profile" as const };
       const created = await window.aaaat.documentDomain.previewWorkingCv({
-        title: `CV · ${corpusActionIdentity(candidatureRecognitionProjection(selected, fields).primaryCues, candidatureRecognitionProjection(selected, fields).retainedSourceCue)}`.slice(0, 300),
+        title: newDocumentTitle(`CV · ${corpusActionIdentity(candidatureRecognitionProjection(selected, fields).primaryCues, candidatureRecognitionProjection(selected, fields).retainedSourceCue)}`, "cv"),
         candidatureId: selected.id,
         source,
       });
@@ -647,6 +676,7 @@ export function CandidaturesWorkspace({
   const discoveryField = fields.find((field) => field.definition.id === discoveryFieldId);
   const requestBulkInference = async () => {
     if (!selected) return;
+    if (sourceDirty) { setBulkAiFeedback("context-unavailable"); return; }
     setBulkAiFeedback(null);
     const targetFieldIds = enabledMissingFields.map((field) => field.definition.id);
     const feedback = await inferencePreflight(targetFieldIds);
@@ -719,7 +749,7 @@ export function CandidaturesWorkspace({
       ...(onNewApplication ? [{ id: "new-application", label: "New", onClick: onNewApplication }] : []),
     ] : (onNewApplication ? [{ id: "new-application", label: "New", onClick: onNewApplication, primary: true }] : []),
     moreActions: mode === "selected" && selected ? [
-      { id: "find-tags", label: "Find Tags with AI", onClick: () => { const key = `candidature-inference:${selected.id}:tags`; const existing = getAiTask(key); if (existing?.status !== "working" && existing?.status !== "queued") clearAiTask(key); setTagRequestAttempt((attempt) => attempt + 1); setTagInferenceOpen(true); } },
+      { id: "find-tags", label: "Find Tags with AI", disabled: sourceDirty, onClick: () => { const key = `candidature-inference:${selected.id}:tags`; const existing = getAiTask(key); if (existing?.status !== "working" && existing?.status !== "queued") clearAiTask(key); setTagRequestAttempt((attempt) => attempt + 1); setTagInferenceOpen(true); } },
       { id: "external-ai", label: "Send to my AI…", onClick: () => setExternalAiOpen(true) },
       { id: "archive-application", label: selected.archived ? "Restore" : "Archive", onClick: () => void setArchived(!selected.archived) },
     ] : [],
@@ -1604,7 +1634,7 @@ export function CandidaturesWorkspace({
         void window.aaaat.candidatureOpportunityResearchAccess.update({ candidatureId: selected.id, allowed: false })
           .then(() => setExternalAiOpen(false))
           .catch(() => setError("The external AI task could not be closed."));
-      }}><CandidatureOpportunityResearchAccessPanel key={selected.id} candidatureId={selected.id} contextDirty={taskContextDirty} onClose={() => setExternalAiOpen(false)} /></dialog> : null}
+      }}><CandidatureOpportunityResearchAccessPanel key={selected.id} candidatureId={selected.id} contextDirty={taskContextDirty || sourceDirty} onClose={() => setExternalAiOpen(false)} /></dialog> : null}
 
       <details className="candidature-more">
         <summary>Offer, notes & history</summary>
@@ -1613,7 +1643,8 @@ export function CandidaturesWorkspace({
                       <CandidatureSourcesPanel
               candidatureId={selected.id}
               onSourcesChanged={() => void handleSourcesChanged()}
-              onDirtyChange={setSourceDirty}
+              onSourcesChanging={beforeSourcesChange}
+              onDirtyChange={handleSourceDirty}
             />
           <section
             className="section-surface candidature-secondary-controls"

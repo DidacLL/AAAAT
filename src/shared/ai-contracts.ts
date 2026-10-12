@@ -49,10 +49,12 @@ export const jobExtractionRequestSchema = z
     sourceText: z.string().trim().min(1).max(50000),
     sourceTitle: z.string().trim().max(200).default(""),
     sourceUrl: z.string().trim().max(2048).default(""),
+    candidatureId: z.string().uuid().optional(),
   })
   .strict();
 export type JobExtractionRequest = z.infer<typeof jobExtractionRequestSchema>;
 export const jobExtractionProviderRequestSchema = jobExtractionRequestSchema
+  .omit({ candidatureId: true })
   .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1).max(64) })
   .strict();
 export type JobExtractionProviderRequest = z.infer<typeof jobExtractionProviderRequestSchema>;
@@ -154,6 +156,7 @@ export const providerTagGlossaryEntrySchema = z
   })
   .strict();
 export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
+  .omit({ candidatureId: true })
   .extend({
     fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
   })
@@ -177,6 +180,7 @@ export type ProviderJobExtractionResult = z.infer<typeof providerJobExtractionRe
 export const tagInferenceRequestSchema = jobExtractionRequestSchema;
 export type TagInferenceRequest = z.infer<typeof tagInferenceRequestSchema>;
 export const providerTagInferenceRequestSchema = tagInferenceRequestSchema
+  .omit({ candidatureId: true })
   .extend({
     fieldTitles: z.array(z.string().trim().min(1).max(120)).max(64),
     tags: z.array(providerTagGlossaryEntrySchema).max(300),
