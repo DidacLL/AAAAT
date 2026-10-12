@@ -31,10 +31,12 @@ function sourcePreview(source: CandidatureSource): string {
 export function CandidatureSourcesPanel({
   candidatureId,
   onSourcesChanged,
+  onSourcesChanging,
   onDirtyChange,
 }: {
   candidatureId: string;
   onSourcesChanged?: (sources: CandidatureSource[]) => void;
+  onSourcesChanging?: () => void | Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [sources, setSources] = useState<CandidatureSource[]>([]);
@@ -128,6 +130,7 @@ export function CandidatureSourcesPanel({
   const save = async () => {
     setError(null);
     try {
+      await onSourcesChanging?.();
       const next = editingId
         ? await window.aaaat.candidatures.updateSource({ id: editingId, ...draft })
         : await window.aaaat.candidatures.addSource(draft);
@@ -143,6 +146,7 @@ export function CandidatureSourcesPanel({
     if (!window.confirm("Remove this source? The candidature will be kept.")) return;
     setError(null);
     try {
+      await onSourcesChanging?.();
       const next = await window.aaaat.candidatures.removeSource({
         candidatureId,
         sourceId: editingId,

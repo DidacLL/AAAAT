@@ -8,7 +8,7 @@ import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
   externalApplicationInformationProposalInputSchema,
   externalApplicationInformationTaskSchema,
-  externalInterviewPreparationContextSchema,
+  externalInterviewPreparationTaskSchema,
   externalInterviewPreparationResultSchema,
 } from "../shared/external-assistant-contracts";
 import {
@@ -43,7 +43,7 @@ import {
   validateAiConnectionOperation,
 } from "./ai-connection-service";
 import {
-  selectedInterviewPreparationContext,
+  selectedInterviewPreparationTask,
   retainInterviewPreparationResult,
   selectedApplicationInformationTask,
   submitApplicationInformationProposals,
@@ -140,7 +140,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     applicationInformationTaskReadToolName,
     {
-      description: "Read the bounded application-information task the user prepared for the currently selected AAAAT application. Returns null when no such task is prepared.",
+      description: "Read the exact editable taskText the user prepared for the selected AAAAT application. Use only its supplied task-local references for application field proposals. Returns null when no such task is prepared.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -176,13 +176,13 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     interviewPreparationContextReadToolName,
     {
-      description: "Read bounded context for preparing an interview for the application the user selected in AAAAT.",
+      description: "Read the exact editable task text the user prepared for the selected application through its optional interview task. Returns null when no such task is prepared.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
       emptyInputSchema.parse(input);
-      const context = externalInterviewPreparationContextSchema.parse(
-        selectedInterviewPreparationContext(rootPath),
+      const context = externalInterviewPreparationTaskSchema.nullable().parse(
+        selectedInterviewPreparationTask(rootPath),
       );
       return { content: [{ type: "text" as const, text: JSON.stringify(context) }] };
     },

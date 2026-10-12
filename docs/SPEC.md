@@ -165,6 +165,8 @@ AI-use/disclosure preferences are stored product state where the product require
 
 ## External AI/tool integration
 
+Optional interview tasks remain secondary and selected-application-bound. Their allowed context is an editable default, not a fixed advice workflow. Copy, export and connected publication use the exact user-authored task text; preparing/opening a task does not publish it. Typed field references, permission checks and local result validation remain domain boundaries.
+
 External AI is a legitimate entrance to AAAAT.
 
 Use meaningful bounded operations and carriers rather than exposing generic entities/CRUD:

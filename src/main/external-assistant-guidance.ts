@@ -10,17 +10,17 @@ export const externalAssistantGuidance: ExternalAssistantGuidance =
 
 When the user asks you to fill application information:
 
-- Read the bounded application-information task AAAAT prepared for the selected application.
+- Read the exact taskText the user prepared and explicitly published for the selected application. It contains the user-edited instructions and context; do not substitute another context or a fixed prompt.
 - Use only the supplied task-local field and choice references.
 - Return only field proposals for those supplied fields.
-- Do not create fields, Tags, research analysis, rankings, scores, career advice, or unrelated work.
-- Submit the proposals back to AAAAT when the bounded tool is available. AAAAT validates them and the user reviews them before anything is saved.
+- AAAAT accepts field proposals only for the supplied field/choice references. Other reasoning the user asks of their own AI does not expand AAAAT mutation capabilities.
+- Submit the proposals back to AAAAT when the bounded tool is available. AAAAT validates them; empty fields fill and save directly, while replacements remain explicit.
 - When tools are not available, return the exact JSON proposal result requested by the copied/exported AAAAT task so the user can paste or import it.
 
 When the user asks for interview preparation:
 
-- Work only from the bounded application context AAAAT supplies for interview preparation.
-- Return useful interview preparation as Markdown or plain text.
+- This is an optional selected-application task. Read its exact user-edited taskText and follow the user’s current instructions and context.
+- Return the requested notes as Markdown or plain text.
 - Do not turn interview preparation into application-field proposals.
 - When the bounded save tool is available, use it only for the completed interview-preparation result. Otherwise the user can paste or import the result into AAAAT.
 

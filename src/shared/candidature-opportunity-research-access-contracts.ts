@@ -14,12 +14,15 @@ export const candidatureOpportunityResearchAccessChannels = Object.freeze({
   current: "aaaat:candidature-external-ai-current",
   update: "aaaat:candidature-external-ai-update",
   applicationInformationTask: "aaaat:candidature-application-information-task",
+  publishApplicationInformationTask: "aaaat:candidature-application-information-publish-task",
   takeApplicationInformationResult: "aaaat:candidature-application-information-take-result",
   copyApplicationInformationTask: "aaaat:candidature-application-information-copy-task",
   exportApplicationInformationTask: "aaaat:candidature-application-information-export-task",
   submitApplicationInformationResult: "aaaat:candidature-application-information-submit-result",
   importApplicationInformationResult: "aaaat:candidature-application-information-import-result",
   interviewContext: "aaaat:candidature-interview-context",
+  interviewTaskText: "aaaat:candidature-interview-task-text",
+  publishInterviewTask: "aaaat:candidature-interview-publish-task",
   copyInterviewTask: "aaaat:candidature-interview-copy-task",
   exportInterviewTask: "aaaat:candidature-interview-export-task",
   retainInterviewResult: "aaaat:candidature-interview-retain-result",
@@ -50,6 +53,9 @@ export const candidatureExternalAiInstructionSchema = z
 export type CandidatureExternalAiInstruction = z.infer<
   typeof candidatureExternalAiInstructionSchema
 >;
+
+export const candidatureExternalAiTaskTextSchema = externalApplicationInformationTaskSchema.shape.taskText;
+export type CandidatureExternalAiTaskText = z.infer<typeof candidatureExternalAiTaskTextSchema>;
 
 export const candidatureExternalAiResultTextSchema = z
   .string()
@@ -100,14 +106,15 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly applicationInformationTask: (
       instruction: CandidatureExternalAiInstruction,
     ) => Promise<ExternalApplicationInformationTask>;
+    readonly publishApplicationInformationTask: (taskText: CandidatureExternalAiTaskText) => Promise<ExternalApplicationInformationTask>;
     readonly takeApplicationInformationResult: (
       candidatureId: string,
     ) => Promise<ExternalApplicationInformationPendingResult | null>;
     readonly copyApplicationInformationTask: (
-      instruction: CandidatureExternalAiInstruction,
+      taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiCopyResult>;
     readonly exportApplicationInformationTask: (
-      instruction: CandidatureExternalAiInstruction,
+      taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiExportResult>;
     readonly submitApplicationInformationResult: (
       resultText: string,
@@ -115,11 +122,13 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly importApplicationInformationResult: (
     ) => Promise<CandidatureApplicationInformationResultImportResult>;
     readonly interviewContext: () => Promise<ExternalInterviewPreparationContext>;
+    readonly interviewTaskText: () => Promise<CandidatureExternalAiTaskText>;
+    readonly publishInterviewTask: (taskText: CandidatureExternalAiTaskText) => Promise<CandidatureExternalAiTaskText>;
     readonly copyInterviewTask: (
-      instruction: CandidatureExternalAiInstruction,
+      taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiCopyResult>;
     readonly exportInterviewTask: (
-      instruction: CandidatureExternalAiInstruction,
+      taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiExportResult>;
     readonly retainInterviewResult: (
       resultText: string,

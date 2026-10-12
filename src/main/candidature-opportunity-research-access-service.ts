@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   candidatureExternalAiInstructionSchema,
+  candidatureExternalAiTaskTextSchema,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
   type CandidatureOpportunityResearchAccess,
@@ -26,10 +27,12 @@ import {
   externalApplicationInformationProposalInputSchema,
   externalApplicationInformationTaskSchema,
   externalInterviewPreparationContextSchema,
+  externalInterviewPreparationTaskSchema,
   externalInterviewPreparationResultSchema,
   type ExternalApplicationInformationPendingResult,
   type ExternalApplicationInformationTask,
   type ExternalInterviewPreparationContext,
+  type ExternalInterviewPreparationTask,
 } from "../shared/external-assistant-contracts";
 import {
   listCandidatureFieldsInDatabase,
@@ -57,6 +60,8 @@ type ResearchAccessActivity =
   | "candidature.opportunity-research-access.allow"
   | "candidature.opportunity-research-access.revoke";
 
+import { projectCandidatureSourceForAi } from "./candidature-ai-source-projection";
+
 const applicationInformationTaskKey = "external_ai.application_information_task.v1";
 const applicationInformationResultKey = "external_ai.application_information_result.v1";
 const interviewPreparationTaskKey = "external_ai.interview_preparation_task.v1";
@@ -80,6 +85,8 @@ const storedApplicationInformationTaskSchema = z.object({
   candidatureId: z.string().uuid(),
   taskRef: operationReferenceSchema,
   instruction: candidatureExternalAiInstructionSchema,
+  taskText: candidatureExternalAiTaskTextSchema,
+  published: z.boolean(),
   request: providerJobExtractionRequestSchema,
   fields: z.array(storedFieldBindingSchema).min(1).max(64),
   privateReplacements: z.array(storedPrivateReplacementSchema).max(64),
@@ -96,6 +103,8 @@ const storedApplicationInformationResultSchema = z.object({
 const storedInterviewPreparationTaskSchema = z.object({
   candidatureId: z.string().uuid(),
   context: externalInterviewPreparationContextSchema,
+  taskText: candidatureExternalAiTaskTextSchema,
+  published: z.boolean(),
   privateReplacements: z.array(storedPrivateReplacementSchema).max(64),
 }).strict();
 type StoredInterviewPreparationTask = z.infer<
@@ -339,6 +348,7 @@ function restorePrivateProposals(
 }
 
 function applicationContext(
+  rootPath: string,
   database: DatabaseSync,
   candidatureId: string,
   fields: readonly CandidatureFieldConfiguration[],
@@ -347,6 +357,7 @@ function applicationContext(
   const replacements: PrivateReplacements = new Map();
   const sources = listCandidatureSourcesInDatabase(database, candidatureId)
     .slice(0, 20)
+    .map((source) => projectCandidatureSourceForAi(rootPath, candidatureId, source))
     .map((source, index) =>
       [
         `Retained Source ${index + 1}`,
@@ -401,6 +412,8 @@ function storedTaskFromWire(
     candidatureId,
     taskRef,
     instruction,
+    taskText: applicationPortableText(taskRef, instruction, wire.request),
+    published: false,
     request: wire.request,
     privateReplacements: storedPrivateReplacements(replacements),
     fields: wire.request.fields.map((field) => ({
@@ -461,9 +474,7 @@ function taskFor(
 ): ExternalApplicationInformationTask {
   return externalApplicationInformationTaskSchema.parse({
     taskRef: stored.taskRef,
-    instruction: stored.instruction,
-    context: stored.request.sourceText,
-    fields: stored.request.fields,
+    taskText: stored.taskText,
   });
 }
 
@@ -497,7 +508,7 @@ export function prepareApplicationInformationTask(
           "No missing application information is currently available for AI use.",
         );
       }
-      const context = applicationContext(database, candidatureId, fields);
+      const context = applicationContext(rootPath, database, candidatureId, fields);
       if (!context.text) {
         throw new CandidatureOpportunityResearchAccessServiceError(
           "Keep some Source text or existing application information before asking external AI to fill application information.",
@@ -534,7 +545,7 @@ export function selectedApplicationInformationTask(
       const candidatureId = selectedId(database);
       if (candidatureId === null) return null;
       const stored = readStoredApplicationInformationTask(database);
-      if (!stored || stored.candidatureId !== candidatureId) return null;
+      if (!stored || stored.candidatureId !== candidatureId || !stored.published) return null;
       return taskFor(stored);
     }),
   );
@@ -687,48 +698,40 @@ export function takeApplicationInformationResult(
   );
 }
 
-function fieldDescription(field: ExternalApplicationInformationTask["fields"][number]): string {
+function fieldDescription(field: StoredApplicationInformationTask["request"]["fields"][number]): string {
   const choices = field.choices.length > 0
     ? ` Choices: ${field.choices.map((choice) => `${choice.choiceRef} = ${choice.label}`).join("; ")}.`
     : "";
   return `- ${field.fieldRef} — ${field.label} (${field.valueType}, ${field.cardinality}). ${field.description}${choices}`.trim();
 }
 
-export function buildApplicationInformationPortableTask(
-  rootPath: string,
-  rawInstruction: string = defaultApplicationInformationTaskInstruction,
-): string {
-  const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-  const task = selectedApplicationInformationTask(rootPath);
-  if (!task) {
-    throw new CandidatureOpportunityResearchAccessServiceError(
-      "Prepare application information with my AI in AAAAT first.",
-    );
-  }
+function applicationPortableText(taskRef: string, instruction: string, request: StoredApplicationInformationTask["request"]): string {
   return [
-    "# Fill application information with my AI",
-    "",
-    "## Instructions",
-    "",
-    instruction,
-    "",
-    "## Application context",
-    "",
-    task.context,
-    "",
-    "## Application information you may propose",
-    "",
-    ...task.fields.map(fieldDescription),
-    "",
-    "## Return to AAAAT",
-    "",
+    "# Fill application details", "", "## Instructions", "", instruction, "",
+    "## Application context", "", request.sourceText, "",
+    "## Application information you may propose", "", ...request.fields.map(fieldDescription), "",
+    "## Return to AAAAT", "",
     "Return JSON only. Propose only the fieldRef values listed above. For choice fields, use only the listed choiceRef values.",
-    `{"taskRef":"${task.taskRef}","proposals":[{"fieldRef":"aaaat_f1","value":"..."}]}`,
-    "",
+    `{"taskRef":"${taskRef}","proposals":[{"fieldRef":"aaaat_f1","value":"..."}]}`, "",
   ].join("\n");
 }
 
+export function buildApplicationInformationPortableTask(rootPath: string): string {
+  return withWorkspaceDatabase(rootPath, (database) => snapshot(database, () => requireStoredApplicationInformationTask(database).taskText));
+}
+
+export function publishApplicationInformationTask(rootPath: string, rawText: string): ExternalApplicationInformationTask {
+  const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
+  return withWorkspaceDatabase(rootPath, (database) => transact(database, () => {
+    const stored = requireStoredApplicationInformationTask(database);
+    const updated = { ...stored, taskText, published: true };
+    writeMetadataJson(database, applicationInformationTaskKey, updated);
+    return taskFor(updated);
+  }));
+}
+
 function buildInterviewPreparationContext(
+  rootPath: string,
   database: DatabaseSync,
   candidatureId: string,
 ): {
@@ -752,6 +755,7 @@ function buildInterviewPreparationContext(
     });
   const sources = listCandidatureSourcesInDatabase(database, candidatureId)
     .slice(0, 20)
+    .map((source) => projectCandidatureSourceForAi(rootPath, candidatureId, source))
     .map((source) => ({
       title: source.title,
       url: source.url,
@@ -796,10 +800,12 @@ export function prepareInterviewPreparationContext(
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
       const candidatureId = requireSelectedId(database);
-      const built = buildInterviewPreparationContext(database, candidatureId);
+      const built = buildInterviewPreparationContext(rootPath, database, candidatureId);
       writeMetadataJson(database, interviewPreparationTaskKey, {
         candidatureId,
         context: built.context,
+        taskText: interviewPortableText(built.context, defaultInterviewPreparationTaskInstruction),
+        published: false,
         privateReplacements: storedPrivateReplacements(built.replacements),
       });
       deleteMetadata(database, applicationInformationTaskKey);
@@ -842,33 +848,34 @@ function interviewContextText(context: ExternalInterviewPreparationContext): str
   ].filter(Boolean).join("\n\n").slice(0, 50_000);
 }
 
-export function buildInterviewPreparationPortableTask(
-  rootPath: string,
-  rawInstruction: string = defaultInterviewPreparationTaskInstruction,
-): string {
-  const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-  const context = selectedInterviewPreparationContext(rootPath);
-  if (!context) {
-    throw new CandidatureOpportunityResearchAccessServiceError(
-      "Prepare for interview with my AI in AAAAT first.",
-    );
-  }
+function interviewPortableText(context: ExternalInterviewPreparationContext, instruction: string): string {
   return [
-    "# Prepare for interview with my AI",
-    "",
-    "## Application context",
-    "",
-    interviewContextText(context),
-    "",
-    "## Instructions",
-    "",
-    instruction,
-    "",
-    "## Return to AAAAT",
-    "",
-    "Return the interview preparation as Markdown or plain text. Do not return application-field proposals for this task.",
-    "",
+    "# Interview notes", "", "## Application context", "", interviewContextText(context), "",
+    "## Instructions", "", instruction, "", "## Return to AAAAT", "",
+    "Return the notes as Markdown or plain text.", "",
   ].join("\n");
+}
+
+export function selectedInterviewPreparationTask(rootPath: string): ExternalInterviewPreparationTask | null {
+  return withWorkspaceDatabase(rootPath, (database) => snapshot(database, () => {
+    const candidatureId = selectedId(database);
+    if (!candidatureId) return null;
+    const stored = readStoredInterviewPreparationTask(database);
+    return stored?.candidatureId === candidatureId && stored.published ? externalInterviewPreparationTaskSchema.parse({ taskText: stored.taskText }) : null;
+  }));
+}
+
+export function buildInterviewPreparationPortableTask(rootPath: string): string {
+  return withWorkspaceDatabase(rootPath, (database) => snapshot(database, () => requireStoredInterviewPreparationTask(database).taskText));
+}
+
+export function publishInterviewPreparationTask(rootPath: string, rawText: string): string {
+  const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
+  return withWorkspaceDatabase(rootPath, (database) => transact(database, () => {
+    const stored = requireStoredInterviewPreparationTask(database);
+    writeMetadataJson(database, interviewPreparationTaskKey, { ...stored, taskText, published: true });
+    return taskText;
+  }));
 }
 
 export function retainInterviewPreparationResult(
@@ -884,7 +891,7 @@ export function retainInterviewPreparationResult(
         {
           candidatureId: stored.candidatureId,
           kind: "conversation",
-          title: "Interview preparation from external AI",
+          title: "Notes from my AI",
           url: "",
           sourceText: restorePrivateText(
             result.text,

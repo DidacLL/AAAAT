@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { workingCvSectionSchema } from "./document-domain-contracts";
+import { coverLetterRecordSchema, workingCvRecordSchema, workingCvSectionSchema } from "./document-domain-contracts";
 
 import {
   candidatureChoiceDefinitionSchema,
@@ -13,6 +13,9 @@ import {
 export const aiChannels = Object.freeze({
   connectionCurrent: "aaaat:ai-connection-current",
   jobExtract: "aaaat:ai-job-extract",
+  documentPreparationDiscard: "aaaat:ai-document-preparation-discard",
+  cvPrepare: "aaaat:ai-cv-prepare",
+  coverLetterPrepare: "aaaat:ai-cover-letter-prepare",
   cvWrite: "aaaat:ai-cv-write",
   coverLetterDraft: "aaaat:ai-cover-letter-draft",
 } as const);
@@ -46,10 +49,12 @@ export const jobExtractionRequestSchema = z
     sourceText: z.string().trim().min(1).max(50000),
     sourceTitle: z.string().trim().max(200).default(""),
     sourceUrl: z.string().trim().max(2048).default(""),
+    candidatureId: z.string().uuid().optional(),
   })
   .strict();
 export type JobExtractionRequest = z.infer<typeof jobExtractionRequestSchema>;
 export const jobExtractionProviderRequestSchema = jobExtractionRequestSchema
+  .omit({ candidatureId: true })
   .extend({ fields: z.array(aiDiscoveryFieldSchema).min(1).max(64) })
   .strict();
 export type JobExtractionProviderRequest = z.infer<typeof jobExtractionProviderRequestSchema>;
@@ -85,10 +90,25 @@ export const cvWritingRequestSchema = z
     itemId: z.string().uuid(),
     field: cvWritingFieldSchema,
     sections: z.array(workingCvSectionSchema).max(40),
+    document: workingCvRecordSchema.optional(),
+    preparedId: z.string().uuid().optional(),
   })
   .strict();
 export type CvWritingRequest = z.infer<typeof cvWritingRequestSchema>;
-export const coverLetterDraftRequestSchema = z.object({ coverLetterId: z.string().uuid() }).strict();
+export const coverLetterDraftRequestSchema = z.object({
+  coverLetterId: z.string().uuid(),
+  document: coverLetterRecordSchema.optional(),
+  sourceIds: z.array(z.string().uuid()).max(20).default([]),
+  preparedId: z.string().uuid().optional(),
+}).strict();
+export const preparedDocumentAiSchema = z.object({
+  requestId: z.string().uuid(),
+  connection: aiConnectionStatusSchema,
+  instruction: z.string(),
+  contextText: z.string(),
+  sources: z.array(z.object({ id: z.string().uuid(), title: z.string() }).strict()),
+}).strict();
+export type PreparedDocumentAi = z.infer<typeof preparedDocumentAiSchema>;
 export type CoverLetterDraftRequest = z.infer<typeof coverLetterDraftRequestSchema>;
 
 export const cvWritingResultSchema = z
@@ -136,6 +156,7 @@ export const providerTagGlossaryEntrySchema = z
   })
   .strict();
 export const providerJobExtractionRequestSchema = jobExtractionRequestSchema
+  .omit({ candidatureId: true })
   .extend({
     fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
   })
@@ -159,6 +180,7 @@ export type ProviderJobExtractionResult = z.infer<typeof providerJobExtractionRe
 export const tagInferenceRequestSchema = jobExtractionRequestSchema;
 export type TagInferenceRequest = z.infer<typeof tagInferenceRequestSchema>;
 export const providerTagInferenceRequestSchema = tagInferenceRequestSchema
+  .omit({ candidatureId: true })
   .extend({
     fieldTitles: z.array(z.string().trim().min(1).max(120)).max(64),
     tags: z.array(providerTagGlossaryEntrySchema).max(300),
@@ -217,6 +239,7 @@ export const providerCoverLetterInformationSchema = z
   .strict();
 export const providerCoverLetterContextSchema = z
   .object({
+    currentLetter: z.object({ recipient: z.string(), subject: z.string(), bodyParagraphs: z.array(z.string()), closing: z.string(), language: z.string() }).strict(),
     sources: z.array(providerCoverLetterSourceSchema),
     applicationInformation: z.array(providerCoverLetterInformationSchema).max(64),
     careerContext: z.array(providerCoverLetterInformationSchema).max(7),
@@ -239,6 +262,9 @@ export interface AiDesktopApi {
     readonly connection: () => Promise<AiConnectionStatus | null>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
     readonly writeCvField: (request: CvWritingRequest) => Promise<CvWritingResult>;
+    readonly discardDocumentPreparation: (requestId: string) => Promise<void>;
+    readonly prepareCoverLetter: (request: CoverLetterDraftRequest) => Promise<PreparedDocumentAi>;
+    readonly prepareCvWriting: (request: CvWritingRequest) => Promise<PreparedDocumentAi>;
     readonly draftCoverLetter: (request: CoverLetterDraftRequest) => Promise<CoverLetterDraft>;
   };
 }
