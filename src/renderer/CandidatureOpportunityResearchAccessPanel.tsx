@@ -83,7 +83,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
       setAccess(await api.current(candidatureId));
     });
   };
-  const useConnected = () => perform("connect", async () => {
+  const connectTask = () => perform("connect", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
     if (intent === "application-information") await api.useConnectedApplicationInformationTask(taskText);
     else await api.useConnectedInterviewTask(taskText);
@@ -145,7 +145,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
           <option value="file">Task file</option>
           <option value="connected">Connected AI</option>
         </select></label>
-        <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void (transport === "copy" ? copy() : transport === "file" ? exportTask() : useConnected())}>
+        <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void (transport === "copy" ? copy() : transport === "file" ? exportTask() : connectTask())}>
           {transport === "copy" ? "Copy task" : transport === "file" ? "Export file…" : "Use connected AI"}
         </button>
       </div>
