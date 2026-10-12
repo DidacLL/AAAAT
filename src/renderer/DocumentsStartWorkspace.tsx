@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { DocumentCollections, CoverLetterRecord, WorkingCvRecord } from "../shared/document-domain-contracts";
+import type { DocumentCollections, CoverLetterRecord, WorkingCvRecord, CvTemplateRecord } from "../shared/document-domain-contracts";
 import { candidatureRecognitionProjection } from "./candidature-projections";
 import { rememberDocumentDraft, unsavedDocumentDrafts, forgetDocumentDraft } from "./document-drafts";
 import { useShellActions } from "./shell-actions";
@@ -20,7 +20,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
 }) {
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [applicationLabels, setApplicationLabels] = useState<Record<string, string>>({});
-  const [creation, setCreation] = useState<"cv" | "letter" | null>(null);
+  const [creation, setCreation] = useState<"cv" | null>(null);
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("profile");
   const mounted = useRef(false);
@@ -46,20 +46,20 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       }).catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Documents could not be loaded."); });
     return () => { active = false; };
   }, []);
-  const start = (kind: "cv" | "letter") => { requestGeneration.current += 1; setBusy(false); setCreation(kind); setTitle(""); setError(null); };
-  const openNew = async () => {
-    if (!creation || busy) return;
+  const startCv = () => { requestGeneration.current += 1; setBusy(false); setCreation("cv"); setTitle(""); setError(null); };
+  const openNew = async (kind: "cv" | "letter" = creation ?? "letter", chosenTitle = title, chosenSource = source) => {
+    if (busy) return;
     const generation = ++requestGeneration.current;
     setBusy(true); setError(null);
     try {
-      const draft = creation === "cv"
+      const draft = kind === "cv"
         ? await window.aaaat.documentDomain.previewWorkingCv({
-          title: title.trim() || uniqueTitle("CV", documents.filter((document) => "sections" in document).map((document) => document.title)),
+          title: chosenTitle.trim() || uniqueTitle("CV", documents.filter((document) => "sections" in document).map((document) => document.title)),
           candidatureId: null,
-          source: source.startsWith("template:") ? { kind: "template", templateId: source.slice(9) } : { kind: source === "blank" ? "blank" : "profile" },
+          source: chosenSource.startsWith("template:") ? { kind: "template", templateId: chosenSource.slice(9) } : { kind: chosenSource === "blank" ? "blank" : "profile" },
         })
         : await window.aaaat.documentDomain.previewLetter({
-          title: title.trim() || uniqueTitle("Cover letter", documents.filter((document) => "bodyParagraphs" in document).map((document) => document.title)),
+          title: chosenTitle.trim() || uniqueTitle("Cover letter", documents.filter((document) => "bodyParagraphs" in document).map((document) => document.title)),
           candidatureId: null, bodyParagraphs: [],
         });
       if (!mounted.current || generation !== requestGeneration.current) return;
@@ -70,13 +70,13 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     finally { if (mounted.current && generation === requestGeneration.current) setBusy(false); }
   };
   useShellActions({
-    title: creation ? creation === "cv" ? "New CV" : "New cover letter" : "Documents",
+    title: creation ? "New CV" : "Documents",
     actions: creation ? [
       { id: "document-create-cancel", label: "Cancel", onClick: () => { requestGeneration.current += 1; setBusy(false); setCreation(null); setTitle(""); onDirtyChange?.(false); } },
       { id: "document-create-open", label: "Open", onClick: () => { void openNew(); }, disabled: busy, primary: true },
     ] : [
-      { id: "document-new-cv", label: "New CV", onClick: () => start("cv"), primary: true },
-      { id: "document-new-letter", label: "New letter", onClick: () => start("letter") },
+      { id: "document-new-cv", label: "New CV", onClick: startCv, disabled: busy, primary: true },
+      { id: "document-new-letter", label: "New letter", onClick: () => { void openNew("letter", ""); }, disabled: busy },
     ],
   });
   const rename = async (document: WorkingCvRecord | CoverLetterRecord) => {
@@ -94,6 +94,13 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       setCollections(await window.aaaat.documentDomain.collections());
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be renamed."); }
   };
+  const renameTemplate = async (template: CvTemplateRecord) => {
+    const name = window.prompt("Template name", template.name)?.trim();
+    if (!name || name === template.name) return;
+    setError(null);
+    try { setCollections(await window.aaaat.documentDomain.updateTemplate({ id: template.id, name, language: template.language, pdfMetadata: template.pdfMetadata, parserSummary: template.parserSummary, sections: template.sections })); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "The template could not be renamed."); }
+  };
   const remove = async (document: WorkingCvRecord | CoverLetterRecord) => {
     const saved = [...collections.workingCvs, ...collections.letters].some((candidate) => candidate.id === document.id);
     if (!window.confirm(saved ? `Delete "${document.title}"? Generated PDFs are kept.` : `Discard "${document.title}"?`)) return;
@@ -106,11 +113,8 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     const generation = ++requestGeneration.current;
     setError(null);
     try {
-      const preview = await window.aaaat.documentDomain.previewWorkingCv({
-        title: uniqueTitle(`${rendered.title} copy`, documents.filter((document) => "sections" in document).map((document) => document.title)),
-        candidatureId: rendered.candidatureId, source: { kind: "blank" },
-      });
-      const draft = { ...preview, ...rendered.snapshot, id: preview.id, title: preview.title, createdAt: preview.createdAt, updatedAt: preview.updatedAt };
+      const draft = await window.aaaat.documentDomain.previewRenderedCv(rendered.id);
+      draft.title = uniqueTitle(draft.title, documents.filter((document) => "sections" in document).map((document) => document.title));
       if (!mounted.current || generation !== requestGeneration.current) return;
       if (onOpenDocument(draft.id)) rememberDocumentDraft(draft);
     } catch (reason) { if (mounted.current && generation === requestGeneration.current) setError(reason instanceof Error ? reason.message : "The editable copy could not be opened."); }
@@ -121,11 +125,11 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   return <section className="document-library" aria-label="Documents">
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {creation ? <div className="document-new-form">
-      <label>Name<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder={creation === "cv" ? "CV" : "Cover letter"} /></label>
-      {creation === "cv" ? <label>Start from<select value={source} onChange={(event) => setSource(event.target.value)}>
+      <label>Name<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="CV" /></label>
+      <label>Start from<select value={source} onChange={(event) => setSource(event.target.value)}>
         <option value="profile">My information</option><option value="blank">Blank page</option>
         {collections.templates.map((template) => <option key={template.id} value={`template:${template.id}`}>{template.name}</option>)}
-      </select></label> : null}
+      </select></label>
     </div> : <>
       {documents.length === 0 ? <p className="compact-empty">Create a CV or letter to start writing.</p> : <div className="document-list">
         {documents.map((document) => <article className="document-list-row" key={document.id}>
@@ -139,7 +143,8 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       <details className="document-library-disclosure"><summary>CV templates · {collections.templates.length}</summary>
         {collections.templates.map((template) => <article className="document-list-row" key={template.id}>
           <strong>{template.name}</strong>
-          <button type="button" onClick={() => { setSource(`template:${template.id}`); setTitle(template.name); setCreation("cv"); }}>Use template</button>
+          <button type="button" onClick={() => { void openNew("cv", uniqueTitle(template.name, documents.filter((document) => "sections" in document).map((document) => document.title)), `template:${template.id}`); }} disabled={busy}>Use template</button>
+          <button type="button" onClick={() => { void renameTemplate(template); }}>Rename</button>
         </article>)}
       </details>
       <details className="document-library-disclosure"><summary>Generated PDFs · {collections.renderedCvs.length + collections.renderedLetters.length + collections.applicationPackets.length}</summary>

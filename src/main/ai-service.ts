@@ -168,6 +168,7 @@ function coverLetterContext(
   letter?: CoverLetterRecord,
 ): { readonly context: ProviderCoverLetterContext; readonly replacements: PrivateReplacements } {
   const replacements: PrivateReplacements = new Map();
+  const metadataPlaceholders = new Set<string>();
   const sources: Array<{ title: string; url: string; sourceText: string }> = [];
   const applicationInformation: Array<{ title: string; value: string }> = [];
 
@@ -221,6 +222,7 @@ function coverLetterContext(
       const value = item[definition.key];
       if (value === undefined || value === "") continue;
       const title = `My information ${itemIndex + 1} — ${definition.label}`;
+      if (!allowed && definition.key === "kind") metadataPlaceholders.add(`[USERPRIVATE:${title}]`);
       myInformation.push({
         title,
         value: allowed ? value : privateValue(title, value, replacements),
@@ -230,7 +232,7 @@ function coverLetterContext(
 
   // Apply the same known-denial replacement to explicitly included Source copies.
   // Originals remain untouched. This is literal projection, not model-policy filtering.
-  const knownPrivate = [...replacements.entries()].filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  const knownPrivate = [...replacements.entries()].filter((entry): entry is [string, string] => typeof entry[1] === "string" && !metadataPlaceholders.has(entry[0]))
     .sort((left, right) => right[1].length - left[1].length);
   if (sources.length > 0 && [...replacements.values()].some((value) => value === null)) {
     throw new AiServiceError("These Sources cannot be included because private values have ambiguous labels. Continue without Sources.");
