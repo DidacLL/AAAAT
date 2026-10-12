@@ -45,7 +45,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange, active 
     let current = true;
     void Promise.all([window.aaaat.documentDomain.collections(), window.aaaat.candidatures.list(), window.aaaat.candidatures.listFields()])
       .then(([documents, applications, fields]) => {
-        if (!active) return;
+        if (!current) return;
         setCollections(documents);
         setApplicationLabels(Object.fromEntries(applications.map((application) => {
           const projection = candidatureRecognitionProjection(application, fields);
