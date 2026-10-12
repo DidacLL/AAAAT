@@ -275,7 +275,7 @@ export async function inferTagsWithPartialOutcomes(
 ): Promise<PartialTagInferenceResult> {
   const connection = requireAiProviderConnectionForOperation(rootPath, "tag_inference");
   const tags = listTags(rootPath);
-  const wire = tagWireRequest(rootPath, projectSavedApplicationInferenceRequest(rootPath, request), tags);
+  const wire = tagWireRequest(rootPath, projectSavedApplicationInferenceRequest(rootPath, request, "tags"), tags);
   const fieldTitles = wire.request.fieldTitles;
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);

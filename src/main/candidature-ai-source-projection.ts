@@ -1,6 +1,7 @@
 import type { JobExtractionRequest } from "../shared/ai-contracts";
 import { listCandidatureFields } from "./candidature-field-service";
-import { getCandidature } from "./candidature-service";
+import { compactSourceText } from "../shared/source-text";
+import { getCandidature, listCandidatureSources } from "./candidature-service";
 import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
 import { getCareerContext } from "./career-context-service";
 import { listProfileItemAiContextPreferences } from "./profile-ai-context-service";
@@ -45,7 +46,7 @@ export function projectCandidatureSourceForAi(
     .map((preference) => [preference.itemId, preference.aiUseAllowed]));
   for (const item of getProfile(rootPath).items) {
     if (profilePermissions.get(item.id) === true) continue;
-    for (const key of ["kind", "title", "subtitle", "description", "startDate", "endDate", "url"] as const) {
+    for (const key of ["title", "subtitle", "description", "startDate", "endDate", "url"] as const) {
       exclude(item[key]);
     }
   }
@@ -58,15 +59,41 @@ export function projectCandidatureSourceForAi(
   return { title: project(source.title), url: project(source.url), sourceText: project(source.sourceText) };
 }
 
-/** The application identity stays local; unsaved pasted tasks have no saved disclosure scope. */
+/** Build saved tasks from current Sources, projecting copies before mixing allowed field context. */
 export function projectSavedApplicationInferenceRequest(
   rootPath: string,
   request: JobExtractionRequest,
+  operation: "fields" | "tags",
+  targetFieldIds: readonly string[] = [],
 ): Omit<JobExtractionRequest, "candidatureId"> {
-  const source = request.candidatureId
-    ? projectCandidatureSourceForAi(rootPath, request.candidatureId, {
-      title: request.sourceTitle, url: request.sourceUrl, sourceText: request.sourceText,
-    })
-    : { title: request.sourceTitle, url: request.sourceUrl, sourceText: request.sourceText };
-  return { sourceTitle: source.title, sourceUrl: source.url, sourceText: source.sourceText };
+  if (!request.candidatureId) return {
+    sourceTitle: request.sourceTitle, sourceUrl: request.sourceUrl, sourceText: request.sourceText,
+  };
+  const candidatureId = request.candidatureId;
+  const sources = listCandidatureSources(rootPath, candidatureId).map((source) =>
+    projectCandidatureSourceForAi(rootPath, candidatureId, source));
+  const parts = sources.map((source, index) => [
+    `Offer or notes ${index + 1}`,
+    source.title ? `Title: ${source.title}` : "",
+    source.url ? `URL: ${source.url}` : "",
+    compactSourceText(source.sourceText),
+  ].filter(Boolean).join("\n"));
+  if (operation === "fields") {
+    const candidature = getCandidature(rootPath, candidatureId);
+    const fields = new Map(listCandidatureFields(rootPath).map((field) => [field.definition.id, field]));
+    const targets = new Set(targetFieldIds);
+    const retained = candidature.values.flatMap((item) => {
+      const field = fields.get(item.fieldId);
+      if (!field?.preferences.aiUseAllowed || targets.has(item.fieldId)) return [];
+      const choices = new Map(field.definition.choices.map((choice) => [choice.id, choice.label]));
+      const visible = (value: string | number | boolean): string =>
+        typeof value === "string" ? choices.get(value) ?? value : String(value);
+      const value = Array.isArray(item.value) ? item.value.map(visible).join(", ") : visible(item.value);
+      return [`${field.definition.label}: ${value}`];
+    });
+    if (retained.length) parts.push(`Already retained information allowed for AI use:\n${retained.join("\n")}`);
+  }
+  const sourceText = parts.join("\n\n---\n\n").slice(0, 50000).trim();
+  if (!sourceText) throw new Error("Add an offer, notes or information before using AI for this application.");
+  return { sourceTitle: sources[0]?.title ?? "", sourceUrl: sources[0]?.url ?? "", sourceText };
 }

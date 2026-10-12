@@ -368,7 +368,7 @@ export async function extractJobWithPartialOutcomes(
     throw new Error("Allow AI use for at least one application information item first.");
   }
 
-  const wire = buildCandidatureFieldProposalWire(projectSavedApplicationInferenceRequest(rootPath, request), fields);
+  const wire = buildCandidatureFieldProposalWire(projectSavedApplicationInferenceRequest(rootPath, request, "fields", targetFieldIds), fields);
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);
 
