@@ -120,7 +120,6 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     async (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
       const task = candidatureExternalAiTaskTextSchema.parse(rawText);
-      buildApplicationInformationPortableTask(requireWorkspaceRoot());
       const selection = await dialog.showSaveDialog(mainWindow, {
         title: "Export application information task",
         buttonLabel: "Export task",
@@ -229,7 +228,6 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     async (event, rawText: unknown) => {
       assertTrustedSender(event, mainWindow);
       const task = candidatureExternalAiTaskTextSchema.parse(rawText);
-      buildInterviewPreparationPortableTask(requireWorkspaceRoot());
       const selection = await dialog.showSaveDialog(mainWindow, {
         title: "Export interview preparation task",
         buttonLabel: "Export task",
