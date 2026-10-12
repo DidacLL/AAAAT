@@ -94,7 +94,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange, active 
     setBusy(true); setError(null);
     try {
       if (unsavedDocumentDrafts().some((draft) => draft.id === document.id)) {
-        rememberDocumentDraft({ ...document, title: proposed });
+        rememberDocumentDraft({ ...document, title: proposed }, true, true);
         refreshDrafts((value) => value + 1);
         setNameEdit(null);
         return;

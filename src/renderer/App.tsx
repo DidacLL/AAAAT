@@ -82,10 +82,10 @@ function CandidaturesArea({
   );
 }
 
-function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: boolean) => void }) {
+function DocumentsArea({ onDirtyChange, active }: { readonly onDirtyChange: (dirty: boolean) => void; readonly active: boolean }) {
   return (
     <div className="destination-area">
-      <DocumentsWorkspace onDirtyChange={onDirtyChange} />
+      <DocumentsWorkspace onDirtyChange={onDirtyChange} active={active} />
     </div>
   );
 }
@@ -668,6 +668,7 @@ export function App() {
                     {documentDetailActive ? (
                       <DocumentsArea
                         key={`documents-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(documentWorkspaceRevision)}`}
+                        active={!welcomeOpen && !settingsOpen && productView === "documents"}
                         onDirtyChange={setDocumentDirty}
                       />
                     ) : (

@@ -168,7 +168,6 @@ function coverLetterContext(
   letter?: CoverLetterRecord,
 ): { readonly context: ProviderCoverLetterContext; readonly replacements: PrivateReplacements } {
   const replacements: PrivateReplacements = new Map();
-  const metadataPlaceholders = new Set<string>();
   const sources: Array<{ title: string; url: string; sourceText: string }> = [];
   const applicationInformation: Array<{ title: string; value: string }> = [];
 
@@ -222,7 +221,6 @@ function coverLetterContext(
       const value = item[definition.key];
       if (value === undefined || value === "") continue;
       const title = `My information ${itemIndex + 1} — ${definition.label}`;
-      if (!allowed && definition.key === "kind") metadataPlaceholders.add(`[USERPRIVATE:${title}]`);
       myInformation.push({
         title,
         value: allowed ? value : privateValue(title, value, replacements),
@@ -230,21 +228,10 @@ function coverLetterContext(
     }
   });
 
-  // Apply the same known-denial replacement to explicitly included Source copies.
-  // Originals remain untouched. This is literal projection, not model-policy filtering.
-  const knownPrivate = [...replacements.entries()].filter((entry): entry is [string, string] => typeof entry[1] === "string" && !metadataPlaceholders.has(entry[0]))
-    .sort((left, right) => right[1].length - left[1].length);
-  if (sources.length > 0 && [...replacements.values()].some((value) => value === null)) {
-    throw new AiServiceError("These Sources cannot be included because private values have ambiguous labels. Continue without Sources.");
-  }
-  const byValue = new Map(knownPrivate.filter(([, value]) => value.length > 0).map(([placeholder, value]) => [value, placeholder]));
-  const escapedValues = [...byValue.keys()].map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const privateCopies = escapedValues.length ? new RegExp(escapedValues.join("|"), "g") : null;
-  const projectText = (text: string): string => privateCopies ? text.replace(privateCopies, (value) => byValue.get(value) ?? value) : text;
   return {
     context: providerCoverLetterContextSchema.parse({
-      currentLetter: { recipient: projectText(letter?.recipient ?? ""), subject: projectText(letter?.subject ?? ""), bodyParagraphs: (letter?.bodyParagraphs ?? []).map(projectText), closing: projectText(letter?.closing ?? ""), language: letter?.language ?? "" },
-      sources: sources.map((source) => ({ title: projectText(source.title), url: projectText(source.url), sourceText: projectText(source.sourceText) })),
+      currentLetter: { recipient: letter?.recipient ?? "", subject: letter?.subject ?? "", bodyParagraphs: letter?.bodyParagraphs ?? [], closing: letter?.closing ?? "", language: letter?.language ?? "" },
+      sources,
       applicationInformation,
       careerContext,
       myInformation,
@@ -371,7 +358,7 @@ function letterForRequest(rootPath: string, request: CoverLetterDraftRequest): C
 }
 type PreparedRequest = {
   rootPath: string; operation: "cv_tailoring" | "cover_letter_draft";
-  request: CvWritingRequest | CoverLetterDraftRequest; signature: string; preparedAt: number;
+  request: CvWritingRequest | CoverLetterDraftRequest; signature: string;
 };
 const preparedRequests = new Map<string, PreparedRequest>();
 export function discardDocumentPreparation(rootPath: string, requestId: string): void {
@@ -386,9 +373,9 @@ function prepareSignature(rootPath: string, operation: PreparedRequest["operatio
 }
 function rememberPreparation(rootPath: string, operation: PreparedRequest["operation"], request: PreparedRequest["request"], context: unknown, sources: PreparedDocumentAi["sources"]): PreparedDocumentAi {
   // Retain only the current preview for each operation in this workspace.
-  for (const [key, value] of preparedRequests) if (Date.now() - value.preparedAt > 15 * 60 * 1000 || value.operation === operation) preparedRequests.delete(key);
+  for (const [key, value] of preparedRequests) if (value.operation === operation) preparedRequests.delete(key);
   const requestId = randomUUID();
-  preparedRequests.set(requestId, { rootPath, operation, request, signature: prepareSignature(rootPath, operation, context), preparedAt: Date.now() });
+  preparedRequests.set(requestId, { rootPath, operation, request, signature: prepareSignature(rootPath, operation, context) });
   const connection = requireStoredConnection(rootPath, operation);
   return {
     requestId, connection: { name: connection.name, endpoint: connection.endpoint, model: connection.model },
@@ -397,9 +384,9 @@ function rememberPreparation(rootPath: string, operation: PreparedRequest["opera
   };
 }
 function preparedInput<T extends CvWritingRequest | CoverLetterDraftRequest>(rootPath: string, operation: PreparedRequest["operation"], request: T): T {
-  if (!request.preparedId) throw new AiServiceError("Review this document's AI context before sending.");
+  if (!request.preparedId) return request;
   const prepared = preparedRequests.get(request.preparedId);
-  if (!prepared || prepared.rootPath !== rootPath || prepared.operation !== operation || Date.now() - prepared.preparedAt > 15 * 60 * 1000) throw new AiServiceError("Prepare this AI task again.");
+  if (!prepared || prepared.rootPath !== rootPath || prepared.operation !== operation) throw new AiServiceError("Prepare this AI task again.");
   preparedRequests.delete(request.preparedId);
   return { ...prepared.request, preparedId: request.preparedId } as T;
 }
@@ -425,7 +412,7 @@ export async function writeCvField(rootPath: string, rawRequest: CvWritingReques
   const request = preparedInput(rootPath, "cv_tailoring", parsed);
   const document = workingForRequest(rootPath, request);
   const projected = cvWritingContext(rootPath, document, request.itemId, request.field);
-  assertPreparationCurrent(rootPath, "cv_tailoring", projected.context, signature ?? "");
+  if (signature !== undefined) assertPreparationCurrent(rootPath, "cv_tailoring", projected.context, signature);
   const written = await provider.writeCvField(requireStoredConnection(rootPath, "cv_tailoring"), projected.context, signal);
   const content = restorePrivateValues(written, projected.replacements).trim();
   if (!content || content.length > projected.maxLength) throw new AiServiceError("The AI result does not fit this CV field.");
@@ -437,7 +424,7 @@ export async function draftCoverLetter(rootPath: string, rawRequest: CoverLetter
   const request = preparedInput(rootPath, "cover_letter_draft", parsed);
   const document = letterForRequest(rootPath, request);
   const projected = coverLetterContext(rootPath, document.candidatureId, request.sourceIds, document);
-  assertPreparationCurrent(rootPath, "cover_letter_draft", projected.context, signature ?? "");
+  if (signature !== undefined) assertPreparationCurrent(rootPath, "cover_letter_draft", projected.context, signature);
   const drafted = await provider.draftCoverLetter(requireStoredConnection(rootPath, "cover_letter_draft"), projected.context, signal);
   return restoredCoverLetterDraft(drafted, projected.replacements);
 }

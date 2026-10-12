@@ -109,7 +109,7 @@ export const preparedDocumentAiSchema = z.object({
   sources: z.array(z.object({ id: z.string().uuid(), title: z.string() }).strict()),
 }).strict();
 export type PreparedDocumentAi = z.infer<typeof preparedDocumentAiSchema>;
-export type CoverLetterDraftRequest = z.infer<typeof coverLetterDraftRequestSchema>;
+export type CoverLetterDraftRequest = z.input<typeof coverLetterDraftRequestSchema>;
 
 export const cvWritingResultSchema = z
   .object({

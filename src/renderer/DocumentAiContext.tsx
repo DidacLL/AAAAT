@@ -33,12 +33,9 @@ function readContext(text: string) {
   return null;
 }
 
-export function DocumentAiContext({ preview, busy, sourceIds = [], onSources, onSend, onClose }: {
+export function DocumentAiContext({ preview, busy, onClose }: {
   readonly preview: PreparedDocumentAi;
   readonly busy: boolean;
-  readonly sourceIds?: readonly string[];
-  readonly onSources?: (ids: string[]) => void;
-  readonly onSend: () => void;
   readonly onClose: () => void;
 }) {
   const context = readContext(preview.contextText);
@@ -49,10 +46,6 @@ export function DocumentAiContext({ preview, busy, sourceIds = [], onSources, on
       <button type="button" onClick={onClose} disabled={busy}>Close</button></header>
     {letter ? <p className="document-ai-summary">Draft this letter · {letter.applicationInformation.length} application values · {letter.myInformation.length} My information values · {letter.sources.length} {letter.sources.length === 1 ? "offer or note" : "offers or notes"}</p> : null}
     {cv ? <p className="document-ai-summary">Write CV text · {cv.target.title}</p> : null}
-    {preview.sources.length > 0 && onSources ? <fieldset><legend>Include offer or notes</legend>
-      {preview.sources.map((source) => <label key={source.id}><input type="checkbox" checked={sourceIds.includes(source.id)} disabled={busy}
-        onChange={(event) => onSources(event.target.checked ? [...sourceIds, source.id] : sourceIds.filter((id) => id !== source.id))} />{source.title}</label>)}
-    </fieldset> : null}
     {letter ? <section className="document-ai-readable" aria-label="Information sent">
       <ContextGroup title="Current letter" rows={[
         { title: "To", value: letter.currentLetter.recipient },
@@ -71,9 +64,8 @@ export function DocumentAiContext({ preview, busy, sourceIds = [], onSources, on
       </details>}
     </section> : null}
     {cv ? <section className="document-ai-readable" aria-label="Information sent"><ContextGroup title="Information for this CV text" rows={cv.availableInformation} /></section> : null}
-    {!context ? <p role="alert">This task's information could not be displayed. Close it and open AI again.</p> : null}
+    {!context ? <p role="alert">This task's information could not be displayed.</p> : null}
     <details className="document-ai-information"><summary>Writing instructions</summary><p>{preview.instruction}</p></details>
     <details><summary>Technical details</summary><p>{preview.connection.endpoint}</p><pre>{preview.contextText}</pre></details>
-    <button type="button" className="compact-primary" disabled={busy || !context} onClick={onSend}>{busy ? "Working…" : "Send"}</button>
   </aside>;
 }
