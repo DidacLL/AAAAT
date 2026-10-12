@@ -195,6 +195,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
       inputSchema: externalInterviewPreparationResultSchema,
     },
     async (input) => {
+      if (selectedInterviewPreparationTask(rootPath) === null) throw new Error("Publish this application task before saving a connected AI result.");
       const parsed = externalInterviewPreparationResultSchema.parse(input);
       retainInterviewPreparationResult(rootPath, parsed.text);
       return {

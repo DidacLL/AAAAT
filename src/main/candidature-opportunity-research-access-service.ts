@@ -49,6 +49,7 @@ import {
 } from "./robust-job-extraction";
 import { compactSourceText } from "../shared/source-text";
 import { withWorkspaceDatabase } from "./workspace";
+import { projectCandidatureSourceForAi } from "./candidature-ai-source-projection";
 
 interface AccessRow {
   readonly id: string;
@@ -60,7 +61,6 @@ type ResearchAccessActivity =
   | "candidature.opportunity-research-access.allow"
   | "candidature.opportunity-research-access.revoke";
 
-import { projectCandidatureSourceForAi } from "./candidature-ai-source-projection";
 
 const applicationInformationTaskKey = "external_ai.application_information_task.v1";
 const applicationInformationResultKey = "external_ai.application_information_result.v1";
@@ -811,19 +811,6 @@ export function prepareInterviewPreparationContext(
       deleteMetadata(database, applicationInformationTaskKey);
       deleteMetadata(database, applicationInformationResultKey);
       return built.context;
-    }),
-  );
-}
-
-export function selectedInterviewPreparationContext(
-  rootPath: string,
-): ExternalInterviewPreparationContext | null {
-  return withWorkspaceDatabase(rootPath, (database) =>
-    snapshot(database, () => {
-      const candidatureId = selectedId(database);
-      if (candidatureId === null) return null;
-      const stored = readStoredInterviewPreparationTask(database);
-      return stored?.candidatureId === candidatureId ? stored.context : null;
     }),
   );
 }

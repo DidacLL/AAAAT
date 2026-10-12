@@ -15,6 +15,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
   const [taskText, setTaskText] = useState("");
   const [preparedText, setPreparedText] = useState("");
   const [resultText, setResultText] = useState("");
+  const [publishedText, setPublishedText] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +57,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
     let active = true;
     void window.aaaat.candidatureOpportunityResearchAccess.update({ candidatureId, allowed: false }).then((saved) => {
       if (!active) return;
-      setAccess(saved); setIntent(null); setTaskText(""); setPreparedText("");
+      setAccess(saved); setIntent(null); setTaskText(""); setPreparedText(""); setPublishedText(null);
       setMessage("Save or discard application edits before preparing a task.");
     }).catch(() => { if (active) setError("External AI access could not be updated."); });
     return () => { active = false; };
@@ -77,14 +78,14 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
       const text = nextIntent === "application-information"
         ? (await api.applicationInformationTask(applicationInformationTaskInstruction)).taskText
         : await (async () => { await api.interviewContext(); return api.interviewTaskText(); })();
-      setIntent(nextIntent); setTaskText(text); setPreparedText(text); setResultText("");
+      setIntent(nextIntent); setTaskText(text); setPreparedText(text); setResultText(""); setPublishedText(null);
     });
   };
   const publish = () => perform("publish", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
     if (intent === "application-information") await api.publishApplicationInformationTask(taskText);
     else await api.publishInterviewTask(taskText);
-    setPreparedText(taskText); setMessage("This exact task is available to your connected AI.");
+    setPreparedText(taskText); setPublishedText(taskText); setMessage("This exact task is available to your connected AI.");
   });
   const copy = () => perform("copy", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
@@ -131,6 +132,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
       </details>
     </> : <>
       <label className="application-task-text">Task for my AI<textarea rows={18} maxLength={1024 * 1024} value={taskText} disabled={disabled || contextDirty} onChange={(event) => setTaskText(event.target.value)} /></label>
+      {publishedText !== null && publishedText !== taskText ? <p className="compact-help">This task has changed. Publish again to update your connected AI.</p> : null}
       <small>You can edit all of this text, including the application context. Copy, export and publish use exactly this text.</small>
       <div className="button-row">
         <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void copy()}>Copy task</button>
