@@ -11,6 +11,7 @@ on:
       - "forge.config.ts"
       - "package.json"
       - "package-lock.json"
+      - ".npmrc"
       - "scripts/collect-release-artifacts.mjs"
 
 permissions:
@@ -31,7 +32,7 @@ jobs:
         with:
           node-version: 24.20.0
           cache: npm
-      - run: npm install --global npm@11.19.0
+      - run: npm install --global npm@12.2.0
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -90,7 +91,7 @@ jobs:
         with:
           node-version: 24.20.0
           cache: npm
-      - run: npm install --global npm@11.19.0
+      - run: npm install --global npm@12.2.0
       - run: npm ci
       - name: Build native distributables
         run: npm run make -- --arch=${{ matrix.arch }}

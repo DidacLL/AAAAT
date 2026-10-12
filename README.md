@@ -22,6 +22,8 @@ AI connections are optional. Current direct-AI connection support accepts loopba
 
 ## Development
 
+With Node.js 24.15+ (within major 24), npm 11 and npm 12 are supported. The repository's `.npmrc` explicitly permits Electron Forge 7.x's pinned Git-sourced `@electron/node-gyp` dependency for `npm ci` under npm 12. This setting applies to this project, not to your global npm configuration; revisit it when Forge uses registry-only rebuild tooling.
+
 ```text
 npm ci
 npm run verify

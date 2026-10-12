@@ -11,6 +11,7 @@ on:
       - "scripts/**"
       - "package.json"
       - "package-lock.json"
+      - ".npmrc"
       - "vite*.ts"
       - "vite*.mts"
       - "forge.config.*"
@@ -23,6 +24,7 @@ on:
       - "scripts/**"
       - "package.json"
       - "package-lock.json"
+      - ".npmrc"
       - "vite*.ts"
       - "vite*.mts"
       - "forge.config.*"
@@ -47,7 +49,7 @@ jobs:
         with:
           node-version: 24.20.0
           cache: npm
-      - run: npm install --global npm@11.19.0
+      - run: npm install --global npm@12.2.0
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
