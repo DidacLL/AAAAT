@@ -95,7 +95,12 @@ export function CandidatureFieldAiState({
   });
   const proposal = proposalTask ? proposalFor(proposalTask, field.definition.id) : null;
   const exactTask = candidates.find((task) => task.key === exactKey) ?? null;
-  const appliedTask = candidates.find((task) => task.status === "completed" && (task.appliedFieldIds ?? []).includes(field.definition.id));
+  const appliedTask = candidates.find((task) =>
+    task.status === "completed"
+    && (task.appliedFieldIds ?? []).includes(field.definition.id)
+    && currentValue !== undefined
+    && JSON.stringify(proposalFor(task, field.definition.id)?.value) === JSON.stringify(currentValue),
+  );
   const activeTask = candidates.find(
     (task) => task.status === "queued" || task.status === "working",
   );

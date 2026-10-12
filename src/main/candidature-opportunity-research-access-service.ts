@@ -713,7 +713,13 @@ export function submitApplicationInformationProposals(
 ): ExternalApplicationInformationPendingResult {
   const input = externalApplicationInformationProposalInputSchema.parse(rawInput);
   return withWorkspaceDatabase(rootPath, (database) =>
-    transact(database, () => storeApplicationInformationProposals(database, input)),
+    transact(database, () => {
+      const stored = requireStoredApplicationInformationTask(database);
+      if (selectedId(database) !== stored.candidatureId || !stored.published || input.taskRef !== stored.taskRef) {
+        throw new CandidatureOpportunityResearchAccessServiceError("Use this application task with connected AI before returning suggestions.");
+      }
+      return storeApplicationInformationProposals(database, input);
+    }),
   );
 }
 
@@ -929,14 +935,22 @@ export function useConnectedInterviewPreparationTask(rootPath: string, rawText: 
   }));
 }
 
-export function retainInterviewPreparationResult(
-  rootPath: string,
-  rawText: string,
-): boolean {
+export function retainInterviewPreparationResult(rootPath: string, rawText: string): boolean {
+  return retainInterviewResult(rootPath, rawText, false);
+}
+
+export function retainConnectedInterviewPreparationResult(rootPath: string, rawText: string): boolean {
+  return retainInterviewResult(rootPath, rawText, true);
+}
+
+function retainInterviewResult(rootPath: string, rawText: string, connected: boolean): boolean {
   const result = externalInterviewPreparationResultSchema.parse({ text: rawText });
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
       const stored = requireStoredInterviewPreparationTask(database);
+      if (connected && (selectedId(database) !== stored.candidatureId || !stored.published)) {
+        throw new CandidatureOpportunityResearchAccessServiceError("Use this application task with connected AI before saving a result.");
+      }
       addCandidatureSourceInDatabase(
         database,
         {

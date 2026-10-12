@@ -44,7 +44,7 @@ import {
 } from "./ai-connection-service";
 import {
   selectedInterviewPreparationTask,
-  retainInterviewPreparationResult,
+  retainConnectedInterviewPreparationResult,
   selectedApplicationInformationTask,
   submitApplicationInformationProposals,
 } from "./candidature-opportunity-research-access-service";
@@ -159,7 +159,6 @@ function createServerForWorkspace(rootPath: string): McpServer {
     },
     async (input) => {
       const parsed = externalApplicationInformationProposalInputSchema.parse(input);
-      if (selectedApplicationInformationTask(rootPath)?.taskRef !== parsed.taskRef) throw new Error("Use this application task with connected AI before returning suggestions.");
       const pending = submitApplicationInformationProposals(rootPath, parsed);
       return {
         content: [{
@@ -196,9 +195,8 @@ function createServerForWorkspace(rootPath: string): McpServer {
       inputSchema: externalInterviewPreparationResultSchema,
     },
     async (input) => {
-      if (selectedInterviewPreparationTask(rootPath) === null) throw new Error("Use this application task with connected AI before saving a result.");
       const parsed = externalInterviewPreparationResultSchema.parse(input);
-      retainInterviewPreparationResult(rootPath, parsed.text);
+      retainConnectedInterviewPreparationResult(rootPath, parsed.text);
       return {
         content: [{
           type: "text" as const,
