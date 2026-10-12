@@ -304,6 +304,8 @@ export function WorkingCvEditor({
   } | null>(null);
   const [writingTaskKey] = useState(() => `document:cv-writing:${document.id}:${crypto.randomUUID()}`);
   const writingTask = useAiTask<CvWritingResult>(writingTaskKey);
+  const [inspectedFailure, setInspectedFailure] = useState<typeof writingTask>(null);
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
   const writingActive =
     writingTask?.status === "queued" || writingTask?.status === "working";
   const [busy, setBusy] = useState(false);
@@ -547,13 +549,14 @@ export function WorkingCvEditor({
 
   const inspectCvText = async (item: WorkingCvItem, field: CvWritingField) => {
     if (writingActive || preparingAi) return;
-    setError(null); setPreparingAi(true); setWritingTarget({ itemId: item.id, field });
+    setInspectionError(null); setPreparingAi(true); setWritingTarget({ itemId: item.id, field });
     try {
       const current = draftRef.current;
       const preview = await window.aaaat.ai.prepareCvWriting({ workingCvId: current.id, document: current, itemId: item.id, field, sections: current.sections });
       if (!mounted.current) { void window.aaaat.ai.discardDocumentPreparation(preview.requestId); return; }
       preparedId.current = preview.requestId; requestDraft.current = current; setAiPreview(preview);
-    } catch (reason) { setError(readableDocumentError(reason, "AI information could not be inspected.")); }
+      setInspectedFailure(writingTask?.status === "failed" ? writingTask : null);
+    } catch (reason) { setInspectionError(readableDocumentError(reason, "AI information could not be inspected.")); }
     finally { setPreparingAi(false); }
   };
   const askAiToWrite = (item: WorkingCvItem, field: CvWritingField) => {
@@ -562,7 +565,7 @@ export function WorkingCvEditor({
     const current = inspectedId && requestDraft.current ? requestDraft.current : draftRef.current;
     if (!inspectedId && preparedId.current) { void window.aaaat.ai.discardDocumentPreparation(preparedId.current); preparedId.current = null; setAiPreview(null); }
     const target = { itemId: item.id, field };
-    setWritingTarget(target); setError(null);
+    setWritingTarget(target); setError(null); setInspectionError(null);
     const snapshot = cvFieldValue(current, target.itemId, target.field);
     startAiTask<CvWritingResult>(writingTaskKey, async (updateDetail, signal) => {
       preparedId.current = null;
@@ -635,9 +638,10 @@ export function WorkingCvEditor({
           <button type="button" onClick={() => setWritingAlternative(null)}>Dismiss</button></div>
       </details> : null}
 
-      {writingTask?.status === "failed" ? <p className="error-message document-editor-message" role="alert">
+      {writingTask?.status === "failed" && writingTask !== inspectedFailure ? <p className="error-message document-editor-message" role="alert">
         AI{writingTarget ? ` · ${writingTarget.field}` : ""}: {readableDocumentError(new Error(writingTask.error ?? ""), "AI could not write this text.")}
       </p> : null}
+      {inspectionError ? <p className="error-message document-editor-message" role="alert">{inspectionError}</p> : null}
       {error ? (
         <div className="document-editor-message">
           <p className="error-message" role="alert">{error}</p>
@@ -1109,6 +1113,8 @@ function LetterEditor({
   const mounted = useRef(false);
   const [draftingTaskKey] = useState(() => `document:cover-letter-draft:${document.id}:${crypto.randomUUID()}`);
   const draftingTask = useAiTask<CoverLetterDraft>(draftingTaskKey);
+  const [inspectedFailure, setInspectedFailure] = useState<typeof draftingTask>(null);
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
   const draftingActive =
     draftingTask?.status === "queued" || draftingTask?.status === "working";
   const [busy, setBusy] = useState(false);
@@ -1243,7 +1249,7 @@ function LetterEditor({
 
   const inspectLetter = async () => {
     if (draftingActive || preparingAi) return;
-    setPreparingAi(true); setError(null);
+    setPreparingAi(true); setInspectionError(null);
     try {
       const current = draftRef.current;
       const preview = await window.aaaat.ai.prepareCoverLetter({ coverLetterId: current.id, document: current, sourceIds: sourceIds });
@@ -1251,7 +1257,8 @@ function LetterEditor({
       preparedId.current = preview.requestId;
       requestDraft.current = current;
       setAiPreview(preview);
-    } catch (reason) { setError(readableDocumentError(reason, "AI context could not be prepared.")); }
+      setInspectedFailure(draftingTask?.status === "failed" ? draftingTask : null);
+    } catch (reason) { setInspectionError(readableDocumentError(reason, "AI context could not be prepared.")); }
     finally { setPreparingAi(false); }
   };
   const sendLetterTask = () => {
@@ -1259,7 +1266,7 @@ function LetterEditor({
     const inspectedId = preparedId.current ?? undefined;
     const current = inspectedId && requestDraft.current ? requestDraft.current : draftRef.current;
     const snapshot = letterAiValues(current);
-    setError(null);
+    setError(null); setInspectionError(null);
     startAiTask<CoverLetterDraft>(draftingTaskKey, async (updateDetail, signal) => {
       preparedId.current = null;
       updateDetail("Drafting…");
@@ -1358,9 +1365,10 @@ function LetterEditor({
         <button type="button" onClick={() => setAiAlternative(null)}>Dismiss</button>
       </details> : null}
 
-      {draftingTask?.status === "failed" ? <p className="error-message document-editor-message" role="alert">
+      {draftingTask?.status === "failed" && draftingTask !== inspectedFailure ? <p className="error-message document-editor-message" role="alert">
         {readableDocumentError(new Error(draftingTask.error ?? ""), "AI could not draft this letter.")}
       </p> : null}
+      {inspectionError ? <p className="error-message document-editor-message" role="alert">{inspectionError}</p> : null}
       {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
       {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
 
