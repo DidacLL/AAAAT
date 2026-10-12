@@ -8,7 +8,7 @@ const contextSummary: Readonly<Record<AiOperation, string>> = {
   job_extraction: "Only the bounded retained Source/application context plus the requested eligible configured field definitions. No Tag glossary.",
   tag_inference: "Only relevant retained Source/application context, the existing Tag glossary, and configured application field titles. Application field values are not added merely because AI may use them.",
   cv_tailoring: "The selected Working CV, Career preferences, and application information when this CV belongs to an application. Private assigned values are sent as local placeholders.",
-  cover_letter_draft: "The current letter, explicitly selected application Sources, permitted application information, Career context, and My information. Sources start excluded; included Source copies of known denied values use the same local placeholders. Explicitly allowed values are sent; denied or missing-disclosure values participate only as local USERPRIVATE placeholders.",
+  cover_letter_draft: "Current letter text and explicitly selected offers or notes, plus permitted application information, career preferences and My information. Sources are off by default. Owned saved fields/items with AI use disabled contribute USERPRIVATE placeholders; letter and selected Source text remain as entered.",
 };
 
 const responseExpectation: Readonly<Record<AiOperation, string>> = {

@@ -1096,16 +1096,7 @@ function LetterEditor({
   const [aiPreview, setAiPreview] = useState<PreparedDocumentAi | null>(null);
   const aiConnection = useDocumentAiConnection("cover_letter_draft", active);
   const [availableSources, setAvailableSources] = useState<Array<{ id: string; title: string }>>([]);
-  useEffect(() => {
-    if (!active || !document.candidatureId) return;
-    let current = true;
-    void window.aaaat.candidatures.listSources(document.candidatureId).then((sources) => {
-      if (!current) return;
-      setAvailableSources(sources.map((source) => ({ id: source.id, title: source.title || "Offer or notes" })));
-      setSourceIds((selected) => selected.filter((id) => sources.some((source) => source.id === id)));
-    }).catch(() => { if (current) setError("Offers and notes could not be loaded."); });
-    return () => { current = false; };
-  }, [active, document.candidatureId]);
+
   const [sourceIds, setSourceIds] = useState<string[]>([]);
   const [preparingAi, setPreparingAi] = useState(false);
   const requestDraft = useRef<CoverLetterRecord | null>(null);
@@ -1119,6 +1110,16 @@ function LetterEditor({
   const [error, setError] = useState<string | null>(null);
   const [aiAlternative, setAiAlternative] = useState<Partial<CoverLetterDraft> | null>(null);
   const [productionMessage, setProductionMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!active || !document.candidatureId) return;
+    let current = true;
+    void window.aaaat.candidatures.listSources(document.candidatureId).then((sources) => {
+      if (!current) return;
+      setAvailableSources(sources.map((source) => ({ id: source.id, title: source.title || "Offer or notes" })));
+      setSourceIds((selected) => selected.filter((id) => sources.some((source) => source.id === id)));
+    }).catch(() => { if (current) setError("Offers and notes could not be loaded."); });
+    return () => { current = false; };
+  }, [active, document.candidatureId]);
 
   const latestRendered = collections.renderedLetters.find(
     (candidate) => candidate.coverLetterId === document.id,
