@@ -347,7 +347,7 @@ function workingForRequest(rootPath: string, request: CvWritingRequest): Working
   assertDocumentAiAllowed(rootPath, document.candidatureId);
   return { ...document, sections: request.sections };
 }
-function letterForRequest(rootPath: string, request: CoverLetterDraftRequest): CoverLetterRecord {
+function letterForRequest(rootPath: string, request: ReturnType<typeof coverLetterDraftRequestSchema.parse>): CoverLetterRecord {
   const saved = listDocumentCollections(rootPath).letters.find((candidate) => candidate.id === request.coverLetterId);
   const document = request.document ?? saved;
   if (!document || document.id !== request.coverLetterId || (saved && saved.candidatureId !== document.candidatureId)) {
