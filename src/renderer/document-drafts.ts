@@ -5,6 +5,7 @@ const originals = new Map<string, WorkingCvRecord | CoverLetterRecord>();
 const needsSave = new Set<string>();
 const edited = new Set<string>();
 export function rememberDocumentDraft(draft: WorkingCvRecord | CoverLetterRecord, saveNeeded = true, userEdited = false): void {
+  if (!saveNeeded && !userEdited) { forgetDocumentDraft(draft.id); return; }
   if (!originals.has(draft.id)) originals.set(draft.id, draft);
   drafts.set(draft.id, draft);
   if (saveNeeded) needsSave.add(draft.id); else needsSave.delete(draft.id);

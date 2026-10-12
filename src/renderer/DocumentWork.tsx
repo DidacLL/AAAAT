@@ -215,17 +215,19 @@ function populatedOptionalDetails(content: WorkingCvItem["content"]): OptionalCv
 }
 
 function useDocumentAiConnection(operation: AiOperation, active: boolean): NamedAiConnection | null | undefined {
-  const [connection, setConnection] = useState<NamedAiConnection | null>();
+  const [state, setState] = useState<{ operation: AiOperation; active: boolean; connection?: NamedAiConnection | null }>({ operation, active });
+  const refreshing = state.operation !== operation || state.active !== active;
+  if (refreshing) setState({ operation, active });
   useEffect(() => {
     if (!active) return;
     let current = true;
     void window.aaaat.aiConnections.list().then((connections) => {
-      if (current) setConnection(connections.find((candidate) => candidate.defaultForOperations.includes(operation))
-        ?? connections.find((candidate) => candidate.isDefault) ?? null);
-    }).catch(() => { if (current) setConnection(null); });
+      if (current) setState({ operation, active, connection: connections.find((candidate) => candidate.defaultForOperations.includes(operation))
+        ?? connections.find((candidate) => candidate.isDefault) ?? null });
+    }).catch(() => { if (current) setState({ operation, active, connection: null }); });
     return () => { current = false; };
   }, [operation, active]);
-  return connection;
+  return refreshing ? undefined : state.connection;
 }
 function aiRecipient(connection: NamedAiConnection | null | undefined): string {
   return connection ? `${connection.name} · ${connection.model}` : connection === undefined ? "Loading connection…" : "Choose a connection in Settings";
