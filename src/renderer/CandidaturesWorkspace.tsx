@@ -29,7 +29,7 @@ import {
   type CandidatureRecognitionCue,
   type RecencyFilter,
 } from "./candidature-projections";
-import { clearAiTask, getAiTask, markAiTaskFieldHandled } from "./ai-task-store";
+import { cancelAiTask, clearAiTask, getAiTask, markAiTaskFieldHandled, useAiTask } from "./ai-task-store";
 import { useShellActions } from "./shell-actions";
 import { rememberDocumentDraft, unsavedDocumentDrafts } from "./document-drafts";
 import { candidatureInferenceContext } from "./candidature-inference-context";
@@ -376,7 +376,7 @@ export function CandidaturesWorkspace({
     storeRecord(updated); setEditorDirty(fieldId, false);
   };
   const fillEmptyValue = async (fieldId: string, value: CandidatureRuntimeValue, taskKey: string): Promise<boolean> => {
-    if (!selected || activeFieldEditorId === fieldId || protectedTaskFields.current.get(taskKey)?.has(fieldId)) return false;
+    if (!selected || sourceDirty || activeFieldEditorId === fieldId || protectedTaskFields.current.get(taskKey)?.has(fieldId)) return false;
     const updated = await window.aaaat.candidatures.setFieldValue({
       candidatureId: selected.id, fieldId, value, onlyIfEmpty: true,
     });
@@ -557,10 +557,12 @@ export function CandidaturesWorkspace({
     } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this Tag."); }
   };
 
-  const invalidateSourceTasks = useCallback(() => {
+  const invalidateSourceTasks = useCallback((pendingOnly = false) => {
     if (!selectedId) return;
     for (const suffix of ["missing", "tags", ...fields.map((field) => field.definition.id)]) {
-      clearAiTask(`candidature-inference:${selectedId}:${suffix}`);
+      const key = `candidature-inference:${selectedId}:${suffix}`;
+      const task = getAiTask(key);
+      if (!pendingOnly || task?.status === "queued" || task?.status === "working") clearAiTask(key);
     }
   }, [selectedId, fields]);
   const beforeSourcesChange = async () => {
@@ -572,7 +574,7 @@ export function CandidaturesWorkspace({
     }
   };
   const handleSourceDirty = useCallback((dirty: boolean) => {
-    if (dirty) invalidateSourceTasks();
+    if (dirty) invalidateSourceTasks(true);
     setSourceDirty(dirty);
   }, [invalidateSourceTasks]);
   const handleSourcesChanged = useCallback(async () => {
@@ -738,6 +740,8 @@ export function CandidaturesWorkspace({
     }
   };
 
+  const bulkTask = useAiTask(`candidature-inference:${selected?.id ?? ""}:missing`);
+  const bulkPending = bulkTask?.status === "queued" || bulkTask?.status === "working";
   const shellRecognition = selected ? candidatureRecognitionProjection(selected, fields) : null;
   const shellIdentity = shellRecognition ? corpusActionIdentity(shellRecognition.primaryCues.slice(0, 2), shellRecognition.retainedSourceCue) : "Applications";
   const shellTitle = shellIdentity.length > 72 ? `${shellIdentity.slice(0, 71).trimEnd()}…` : shellIdentity;
@@ -745,7 +749,7 @@ export function CandidaturesWorkspace({
     title: mode === "selected" ? shellTitle : "Applications",
     actions: mode === "selected" ? [
       { id: "back-applications", label: "Close", onClick: returnToCorpus },
-      { id: "extract-application", label: "Extract with AI", onClick: () => void requestBulkInference() },
+      { id: "extract-application", label: bulkPending ? "Stop AI" : "Extract with AI", onClick: () => { if (bulkPending && bulkTask) cancelAiTask(bulkTask.key); else void requestBulkInference(); } },
       ...(onNewApplication ? [{ id: "new-application", label: "New", onClick: onNewApplication }] : []),
     ] : (onNewApplication ? [{ id: "new-application", label: "New", onClick: onNewApplication, primary: true }] : []),
     moreActions: mode === "selected" && selected ? [
@@ -988,26 +992,10 @@ export function CandidaturesWorkspace({
             >
               <span aria-hidden="true">{activeFieldEditorId === field.definition.id ? "×" : "✎"}</span>
             </button>
-            <details
-              className="candidature-field-options"
-              open={openFieldOptionsId === field.definition.id}
-            >
-              <summary
-                onClick={(event) => {
-                  event.preventDefault();
-                  toggleFieldOptions(field);
-                }}
-                aria-label={`Configure ${field.definition.label}`}
-                title={`Configure ${field.definition.label}`}
-              >
-                <span aria-hidden="true">⚙</span>
-              </summary>
-              {openFieldOptionsId === field.definition.id ? (
-                <div className="candidature-field-options-panel">
             <button
               type="button"
               className="candidature-icon-button candidature-ai-use-eye"
-              aria-label={`Allow AI to use ${field.definition.label}`}
+              aria-label={field.preferences.aiUseAllowed ? `Prevent AI from using ${field.definition.label}` : `Allow AI to use ${field.definition.label}`}
               aria-pressed={field.preferences.aiUseAllowed}
               title={field.preferences.aiUseAllowed ? "AI may use this information" : "AI will not use this information"}
               onClick={() => void updateFieldPreference(field, { aiUseAllowed: !field.preferences.aiUseAllowed })}
@@ -1024,6 +1012,22 @@ export function CandidaturesWorkspace({
             >
               <span aria-hidden="true">✨</span>
             </button>
+            <details
+              className="candidature-field-options"
+              open={openFieldOptionsId === field.definition.id}
+            >
+              <summary
+                onClick={(event) => {
+                  event.preventDefault();
+                  toggleFieldOptions(field);
+                }}
+                aria-label={`Configure ${field.definition.label}`}
+                title={`Configure ${field.definition.label}`}
+              >
+                <span aria-hidden="true">⚙</span>
+              </summary>
+              {openFieldOptionsId === field.definition.id ? (
+                <div className="candidature-field-options-panel">
                   {field.definition.description ? <p className="compact-help">{field.definition.description}</p> : null}
 
                   {favourite ? (
@@ -1171,7 +1175,7 @@ export function CandidaturesWorkspace({
           currentValue={retained?.value}
           onSaveValue={(value) => setValue(field.definition.id, value)}
           onFillEmpty={(value, taskKey) => fillEmptyValue(field.definition.id, value, taskKey)}
-          editing={activeFieldEditorId === field.definition.id}
+          editing={sourceDirty || activeFieldEditorId === field.definition.id}
           onRetry={() => void requestFieldInference(field)}
         />
       </article>

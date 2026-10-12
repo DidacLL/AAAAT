@@ -23,10 +23,13 @@ import {
   buildInterviewPreparationPortableTask,
   importApplicationInformationPortableResult,
   prepareInterviewPreparationContext,
+  preparePrivateInterviewPreparationContext,
+  disableConnectedTaskAccess,
   maxExternalAiPortableResultBytes,
   prepareApplicationInformationTask,
-  publishApplicationInformationTask,
-  publishInterviewPreparationTask,
+  preparePrivateApplicationInformationTask,
+  useConnectedApplicationInformationTask,
+  useConnectedInterviewPreparationTask,
   retainInterviewPreparationResult,
   takeApplicationInformationResult,
   getCandidatureOpportunityResearchAccess,
@@ -83,9 +86,14 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     },
   );
 
-  ipcMain.handle(candidatureOpportunityResearchAccessChannels.publishApplicationInformationTask, (event, rawText: unknown) => {
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.privateApplicationInformationTask, (event, rawCandidatureId: unknown, rawInstruction: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return externalApplicationInformationTaskSchema.parse(publishApplicationInformationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
+    return externalApplicationInformationTaskSchema.parse(preparePrivateApplicationInformationTask(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId), candidatureExternalAiInstructionSchema.parse(rawInstruction)));
+  });
+
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.useConnectedApplicationInformationTask, (event, rawText: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return externalApplicationInformationTaskSchema.parse(useConnectedApplicationInformationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
   });
 
   ipcMain.handle(
@@ -180,9 +188,19 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
     );
   });
 
-  ipcMain.handle(candidatureOpportunityResearchAccessChannels.publishInterviewTask, (event, rawText: unknown) => {
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.privateInterviewContext, (event, rawCandidatureId: unknown) => {
     assertTrustedSender(event, mainWindow);
-    return candidatureExternalAiTaskTextSchema.parse(publishInterviewPreparationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
+    return externalInterviewPreparationContextSchema.parse(preparePrivateInterviewPreparationContext(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId)));
+  });
+
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.disableConnectedTaskAccess, (event, rawCandidatureId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureOpportunityResearchAccessSchema.parse(disableConnectedTaskAccess(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId)));
+  });
+
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.useConnectedInterviewTask, (event, rawText: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return candidatureExternalAiTaskTextSchema.parse(useConnectedInterviewPreparationTask(requireWorkspaceRoot(), candidatureExternalAiTaskTextSchema.parse(rawText)));
   });
 
   ipcMain.handle(candidatureOpportunityResearchAccessChannels.interviewTaskText, (event) => {

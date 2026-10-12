@@ -66,7 +66,7 @@ export type ExternalCandidatureSourceAddResult = z.infer<
 export const externalApplicationInformationTaskSchema = z
   .object({
     taskRef: operationReferenceSchema,
-    taskText: z.string().min(1).max(1024 * 1024).refine((text) => text.trim().length > 0, { message: "Write a task before copying or publishing it." }),
+    taskText: z.string().min(1).max(1024 * 1024).refine((text) => text.trim().length > 0, { message: "Write a task before using it." }),
   })
   .strict();
 export type ExternalApplicationInformationTask = z.infer<

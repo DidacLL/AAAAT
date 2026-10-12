@@ -44,11 +44,16 @@
 .candidature-corpus-card { min-width: 0; background: var(--paper-strong); border: 1px solid var(--line); border-radius: .3rem; overflow: hidden; }
 .candidature-corpus-entry { display: block; width: 100%; padding: 1rem; background: transparent; border: 0; text-align: left; color: var(--ink); min-height: 8rem; }
 .candidature-corpus-entry:hover, .candidature-corpus-entry:focus-visible { background: rgb(57 124 122 / 7%); outline: 2px solid var(--focus); outline-offset: -2px; }
-.candidature-recognition-cues { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.candidature-recognition-cues { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
 .candidature-recognition-cue { display: grid; gap: .2rem; min-width: 0; }
 .candidature-cue-label { color: var(--muted-ink); font-size: .7rem; font-weight: 600; }
 .candidature-cue-value { font-size: .9rem; line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.candidature-cue-size-compact { grid-column: span 1; }
+.candidature-cue-size-compact .candidature-cue-value { font-size: .8rem; }
+.candidature-cue-size-normal { grid-column: span 2; }
 .candidature-cue-size-wide { grid-column: 1 / -1; }
+.candidature-cue-size-wide .candidature-cue-value { font-size: 1rem; }
+.candidature-ai-use-eye[aria-pressed="true"] { color: var(--focus); background: rgb(57 124 122 / 8%); }
 .candidature-card-footer { display: flex; justify-content: space-between; gap: .5rem; align-items: center; padding: .5rem 1rem; font-size: .7rem; color: var(--muted-ink); border-top: 1px solid var(--line-soft); }
 .candidature-collapsed-tags { display: flex; flex-wrap: wrap; gap: .3rem; }
 .candidature-collapsed-tag { border-radius: 1rem; padding: .1rem .4rem; background: rgb(57 124 122 / 8%); }
