@@ -19,7 +19,8 @@ function uniqueTitle(base: string, titles: readonly string[]): string {
   }
 }
 
-export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
+export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange, active = true }: {
+  readonly active?: boolean;
   readonly onOpenDocument: (documentId: string) => boolean;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
@@ -40,18 +41,19 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     return () => onDirtyChange?.(false);
   }, [creation, title, nameEdit, onDirtyChange]);
   useEffect(() => {
-    let active = true;
+    if (!active) return;
+    let current = true;
     void Promise.all([window.aaaat.documentDomain.collections(), window.aaaat.candidatures.list(), window.aaaat.candidatures.listFields()])
       .then(([documents, applications, fields]) => {
-        if (!active) return;
+        if (!current) return;
         setCollections(documents);
         setApplicationLabels(Object.fromEntries(applications.map((application) => {
           const projection = candidatureRecognitionProjection(application, fields);
           return [application.id, projection.primaryCues.map((cue) => cue.value).join(" · ") || projection.retainedSourceCue?.value || "Application"];
         })));
-      }).catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Documents could not be loaded."); });
-    return () => { active = false; };
-  }, []);
+      }).catch((reason) => { if (current) setError(reason instanceof Error ? reason.message : "Documents could not be loaded."); });
+    return () => { current = false; };
+  }, [active]);
   const startCv = () => { requestGeneration.current += 1; setBusy(false); setCreation("cv"); setTitle(""); setError(null); };
   const openNew = async (kind: "cv" | "letter" = creation ?? "letter", chosenTitle = title, chosenSource = source) => {
     if (busy) return;

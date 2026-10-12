@@ -673,6 +673,7 @@ export function App() {
                     ) : (
                       <DocumentsStartWorkspace
                         key={`document-start-${workspace.rootPath}-${String(workspaceContentRevision)}`}
+                        active={!welcomeOpen && !settingsOpen && productView === "documents"}
                         onOpenDocument={openStandaloneDocument}
                         onDirtyChange={setDocumentDirty}
                       />
