@@ -212,7 +212,6 @@ function populatedOptionalDetails(content: WorkingCvItem["content"]): OptionalCv
     .map(({ key }) => key);
 }
 
-export 
 function cvFieldValue(document: WorkingCvRecord, itemId: string, field: CvWritingField): string | null {
   const item = document.sections.flatMap((section) => section.items).find((candidate) => candidate.id === itemId);
   return item ? item.content[field] ?? "" : null;
@@ -233,7 +232,7 @@ const letterAiFieldLabels: Record<LetterAiField, string> = {
 function letterAiValues(document: CoverLetterRecord): CoverLetterDraft {
   return { recipient: document.recipient ?? "", subject: document.subject ?? "", bodyParagraphs: document.bodyParagraphs, closing: document.closing ?? "" };
 }
-function WorkingCvEditor({
+export function WorkingCvEditor({
   document,
   profile,
   variants,
