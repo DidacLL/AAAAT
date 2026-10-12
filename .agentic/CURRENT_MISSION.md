@@ -8,11 +8,11 @@ Current explicit Product Owner instruction remains highest authority.
 
 Refinement starts from `fix/windows-local-host-spawn-recovery` at `4c7fa319ba12cf3524320de076a045c3330f7a29`. [Integrated PR #433](https://github.com/DidacLL/AAAAT/pull/433) preserves that working branch’s setup and evaluation tooling. Use live GitHub branch/PR state for subsequent implementation.
 
-The current owner observations expose a mismatch across application capture/editing/recall, document creation/management, optional AI assistance, Tags, shell composition and disclosure. Recompose these as one understandable product experience; independent symptom patches, renamed buttons or a CSS-only facelift cannot establish completion.
+Integrated PR #433 now includes enforced document-AI permission, explicit field editing/cancellation, provisional application/document creation and retained drafts, restored working field controls, independent Tag assistance and removal of development migration machinery. v2 remains blocked pending Product Owner review of the integrated product.
 
-Investigate the reported cover-letter AI transmission promptly. Source inspection distinguishes external-assistant document selection from internal drafting, but this distinction does not establish understandable permission or prove the owner's actual outbound payload. Inspect the effective prepared request and privacy choices; preserve the unresolved evidence until traced.
+Rendered UI evidence showed zero outbound document-AI requests with document access unchecked. Synthetic-provider boundary evidence does not establish actual-model usefulness or third-party-host completion. Native task-file export/import picker interaction remains unverified.
 
-The source evidence also exposes premature document persistence, AI-result/draft ownership problems, Tag inference coupled to missing fields, embedded development-schema migrations and implementation-shaped checks. The reported saving-on-navigation behavior remains to be reproduced; do not substitute a code hypothesis for observed durable mutation.
+Current manual editing and creation paths provide explicit Save/cancellation and retain open drafts across navigation. This establishes current behavior; it does not claim that the original saving-on-navigation symptom was reproduced.
 
 ## Execution
 
