@@ -904,6 +904,7 @@ export function previewRenderedCv(rootPath: string, renderedCvId: string): Worki
   const liveProfileItemIds = new Set(getProfile(rootPath).items.map((item) => item.id));
   const id = randomUUID();
   const now = new Date().toISOString();
+  const copySuffix = " copy";
   const sections = snapshot.sections.map(
       (section) => ({
         ...section,
@@ -926,7 +927,7 @@ export function previewRenderedCv(rootPath: string, renderedCvId: string): Worki
                 })
       }));
   return workingCvRecordSchema.parse({
-    id, title: `${snapshot.title} copy`, language: snapshot.language,
+    id, title: snapshot.title.slice(0, 200 - copySuffix.length) + copySuffix, language: snapshot.language,
     sourceTemplateId: row.sourceTemplateId, candidatureId: row.candidatureId,
     pdfMetadata: snapshot.pdfMetadata, parserSummary: snapshot.parserSummary,
     sections, createdAt: now, updatedAt: now,

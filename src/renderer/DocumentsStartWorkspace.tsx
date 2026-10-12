@@ -8,10 +8,15 @@ import "./documents.css";
 const emptyCollections: DocumentCollections = { templates: [], workingCvs: [], renderedCvs: [], letters: [], renderedLetters: [], applicationPackets: [] };
 function uniqueTitle(base: string, titles: readonly string[]): string {
   const used = new Set(titles.map((title) => title.trim().toLocaleLowerCase()));
-  if (!used.has(base.toLocaleLowerCase())) return base;
+  const bounded = base.slice(0, 200);
+  if (!used.has(bounded.toLocaleLowerCase())) return bounded;
   let index = 2;
-  while (used.has(`${base} ${index}`.toLocaleLowerCase())) index += 1;
-  return `${base} ${index}`;
+  for (;;) {
+    const suffix = ` ${index}`;
+    const candidate = bounded.slice(0, 200 - suffix.length) + suffix;
+    if (!used.has(candidate.toLocaleLowerCase())) return candidate;
+    index += 1;
+  }
 }
 
 export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
@@ -21,6 +26,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [applicationLabels, setApplicationLabels] = useState<Record<string, string>>({});
   const [creation, setCreation] = useState<"cv" | null>(null);
+  const [nameEdit, setNameEdit] = useState<{ kind: "document" | "template"; id: string; name: string; original: string } | null>(null);
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("profile");
   const mounted = useRef(false);
@@ -30,9 +36,9 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   const [, refreshDrafts] = useState(0);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    onDirtyChange?.(Boolean(creation && title.trim()));
+    onDirtyChange?.(Boolean(creation && title.trim()) || Boolean(nameEdit && nameEdit.name !== nameEdit.original));
     return () => onDirtyChange?.(false);
-  }, [creation, title, onDirtyChange]);
+  }, [creation, title, nameEdit, onDirtyChange]);
   useEffect(() => {
     let active = true;
     void Promise.all([window.aaaat.documentDomain.collections(), window.aaaat.candidatures.list(), window.aaaat.candidatures.listFields()])
@@ -79,27 +85,35 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
       { id: "document-new-letter", label: "New letter", onClick: () => { void openNew("letter", ""); }, disabled: busy },
     ],
   });
-  const rename = async (document: WorkingCvRecord | CoverLetterRecord) => {
-    const proposed = window.prompt("Document name", document.title)?.trim();
-    if (!proposed || proposed === document.title) return;
-    setError(null);
+  const rename = async (document: WorkingCvRecord | CoverLetterRecord, name: string) => {
+    const proposed = name.trim();
+    if (!proposed || busy) return;
+    if (proposed === document.title) { setNameEdit(null); return; }
+    setBusy(true); setError(null);
     try {
       if (unsavedDocumentDrafts().some((draft) => draft.id === document.id)) {
         rememberDocumentDraft({ ...document, title: proposed });
         refreshDrafts((value) => value + 1);
+        setNameEdit(null);
         return;
       }
       if ("sections" in document) await window.aaaat.documentDomain.updateWorkingCv({ id: document.id, title: proposed, language: document.language, sections: document.sections, pdfMetadata: document.pdfMetadata, parserSummary: document.parserSummary });
       else await window.aaaat.documentDomain.updateLetter({ id: document.id, title: proposed, language: document.language, sender: document.sender, recipient: document.recipient, subject: document.subject, bodyParagraphs: document.bodyParagraphs, closing: document.closing });
       setCollections(await window.aaaat.documentDomain.collections());
+      setNameEdit(null);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The document could not be renamed."); }
+    finally { setBusy(false); }
   };
-  const renameTemplate = async (template: CvTemplateRecord) => {
-    const name = window.prompt("Template name", template.name)?.trim();
-    if (!name || name === template.name) return;
-    setError(null);
-    try { setCollections(await window.aaaat.documentDomain.updateTemplate({ id: template.id, name, language: template.language, pdfMetadata: template.pdfMetadata, parserSummary: template.parserSummary, sections: template.sections })); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "The template could not be renamed."); }
+  const renameTemplate = async (template: CvTemplateRecord, proposed: string) => {
+    const name = proposed.trim();
+    if (!name || busy) return;
+    if (name === template.name) { setNameEdit(null); return; }
+    setBusy(true); setError(null);
+    try {
+      setCollections(await window.aaaat.documentDomain.updateTemplate({ id: template.id, name, language: template.language, pdfMetadata: template.pdfMetadata, parserSummary: template.parserSummary, sections: template.sections }));
+      setNameEdit(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "The template could not be renamed."); }
+    finally { setBusy(false); }
   };
   const remove = async (document: WorkingCvRecord | CoverLetterRecord) => {
     const saved = [...collections.workingCvs, ...collections.letters].some((candidate) => candidate.id === document.id);
@@ -125,7 +139,7 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
   return <section className="document-library" aria-label="Documents">
     {error ? <p className="error-message" role="alert">{error}</p> : null}
     {creation ? <div className="document-new-form">
-      <label>Name<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="CV" /></label>
+      <label>Name<input autoFocus maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="CV" /></label>
       <label>Start from<select value={source} onChange={(event) => setSource(event.target.value)}>
         <option value="profile">My information</option><option value="blank">Blank page</option>
         {collections.templates.map((template) => <option key={template.id} value={`template:${template.id}`}>{template.name}</option>)}
@@ -133,18 +147,28 @@ export function DocumentsStartWorkspace({ onOpenDocument, onDirtyChange }: {
     </div> : <>
       {documents.length === 0 ? <p className="compact-empty">Create a CV or letter to start writing.</p> : <div className="document-list">
         {documents.map((document) => <article className="document-list-row" key={document.id}>
+          {nameEdit?.kind === "document" && nameEdit.id === document.id ? <form className="document-name-editor" onSubmit={(event) => { event.preventDefault(); void rename(document, nameEdit.name); }}>
+            <label>Name<input autoFocus maxLength={200} required disabled={busy} value={nameEdit.name} onChange={(event) => setNameEdit({ ...nameEdit, name: event.target.value })} /></label>
+            <button type="submit" disabled={busy || !nameEdit.name.trim()}>Save</button><button type="button" disabled={busy} onClick={() => setNameEdit(null)}>Cancel</button>
+          </form> : <>
           <button type="button" className="document-list-open" onClick={() => onOpenDocument(document.id)}>
             <span className="item-kind">{"sections" in document ? "CV" : "Letter"}</span>
             <strong>{document.title}</strong><small>{association(document.candidatureId)}{unsaved.some((draft) => draft.id === document.id) ? " · Unsaved" : ""}</small>
           </button>
-          <div><button type="button" onClick={() => { void rename(document); }}>Rename</button><button type="button" onClick={() => { void remove(document); }}>{[...collections.workingCvs, ...collections.letters].some((saved) => saved.id === document.id) ? "Delete" : "Discard"}</button></div>
+          <div><button type="button" disabled={busy} onClick={() => { setNameEdit({ kind: "document", id: document.id, name: document.title, original: document.title }); }}>Rename</button><button type="button" onClick={() => { void remove(document); }}>{[...collections.workingCvs, ...collections.letters].some((saved) => saved.id === document.id) ? "Delete" : "Discard"}</button></div>
+          </>}
         </article>)}
       </div>}
       <details className="document-library-disclosure"><summary>CV templates · {collections.templates.length}</summary>
         {collections.templates.map((template) => <article className="document-list-row" key={template.id}>
+          {nameEdit?.kind === "template" && nameEdit.id === template.id ? <form className="document-name-editor" onSubmit={(event) => { event.preventDefault(); void renameTemplate(template, nameEdit.name); }}>
+            <label>Template name<input autoFocus maxLength={200} required disabled={busy} value={nameEdit.name} onChange={(event) => setNameEdit({ ...nameEdit, name: event.target.value })} /></label>
+            <button type="submit" disabled={busy || !nameEdit.name.trim()}>Save</button><button type="button" disabled={busy} onClick={() => setNameEdit(null)}>Cancel</button>
+          </form> : <>
           <strong>{template.name}</strong>
           <button type="button" onClick={() => { void openNew("cv", uniqueTitle(template.name, documents.filter((document) => "sections" in document).map((document) => document.title)), `template:${template.id}`); }} disabled={busy}>Use template</button>
-          <button type="button" onClick={() => { void renameTemplate(template); }}>Rename</button>
+          <button type="button" disabled={busy} onClick={() => { setNameEdit({ kind: "template", id: template.id, name: template.name, original: template.name }); }}>Rename</button>
+          </>}
         </article>)}
       </details>
       <details className="document-library-disclosure"><summary>Generated PDFs · {collections.renderedCvs.length + collections.renderedLetters.length + collections.applicationPackets.length}</summary>

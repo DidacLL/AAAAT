@@ -98,3 +98,7 @@
 .document-ai-alternative label { display: grid; margin: .8rem 0; font-size: .88rem; font-weight: 600; }
 .document-ai-alternative label button { justify-self: start; }
 .document-ai-alternative > div { display: flex; gap: .5rem; }
+
+.document-name-editor { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; width: 100%; }
+.document-name-editor label { display: grid; gap: .3rem; flex: 1; min-width: 12rem; font-size: .85rem; }
+.document-name-editor input { width: 100%; box-sizing: border-box; padding: .5rem .6rem; font: inherit; }
