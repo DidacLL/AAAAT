@@ -309,7 +309,9 @@ export function WorkingCvEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
-  const originalDraft = (documentDraftOriginal(document.id) as WorkingCvRecord | undefined) ?? document;
+  const [originalDraft, setOriginalDraft] = useState<WorkingCvRecord>(() =>
+    (documentDraftOriginal(document.id) as WorkingCvRecord | undefined) ?? document,
+  );
   const edited = JSON.stringify({
     title: draft.title,
     language: draft.language,
@@ -330,7 +332,7 @@ export function WorkingCvEditor({
     return () => onDirtyChange?.(false);
   }, [edited, onDirtyChange]);
 
-  useEffect(() => { rememberDocumentDraft(draft, dirty, edited); }, [draft, dirty, edited]);
+  useEffect(() => { rememberDocumentDraft(draft, dirty, edited, originalDraft); }, [draft, dirty, edited, originalDraft]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -386,6 +388,7 @@ export function WorkingCvEditor({
       sections: draft.sections,
     });
     markDocumentDraftSaved(saved);
+    setOriginalDraft(saved);
     const retained = documentDraft(saved.id);
     if (!retained || JSON.stringify(retained) === submitted) forgetDocumentDraft(saved.id);
     setDraft((current) => JSON.stringify(current) === submitted ? saved : current);
@@ -1131,7 +1134,9 @@ function LetterEditor({
   const currentDraft = useMemo(() => ({ ...draft, bodyParagraphs }), [draft, bodyParagraphs]);
   const draftRef = useRef(currentDraft);
   useLayoutEffect(() => { draftRef.current = currentDraft; }, [currentDraft]);
-  const originalDraft = (documentDraftOriginal(document.id) as CoverLetterRecord | undefined) ?? document;
+  const [originalDraft, setOriginalDraft] = useState<CoverLetterRecord>(() =>
+    (documentDraftOriginal(document.id) as CoverLetterRecord | undefined) ?? document,
+  );
   const edited = JSON.stringify({ title: currentDraft.title, language: currentDraft.language, sender: currentDraft.sender, ...letterAiValues(currentDraft) }) !== JSON.stringify({ title: originalDraft.title, language: originalDraft.language, sender: originalDraft.sender, ...letterAiValues(originalDraft) });
   const dirty = provisional || edited;
 
@@ -1140,7 +1145,7 @@ function LetterEditor({
     return () => onDirtyChange?.(false);
   }, [edited, onDirtyChange]);
 
-  useEffect(() => { rememberDocumentDraft(currentDraft, dirty, edited); }, [currentDraft, dirty, edited]);
+  useEffect(() => { rememberDocumentDraft(currentDraft, dirty, edited, originalDraft); }, [currentDraft, dirty, edited, originalDraft]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -1165,6 +1170,7 @@ function LetterEditor({
       closing: draft.closing,
     });
     markDocumentDraftSaved(saved);
+    setOriginalDraft(saved);
     const retained = documentDraft(saved.id);
     if (!retained || JSON.stringify(retained) === submitted) forgetDocumentDraft(saved.id);
     if (JSON.stringify(draftRef.current) === submitted) {

@@ -4,9 +4,9 @@ const drafts = new Map<string, WorkingCvRecord | CoverLetterRecord>();
 const originals = new Map<string, WorkingCvRecord | CoverLetterRecord>();
 const needsSave = new Set<string>();
 const edited = new Set<string>();
-export function rememberDocumentDraft(draft: WorkingCvRecord | CoverLetterRecord, saveNeeded = true, userEdited = false): void {
+export function rememberDocumentDraft(draft: WorkingCvRecord | CoverLetterRecord, saveNeeded = true, userEdited = false, original: WorkingCvRecord | CoverLetterRecord = draft): void {
   if (!saveNeeded && !userEdited) { forgetDocumentDraft(draft.id); return; }
-  if (!originals.has(draft.id)) originals.set(draft.id, draft);
+  if (!originals.has(draft.id)) originals.set(draft.id, original);
   drafts.set(draft.id, draft);
   if (saveNeeded) needsSave.add(draft.id); else needsSave.delete(draft.id);
   if (userEdited) edited.add(draft.id); else edited.delete(draft.id);
