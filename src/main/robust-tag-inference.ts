@@ -20,7 +20,7 @@ import { requireAiProviderConnectionForOperation } from "./ai-connection-service
 import { AiProviderError } from "./ai-provider";
 import { createWorkspaceAiProvider } from "./ai-prompt-service";
 import { listCandidatureFields } from "./candidature-field-service";
-import { projectSavedApplicationInferenceRequest } from "./candidature-ai-source-projection";
+import { savedApplicationInferenceRequest } from "./candidature-ai-source-context";
 import { listTags } from "./tag-service";
 
 interface TagWireRequest {
@@ -275,7 +275,7 @@ export async function inferTagsWithPartialOutcomes(
 ): Promise<PartialTagInferenceResult> {
   const connection = requireAiProviderConnectionForOperation(rootPath, "tag_inference");
   const tags = listTags(rootPath);
-  const wire = tagWireRequest(rootPath, projectSavedApplicationInferenceRequest(rootPath, request, "tags"), tags);
+  const wire = tagWireRequest(rootPath, savedApplicationInferenceRequest(rootPath, request, "tags"), tags);
   const fieldTitles = wire.request.fieldTitles;
   const capture = capturingFetch(signal);
   const provider = createWorkspaceAiProvider(rootPath, capture.fetchImpl);

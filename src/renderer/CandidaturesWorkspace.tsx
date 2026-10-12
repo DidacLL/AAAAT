@@ -165,6 +165,8 @@ export function CandidaturesWorkspace({
   const [tagInferenceOpen, setTagInferenceOpen] = useState(false);
   const [externalAiOpen, setExternalAiOpen] = useState(false);
   const externalDialog = useRef<HTMLDialogElement>(null);
+  const closeExternalTask = useRef<(() => Promise<void>) | null>(null);
+  const registerExternalClose = useCallback((close: (() => Promise<void>) | null) => { closeExternalTask.current = close; }, []);
   const protectedTaskFields = useRef(new Map<string, Set<string>>());
   const tagMutationTail = useRef<Promise<void>>(Promise.resolve());
   const alive = useRef(true);
@@ -1635,10 +1637,9 @@ export function CandidaturesWorkspace({
 
       {externalAiOpen ? <dialog ref={externalDialog} className="application-external-ai" aria-label="Send to my AI" onCancel={(event) => {
         event.preventDefault();
-        void window.aaaat.candidatureOpportunityResearchAccess.update({ candidatureId: selected.id, allowed: false })
-          .then(() => setExternalAiOpen(false))
-          .catch(() => setError("The external AI task could not be closed."));
-      }}><CandidatureOpportunityResearchAccessPanel key={selected.id} candidatureId={selected.id} contextDirty={taskContextDirty || sourceDirty} onClose={() => setExternalAiOpen(false)} /></dialog> : null}
+        if (closeExternalTask.current) void closeExternalTask.current();
+        else setExternalAiOpen(false);
+      }}><CandidatureOpportunityResearchAccessPanel key={selected.id} candidatureId={selected.id} contextDirty={taskContextDirty || sourceDirty} onClose={() => setExternalAiOpen(false)} onCloseReady={registerExternalClose} /></dialog> : null}
 
       <details className="candidature-more">
         <summary>Offer, notes & history</summary>

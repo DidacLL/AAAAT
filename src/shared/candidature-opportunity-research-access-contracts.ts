@@ -24,6 +24,7 @@ export const candidatureOpportunityResearchAccessChannels = Object.freeze({
   interviewContext: "aaaat:candidature-interview-context",
   privateInterviewContext: "aaaat:candidature-interview-private-context",
   disableConnectedTaskAccess: "aaaat:candidature-external-task-disable-access",
+  closePrivateTask: "aaaat:candidature-external-task-close",
   interviewTaskText: "aaaat:candidature-interview-task-text",
   useConnectedInterviewTask: "aaaat:candidature-interview-connect-task",
   copyInterviewTask: "aaaat:candidature-interview-copy-task",
@@ -60,6 +61,16 @@ export type CandidatureExternalAiInstruction = z.infer<
 
 export const candidatureExternalAiTaskTextSchema = externalApplicationInformationTaskSchema.shape.taskText;
 export type CandidatureExternalAiTaskText = z.infer<typeof candidatureExternalAiTaskTextSchema>;
+
+export const candidaturePreparedTaskTargetSchema = z.object({
+  candidatureId: z.string().uuid(),
+  taskRef: externalApplicationInformationTaskSchema.shape.taskRef,
+}).strict();
+export type CandidaturePreparedTaskTarget = z.infer<typeof candidaturePreparedTaskTargetSchema>;
+export const candidaturePreparedTaskSchema = externalApplicationInformationTaskSchema.extend({
+  candidatureId: z.string().uuid(),
+});
+export type CandidaturePreparedTask = z.infer<typeof candidaturePreparedTaskSchema>;
 
 export const candidatureExternalAiResultTextSchema = z
   .string()
@@ -110,10 +121,10 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly applicationInformationTask: (
       instruction: CandidatureExternalAiInstruction,
     ) => Promise<ExternalApplicationInformationTask>;
-    readonly privateApplicationInformationTask: (candidatureId: string, instruction: CandidatureExternalAiInstruction) => Promise<ExternalApplicationInformationTask>;
-    readonly useConnectedApplicationInformationTask: (taskText: CandidatureExternalAiTaskText) => Promise<ExternalApplicationInformationTask>;
+    readonly privateApplicationInformationTask: (candidatureId: string, instruction: CandidatureExternalAiInstruction) => Promise<CandidaturePreparedTask>;
+    readonly useConnectedApplicationInformationTask: (target: CandidaturePreparedTaskTarget, taskText: CandidatureExternalAiTaskText) => Promise<ExternalApplicationInformationTask>;
     readonly takeApplicationInformationResult: (
-      candidatureId: string,
+      target: CandidaturePreparedTaskTarget,
     ) => Promise<ExternalApplicationInformationPendingResult | null>;
     readonly copyApplicationInformationTask: (
       taskText: CandidatureExternalAiTaskText,
@@ -122,15 +133,18 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
       taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiExportResult>;
     readonly submitApplicationInformationResult: (
+      target: CandidaturePreparedTaskTarget,
       resultText: string,
     ) => Promise<ExternalApplicationInformationPendingResult>;
     readonly importApplicationInformationResult: (
+      target: CandidaturePreparedTaskTarget,
     ) => Promise<CandidatureApplicationInformationResultImportResult>;
     readonly interviewContext: () => Promise<ExternalInterviewPreparationContext>;
-    readonly privateInterviewContext: (candidatureId: string) => Promise<ExternalInterviewPreparationContext>;
+    readonly privateInterviewContext: (candidatureId: string) => Promise<CandidaturePreparedTask>;
+    readonly closePrivateTask: (target: CandidaturePreparedTaskTarget) => Promise<void>;
     readonly disableConnectedTaskAccess: (candidatureId: string) => Promise<CandidatureOpportunityResearchAccess>;
     readonly interviewTaskText: () => Promise<CandidatureExternalAiTaskText>;
-    readonly useConnectedInterviewTask: (taskText: CandidatureExternalAiTaskText) => Promise<CandidatureExternalAiTaskText>;
+    readonly useConnectedInterviewTask: (target: CandidaturePreparedTaskTarget, taskText: CandidatureExternalAiTaskText) => Promise<CandidatureExternalAiTaskText>;
     readonly copyInterviewTask: (
       taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiCopyResult>;
@@ -138,9 +152,10 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
       taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiExportResult>;
     readonly retainInterviewResult: (
+      target: CandidaturePreparedTaskTarget,
       resultText: string,
     ) => Promise<CandidatureInterviewResultRetainResult>;
-    readonly importInterviewResult: () => Promise<CandidatureInterviewResultImportResult>;
+    readonly importInterviewResult: (target: CandidaturePreparedTaskTarget) => Promise<CandidatureInterviewResultImportResult>;
   };
 }
 

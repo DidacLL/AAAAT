@@ -4,6 +4,10 @@ import { z } from "zod";
 
 import {
   candidatureExternalAiInstructionSchema,
+  candidaturePreparedTaskSchema,
+  candidaturePreparedTaskTargetSchema,
+  type CandidaturePreparedTask,
+  type CandidaturePreparedTaskTarget,
   candidatureExternalAiTaskTextSchema,
   candidatureOpportunityResearchAccessSchema,
   candidatureOpportunityResearchAccessUpdateSchema,
@@ -101,6 +105,7 @@ const storedApplicationInformationResultSchema = z.object({
 
 const storedInterviewPreparationTaskSchema = z.object({
   candidatureId: z.string().uuid(),
+  taskRef: operationReferenceSchema,
   context: externalInterviewPreparationContextSchema,
   taskText: candidatureExternalAiTaskTextSchema,
   published: z.boolean(),
@@ -492,8 +497,9 @@ export function prepareApplicationInformationTask(
   return prepareApplicationInformationTaskForScope(rootPath, rawInstruction);
 }
 
-export function preparePrivateApplicationInformationTask(rootPath: string, candidatureId: string, rawInstruction: string = defaultApplicationInformationTaskInstruction): ExternalApplicationInformationTask {
-  return prepareApplicationInformationTaskForScope(rootPath, rawInstruction, candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId));
+export function preparePrivateApplicationInformationTask(rootPath: string, candidatureId: string, rawInstruction: string = defaultApplicationInformationTaskInstruction): CandidaturePreparedTask {
+  const id = candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId);
+  return candidaturePreparedTaskSchema.parse({ candidatureId: id, ...prepareApplicationInformationTaskForScope(rootPath, rawInstruction, id) });
 }
 
 function prepareApplicationInformationTaskForScope(
@@ -581,6 +587,36 @@ function requireStoredApplicationInformationTask(
 
 function requireLocalTaskRow(database: DatabaseSync, candidatureId: string): void {
   if (requireRow(database, candidatureId).archived === 1) throw new CandidatureOpportunityResearchAccessServiceError("Archived applications cannot be used with external AI.");
+}
+
+type PreparedTaskKind = "application" | "interview";
+
+function assertExpectedTask(database: DatabaseSync, expected: CandidaturePreparedTaskTarget | undefined, kind: PreparedTaskKind): void {
+  if (!expected) return;
+  const target = candidaturePreparedTaskTargetSchema.parse(expected);
+  const stored = kind === "application" ? readStoredApplicationInformationTask(database) : readStoredInterviewPreparationTask(database);
+  if (!stored || stored.candidatureId !== target.candidatureId || stored.taskRef !== target.taskRef) {
+    throw new CandidatureOpportunityResearchAccessServiceError("This task was replaced. Your text is still here; refresh it before using a result or connected AI.");
+  }
+  requireLocalTaskRow(database, target.candidatureId);
+}
+
+export function assertGuiTaskCurrent(rootPath: string, target: CandidaturePreparedTaskTarget, kind: PreparedTaskKind): void {
+  withWorkspaceDatabase(rootPath, (database) => snapshot(database, () => assertExpectedTask(database, target, kind)));
+}
+
+export function closePrivateTask(rootPath: string, rawTarget: CandidaturePreparedTaskTarget): void {
+  const target = candidaturePreparedTaskTargetSchema.parse(rawTarget);
+  withWorkspaceDatabase(rootPath, (database) => transact(database, () => {
+    const tasks = [readStoredApplicationInformationTask(database), readStoredInterviewPreparationTask(database)];
+    if (!tasks.some((task) => task?.candidatureId === target.candidatureId && task.taskRef === target.taskRef)) return;
+    clearPreparedScope(database, target.candidatureId);
+    const row = requireRow(database, target.candidatureId);
+    if (row.selected === 1) {
+      database.prepare("UPDATE candidatures SET opportunity_research_selected = 0 WHERE id = ?").run(target.candidatureId);
+      recordActivity(database, target.candidatureId, "candidature.opportunity-research-access.revoke", new Date().toISOString());
+    }
+  }));
 }
 
 function clearPreparedScope(database: DatabaseSync, candidatureId: string): void {
@@ -726,6 +762,7 @@ export function submitApplicationInformationProposals(
 export function importApplicationInformationPortableResult(
   rootPath: string,
   rawText: string,
+  expected?: CandidaturePreparedTaskTarget,
 ): ExternalApplicationInformationPendingResult {
   if (Buffer.byteLength(rawText, "utf8") > maxExternalAiPortableResultBytes) {
     throw new CandidatureOpportunityResearchAccessServiceError(
@@ -734,6 +771,7 @@ export function importApplicationInformationPortableResult(
   }
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
+      assertExpectedTask(database, expected, "application");
       const stored = requireStoredApplicationInformationTask(database);
       const parsed = parseApplicationInformationResult(rawText, stored.taskRef);
       return storeApplicationInformationProposals(database, parsed);
@@ -744,12 +782,15 @@ export function importApplicationInformationPortableResult(
 export function takeApplicationInformationResult(
   rootPath: string,
   candidatureId: string,
+  expected?: CandidaturePreparedTaskTarget,
 ): ExternalApplicationInformationPendingResult | null {
   const parsedId = candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(
     candidatureId,
   );
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
+      assertExpectedTask(database, expected, "application");
+      if (expected && expected.candidatureId !== parsedId) throw new CandidatureOpportunityResearchAccessServiceError("This result belongs to another application.");
       if (readStoredApplicationInformationTask(database)?.candidatureId !== parsedId) return null;
       const raw = readMetadataJson(database, applicationInformationResultKey);
       if (raw === null) return null;
@@ -783,9 +824,10 @@ export function buildApplicationInformationPortableTask(rootPath: string): strin
   return withWorkspaceDatabase(rootPath, (database) => snapshot(database, () => requireStoredApplicationInformationTask(database).taskText));
 }
 
-export function useConnectedApplicationInformationTask(rootPath: string, rawText: string): ExternalApplicationInformationTask {
+export function useConnectedApplicationInformationTask(rootPath: string, rawText: string, expected?: CandidaturePreparedTaskTarget): ExternalApplicationInformationTask {
   const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
   return withWorkspaceDatabase(rootPath, (database) => transact(database, () => {
+    assertExpectedTask(database, expected, "application");
     const stored = requireStoredApplicationInformationTask(database);
     selectConnectedScope(database, stored.candidatureId);
     const updated = { ...stored, taskText, published: true };
@@ -857,29 +899,32 @@ function requireStoredInterviewPreparationTask(
 }
 
 export function prepareInterviewPreparationContext(rootPath: string): ExternalInterviewPreparationContext {
-  return prepareInterviewPreparationContextForScope(rootPath);
+  return prepareInterviewPreparationContextForScope(rootPath).context;
 }
 
-export function preparePrivateInterviewPreparationContext(rootPath: string, candidatureId: string): ExternalInterviewPreparationContext {
-  return prepareInterviewPreparationContextForScope(rootPath, candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId));
+export function preparePrivateInterviewPreparationContext(rootPath: string, candidatureId: string): CandidaturePreparedTask {
+  const stored = prepareInterviewPreparationContextForScope(rootPath, candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId));
+  return candidaturePreparedTaskSchema.parse({ candidatureId: stored.candidatureId, taskRef: stored.taskRef, taskText: stored.taskText });
 }
 
-function prepareInterviewPreparationContextForScope(rootPath: string, privateCandidatureId?: string): ExternalInterviewPreparationContext {
+function prepareInterviewPreparationContextForScope(rootPath: string, privateCandidatureId?: string): StoredInterviewPreparationTask {
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
       const candidatureId = privateCandidatureId ?? requireSelectedId(database);
       requireLocalTaskRow(database, candidatureId);
       const built = buildInterviewPreparationContext(database, candidatureId);
-      writeMetadataJson(database, interviewPreparationTaskKey, {
+      const stored: StoredInterviewPreparationTask = {
         candidatureId,
+        taskRef: `aaaat_task_${randomUUID()}`,
         context: built.context,
         taskText: interviewPortableText(built.context, defaultInterviewPreparationTaskInstruction),
         published: privateCandidatureId === undefined,
         privateReplacements: storedPrivateReplacements(built.replacements),
-      });
+      };
+      writeMetadataJson(database, interviewPreparationTaskKey, stored);
       deleteMetadata(database, applicationInformationTaskKey);
       deleteMetadata(database, applicationInformationResultKey);
-      return built.context;
+      return stored;
     }),
   );
 }
@@ -925,9 +970,10 @@ export function buildInterviewPreparationPortableTask(rootPath: string): string 
   return withWorkspaceDatabase(rootPath, (database) => snapshot(database, () => requireStoredInterviewPreparationTask(database).taskText));
 }
 
-export function useConnectedInterviewPreparationTask(rootPath: string, rawText: string): string {
+export function useConnectedInterviewPreparationTask(rootPath: string, rawText: string, expected?: CandidaturePreparedTaskTarget): string {
   const taskText = candidatureExternalAiTaskTextSchema.parse(rawText);
   return withWorkspaceDatabase(rootPath, (database) => transact(database, () => {
+    assertExpectedTask(database, expected, "interview");
     const stored = requireStoredInterviewPreparationTask(database);
     selectConnectedScope(database, stored.candidatureId);
     writeMetadataJson(database, interviewPreparationTaskKey, { ...stored, taskText, published: true });
@@ -935,18 +981,19 @@ export function useConnectedInterviewPreparationTask(rootPath: string, rawText: 
   }));
 }
 
-export function retainInterviewPreparationResult(rootPath: string, rawText: string): boolean {
-  return retainInterviewResult(rootPath, rawText, false);
+export function retainInterviewPreparationResult(rootPath: string, rawText: string, expected?: CandidaturePreparedTaskTarget): boolean {
+  return retainInterviewResult(rootPath, rawText, false, expected);
 }
 
 export function retainConnectedInterviewPreparationResult(rootPath: string, rawText: string): boolean {
   return retainInterviewResult(rootPath, rawText, true);
 }
 
-function retainInterviewResult(rootPath: string, rawText: string, connected: boolean): boolean {
+function retainInterviewResult(rootPath: string, rawText: string, connected: boolean, expected?: CandidaturePreparedTaskTarget): boolean {
   const result = externalInterviewPreparationResultSchema.parse({ text: rawText });
   return withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
+      assertExpectedTask(database, expected, "interview");
       const stored = requireStoredInterviewPreparationTask(database);
       if (connected && (selectedId(database) !== stored.candidatureId || !stored.published)) {
         throw new CandidatureOpportunityResearchAccessServiceError("Use this application task with connected AI before saving a result.");

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import type { CandidatureOpportunityResearchAccess } from "../shared/candidature-opportunity-research-access-contracts";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CandidatureOpportunityResearchAccess, CandidaturePreparedTaskTarget } from "../shared/candidature-opportunity-research-access-contracts";
 import type { ExternalApplicationInformationPendingResult } from "../shared/external-assistant-contracts";
 import { applicationInformationTaskInstruction } from "../shared/external-ai-task-templates";
 import { recordCompletedAiTask } from "./ai-task-store";
@@ -8,10 +8,13 @@ type Intent = "application-information" | "interview";
 type Transport = "copy" | "file" | "connected";
 type BusyAction = "prepare" | "connect" | "copy" | "export" | "submit" | "import" | "retain" | "close";
 
-export function CandidatureOpportunityResearchAccessPanel({ candidatureId, contextDirty, onClose }: {
+export function CandidatureOpportunityResearchAccessPanel({ candidatureId, contextDirty, onClose, onCloseReady }: {
   readonly candidatureId: string; readonly contextDirty: boolean; readonly onClose?: () => void;
+  readonly onCloseReady?: (close: (() => Promise<void>) | null) => void;
 }) {
   const [access, setAccess] = useState<CandidatureOpportunityResearchAccess | null>(null);
+  const [preparedTarget, setPreparedTarget] = useState<CandidaturePreparedTaskTarget | null>(null);
+  const targetRef = useRef<CandidaturePreparedTaskTarget | null>(null);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [taskText, setTaskText] = useState("");
   const [preparedText, setPreparedText] = useState("");
@@ -22,8 +25,9 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const putInFieldReview = useCallback((pending: ExternalApplicationInformationPendingResult) => {
-    recordCompletedAiTask(`candidature-inference:${candidatureId}:missing`, pending.result,
+  const putInFieldReview = useCallback((pending: ExternalApplicationInformationPendingResult, target: CandidaturePreparedTaskTarget) => {
+    if (target.candidatureId !== candidatureId || targetRef.current?.taskRef !== target.taskRef) return;
+    recordCompletedAiTask(`candidature-inference:${target.candidatureId}:missing`, pending.result,
       "Fill application details", `Completed · ${pending.result.proposals.length} suggestions ready`, pending.scopeFieldIds);
     setMessage("Suggestions received. Empty fields fill directly; existing values and current edits stay unchanged.");
   }, [candidatureId]);
@@ -40,53 +44,66 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
   }, [candidatureId]);
 
   useEffect(() => {
-    if (!access?.taskAvailable || intent !== "application-information") return;
+    if (!access?.taskAvailable || intent !== "application-information" || !preparedTarget) return;
     const api = window.aaaat.candidatureOpportunityResearchAccess;
     let active = true;
     const takePending = async () => {
+      if (!active) return;
       try {
-        const pending = await api.takeApplicationInformationResult(candidatureId);
-        if (active && pending) putInFieldReview(pending);
-      } catch { if (active) setError("Application suggestions could not be received."); }
+        const pending = await api.takeApplicationInformationResult(preparedTarget);
+        if (active && pending) putInFieldReview(pending, preparedTarget);
+      } catch (reason) {
+        if (active) setError(reason instanceof Error ? reason.message : "Application suggestions could not be received.");
+        active = false;
+      }
     };
     void takePending();
     const interval = window.setInterval(() => void takePending(), 1200);
     return () => { active = false; window.clearInterval(interval); };
-  }, [access?.taskAvailable, intent, candidatureId, putInFieldReview]);
+  }, [access?.taskAvailable, intent, preparedTarget, putInFieldReview]);
 
   useEffect(() => {
-    if (!contextDirty || !access?.allowed) return;
+    if (!contextDirty || !access?.allowed || !preparedTarget) return;
     let active = true;
-    void window.aaaat.candidatureOpportunityResearchAccess.update({ candidatureId, allowed: false }).then((saved) => {
+    void window.aaaat.candidatureOpportunityResearchAccess.closePrivateTask(preparedTarget).then(async () => {
+      const saved = await window.aaaat.candidatureOpportunityResearchAccess.current(candidatureId);
       if (!active) return;
-      setAccess(saved); setIntent(null); setTaskText(""); setPreparedText(""); setConnectedText(null);
+      setAccess(saved); setIntent(null); setTaskText(""); setPreparedText(""); setConnectedText(null); targetRef.current = null; setPreparedTarget(null);
       setMessage("Save or discard application edits before preparing a task.");
     }).catch(() => { if (active) setError("External AI access could not be updated."); });
     return () => { active = false; };
-  }, [access?.allowed, candidatureId, contextDirty]);
+  }, [access?.allowed, candidatureId, contextDirty, preparedTarget]);
 
-  const perform = async (action: BusyAction, operation: () => Promise<void>) => {
+  const perform = useCallback(async (action: BusyAction, operation: () => Promise<void>) => {
     if (busy) return;
     setBusy(action); setError(null); setMessage(null);
     try { await operation(); } catch (reason) { setError(reason instanceof Error ? reason.message : "This task could not be completed."); }
     finally { setBusy(null); }
-  };
+  }, [busy]);
   const prepare = async (nextIntent: Intent) => {
     if (contextDirty) return;
     if (taskText !== preparedText && taskText.trim() && !window.confirm("Replace this edited task with current application context?")) return;
     await perform("prepare", async () => {
       const api = window.aaaat.candidatureOpportunityResearchAccess;
-      const text = nextIntent === "application-information"
-        ? (await api.privateApplicationInformationTask(candidatureId, applicationInformationTaskInstruction)).taskText
-        : await (async () => { await api.privateInterviewContext(candidatureId); return api.interviewTaskText(); })();
-      setIntent(nextIntent); setTaskText(text); setPreparedText(text); setResultText(""); setConnectedText(null);
+      const task = nextIntent === "application-information"
+        ? await api.privateApplicationInformationTask(candidatureId, applicationInformationTaskInstruction)
+        : await api.privateInterviewContext(candidatureId);
+      if (task.candidatureId !== candidatureId) throw new Error("This task belongs to another application.");
+      const target = { candidatureId: task.candidatureId, taskRef: task.taskRef };
+      targetRef.current = target; setPreparedTarget(target);
+      setIntent(nextIntent); setTaskText(task.taskText); setPreparedText(task.taskText); setResultText(""); setConnectedText(null);
       setAccess(await api.current(candidatureId));
     });
   };
+  const requireTarget = (): CandidaturePreparedTaskTarget => {
+    const target = targetRef.current;
+    if (!target || target.candidatureId !== candidatureId) throw new Error("Prepare a task for this application first.");
+    return target;
+  };
   const connectTask = () => perform("connect", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (intent === "application-information") await api.useConnectedApplicationInformationTask(taskText);
-    else await api.useConnectedInterviewTask(taskText);
+    if (intent === "application-information") await api.useConnectedApplicationInformationTask(requireTarget(), taskText);
+    else await api.useConnectedInterviewTask(requireTarget(), taskText);
     setAccess(await api.current(candidatureId));
     setConnectedText(taskText);
   });
@@ -107,25 +124,34 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
   });
   const submit = () => perform(intent === "application-information" ? "submit" : "retain", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
+    const target = requireTarget();
     if (intent === "application-information") {
-      putInFieldReview(await api.submitApplicationInformationResult(resultText));
-      await api.takeApplicationInformationResult(candidatureId);
+      const pending = await api.submitApplicationInformationResult(target, resultText);
+      await api.takeApplicationInformationResult(target);
+      putInFieldReview(pending, target);
     } else {
-      await api.retainInterviewResult(resultText); setMessage("Notes saved with this application.");
+      await api.retainInterviewResult(target, resultText); setMessage("Notes saved with this application.");
     }
     setResultText("");
   });
   const importResult = () => perform("import", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
+    const target = requireTarget();
     if (intent === "application-information") {
-      const pending = await api.importApplicationInformationResult();
-      if (pending !== "cancelled") { putInFieldReview(pending); await api.takeApplicationInformationResult(candidatureId); }
-    } else if (await api.importInterviewResult() === "imported") setMessage("Notes saved with this application.");
+      const pending = await api.importApplicationInformationResult(target);
+      if (pending !== "cancelled") { await api.takeApplicationInformationResult(target); putInFieldReview(pending, target); }
+    } else if (await api.importInterviewResult(target) === "imported") setMessage("Notes saved with this application.");
   });
-  const close = () => perform("close", async () => {
-    const saved = await window.aaaat.candidatureOpportunityResearchAccess.update({ candidatureId, allowed: false });
-    setAccess(saved); setIntent(null); setTaskText(""); setPreparedText(""); setResultText(""); onClose?.();
-  });
+  const close = useCallback(() => perform("close", async () => {
+    const target = targetRef.current;
+    if (target) await window.aaaat.candidatureOpportunityResearchAccess.closePrivateTask(target);
+    targetRef.current = null; setPreparedTarget(null);
+    setIntent(null); setTaskText(""); setPreparedText(""); setResultText(""); onClose?.();
+  }), [perform, onClose]);
+  useEffect(() => {
+    onCloseReady?.(close);
+    return () => onCloseReady?.(null);
+  }, [close, onCloseReady]);
   const disabled = busy !== null;
   return <section className="application-external-task" aria-label="Send this application to my AI">
     <header className="external-task-heading"><h2>Send to my AI</h2><button type="button" disabled={disabled} onClick={() => void close()}>Close</button></header>
