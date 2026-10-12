@@ -7,6 +7,7 @@ import {
   type CandidatureRuntimeValue,
 } from "../shared/contracts";
 import {
+  cancelAiTask,
   clearAiTask,
   markAiTaskFieldApplied,
   markAiTaskFieldHandled,
@@ -94,6 +95,12 @@ export function CandidatureFieldAiState({
   });
   const proposal = proposalTask ? proposalFor(proposalTask, field.definition.id) : null;
   const exactTask = candidates.find((task) => task.key === exactKey) ?? null;
+  const appliedTask = candidates.find((task) =>
+    task.status === "completed"
+    && (task.appliedFieldIds ?? []).includes(field.definition.id)
+    && currentValue !== undefined
+    && JSON.stringify(proposalFor(task, field.definition.id)?.value) === JSON.stringify(currentValue),
+  );
   const activeTask = candidates.find(
     (task) => task.status === "queued" || task.status === "working",
   );
@@ -228,6 +235,7 @@ export function CandidatureFieldAiState({
       <div className="candidature-field-ai-state candidature-field-ai-working" role="status">
         <span className="candidature-state-lamp candidature-state-lamp-working" aria-hidden="true" />
         <span>{activeTask.status === "queued" ? "AI queued" : activeTask.detail ?? "AI working…"}</span>
+        {activeTask.key === exactKey ? <button type="button" className="compact-secondary" onClick={() => cancelAiTask(exactKey)}>Stop</button> : null}
       </div>
     );
   }
@@ -255,5 +263,11 @@ export function CandidatureFieldAiState({
   }
 
 
+  if (appliedTask && currentValue !== undefined) {
+    return <div className="candidature-field-ai-state candidature-field-ai-applied" role="status">
+      <span className="candidature-state-lamp candidature-state-lamp-proposal" aria-hidden="true" />
+      <span>AI filled</span>
+    </div>;
+  }
   return null;
 }

@@ -6,7 +6,7 @@ Current explicit Product Owner instruction remains highest authority.
 
 **v2 deployment is blocked.** Correct the integrated desktop interaction, data-sharing and editing/ownership problems tracked in [Issue #428](https://github.com/DidacLL/AAAAT/issues/428) before proposing the release for Product Owner acceptance. This is prerelease work, not a v2.1 follow-up.
 
-Inspected main: `c29c94ceb38b91b80d4876c9a9e19b7a26143121`. Use live GitHub branch/PR state for subsequent implementation; an older local checkout is not the implementation baseline.
+Refinement starts from `fix/windows-local-host-spawn-recovery` at `4c7fa319ba12cf3524320de076a045c3330f7a29`. [Integrated PR #433](https://github.com/DidacLL/AAAAT/pull/433) preserves that working branch’s setup and evaluation tooling. Use live GitHub branch/PR state for subsequent implementation.
 
 The current owner observations expose a mismatch across application capture/editing/recall, document creation/management, optional AI assistance, Tags, shell composition and disclosure. Recompose these as one understandable product experience; independent symptom patches, renamed buttons or a CSS-only facelift cannot establish completion.
 

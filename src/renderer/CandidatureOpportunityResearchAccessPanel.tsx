@@ -5,7 +5,8 @@ import { applicationInformationTaskInstruction } from "../shared/external-ai-tas
 import { recordCompletedAiTask } from "./ai-task-store";
 
 type Intent = "application-information" | "interview";
-type BusyAction = "prepare" | "publish" | "copy" | "export" | "submit" | "import" | "retain" | "close";
+type Transport = "copy" | "file" | "connected";
+type BusyAction = "prepare" | "connect" | "copy" | "export" | "submit" | "import" | "retain" | "close";
 
 export function CandidatureOpportunityResearchAccessPanel({ candidatureId, contextDirty, onClose }: {
   readonly candidatureId: string; readonly contextDirty: boolean; readonly onClose?: () => void;
@@ -15,7 +16,8 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
   const [taskText, setTaskText] = useState("");
   const [preparedText, setPreparedText] = useState("");
   const [resultText, setResultText] = useState("");
-  const [publishedText, setPublishedText] = useState<string | null>(null);
+  const [connectedText, setConnectedText] = useState<string | null>(null);
+  const [transport, setTransport] = useState<Transport>("copy");
   const [busy, setBusy] = useState<BusyAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
   }, [candidatureId]);
 
   useEffect(() => {
-    if (!access?.allowed) return;
+    if (!access?.taskAvailable || intent !== "application-information") return;
     const api = window.aaaat.candidatureOpportunityResearchAccess;
     let active = true;
     const takePending = async () => {
@@ -50,14 +52,14 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
     void takePending();
     const interval = window.setInterval(() => void takePending(), 1200);
     return () => { active = false; window.clearInterval(interval); };
-  }, [access?.allowed, candidatureId, putInFieldReview]);
+  }, [access?.taskAvailable, intent, candidatureId, putInFieldReview]);
 
   useEffect(() => {
     if (!contextDirty || !access?.allowed) return;
     let active = true;
     void window.aaaat.candidatureOpportunityResearchAccess.update({ candidatureId, allowed: false }).then((saved) => {
       if (!active) return;
-      setAccess(saved); setIntent(null); setTaskText(""); setPreparedText(""); setPublishedText(null);
+      setAccess(saved); setIntent(null); setTaskText(""); setPreparedText(""); setConnectedText(null);
       setMessage("Save or discard application edits before preparing a task.");
     }).catch(() => { if (active) setError("External AI access could not be updated."); });
     return () => { active = false; };
@@ -74,18 +76,23 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
     if (taskText !== preparedText && taskText.trim() && !window.confirm("Replace this edited task with current application context?")) return;
     await perform("prepare", async () => {
       const api = window.aaaat.candidatureOpportunityResearchAccess;
-      setAccess(await api.update({ candidatureId, allowed: true }));
       const text = nextIntent === "application-information"
-        ? (await api.applicationInformationTask(applicationInformationTaskInstruction)).taskText
-        : await (async () => { await api.interviewContext(); return api.interviewTaskText(); })();
-      setIntent(nextIntent); setTaskText(text); setPreparedText(text); setResultText(""); setPublishedText(null);
+        ? (await api.privateApplicationInformationTask(candidatureId, applicationInformationTaskInstruction)).taskText
+        : await (async () => { await api.privateInterviewContext(candidatureId); return api.interviewTaskText(); })();
+      setIntent(nextIntent); setTaskText(text); setPreparedText(text); setResultText(""); setConnectedText(null);
+      setAccess(await api.current(candidatureId));
     });
   };
-  const publish = () => perform("publish", async () => {
+  const connectTask = () => perform("connect", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
-    if (intent === "application-information") await api.publishApplicationInformationTask(taskText);
-    else await api.publishInterviewTask(taskText);
-    setPreparedText(taskText); setPublishedText(taskText); setMessage("This exact task is available to your connected AI.");
+    if (intent === "application-information") await api.useConnectedApplicationInformationTask(taskText);
+    else await api.useConnectedInterviewTask(taskText);
+    setAccess(await api.current(candidatureId));
+    setConnectedText(taskText);
+  });
+  const disableConnectedAccess = () => perform("connect", async () => {
+    setAccess(await window.aaaat.candidatureOpportunityResearchAccess.disableConnectedTaskAccess(candidatureId));
+    setConnectedText(null);
   });
   const copy = () => perform("copy", async () => {
     const api = window.aaaat.candidatureOpportunityResearchAccess;
@@ -131,15 +138,27 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
         <button type="button" className="compact-secondary" disabled={disabled || contextDirty || access === null} onClick={() => void prepare("interview")}>Interview notes</button>
       </details>
     </> : <>
-      <label className="application-task-text">Task for my AI<textarea rows={18} maxLength={1024 * 1024} value={taskText} disabled={disabled || contextDirty} onChange={(event) => setTaskText(event.target.value)} /></label>
-      {publishedText !== null && publishedText !== taskText ? <p className="compact-help">This task has changed. Publish again to update your connected AI.</p> : null}
-      <small>You can edit all of this text, including the application context. Copy, export and publish use exactly this text.</small>
+      <label className="application-task-text">Task for my AI<textarea rows={12} maxLength={1024 * 1024} value={taskText} disabled={disabled || contextDirty} onChange={(event) => setTaskText(event.target.value)} /></label>
       <div className="button-row">
-        <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void copy()}>Copy task</button>
-        <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void exportTask()}>Export file…</button>
-        <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void publish()}>Publish to connected AI</button>
-        <button type="button" className="compact-secondary" disabled={disabled || contextDirty} onClick={() => void prepare(intent)}>Refresh from application</button>
+        <label>Use with <select aria-label="Task transport" value={transport} disabled={disabled} onChange={(event) => setTransport(event.target.value as Transport)}>
+          <option value="copy">Copy to my AI</option>
+          <option value="file">Task file</option>
+          <option value="connected">Connected AI</option>
+        </select></label>
+        <button type="button" disabled={disabled || contextDirty || !taskText.trim()} onClick={() => void (transport === "copy" ? copy() : transport === "file" ? exportTask() : connectTask())}>
+          {transport === "copy" ? "Copy task" : transport === "file" ? "Export file…" : "Use connected AI"}
+        </button>
       </div>
+      {transport === "connected" ? <>
+        <small>{access?.taskAvailable && connectedText !== taskText ? "Your connected AI can read the previous task text. Use connected AI to update it." : "Lets your connected AI read this task."}</small>
+        {access?.allowed ? <details className="application-secondary-task"><summary>Connected access</summary>
+          <label><input type="checkbox" checked={access.allowed} disabled={disabled} onChange={() => void disableConnectedAccess()} />Allow further access to this application</label>
+        </details> : null}
+      </> : null}
+      <details className="application-secondary-task"><summary>Task options</summary>
+        <button type="button" className="compact-secondary" disabled={disabled || contextDirty} onClick={() => void prepare(intent)}>Refresh from application</button>
+      </details>
+      <details open={transport !== "connected"} className="application-secondary-task"><summary>Paste or import a result</summary>
       <label className="application-task-result">{intent === "application-information" ? "Suggestions from my AI" : "Notes from my AI"}
         <textarea rows={6} value={resultText} disabled={disabled || contextDirty} onChange={(event) => setResultText(event.target.value)} />
       </label>
@@ -147,6 +166,7 @@ export function CandidatureOpportunityResearchAccessPanel({ candidatureId, conte
         <button type="button" disabled={disabled || contextDirty || !resultText.trim()} onClick={() => void submit()}>{intent === "application-information" ? "Use suggestions" : "Save notes"}</button>
         <button type="button" disabled={disabled || contextDirty} onClick={() => void importResult()}>Import result…</button>
       </div>
+      </details>
     </>}
   </section>;
 }

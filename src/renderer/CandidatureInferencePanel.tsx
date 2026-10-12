@@ -16,6 +16,7 @@ import type {
 } from "../shared/contracts";
 import {
   aiTaskFailure,
+  cancelAiTask,
   startAiTask,
   useAiTask,
 } from "./ai-task-store";
@@ -259,14 +260,14 @@ export function CandidatureInferencePanel({
   if (requestedFields.length === 0 && !includeTagInference) {
     return <p className="compact-help">This information is not available for AI use.</p>;
   }
-  if (
-    sources === null
-    || aiReady === null
-    || task?.status === "queued"
-    || task?.status === "working"
-  ) {
-    return null;
+  if (task?.status === "queued" || task?.status === "working") {
+    if (!taskId.endsWith(":tags")) return null;
+    return <div className="candidature-inline-ai-message" role="status">
+      <span>{title}…</span>
+      <button type="button" className="compact-secondary" onClick={() => cancelAiTask(taskId)}>Stop</button>
+    </div>;
   }
+  if (sources === null || aiReady === null) return null;
   if (!aiReady) {
     return (
       <div className="ai-task-failure candidature-inline-ai-message">
@@ -353,6 +354,7 @@ export function CandidatureInferencePanel({
                 <strong>{proposal.name}</strong>
                 {proposal.evidence ? <p>{proposal.evidence}</p> : null}
                 <div className="button-row">
+                  <button type="button" disabled={tagBusy} onClick={() => void handleTag(() => attachExistingTags([proposal]))}>Attach Tag</button>
                   <button
                     type="button"
                     className="compact-secondary"

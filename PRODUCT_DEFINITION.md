@@ -30,7 +30,7 @@ When the user asks for AI assistance inside AAAAT, AAAAT owns the local product 
 
 AI is optional. Manual/no-AI operation remains complete.
 
-Interview preparation may remain a secondary optional task within a selected application. It starts with allowed application context and the entire task is user-editable before copying, exporting or publishing. AAAAT does not become a human-advice product or a generic AI editor.
+Interview preparation may remain a secondary optional task within a selected application. It starts with allowed application context and the entire task is user-editable before copying, exporting or using it with a connected AI. AAAAT does not become a human-advice product or a generic AI editor.
 
 ### AI → AAAAT
 

@@ -14,15 +14,18 @@ export const candidatureOpportunityResearchAccessChannels = Object.freeze({
   current: "aaaat:candidature-external-ai-current",
   update: "aaaat:candidature-external-ai-update",
   applicationInformationTask: "aaaat:candidature-application-information-task",
-  publishApplicationInformationTask: "aaaat:candidature-application-information-publish-task",
+  privateApplicationInformationTask: "aaaat:candidature-application-information-private-task",
+  useConnectedApplicationInformationTask: "aaaat:candidature-application-information-connect-task",
   takeApplicationInformationResult: "aaaat:candidature-application-information-take-result",
   copyApplicationInformationTask: "aaaat:candidature-application-information-copy-task",
   exportApplicationInformationTask: "aaaat:candidature-application-information-export-task",
   submitApplicationInformationResult: "aaaat:candidature-application-information-submit-result",
   importApplicationInformationResult: "aaaat:candidature-application-information-import-result",
   interviewContext: "aaaat:candidature-interview-context",
+  privateInterviewContext: "aaaat:candidature-interview-private-context",
+  disableConnectedTaskAccess: "aaaat:candidature-external-task-disable-access",
   interviewTaskText: "aaaat:candidature-interview-task-text",
-  publishInterviewTask: "aaaat:candidature-interview-publish-task",
+  useConnectedInterviewTask: "aaaat:candidature-interview-connect-task",
   copyInterviewTask: "aaaat:candidature-interview-copy-task",
   exportInterviewTask: "aaaat:candidature-interview-export-task",
   retainInterviewResult: "aaaat:candidature-interview-retain-result",
@@ -33,6 +36,7 @@ export const candidatureOpportunityResearchAccessSchema = z
   .object({
     candidatureId: z.string().uuid(),
     allowed: z.boolean(),
+    taskAvailable: z.boolean(),
   })
   .strict();
 export type CandidatureOpportunityResearchAccess = z.infer<
@@ -40,7 +44,7 @@ export type CandidatureOpportunityResearchAccess = z.infer<
 >;
 
 export const candidatureOpportunityResearchAccessUpdateSchema =
-  candidatureOpportunityResearchAccessSchema;
+  candidatureOpportunityResearchAccessSchema.omit({ taskAvailable: true });
 export type CandidatureOpportunityResearchAccessUpdate = z.infer<
   typeof candidatureOpportunityResearchAccessUpdateSchema
 >;
@@ -106,7 +110,8 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly applicationInformationTask: (
       instruction: CandidatureExternalAiInstruction,
     ) => Promise<ExternalApplicationInformationTask>;
-    readonly publishApplicationInformationTask: (taskText: CandidatureExternalAiTaskText) => Promise<ExternalApplicationInformationTask>;
+    readonly privateApplicationInformationTask: (candidatureId: string, instruction: CandidatureExternalAiInstruction) => Promise<ExternalApplicationInformationTask>;
+    readonly useConnectedApplicationInformationTask: (taskText: CandidatureExternalAiTaskText) => Promise<ExternalApplicationInformationTask>;
     readonly takeApplicationInformationResult: (
       candidatureId: string,
     ) => Promise<ExternalApplicationInformationPendingResult | null>;
@@ -122,8 +127,10 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
     readonly importApplicationInformationResult: (
     ) => Promise<CandidatureApplicationInformationResultImportResult>;
     readonly interviewContext: () => Promise<ExternalInterviewPreparationContext>;
+    readonly privateInterviewContext: (candidatureId: string) => Promise<ExternalInterviewPreparationContext>;
+    readonly disableConnectedTaskAccess: (candidatureId: string) => Promise<CandidatureOpportunityResearchAccess>;
     readonly interviewTaskText: () => Promise<CandidatureExternalAiTaskText>;
-    readonly publishInterviewTask: (taskText: CandidatureExternalAiTaskText) => Promise<CandidatureExternalAiTaskText>;
+    readonly useConnectedInterviewTask: (taskText: CandidatureExternalAiTaskText) => Promise<CandidatureExternalAiTaskText>;
     readonly copyInterviewTask: (
       taskText: CandidatureExternalAiTaskText,
     ) => Promise<CandidatureExternalAiCopyResult>;

@@ -49,7 +49,9 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
             candidatureExternalAiInstructionSchema.parse(instruction),
           ),
         ),
-      publishApplicationInformationTask: async (taskText: string) => externalApplicationInformationTaskSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.publishApplicationInformationTask, candidatureExternalAiTaskTextSchema.parse(taskText))),
+      privateApplicationInformationTask: async (candidatureId: string, instruction: Parameters<ResearchApi["privateApplicationInformationTask"]>[1]) =>
+        externalApplicationInformationTaskSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.privateApplicationInformationTask, candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId), candidatureExternalAiInstructionSchema.parse(instruction))),
+      useConnectedApplicationInformationTask: async (taskText: string) => externalApplicationInformationTaskSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.useConnectedApplicationInformationTask, candidatureExternalAiTaskTextSchema.parse(taskText))),
       takeApplicationInformationResult: async (candidatureId: string) =>
         externalApplicationInformationPendingResultOptionalSchema.parse(
           await invoke(
@@ -92,8 +94,10 @@ export function createCandidatureOpportunityResearchAccessDesktopApi(
         externalInterviewPreparationContextSchema.parse(
           await invoke(candidatureOpportunityResearchAccessChannels.interviewContext),
         ),
+      privateInterviewContext: async (candidatureId: string) => externalInterviewPreparationContextSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.privateInterviewContext, candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId))),
+      disableConnectedTaskAccess: async (candidatureId: string) => candidatureOpportunityResearchAccessSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.disableConnectedTaskAccess, candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(candidatureId))),
       interviewTaskText: async () => candidatureExternalAiTaskTextSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.interviewTaskText)),
-      publishInterviewTask: async (taskText: string) => candidatureExternalAiTaskTextSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.publishInterviewTask, candidatureExternalAiTaskTextSchema.parse(taskText))),
+      useConnectedInterviewTask: async (taskText: string) => candidatureExternalAiTaskTextSchema.parse(await invoke(candidatureOpportunityResearchAccessChannels.useConnectedInterviewTask, candidatureExternalAiTaskTextSchema.parse(taskText))),
       copyInterviewTask: async (
         taskText: Parameters<ResearchApi["copyInterviewTask"]>[0],
       ) =>

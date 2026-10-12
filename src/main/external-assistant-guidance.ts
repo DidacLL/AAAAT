@@ -10,7 +10,7 @@ export const externalAssistantGuidance: ExternalAssistantGuidance =
 
 When the user asks you to fill application information:
 
-- Read the exact taskText the user prepared and explicitly published for the selected application. It contains the user-edited instructions and context; do not substitute another context or a fixed prompt.
+- Read the exact taskText the user made available for the selected application. It contains the user-edited instructions and context; do not substitute another context or a fixed prompt.
 - Use only the supplied task-local field and choice references.
 - Return only field proposals for those supplied fields.
 - AAAAT accepts field proposals only for the supplied field/choice references. Other reasoning the user asks of their own AI does not expand AAAAT mutation capabilities.
