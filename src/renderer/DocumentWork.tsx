@@ -610,6 +610,9 @@ function WorkingCvEditor({
           <button type="button" onClick={() => setWritingAlternative(null)}>Dismiss</button></div>
       </details> : null}
 
+      {writingTask?.status === "failed" ? <p className="error-message document-editor-message" role="alert">
+        AI{writingTarget ? ` · ${writingTarget.field}` : ""}: {readableDocumentError(new Error(writingTask.error ?? ""), "AI could not write this text.")}
+      </p> : null}
       {error ? (
         <div className="document-editor-message">
           <p className="error-message" role="alert">{error}</p>
@@ -1298,6 +1301,9 @@ function LetterEditor({
         <button type="button" onClick={() => setAiAlternative(null)}>Dismiss</button>
       </details> : null}
 
+      {draftingTask?.status === "failed" ? <p className="error-message document-editor-message" role="alert">
+        {readableDocumentError(new Error(draftingTask.error ?? ""), "AI could not draft this letter.")}
+      </p> : null}
       {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
       {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
 
