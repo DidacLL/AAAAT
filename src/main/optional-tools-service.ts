@@ -125,7 +125,7 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
   startLocalAiWithApp();
 }
 
-const texLivePackages = "babel babel-english babel-catalan babel-spanish babel-french babel-german babel-italian babel-portuges geometry hyperref xcolor enumitem titlesec parskip microtype lm psnfss";
+const texLivePackages = "babel babel-english babel-catalan babel-spanish babel-french babel-german babel-italian babel-portuges geometry hyperref xcolor enumitem titlesec parskip microtype lm psnfss ec cm-super";
 
 async function installWindowsPdf(signal: AbortSignal): Promise<void> {
   const installer = await obtain(miktexWindows, "Downloading MiKTeX…", signal);
@@ -198,7 +198,8 @@ async function installLinuxPdf(): Promise<void> {
   await run("pkexec", ["/bin/sh", script, path.join(root, "miktex-key.asc")]);
   if (process.arch !== "arm64") {
     await run("miktexsetup", ["--shared=no", "finish"]);
-    const initexmf = path.join(path.dirname(installedPdfLatexExecutable()), "initexmf");
+    const sibling = path.join(path.dirname(installedPdfLatexExecutable()), "initexmf");
+    const initexmf = existsSync(sibling) ? sibling : "initexmf";
     await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
   }
 }
