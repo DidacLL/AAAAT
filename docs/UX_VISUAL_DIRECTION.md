@@ -76,7 +76,9 @@ Application covers compose the actual retained text according to the user's fiel
 
 The existing warm paper and restrained machine surfaces provide continuity. Decoration remains subordinate to reading and direct control.
 
-Short cover values share a condensed sans-serif face. Large prominence is visibly larger and heavier than Regular, and Small is subordinate; switching prominence does not merely switch font families. Longer text retains a comfortable reading treatment. Expanded covers retain their row and nearest outer edge, displacing neighbouring cards. The fixed rail retains a contextual Tags console, with stored definitions available directly from collapsed and expanded cards.
+The cover typography applies only to collapsed and expanded application cards. Application editing retains ordinary readable sans-serif values, clear field labels and contextual controls; it does not inherit the cover composition or condensed display treatment.
+
+Short cover values share a condensed sans-serif face. Large prominence is visibly larger and heavier than Regular, and Small is subordinate; switching prominence does not merely switch font families. Longer text retains a comfortable reading treatment. Expanded covers retain their row and nearest outer edge, displacing neighbouring cards. The fixed rail retains a contextual Tags monitor. Collapsed and expanded cards show Tag names only; hovering, focusing or selecting a Tag shows its stored definition in the monitor. Definitions are not duplicated inside cards, where useful application text owns the space.
 
 ## AAAAT as a character
 

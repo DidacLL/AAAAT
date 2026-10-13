@@ -5,8 +5,8 @@ import {
   candidatureApplicationInformationResultImportResultSchema,
   candidatureExternalAiCopyResultSchema,
   candidatureExternalAiExportResultSchema,
-  candidatureExternalAiInstructionSchema,
-  candidatureExternalAiResultTextSchema,
+  candidatureExternalAiRequestTextSchema,
+  candidatureExternalAiResultInputSchema,
   candidatureInterviewResultImportResultSchema,
   candidatureInterviewResultRetainResultSchema,
   candidatureOpportunityResearchAccessChannels,
@@ -18,8 +18,8 @@ import {
   externalInterviewPreparationContextSchema,
 } from "../shared/candidature-opportunity-research-access-contracts";
 import {
-  buildApplicationInformationPortableTask,
-  buildInterviewPreparationPortableTask,
+  saveApplicationInformationRequest,
+  saveInterviewPreparationRequest,
   importApplicationInformationPortableResult,
   prepareInterviewPreparationContext,
   maxExternalAiPortableResultBytes,
@@ -69,12 +69,12 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.applicationInformationTask,
-    (event, rawInstruction: unknown) => {
+    (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
       return externalApplicationInformationTaskSchema.parse(
         prepareApplicationInformationTask(
           requireWorkspaceRoot(),
-          candidatureExternalAiInstructionSchema.parse(rawInstruction),
+          candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawInput),
         ),
       );
     },
@@ -95,11 +95,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.copyApplicationInformationTask,
-    (event, rawInstruction: unknown) => {
+    (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
+      const input = candidatureExternalAiRequestTextSchema.parse(rawInput);
       clipboard.writeText(
-        buildApplicationInformationPortableTask(requireWorkspaceRoot(), instruction),
+        saveApplicationInformationRequest(requireWorkspaceRoot(), input.candidatureId, input.text),
       );
       return candidatureExternalAiCopyResultSchema.parse("copied");
     },
@@ -107,12 +107,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.exportApplicationInformationTask,
-    async (event, rawInstruction: unknown) => {
+    async (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-      const task = buildApplicationInformationPortableTask(
-        requireWorkspaceRoot(),
-        instruction,
+      const input = candidatureExternalAiRequestTextSchema.parse(rawInput);
+      const task = saveApplicationInformationRequest(
+        requireWorkspaceRoot(), input.candidatureId, input.text,
       );
       const selection = await dialog.showSaveDialog(mainWindow, {
         title: "Export application information task",
@@ -133,12 +132,13 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.submitApplicationInformationResult,
-    (event, rawResultText: unknown) => {
+    (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
+      const input = candidatureExternalAiResultInputSchema.parse(rawInput);
       return externalApplicationInformationPendingResultSchema.parse(
         importApplicationInformationPortableResult(
           requireWorkspaceRoot(),
-          candidatureExternalAiResultTextSchema.parse(rawResultText),
+          input.candidatureId, input.text,
         ),
       );
     },
@@ -146,8 +146,10 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.importApplicationInformationResult,
-    async (event) => {
+    async (event, rawCandidatureId: unknown) => {
       assertTrustedSender(event, mainWindow);
+      const candidatureId = candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId);
+      const rootPath = requireWorkspaceRoot();
       const selection = await dialog.showOpenDialog(mainWindow, {
         title: "Import application information suggestions",
         buttonLabel: "Import suggestions",
@@ -156,33 +158,33 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
         ],
         properties: ["openFile"],
       });
+      if (requireWorkspaceRoot() !== rootPath) throw new Error("The workspace changed while selecting the file.");
       const filePath = selection.filePaths[0];
       if (selection.canceled || !filePath) {
         return candidatureApplicationInformationResultImportResultSchema.parse("cancelled");
       }
       return candidatureApplicationInformationResultImportResultSchema.parse(
         importApplicationInformationPortableResult(
-          requireWorkspaceRoot(),
-          requirePortableResultFile(filePath),
+          rootPath, candidatureId, requirePortableResultFile(filePath),
         ),
       );
     },
   );
 
-  ipcMain.handle(candidatureOpportunityResearchAccessChannels.interviewContext, (event) => {
+  ipcMain.handle(candidatureOpportunityResearchAccessChannels.interviewContext, (event, rawCandidatureId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return externalInterviewPreparationContextSchema.parse(
-      prepareInterviewPreparationContext(requireWorkspaceRoot()),
+      prepareInterviewPreparationContext(requireWorkspaceRoot(), candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId)),
     );
   });
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.copyInterviewTask,
-    (event, rawInstruction: unknown) => {
+    (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
+      const input = candidatureExternalAiRequestTextSchema.parse(rawInput);
       clipboard.writeText(
-        buildInterviewPreparationPortableTask(requireWorkspaceRoot(), instruction),
+        saveInterviewPreparationRequest(requireWorkspaceRoot(), input.candidatureId, input.text),
       );
       return candidatureExternalAiCopyResultSchema.parse("copied");
     },
@@ -190,12 +192,11 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.exportInterviewTask,
-    async (event, rawInstruction: unknown) => {
+    async (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
-      const instruction = candidatureExternalAiInstructionSchema.parse(rawInstruction);
-      const task = buildInterviewPreparationPortableTask(
-        requireWorkspaceRoot(),
-        instruction,
+      const input = candidatureExternalAiRequestTextSchema.parse(rawInput);
+      const task = saveInterviewPreparationRequest(
+        requireWorkspaceRoot(), input.candidatureId, input.text,
       );
       const selection = await dialog.showSaveDialog(mainWindow, {
         title: "Export interview preparation task",
@@ -216,11 +217,12 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.retainInterviewResult,
-    (event, rawResultText: unknown) => {
+    (event, rawInput: unknown) => {
       assertTrustedSender(event, mainWindow);
+      const input = candidatureExternalAiResultInputSchema.parse(rawInput);
       const retained = retainInterviewPreparationResult(
         requireWorkspaceRoot(),
-        candidatureExternalAiResultTextSchema.parse(rawResultText),
+        input.text, input.candidatureId,
       );
       if (!retained) {
         throw new Error("Choose interview preparation with my AI on an application first.");
@@ -231,8 +233,10 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
 
   ipcMain.handle(
     candidatureOpportunityResearchAccessChannels.importInterviewResult,
-    async (event) => {
+    async (event, rawCandidatureId: unknown) => {
       assertTrustedSender(event, mainWindow);
+      const candidatureId = candidatureOpportunityResearchAccessSchema.shape.candidatureId.parse(rawCandidatureId);
+      const rootPath = requireWorkspaceRoot();
       const selection = await dialog.showOpenDialog(mainWindow, {
         title: "Import interview preparation",
         buttonLabel: "Import result",
@@ -241,13 +245,13 @@ export function registerCandidatureOpportunityResearchAccessIpc(mainWindow: Brow
         ],
         properties: ["openFile"],
       });
+      if (requireWorkspaceRoot() !== rootPath) throw new Error("The workspace changed while selecting the file.");
       const filePath = selection.filePaths[0];
       if (selection.canceled || !filePath) {
         return candidatureInterviewResultImportResultSchema.parse("cancelled");
       }
       retainInterviewPreparationResult(
-        requireWorkspaceRoot(),
-        requirePortableResultFile(filePath),
+        rootPath, requirePortableResultFile(filePath), candidatureId,
       );
       return candidatureInterviewResultImportResultSchema.parse("imported");
     },

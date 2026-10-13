@@ -98,11 +98,11 @@
   cursor: pointer;
 }
 .candidature-corpus-entry:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
-.candidature-recognition-cues { display: flex; min-height: 0; flex-wrap: wrap; align-content: flex-start; align-items: baseline; gap: .22rem .6rem; }
-.candidature-recognition-cue { display: block; min-width: 0; max-width: 100%; flex: 1 1 max-content; }
-.candidature-recognition-cue.candidature-cue-size-wide { flex-grow: 3; }
-.candidature-recognition-cue.candidature-cue-size-compact { flex-grow: 0; }
-.candidature-cue-value, .candidature-expanded-value {
+.candidature-corpus-card .candidature-recognition-cues { display: flex; min-height: 0; flex-wrap: wrap; align-content: flex-start; align-items: baseline; gap: .22rem .6rem; }
+.candidature-corpus-card .candidature-recognition-cue { display: block; min-width: 0; max-width: 100%; flex: 1 1 max-content; }
+.candidature-corpus-card .candidature-recognition-cue.candidature-cue-size-wide { flex-grow: 3; }
+.candidature-corpus-card .candidature-recognition-cue.candidature-cue-size-compact { flex-grow: 0; }
+.candidature-corpus-card .candidature-cue-value, .candidature-corpus-card .candidature-expanded-value {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -110,22 +110,22 @@
   color: var(--ink);
   line-height: 1.2;
 }
-.candidature-cue-value { font-family: var(--machine-font); font-stretch: semi-condensed; -webkit-line-clamp: 2; }
-.candidature-cue-size-wide .candidature-cue-value { font-family: var(--machine-font); font-size: 1.4rem; font-weight: 700; font-stretch: semi-condensed; }
-.candidature-cue-size-normal .candidature-cue-value { font-size: 1rem; font-weight: 500; }
-.candidature-cue-size-compact .candidature-cue-value { font-size: .85rem; font-weight: 400; }
-.candidature-cue-length-long .candidature-cue-value { font-family: var(--ui-font); font-size: .92rem; font-weight: 400; line-height: 1.35; }
-.candidature-cue-label { display: block; margin-bottom: .25rem; color: var(--muted-ink); font-size: .75rem; font-weight: 650; }
-.candidature-expanded-summary { display: grid; gap: .55rem; }
-.candidature-expanded-prominent { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .8rem; }
-.candidature-expanded-cue { display: block; flex: 1 1 max-content; min-width: 0; max-width: 100%; }
-.candidature-expanded-value { font-family: var(--machine-font); font-stretch: semi-condensed; font-size: 1.08rem; font-weight: 500; line-height: 1.4; -webkit-line-clamp: 4; }
-.candidature-cue-size-wide .candidature-expanded-value { font-family: var(--machine-font); font-size: 1.7rem; font-weight: 700; font-stretch: semi-condensed; -webkit-line-clamp: 3; }
-.candidature-cue-size-compact .candidature-expanded-value { font-size: .9rem; font-weight: 400; }
-.candidature-expanded-cue.candidature-cue-size-wide { flex-grow: 3; }
-.candidature-expanded-cue.candidature-cue-size-compact { flex-grow: 0; }
-.candidature-expanded-cue.candidature-cue-length-long .candidature-expanded-value { font-family: var(--ui-font); font-size: 1rem; font-weight: 400; line-height: 1.45; -webkit-line-clamp: 5; }
-.candidature-expanded-supporting { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .8rem; }
+.candidature-corpus-card .candidature-cue-value { font-family: var(--machine-font); font-stretch: semi-condensed; -webkit-line-clamp: 2; }
+.candidature-corpus-card .candidature-cue-size-wide .candidature-cue-value { font-family: var(--machine-font); font-size: 1.4rem; font-weight: 700; font-stretch: semi-condensed; }
+.candidature-corpus-card .candidature-cue-size-normal .candidature-cue-value { font-size: 1rem; font-weight: 500; }
+.candidature-corpus-card .candidature-cue-size-compact .candidature-cue-value { font-size: .85rem; font-weight: 400; }
+.candidature-corpus-card .candidature-cue-length-long .candidature-cue-value { font-family: var(--ui-font); font-size: .92rem; font-weight: 400; line-height: 1.35; }
+.candidature-corpus-card .candidature-cue-label { display: block; margin-bottom: .25rem; color: var(--muted-ink); font-size: .75rem; font-weight: 650; }
+.candidature-corpus-card .candidature-expanded-summary { display: grid; gap: .55rem; }
+.candidature-corpus-card .candidature-expanded-prominent { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .8rem; }
+.candidature-corpus-card .candidature-expanded-cue { display: block; flex: 1 1 max-content; min-width: 0; max-width: 100%; }
+.candidature-corpus-card .candidature-expanded-value { font-family: var(--machine-font); font-stretch: semi-condensed; font-size: 1.08rem; font-weight: 500; line-height: 1.4; -webkit-line-clamp: 4; }
+.candidature-corpus-card .candidature-cue-size-wide .candidature-expanded-value { font-family: var(--machine-font); font-size: 1.7rem; font-weight: 700; font-stretch: semi-condensed; -webkit-line-clamp: 3; }
+.candidature-corpus-card .candidature-cue-size-compact .candidature-expanded-value { font-size: .9rem; font-weight: 400; }
+.candidature-corpus-card .candidature-expanded-cue.candidature-cue-size-wide { flex-grow: 3; }
+.candidature-corpus-card .candidature-expanded-cue.candidature-cue-size-compact { flex-grow: 0; }
+.candidature-corpus-card .candidature-expanded-cue.candidature-cue-length-long .candidature-expanded-value { font-family: var(--ui-font); font-size: 1rem; font-weight: 400; line-height: 1.45; -webkit-line-clamp: 5; }
+.candidature-corpus-card .candidature-expanded-supporting { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .8rem; }
 .candidature-corpus { container-type: inline-size; }
 @container (max-width: 34.7rem) { .candidature-corpus-card-preselected { grid-column: 1 / -1; } }
 
@@ -411,13 +411,8 @@
 }
 .field-options-close { float: right; border: 0; padding: .1rem .4rem; background: transparent; color: var(--ink); font-size: 1rem; }
 
-.candidature-selected .candidature-information-size-wide .candidature-value-reader > p { font: 700 1.2rem/1.3 var(--machine-font); font-stretch: semi-condensed; }
-.candidature-selected .candidature-information-size-normal .candidature-value-reader > p { font-size: 1.05rem; font-weight: 500; line-height: 1.4; }
-.candidature-selected .candidature-information-size-compact .candidature-value-reader > p { font-size: .95rem; font-weight: 400; line-height: 1.4; }
+.candidature-selected .candidature-value-reader > p { font: 500 1.05rem/1.4 var(--ui-font); }
 .candidature-selected .candidature-information-unit-long-content .candidature-value-reader > p { font: 500 1.05rem/1.5 var(--ui-font); }
 
 .candidature-card-footer-expanded { align-items: end; padding: .3rem .65rem; }
 .candidature-card-footer-expanded .candidature-collapsed-tags { gap: .4rem .8rem; }
-.candidature-expanded-tag { display: flex; flex: 1 1 12rem; flex-direction: column; gap: .12rem; min-width: 0; padding: .2rem 0; border: 0; background: transparent; color: var(--ink); font-family: inherit; text-align: left; cursor: pointer; }
-.candidature-expanded-tag strong { font-size: .85rem; font-weight: 600; }
-.candidature-expanded-tag span { font-size: .8rem; line-height: 1.35; }

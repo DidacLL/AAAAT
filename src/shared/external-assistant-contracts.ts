@@ -67,8 +67,7 @@ export type ExternalCandidatureSourceAddResult = z.infer<
 export const externalApplicationInformationTaskSchema = z
   .object({
     taskRef: operationReferenceSchema,
-    instruction: z.string().trim().min(1).max(20_000),
-    context: z.string().trim().min(1).max(50_000),
+    text: z.string().min(1).max(128 * 1024),
     fields: z.array(providerDiscoveryFieldSchema).min(1).max(64),
   })
   .strict();
@@ -101,33 +100,15 @@ export type ExternalApplicationInformationPendingResult = z.infer<
 export const externalApplicationInformationPendingResultOptionalSchema =
   externalApplicationInformationPendingResultSchema.nullable();
 
-export const externalInterviewPreparationInformationSchema = z
-  .object({
-    label: z.string().trim().min(1).max(120),
-    value: z.string().max(50_000),
-  })
-  .strict();
-
-export const externalInterviewPreparationSourceSchema = z
-  .object({
-    title: z.string().max(500),
-    url: z.string().max(2048),
-    sourceText: z.string().max(12_000),
-  })
-  .strict();
-
 export const externalInterviewPreparationContextSchema = z
-  .object({
-    information: z.array(externalInterviewPreparationInformationSchema).max(64),
-    sources: z.array(externalInterviewPreparationSourceSchema).max(20),
-  })
+  .object({ taskRef: operationReferenceSchema, text: z.string().min(1).max(128 * 1024) })
   .strict();
 export type ExternalInterviewPreparationContext = z.infer<
   typeof externalInterviewPreparationContextSchema
 >;
 
 export const externalInterviewPreparationResultSchema = z
-  .object({ text: z.string().trim().min(1).max(64 * 1024) })
+  .object({ taskRef: operationReferenceSchema, text: z.string().trim().min(1).max(64 * 1024) })
   .strict();
 export type ExternalInterviewPreparationResult = z.infer<
   typeof externalInterviewPreparationResultSchema

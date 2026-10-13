@@ -19,24 +19,32 @@ export function CandidaturesAiWorkspace({ initialCandidatureId, onInitialCandida
   const [draftRevision, setDraftRevision] = useState(0);
   const [revision, setRevision] = useState(0);
   const [selection, setSelection] = useState<string | null>(initialCandidatureId ?? null);
+  const [savedNewId, setSavedNewId] = useState<string | null>(null);
   const [newDirty, setNewDirty] = useState(false);
   const [applicationDirty, setApplicationDirty] = useState(false);
   useEffect(() => { onDirtyChange?.(newDirty || applicationDirty); }, [newDirty, applicationDirty, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
   const finishDraft = () => { setNewStarted(false); setNewDirty(false); setDraftRevision(current => current + 1); setView("applications"); };
   const created = (id: string) => {
-    finishDraft(); setSelection(id); setRevision(current => current + 1); onTagGlossaryChange?.();
+    finishDraft();
+    if (applicationDirty) setSavedNewId(id);
+    else { setSelection(id); setSavedNewId(null); }
+    setRevision(current => current + 1); onTagGlossaryChange?.();
+  };
+  const openSavedNew = () => {
+    if (!savedNewId || (applicationDirty && !window.confirm("Discard unsaved application edits and open the new application?"))) return;
+    setSelection(savedNewId); setSavedNewId(null); setView("applications");
   };
   return <div className="candidature-capture-owner">
     <PageToolbar><nav className="application-view-switcher" aria-label="Application view"><div>
       <button type="button" className={view === "applications" ? "active" : ""} aria-pressed={view === "applications"} onClick={() => setView("applications")}>Applications</button>
       <button type="button" aria-label={newStarted ? "Resume new application" : "New application"} className={view === "new" ? "active" : ""} aria-pressed={view === "new"} onClick={() => { setNewStarted(true); setView("new"); }}>{newStarted && view !== "new" ? "Draft" : "＋ New"}</button>
-    </div></nav></PageToolbar>
+    </div></nav>{savedNewId && view === "applications" ? <button type="button" onClick={openSavedNew} title="Open the newly saved application">Open new</button> : null}</PageToolbar>
     {newStarted ? <ToolbarVisible.Provider value={toolbarVisible && view === "new"}><div hidden={view !== "new"}>
       <NewApplicationPanel key={draftRevision} onCreated={created} onCancel={finishDraft} onDirtyChange={setNewDirty} />
     </div></ToolbarVisible.Provider> : null}
     <ToolbarVisible.Provider value={toolbarVisible && view === "applications"}><div hidden={view !== "applications"}>
-      <CandidaturesWorkspace key={revision} initialSelection={selection ? { candidatureId: selection } : undefined} onInitialSelectionCleared={() => { setSelection(null); onInitialCandidatureCleared?.(); }} onDirtyChange={setApplicationDirty} onTagGlossaryChange={onTagGlossaryChange} onTagContextChange={onTagContextChange} />
+      <CandidaturesWorkspace refreshRevision={revision} initialSelection={selection ? { candidatureId: selection } : undefined} onInitialSelectionCleared={() => { setSelection(null); onInitialCandidatureCleared?.(); }} onDirtyChange={setApplicationDirty} onTagGlossaryChange={onTagGlossaryChange} onTagContextChange={onTagContextChange} />
     </div></ToolbarVisible.Provider>
   </div>;
 }

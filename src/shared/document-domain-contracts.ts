@@ -152,6 +152,7 @@ export const workingCvSourceSchema = z.discriminatedUnion("kind", [
 ]);
 export type WorkingCvSource = z.infer<typeof workingCvSourceSchema>;
 export const workingCvCreateSchema = z.object({
+  id: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(200),
   language: optionalLanguageSchema,
   candidatureId: optionalUuidSchema,
@@ -223,6 +224,7 @@ export type CoverLetterSender = z.infer<typeof coverLetterSenderSchema>;
 const emptyCoverLetterSender: CoverLetterSender = { name: "", headline: "", details: [] };
 
 export const coverLetterInputSchema = z.object({
+  id: z.string().uuid().optional(),
   candidatureId: optionalUuidSchema,
   title: z.string().trim().min(1).max(200),
   language: optionalLanguageSchema,

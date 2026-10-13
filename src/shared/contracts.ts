@@ -35,6 +35,7 @@ export const channels = Object.freeze({
   candidatureSourceRemove: "aaaat:candidature-source-remove",
   candidatureListTags: "aaaat:candidature-list-tags",
   candidatureCreateTag: "aaaat:candidature-create-tag",
+  candidatureCreateAndAttachTag: "aaaat:candidature-create-and-attach-tag",
   candidatureUpdateTag: "aaaat:candidature-update-tag",
   candidatureSetTags: "aaaat:candidature-set-tags",
 } as const);
@@ -275,6 +276,8 @@ export const tagInputSchema = z
     message: "Tag aliases must be unique.",
   });
 export type TagInput = z.infer<typeof tagInputSchema>;
+export const candidatureTagCreateSchema = z.object({ candidatureId: z.string().uuid(), tag: tagInputSchema }).strict();
+export type CandidatureTagCreate = z.infer<typeof candidatureTagCreateSchema>;
 export const tagRecordSchema = tagInputSchema.extend({ id: z.string().uuid() }).strict();
 export type TagRecord = z.infer<typeof tagRecordSchema>;
 export const tagListSchema = z.array(tagRecordSchema);
@@ -328,6 +331,7 @@ export interface DesktopApi {
     readonly removeSource: (remove: CandidatureSourceRemove) => Promise<CandidatureSource[]>;
     readonly listTags: () => Promise<TagRecord[]>;
     readonly createTag: (input: TagInput) => Promise<TagRecord>;
+    readonly createAndAttachTag: (input: CandidatureTagCreate) => Promise<TagRecord>;
     readonly updateTag: (update: TagUpdate) => Promise<TagRecord>;
     readonly setTags: (selection: CandidatureTagSelection) => Promise<CandidatureRecord>;
   };

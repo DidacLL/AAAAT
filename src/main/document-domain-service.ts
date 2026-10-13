@@ -682,7 +682,7 @@ export function prepareWorkingCv(rootPath: string, rawInput: WorkingCvCreate): W
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
     const now = new Date().toISOString();
-    return workingCvRecordSchema.parse({ id: randomUUID(), title, language, sourceTemplateId, candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections, createdAt: now, updatedAt: now });
+    return workingCvRecordSchema.parse({ id: input.id ?? randomUUID(), title, language, sourceTemplateId, candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections, createdAt: now, updatedAt: now });
   });
 }
 export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
@@ -970,7 +970,7 @@ export function prepareCoverLetter(rootPath: string, rawInput: CoverLetterInput)
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM cover_letters').all() as unknown as { title: string }[]);
     const now = new Date().toISOString();
-    return coverLetterRecordSchema.parse({ ...input, title, sender, id: randomUUID(), createdAt: now, updatedAt: now });
+    return coverLetterRecordSchema.parse({ ...input, title, sender, id: input.id ?? randomUUID(), createdAt: now, updatedAt: now });
   });
 }
 export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
@@ -978,7 +978,7 @@ export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput):
   const sender = input.sender;
   return withWorkspaceDatabase(rootPath, (database) => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
-    const id = randomUUID();
+    const id = input.id;
     const now = new Date().toISOString();
     database
         .prepare(

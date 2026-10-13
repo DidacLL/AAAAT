@@ -58,6 +58,7 @@ import {
   profileSnapshotSchema,
   recentWorkspacePathSchema,
   systemInfoSchema,
+  candidatureTagCreateSchema,
   tagInputSchema,
   tagListSchema,
   tagRecordSchema,
@@ -120,7 +121,7 @@ import {
   removeProfileItem,
   updateProfileItem,
 } from "./profile-service";
-import { createTag, listTags, updateTag } from "./tag-service";
+import { createAndAttachTag, createTag, listTags, updateTag } from "./tag-service";
 import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import { assertTrustedSender } from "./desktop-ipc-context";
 import {
@@ -441,6 +442,10 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     return tagRecordSchema.parse(
       createTag(requireWorkspaceRoot(), tagInputSchema.parse(input)),
     );
+  });
+  ipcMain.handle(channels.candidatureCreateAndAttachTag, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return tagRecordSchema.parse(createAndAttachTag(requireWorkspaceRoot(), candidatureTagCreateSchema.parse(input)));
   });
   ipcMain.handle(channels.candidatureUpdateTag, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);

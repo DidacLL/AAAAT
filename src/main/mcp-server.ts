@@ -176,12 +176,12 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     interviewPreparationContextReadToolName,
     {
-      description: "Read bounded context for preparing an interview for the application the user selected in AAAAT.",
+      description: "Read the editable interview request the user explicitly allowed connected AI to read. Returns null when none is allowed.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
       emptyInputSchema.parse(input);
-      const context = externalInterviewPreparationContextSchema.parse(
+      const context = externalInterviewPreparationContextSchema.nullable().parse(
         selectedInterviewPreparationContext(rootPath),
       );
       return { content: [{ type: "text" as const, text: JSON.stringify(context) }] };
@@ -196,7 +196,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
     },
     async (input) => {
       const parsed = externalInterviewPreparationResultSchema.parse(input);
-      retainInterviewPreparationResult(rootPath, parsed.text);
+      retainInterviewPreparationResult(rootPath, parsed.text, undefined, parsed.taskRef);
       return {
         content: [{
           type: "text" as const,

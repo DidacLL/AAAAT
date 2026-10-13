@@ -21,7 +21,6 @@ import {
 } from "./ai-task-store";
 import {
   candidatureInferenceContext,
-  candidatureTagInferenceContext,
 } from "./candidature-inference-context";
 import { AiExchangeInspector } from "./AiExchangeInspector";
 import { useContextualHandoffs } from "./contextual-handoffs";
@@ -49,10 +48,11 @@ interface Props {
 
 function routeReady(
   connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>,
+  tagsOnly: boolean,
 ): boolean {
   return connections.some(
     (connection) =>
-      connection.defaultForOperations.includes("job_extraction") || connection.isDefault,
+      connection.defaultForOperations.includes(tagsOnly ? "tag_inference" : "job_extraction") || connection.isDefault,
   );
 }
 
@@ -72,6 +72,10 @@ export function CandidatureInferencePanel({
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
+  const [tagDrafts, setTagDrafts] = useState<Record<number, TagInferenceNewTag>>({});
+  const [tagAliases, setTagAliases] = useState<Record<number, string>>({});
+  const [tagActionError, setTagActionError] = useState<string | null>(null);
+  const [tagActionBusy, setTagActionBusy] = useState(false);
   const scopeFieldIds = task?.scopeFieldIds ?? targetFieldIds;
   const targetSet = useMemo(() => new Set(scopeFieldIds), [scopeFieldIds]);
   const requestedFields = useMemo(
@@ -94,7 +98,7 @@ export function CandidatureInferencePanel({
       .then(([retainedSources, connections]) => {
         if (!active) return;
         setSources(retainedSources);
-        setAiReady(routeReady(connections));
+        setAiReady(routeReady(connections, scopeFieldIds.length === 0 && includeTagInference));
       })
       .catch(() => {
         if (!active) return;
@@ -104,7 +108,7 @@ export function CandidatureInferencePanel({
     return () => {
       active = false;
     };
-  }, [candidature.id]);
+  }, [candidature.id, includeTagInference, scopeFieldIds.length]);
 
   const fieldContext = useMemo(
     () => (
@@ -115,12 +119,12 @@ export function CandidatureInferencePanel({
     [candidature, fields, sources, targetSet],
   );
   const tagContext = useMemo(
-    () => (sources === null ? "" : candidatureTagInferenceContext(sources)),
-    [sources],
+    () => (sources === null ? "" : candidatureInferenceContext(candidature, fields, sources, new Set())),
+    [candidature, fields, sources],
   );
 
   useEffect(() => {
-    if (task || aiReady !== true || !fieldContext || requestedFields.length === 0) return;
+    if (task || aiReady !== true || !fieldContext || (requestedFields.length === 0 && !includeTagInference)) return;
 
     startAiTask<InferenceTaskResult>(
       taskId,
@@ -158,7 +162,7 @@ export function CandidatureInferencePanel({
         updateDetail(
           requestedFields.length === 1
             ? `Finding ${requestedFields[0]?.definition.label ?? "this information"}…`
-            : `Finding ${requestedFields.length} missing values…`,
+            : requestedFields.length ? `Finding ${requestedFields.length} missing values…` : "Finding Tags…",
         );
 
         const tagProviderTaskId = `${taskId}:tags`;
@@ -171,12 +175,12 @@ export function CandidatureInferencePanel({
         signal.addEventListener("abort", cancelProvider, { once: true });
 
         try {
-          const fieldPromise = window.aaaat.aiTasks.extractJob(taskId, {
+          const fieldPromise = requestedFields.length ? window.aaaat.aiTasks.extractJob(taskId, {
             sourceTitle: "Retained AAAAT candidature context",
             sourceUrl: "",
             sourceText: fieldContext,
-            targetFieldIds: [...targetFieldIds],
-          });
+            targetFieldIds: requestedFields.map(field => field.definition.id),
+          }) : Promise.resolve({ proposals: [], issues: [] });
 
           if (!includeTagInference || !tagContext) return await complete(await fieldPromise);
 
@@ -277,26 +281,18 @@ export function CandidatureInferencePanel({
   };
 
   const createAndAttachTag = async (proposal: TagInferenceNewTag, index: number) => {
-    const tag = await window.aaaat.candidatures.createTag({
-      name: proposal.name,
-      definition: proposal.definition,
-      aliases: proposal.aliases,
-    });
-    const current = (await window.aaaat.candidatures.list()).find(
-      (item) => item.id === candidature.id,
-    );
-    if (!current) return;
-
-    await window.aaaat.candidatures.setTags({
-      candidatureId: candidature.id,
-      tagIds: [tag.id],
-      append: true,
-    });
-    setHandledTags((handled) => new Set(handled).add(`new:${index}`));
-    await onChanged?.();
+    if (tagActionBusy) return;
+    setTagActionBusy(true); setTagActionError(null);
+    try {
+      const tag = tagDrafts[index] ?? proposal;
+      await window.aaaat.candidatures.createAndAttachTag({ candidatureId: candidature.id, tag: { name: tag.name, definition: tag.definition, aliases: tagAliases[index] === undefined ? tag.aliases : tagAliases[index].split(",").map(alias => alias.trim()).filter(Boolean) } });
+      setHandledTags(handled => new Set(handled).add(`new:${index}`));
+      await onChanged?.();
+    } catch (reason) { setTagActionError(aiTaskFailure(reason).message); }
+    finally { setTagActionBusy(false); }
   };
 
-  if (requestedFields.length === 0) {
+  if (requestedFields.length === 0 && !includeTagInference) {
     return <p className="compact-help">This information is not available for AI use.</p>;
   }
   if (
@@ -357,6 +353,7 @@ export function CandidatureInferencePanel({
 
   return (
     <section className="candidature-tag-proposals" aria-label="AI suggestions">
+      {tagActionError ? <p className="error-message" role="alert">{tagActionError}</p> : null}
       {result.fieldInferenceError ? (
         <div className="ai-task-failure candidature-inline-ai-message" role="alert">
           <span>
@@ -408,23 +405,24 @@ export function CandidatureInferencePanel({
           })}
           {tagResult.newTags.map((proposal, index) => {
             const key = `new:${index}`;
+            const proposed = tagDrafts[index] ?? proposal;
+            const edit = (patch: Partial<TagInferenceNewTag>) => setTagDrafts(current => ({ ...current, [index]: { ...(current[index] ?? proposal), ...patch } }));
             if (handledTags.has(key)) return null;
             return (
               <article key={key}>
-                <strong>{proposal.name}</strong>
-                <p>{proposal.definition}</p>
-                {proposal.aliases.length ? (
-                  <p className="compact-help">Also: {proposal.aliases.join(", ")}</p>
-                ) : null}
+                <label>Name<input value={proposed.name} disabled={tagActionBusy} onChange={event => edit({ name: event.target.value })} /></label>
+                <label>Definition<textarea value={proposed.definition} rows={3} disabled={tagActionBusy} onChange={event => edit({ definition: event.target.value })} /></label>
+                <label>Aliases<input value={tagAliases[index] ?? proposed.aliases.join(", ")} disabled={tagActionBusy} onChange={event => setTagAliases(current => ({ ...current, [index]: event.target.value }))} /></label>
                 {proposal.evidence ? (
                   <p className="compact-help">Evidence: {proposal.evidence}</p>
                 ) : null}
                 <div className="button-row">
                   <button
                     type="button"
+                    disabled={tagActionBusy || !proposed.name.trim() || !proposed.definition.trim()}
                     onClick={() => void createAndAttachTag(proposal, index)}
                   >
-                    Create and attach
+                    Create
                   </button>
                   <button
                     type="button"

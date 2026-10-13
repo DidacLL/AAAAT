@@ -213,6 +213,8 @@ function populatedOptionalDetails(content: WorkingCvItem["content"]): OptionalCv
 function useApplicationDocumentAccess(candidatureId: string | null) {
   const visible = useContext(ToolbarVisible);
   const [allowed, setAllowed] = useState(candidatureId === null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!candidatureId || !visible) return;
     let active = true;
@@ -220,11 +222,15 @@ function useApplicationDocumentAccess(candidatureId: string | null) {
     return () => { active = false; };
   }, [candidatureId, visible]);
   const toggle = async () => {
-    if (!candidatureId) return;
-    const saved = await window.aaaat.documentDomain.updateExternalApplicationAccess({ candidatureId, allowed: !allowed });
-    setAllowed(saved.allowed);
+    if (!candidatureId || busy) return;
+    setBusy(true); setError(null);
+    try {
+      const saved = await window.aaaat.documentDomain.updateExternalApplicationAccess({ candidatureId, allowed: !allowed });
+      setAllowed(saved.allowed);
+    } catch (reason) { setError(readableDocumentError(reason, "AAAAT could not update document AI access.")); }
+    finally { setBusy(false); }
   };
-  return { allowed, toggle };
+  return { allowed, toggle, busy, error };
 }
 
 export function WorkingCvEditor({
@@ -248,7 +254,10 @@ export function WorkingCvEditor({
 }) {
   const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
+  const documentAi = useApplicationDocumentAccess(document.candidatureId);
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
+  const [writingSuggestion, setWritingSuggestion] = useState<CvWritingResult | null>(null);
+  const writingSnapshot = useRef<{ itemId: string; field: CvWritingField; item: string; value: string } | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingOptionalDetails, setEditingOptionalDetails] = useState<OptionalCvDetail[]>([]);
   const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
@@ -290,31 +299,26 @@ export function WorkingCvEditor({
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
+  const applyWritingSuggestion = (result: CvWritingResult) => {
+    setDraft(current => ({ ...current, sections: current.sections.map(section => ({ ...section, items: section.items.map(item => item.id === result.itemId
+      ? { ...item, sourceMode: item.sourceMode === "custom" ? "custom" : "override", profileVariantId: null, content: { ...item.content, [result.field]: result.content } }
+      : item) })) }));
+    setWritingSuggestion(null);
+  };
   useEffect(() => {
     const result = writingTask?.status === "completed" ? writingTask.result : undefined;
     if (!result || handledWritingResult.current === result) return;
     handledWritingResult.current = result;
-    setDraft((current) => ({
-      ...current,
-      sections: current.sections.map((section) => ({
-        ...section,
-        items: section.items.map((item) =>
-          item.id === result.itemId
-            ? {
-                ...item,
-                sourceMode: item.sourceMode === "custom" ? "custom" : "override",
-                profileVariantId: null,
-                content: { ...item.content, [result.field]: result.content },
-              }
-            : item,
-        ),
-      })),
-    }));
+    const item = draft.sections.flatMap(section => section.items).find(item => item.id === result.itemId);
+    const snapshot = writingSnapshot.current;
     setWritingTarget(null);
-    setWritingMessage(
-      `AI wrote ${result.field === "title" ? "Title" : result.field === "subtitle" ? "Subtitle" : "Description"}. Review or edit it, then Save when ready.`,
-    );
-  }, [writingTask]);
+    if (!item || !snapshot || snapshot.itemId !== result.itemId || snapshot.field !== result.field || snapshot.value.trim() || snapshot.item !== JSON.stringify(item)) {
+      setWritingSuggestion(result);
+      return;
+    }
+    applyWritingSuggestion(result);
+    setWritingMessage("Draft added. Save when ready.");
+  }, [writingTask, draft.sections]);
 
   const setSections = (sections: WorkingCvSection[]) => setDraft((current) => ({ ...current, sections }));
   const updateSection = (sectionId: string, update: (section: WorkingCvSection) => WorkingCvSection) => {
@@ -351,7 +355,7 @@ export function WorkingCvEditor({
 
   const persistDraft = async (): Promise<WorkingCvRecord> => {
     const saved = provisional ? await window.aaaat.documentDomain.createWorkingCv({
-      title: draft.title, language: draft.language, candidatureId: draft.candidatureId,
+      id: draft.id, title: draft.title, language: draft.language, candidatureId: draft.candidatureId,
       source: draft.sourceTemplateId ? { kind: "template", templateId: draft.sourceTemplateId } : { kind: "blank" },
       content: { sections: draft.sections, pdfMetadata: draft.pdfMetadata, parserSummary: draft.parserSummary },
     }) : await window.aaaat.documentDomain.updateWorkingCv({
@@ -522,7 +526,9 @@ export function WorkingCvEditor({
   };
 
   const askAiToWrite = (item: WorkingCvItem, field: CvWritingField) => {
-    if (writingActive) return;
+    if (writingActive || !documentAi.allowed) return;
+    writingSnapshot.current = { itemId: item.id, field, item: JSON.stringify(item), value: String(item.content[field] ?? "") };
+    setWritingSuggestion(null);
     setError(null);
     setWritingMessage(null);
     const label = field === "title" ? "Title" : field === "subtitle" ? "Subtitle" : "Description";
@@ -577,6 +583,8 @@ export function WorkingCvEditor({
   return (
     <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
       <PageToolbar>
+        {draft.candidatureId ? <button type="button" disabled={documentAi.busy} aria-pressed={documentAi.allowed} aria-label="Allow AI for this application's documents" title="AI may use this application's documents" onClick={() => void documentAi.toggle()}>👁</button> : null}
+        {writingSuggestion ? <><button type="button" className="document-draft-trigger" popoverTarget="cv-writing-preview">Draft ready</button><div id="cv-writing-preview" className="document-draft-preview" popover="auto"><header><strong>Draft</strong><button type="button" onClick={() => applyWritingSuggestion(writingSuggestion)} disabled={!draft.sections.some(section => section.items.some(item => item.id === writingSuggestion.itemId))}>Use</button><button type="button" onClick={() => setWritingSuggestion(null)}>Dismiss</button></header><p>{writingSuggestion.content}</p></div></> : null}
         <button type="button" disabled={busy} onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}>{provisional ? "Cancel" : "Close"}</button>
         <button type="button" disabled={(!dirty && !provisional) || busy} onClick={() => void save()}>Save</button>
         <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>{busy ? "Creating…" : "PDF"}</button>
@@ -710,10 +718,11 @@ export function WorkingCvEditor({
                                         <button
                                           type="button"
                                           className="working-cv-link-button"
-                                          disabled={writingActive}
+                                          disabled={writingActive || !documentAi.allowed}
+                                          aria-label="Write title with AI" title="Write title with AI"
                                           onClick={() => askAiToWrite(item, "title")}
                                         >
-                                          {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "title" ? "AI working…" : "Write with AI"}
+                                          {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "title" ? "…" : "✨"}
                                         </button>
                                       </div>
                                       <input id={`cv-${item.id}-title`} value={item.content.title} onChange={(event) => updateItemContent(section.id, item.id, { title: event.target.value })} />
@@ -725,10 +734,11 @@ export function WorkingCvEditor({
                                           <button
                                             type="button"
                                             className="working-cv-link-button"
-                                            disabled={writingActive}
+                                            disabled={writingActive || !documentAi.allowed}
+                                            aria-label="Write subtitle with AI" title="Write subtitle with AI"
                                             onClick={() => askAiToWrite(item, "subtitle")}
                                           >
-                                            {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "subtitle" ? "AI working…" : "Write with AI"}
+                                            {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "subtitle" ? "…" : "✨"}
                                           </button>
                                         </div>
                                         <input id={`cv-${item.id}-subtitle`} value={item.content.subtitle ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { subtitle: event.target.value || undefined })} />
@@ -741,10 +751,11 @@ export function WorkingCvEditor({
                                           <button
                                             type="button"
                                             className="working-cv-link-button"
-                                            disabled={writingActive}
+                                            disabled={writingActive || !documentAi.allowed}
+                                            aria-label="Write description with AI" title="Write description with AI"
                                             onClick={() => askAiToWrite(item, "description")}
                                           >
-                                            {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "description" ? "AI working…" : "Write with AI"}
+                                            {writingActive && writingTarget?.itemId === item.id && writingTarget.field === "description" ? "…" : "✨"}
                                           </button>
                                         </div>
                                         <textarea id={`cv-${item.id}-description`} rows={5} value={item.content.description ?? ""} onChange={(event) => updateItemContent(section.id, item.id, { description: event.target.value || undefined })} />
@@ -1036,6 +1047,8 @@ function LetterEditor({
   const documentAi = useApplicationDocumentAccess(document.candidatureId);
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
+  const draftingSnapshot = useRef<string | null>(null);
+  const [draftSuggestion, setDraftSuggestion] = useState<CoverLetterDraft | null>(null);
   const draftingTaskKey = `document:cover-letter-draft:${document.id}`;
   const draftingTask = useAiTask<CoverLetterDraft>(draftingTaskKey);
   const handledDraftResult = useRef<CoverLetterDraft | null>(null);
@@ -1064,22 +1077,26 @@ function LetterEditor({
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
 
+  const applyDraftSuggestion = (suggestion: CoverLetterDraft) => {
+    setDraft(current => ({ ...current, recipient: current.recipient || suggestion.recipient || undefined,
+      subject: current.subject || suggestion.subject || undefined, closing: current.closing || suggestion.closing || undefined }));
+    setBody(suggestion.bodyParagraphs.join("\n\n"));
+    setDraftSuggestion(null);
+  };
   useEffect(() => {
     const suggestion = draftingTask?.status === "completed" ? draftingTask.result : undefined;
     if (!suggestion || handledDraftResult.current === suggestion) return;
     handledDraftResult.current = suggestion;
-    setDraft((current) => ({
-      ...current,
-      recipient: suggestion.recipient || undefined,
-      subject: suggestion.subject || undefined,
-      closing: suggestion.closing || undefined,
-    }));
-    setBody(suggestion.bodyParagraphs.join("\n\n"));
-  }, [draftingTask]);
+    if (draftingSnapshot.current === null || draftingSnapshot.current.trim() || body !== draftingSnapshot.current) {
+      setDraftSuggestion(suggestion);
+      return;
+    }
+    applyDraftSuggestion(suggestion);
+  }, [draftingTask, body]);
 
   const persistDraft = async (): Promise<CoverLetterRecord> => {
     const saved = provisional ? await window.aaaat.documentDomain.createLetter({
-      candidatureId: draft.candidatureId, title: draft.title, language: draft.language,
+      id: draft.id, candidatureId: draft.candidatureId, title: draft.title, language: draft.language,
       sender: draft.sender, recipient: draft.recipient, subject: draft.subject, bodyParagraphs, closing: draft.closing,
     }) : await window.aaaat.documentDomain.updateLetter({
       id: draft.id,
@@ -1158,7 +1175,9 @@ function LetterEditor({
   };
 
   const askAi = () => {
-    if (draftingActive) return;
+    if (draftingActive || !documentAi.allowed) return;
+    draftingSnapshot.current = body;
+    setDraftSuggestion(null);
     setError(null);
     startAiTask<CoverLetterDraft>(
       draftingTaskKey,
@@ -1218,8 +1237,9 @@ function LetterEditor({
     <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
       <PageToolbar>
         <button type="button" disabled={busy} onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}>{provisional ? "Cancel" : "Close"}</button>
-        {draft.candidatureId ? <button type="button" aria-pressed={documentAi.allowed} aria-label="Allow AI for this application's documents" title="AI may use this application's documents" onClick={() => void documentAi.toggle()}>👁</button> : null}
+        {draft.candidatureId ? <button type="button" disabled={documentAi.busy} aria-pressed={documentAi.allowed} aria-label="Allow AI for this application's documents" title="AI may use this application's documents" onClick={() => void documentAi.toggle()}>👁</button> : null}
         <button type="button" disabled={busy || draftingActive || !documentAi.allowed} title="Draft with AI using AI-allowed My information, application details and Sources" onClick={askAi}>{draftingActive ? "Drafting…" : "Draft"}</button>
+        {draftSuggestion ? <><button type="button" className="document-draft-trigger" popoverTarget="letter-draft-preview">Draft ready</button><div id="letter-draft-preview" className="document-draft-preview" popover="auto"><header><strong>Draft</strong><button type="button" onClick={() => applyDraftSuggestion(draftSuggestion)}>Use</button><button type="button" onClick={() => setDraftSuggestion(null)}>Dismiss</button></header>{draftSuggestion.bodyParagraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></> : null}
         <button type="button" className="letter-context-trigger" popoverTarget="letter-ai-context" title="AI context" onClick={() => void inspectAiContext()}>Context</button>
         <div id="letter-ai-context" className="letter-ai-context" popover="auto">
           {aiContext ? <>
@@ -1232,7 +1252,7 @@ function LetterEditor({
         <button type="button" disabled={busy} onClick={() => void renderLetter()}>{busy ? "Creating…" : "PDF"}</button>
       </PageToolbar>
 
-      {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
+      {error || documentAi.error ? <p className="error-message document-editor-message" role="alert">{error ?? documentAi.error}</p> : null}
       {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
 
       <article className="document-sheet letter-document" aria-label="Cover letter page">

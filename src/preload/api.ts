@@ -56,6 +56,7 @@ import {
   profileSnapshotSchema,
   recentWorkspacePathSchema,
   systemInfoSchema,
+  candidatureTagCreateSchema,
   tagInputSchema,
   tagListSchema,
   tagRecordSchema,
@@ -184,6 +185,8 @@ export function createDesktopApi(
     listTags: async () => tagListSchema.parse(await invoke(channels.candidatureListTags)),
     createTag: async (input: Parameters<DesktopApi["candidatures"]["createTag"]>[0]) =>
       tagRecordSchema.parse(await invoke(channels.candidatureCreateTag, tagInputSchema.parse(input))),
+    createAndAttachTag: async (input: Parameters<DesktopApi["candidatures"]["createAndAttachTag"]>[0]) =>
+      tagRecordSchema.parse(await invoke(channels.candidatureCreateAndAttachTag, candidatureTagCreateSchema.parse(input))),
     updateTag: async (update: Parameters<DesktopApi["candidatures"]["updateTag"]>[0]) =>
       tagRecordSchema.parse(await invoke(channels.candidatureUpdateTag, tagUpdateSchema.parse(update))),
     setTags: async (selection: Parameters<DesktopApi["candidatures"]["setTags"]>[0]) =>

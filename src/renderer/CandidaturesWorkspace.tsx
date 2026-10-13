@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -16,11 +16,11 @@ import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
 import { CandidatureInferencePanel } from "./CandidatureInferencePanel";
-import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
-import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
+import { CandidatureOpportunityResearchAccessPanel, type ApplicationAiDrafts } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
 import { PageToolbar } from "./PageToolbar";
+import { ToolbarVisible } from "./toolbar-context";
 import {
   candidatureCardRecognitionProjection,
   candidatureSearchMatchCue,
@@ -209,18 +209,21 @@ function ExpandedCorpusRecognition({
 
 export function CandidaturesWorkspace({
   initialSelection,
+  refreshRevision = 0,
   onInitialSelectionCleared,
   onDirtyChange,
   onTagGlossaryChange,
   onTagContextChange,
 }: {
   readonly initialSelection?: InitialCandidatureSelection;
+  readonly refreshRevision?: number;
   readonly onInitialSelectionCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
   readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
   const { documentHandoff, openDocumentFromCandidature, openDocumentDraft, openSettingsFor } = useContextualHandoffs();
+  const visible = useContext(ToolbarVisible);
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
@@ -236,6 +239,7 @@ export function CandidaturesWorkspace({
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
   const [preselectedId, setPreselectedId] = useState<string | null>(null);
   const [tagFocus, setTagFocus] = useState<{ candidatureId: string; tagId: string } | null>(null);
   const [query, setQuery] = useState("");
@@ -246,6 +250,7 @@ export function CandidaturesWorkspace({
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState("");
   const [sourceDirty, setSourceDirty] = useState(false);
+  const [sourceRefreshRevision, setSourceRefreshRevision] = useState(0);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
   const dirtyValueEditors = useRef(new Set<string>());
   const fieldEditRevisions = useRef(new Map<string, number>());
@@ -256,6 +261,7 @@ export function CandidaturesWorkspace({
   const [fieldAiFeedback, setFieldAiFeedback] = useState<FieldAiRequestFeedback | null>(null);
   const [openFieldOptionsId, setOpenFieldOptionsId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
+  const [tagInferenceOpen, setTagInferenceOpen] = useState(false);
   const [bulkAiFeedback, setBulkAiFeedback] = useState<AiRequestFeedback | null>(null);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
@@ -263,6 +269,7 @@ export function CandidaturesWorkspace({
   const [tagAliasesText, setTagAliasesText] = useState("");
   const [activityOpen, setActivityOpen] = useState(false);
   const [externalTaskOpen, setExternalTaskOpen] = useState(false);
+  const [externalTaskDrafts, setExternalTaskDrafts] = useState<Record<string, ApplicationAiDrafts>>({});
   const externalTaskDialog = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -274,6 +281,7 @@ export function CandidaturesWorkspace({
   }, [externalTaskOpen]);
 
   const initialSelectionId = initialSelection?.candidatureId;
+  const openedSelection = useRef<string | undefined>(undefined);
   const initialTask = initialSelection?.task;
   const selected = records.find((record) => record.id === selectedId) ?? null;
   const persistedTag = editingTagId ? tags.find((tag) => tag.id === editingTagId) ?? null : null;
@@ -290,11 +298,13 @@ export function CandidaturesWorkspace({
   );
   const taskContextDirty = fieldDefinitionsDirty || fieldDefinitionDraftDirty || valueEditorDirty.size > 0;
   const hasUnsavedChanges = sourceDirty || tagEditorDirty || taskContextDirty;
+  const hasEditedAiRequests = Object.values(externalTaskDrafts).some(draft =>
+    Object.values(draft.requests).some(request => request.edited));
 
   useEffect(() => {
-    onDirtyChange?.(hasUnsavedChanges);
+    onDirtyChange?.(hasUnsavedChanges || hasEditedAiRequests);
     return () => onDirtyChange?.(false);
-  }, [hasUnsavedChanges, onDirtyChange]);
+  }, [hasUnsavedChanges, hasEditedAiRequests, onDirtyChange]);
 
   const resetEditorDrafts = useCallback((record?: CandidatureRecord) => {
     setSelectedTagIds(record?.tagIds ?? []);
@@ -303,7 +313,7 @@ export function CandidaturesWorkspace({
     setTagQuery(""); setSourceDirty(false); setValueEditorDirty(new Set());
     setActiveFieldEditorId(null);
     setFieldDefinitionsDirty(false); setFieldDefinitionDraft(null); setDiscoveryFieldId(null); setFieldAiFeedback(null);
-    setOpenFieldOptionsId(null); setBulkInferenceOpen(false); setBulkAiFeedback(null);
+    setOpenFieldOptionsId(null); setBulkInferenceOpen(false); setTagInferenceOpen(false); setBulkAiFeedback(null);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
     setTagAliasesText(""); setActivityOpen(false); setExternalTaskOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
@@ -311,6 +321,7 @@ export function CandidaturesWorkspace({
   }, []);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
+    selectedIdRef.current = record.id;
     setSelectedId(record.id); resetEditorDrafts(record); setError(null);
   }, [resetEditorDrafts]);
 
@@ -350,14 +361,16 @@ export function CandidaturesWorkspace({
       const requested = initialSelectionId
         ? nextRecords.find((record) => record.id === initialSelectionId)
         : undefined;
-      if (requested) {
+      if (!initialSelectionId) openedSelection.current = undefined;
+      if (requested && openedSelection.current !== requested.id) {
+        openedSelection.current = requested.id;
         hydrate(requested);
         setBulkInferenceOpen(initialTask === "ai");
         setMode("selected");
       }
     }).catch(() => { if (active) setError("AAAAT could not load applications."); });
     return () => { active = false; };
-  }, [hydrate, initialSelectionId, initialTask]);
+  }, [hydrate, initialSelectionId, initialTask, refreshRevision]);
 
   useEffect(() => {
     if (documentHandoff !== null) return;
@@ -367,7 +380,7 @@ export function CandidaturesWorkspace({
   }, [documentHandoff, refreshCollections]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || !visible) return;
     const readAccess = window.aaaat.documentDomain.externalApplicationAccess;
     if (typeof readAccess !== "function") return;
     let active = true;
@@ -379,7 +392,7 @@ export function CandidaturesWorkspace({
         if (active) setError("AAAAT could not read document access for your external AI.");
       });
     return () => { active = false; };
-  }, [selectedId]);
+  }, [selectedId, visible]);
 
   const normalizedQuery = query.trim();
   useEffect(() => {
@@ -437,6 +450,7 @@ export function CandidaturesWorkspace({
   const returnToCorpus = () => {
     if (!confirmDiscard()) return;
     setPreselectedId(selectedId);
+    selectedIdRef.current = null;
     setMode("corpus"); setSelectedId(null); resetEditorDrafts();
     onInitialSelectionCleared?.();
   };
@@ -578,7 +592,7 @@ export function CandidaturesWorkspace({
         window.aaaat.candidatures.listFields(), window.aaaat.candidatures.list(), window.aaaat.candidatures.listTags(),
       ]);
       setFields(nextFields); setRecords(nextRecords); setTags(nextTags);
-      const refreshed = nextRecords.find((record) => record.id === selectedId);
+      const refreshed = nextRecords.find((record) => record.id === selectedIdRef.current);
       if (refreshed) setSelectedTagIds(refreshed.tagIds);
     } catch { setError("AAAAT could not refresh AI-filled application information."); }
   };
@@ -605,18 +619,18 @@ export function CandidaturesWorkspace({
   };
   const saveTag = async () => {
     const input = { ...tagEditorDraft, name: tagEditorDraft.name.trim(), definition: tagEditorDraft.definition.trim(), aliases: aliasesFromText(tagAliasesText) };
-    if (!input.name || !input.definition) return;
+    if (!input.name || !input.definition || !selected) return;
     try {
       const isNew = editingTagId === null;
-      const saved = editingTagId ? await window.aaaat.candidatures.updateTag({ id: editingTagId, ...input }) : await window.aaaat.candidatures.createTag(input);
+      const saved = editingTagId ? await window.aaaat.candidatures.updateTag({ id: editingTagId, ...input }) : await window.aaaat.candidatures.createAndAttachTag({ candidatureId: selected.id, tag: input });
       setTags((current) => {
         const found = current.some((tag) => tag.id === saved.id);
         return (found ? current.map((tag) => tag.id === saved.id ? saved : tag) : [...current, saved]).sort((left, right) => left.name.localeCompare(right.name));
       });
-      if (isNew && selected) await persistTagIds([...new Set([...selectedTagIds, saved.id])]);
+      if (isNew) await refreshInformation();
       setEditingTagId(saved.id); setTagEditorDraft(tagDraft(saved)); setTagAliasesText(saved.aliases.join(", ")); setSelectedTagId(saved.id); setTagQuery("");
       onTagGlossaryChange?.();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "AAAAT could not save this Tag."); }
+    } catch (reason) { setError(readableDocumentError(reason, "AAAAT could not save this Tag.")); }
   };
 
   const handleSourcesChanged = useCallback(async () => {
@@ -896,12 +910,12 @@ export function CandidaturesWorkspace({
                       {recordTags.length > 0 ? (
                         <span className="candidature-collapsed-tags" aria-label="Related Tags">
                           {recordTags.map((tag) => (
-                            <button type="button" className={preselected ? "candidature-expanded-tag" : "candidature-collapsed-tag"} key={tag.id}
-                              title={`${tag.name}: ${tag.definition}`}
+                            <button type="button" className="candidature-collapsed-tag" key={tag.id}
+                              title={tag.name}
                               onFocus={() => setTagFocus({ candidatureId: record.id, tagId: tag.id })}
                               onMouseEnter={() => setTagFocus({ candidatureId: record.id, tagId: tag.id })}
                               onClick={() => setTagFocus({ candidatureId: record.id, tagId: tag.id })}>
-                              {preselected ? <><strong>{tag.name}</strong><span>{tag.definition}</span></> : tag.name}
+                              {tag.name}
                             </button>
                           ))}
                         </span>
@@ -1119,7 +1133,7 @@ export function CandidaturesWorkspace({
                         </button>
                       </div>
                       <label className="candidature-prominence-control">
-                        Prominence
+                        Card prominence
                         <select
                           aria-label={`${field.definition.label} card size`}
                           value={field.preferences.presentationSize}
@@ -1289,6 +1303,9 @@ export function CandidaturesWorkspace({
           key={`external-ai-${selected.id}`}
           candidatureId={selected.id}
           contextDirty={taskContextDirty}
+          draft={externalTaskDrafts[selected.id] ?? { intent: null, requests: {} }}
+          onDraftChange={draft => setExternalTaskDrafts(current => ({ ...current, [selected.id]: draft }))}
+          onSourceSaved={async () => { setSourceRefreshRevision(current => current + 1); await refreshInformation(); }}
         />
       </dialog>
 
@@ -1340,6 +1357,12 @@ export function CandidaturesWorkspace({
           <div>
             <h3>Tags</h3>
           </div>
+          <button type="button" className="candidature-inline-control" aria-label="Suggest Tags with AI" title="Suggest Tags with AI" onClick={() => {
+            const id = `candidature-inference:${selected.id}:tags`;
+            const current = getAiTask(id);
+            if (current && current.status !== "queued" && current.status !== "working") clearAiTask(id);
+            setTagInferenceOpen(true);
+          }}>✨</button>
         </div>
         <div className="tag-chip-list" aria-label="Attached Tags">
           {attachedTags.length === 0 ? (
@@ -1712,9 +1735,9 @@ export function CandidaturesWorkspace({
       <details className="candidature-more">
         <summary>Sources & history</summary>
         <div className="candidature-more-content">
-          <CandidatureOfferPanel candidatureId={selected.id} />
             <CandidatureSourcesPanel
               candidatureId={selected.id}
+              refreshRevision={sourceRefreshRevision}
               onSourcesChanged={() => void handleSourcesChanged()}
               onDirtyChange={setSourceDirty}
             />
@@ -1746,6 +1769,7 @@ export function CandidaturesWorkspace({
           onChanged={() => void refreshInformation()}
         />
       ) : null}
+      {tagInferenceOpen ? <CandidatureInferencePanel candidature={selected} fields={fields} targetFieldIds={[]} taskId={`candidature-inference:${selected.id}:tags`} title="Suggest Tags" includeTagInference onChanged={() => void refreshInformation()} /> : null}
       {bulkInferenceOpen ? (
         <CandidatureInferencePanel
           candidature={selected}

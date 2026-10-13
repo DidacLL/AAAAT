@@ -180,7 +180,9 @@ meaningful task
 
 Carriers may include MCP, commands, APIs, skills/plugins, browser/desktop automation, files, clipboard or other demonstrated mechanisms. The carrier does not create product meaning.
 
-`Send to my AI` is the ordinary user-facing task interaction established by Issue #333: editable instruction, visible bounded context, reusable task text where useful, Copy/Paste and file/connected alternatives.
+Application-scoped external AI work uses one fully editable request containing its instructions and application context. Opening the editor prepares local material and does not enable external access. Copy and Export use the exact visible request, without rebuilding or appending hidden context. Connected access is an explicit choice for future reads of that request through AAAAT's connection; turning it off cannot recall material already read or copied. Local request edits remain available when the editor closes or ordinary navigation changes.
+
+Interview requests remain secondary and application-linked. Their content is user-editable throughout; AAAAT does not own or endorse advice from an external model. Saving a returned text is an explicit normal Source mutation on that application. Connected results carry the prepared request reference so a late result cannot be retained on a different selected application.
 
 An internal selected-object state used by a particular carrier is not automatically a product defect and is not automatically product authority. Judge it by whether it preserves the user-visible task context, privacy, local ownership and bounded mutation authority. Transport-only state should remain internal and narrow rather than becoming a required workflow.
 
