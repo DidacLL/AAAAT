@@ -1,6 +1,7 @@
-<p align="center"><img src="src/renderer/assets/aaaat-logo-dark.png" alt="AAAAT robot" width="88"></p>
+<p align="center"><img width="360" alt="aaaat-logo-title" src="https://github.com/user-attachments/assets/e0b83396-f2f1-4384-bcfb-be0d517b1581" />
+</p>
 
-# AAAAT
+# Agent-Agnostic Auto Application Tracker
 
 ### Less retyping. More ready-to-send applications.
 
@@ -10,7 +11,8 @@ Keep an offer, find it when the recruiter calls, and turn your own career inform
 
 **Current version: `2.0.0-alpha.0`.** This repository contains the v2 preview. There are no published downloadable releases yet; [Releases](https://github.com/DidacLL/AAAAT/releases) is where future packages will appear. The current preview can be [run from source](#run-the-current-preview).
 
-> **[prompt: hero illustration]** Generate an original wide 3:1 editorial illustration for AAAAT, a private job-application desktop tool. A kind, capable, visibly repaired little robot at a worn field terminal sorts rough paper notes into a clean CV and letter. Warm cream paper, subdued sage metal, charcoal structure, tiny rust accents; restrained mid-century retrofuturist workshop mood. Crisp, calm and professional, with generous clear space for a heading. No text, logos, fake UI, neon, copyrighted characters or cloud imagery.
+<p align="center"><img width="2172" height="724" alt="image" src="https://github.com/user-attachments/assets/d609b279-8ee9-451c-95be-5b4cedfdc5af" /></p>
+
 
 ## Make the useful things easy
 
@@ -59,7 +61,7 @@ Small field controls keep the useful choices close:
 
 Tag names stay compact on the cards. Hover, focus or select one to read its shared definition in the left monitor. Improving that definition improves it everywhere the Tag is used.
 
-> **[prompt: application-cover illustration]** Generate an original 16:9 editorial illustration of three cream-paper application covers on a restrained charcoal-and-sage field terminal. Use readable sans-serif typographic composition with realistic fictional company, role, location and compensation text. Let content wrap naturally with varied emphasis, not equal field boxes; show one cover twice as wide and twice as tall, with neighbouring covers displaced. Include compact Tag names and a small separate left-side definition monitor. No duplicate definitions inside cards, serif type, saturated colours or invented controls. Treat this as a conceptual illustration, not a screenshot of the shipped application.
+<p align="center"><img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/55d7b25a-b9fe-4400-91c4-5045973738ba" /></p>
 
 ### 4. Write once, reuse thoughtfully
 
@@ -82,8 +84,7 @@ Local PDF generation needs `pdflatex`. **Settings → Documents** shows readines
 Ordinary navigation keeps unfinished work available without silently saving it. Use **Save** to commit an edit and **Cancel** to discard it.
 
 Use **Settings → Backup** to make a portable workspace backup. Restore into an empty folder. AI connection configuration has its own import/export in **Settings → AI**.
-
-> **[prompt: document-reuse illustration]** Generate an original 16:9 explanatory illustration for AAAAT. Arrange a small stack of reusable career notes, two distinct editable documents, and a clean CV-plus-letter PDF as a simple visual sequence. Cream paper, charcoal lines, subdued sage framing and restrained copper accents; readable sans-serif headings only if needed. Convey that reusable information, editable documents and generated output are separate user-owned objects. No funnel, scoring, cloud upload, automatic job submission, serif type or fake product screenshot.
+<p align="center"><img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/e29a383a-5872-4104-953f-0ef4288e39da" /></p>
 
 ---
 
