@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { app } from "electron";
@@ -61,7 +61,7 @@ export async function optionalToolsStatus(): Promise<OptionalToolsStatus> {
     totalBytes,
     localAiReady: installedGraniteFiles() !== null,
     localAiSupported: Boolean(llamaCpuArchives[`${process.platform}-${process.arch}`]),
-    pdfReady: installedPdfLatexExecutable() !== "pdflatex",
+    pdfReady: installedPdfLatexExecutable() !== "pdflatex" && !existsSync(path.join(root, "pdf-install-pending")),
     pdfLabel: process.arch === "arm64" && process.platform !== "win32" ? process.platform === "darwin" ? "BasicTeX" : "TeX Live" : "MiKTeX",
     error,
   };
@@ -142,7 +142,7 @@ async function installMacPdf(signal: AbortSignal): Promise<void> {
     const installer = await obtain(basicTexMac, "Downloading BasicTeX…", signal);
     message = "Installing BasicTeX · approve the macOS request…";
     const script = path.join(root, "install-basictex.applescript");
-    await writeFile(script, `on run argv\n do shell script "/usr/sbin/installer -pkg " & quoted form of item 1 of argv & " -target / && /Library/TeX/texbin/tlmgr install ${texLivePackages}" with administrator privileges\nend run\n`);
+    await writeFile(script, `on run argv\n do shell script "/usr/sbin/installer -pkg " & quoted form of item 1 of argv & " -target / && /Library/TeX/texbin/tlmgr update --self && /Library/TeX/texbin/tlmgr install ${texLivePackages}" with administrator privileges\nend run\n`);
     await run("osascript", [script, installer]);
   } else {
     const image = await obtain(miktexMac, "Downloading MiKTeX…", signal);
@@ -159,6 +159,10 @@ async function installMacPdf(signal: AbortSignal): Promise<void> {
       await run(setup, ["--shared=no", "finish"]);
       const initexmf = await findExecutable(destination, "initexmf");
       await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
+      message = "Preparing MiKTeX packages…";
+      const miktex = await findExecutable(destination, "miktex");
+      await run(miktex, ["packages", "update-package-database"]);
+      await run(miktex, ["packages", "update"]);
     } finally { await run("hdiutil", ["detach", mount]); }
   }
 }
@@ -208,13 +212,16 @@ export async function installOptionalTools(choice: OptionalToolsChoice): Promise
     await mkdir(installedToolsDirectory(), { recursive: true });
     if (choice.localAi) await installLocalAi(controller.signal);
     controller.signal.throwIfAborted();
-    if (choice.pdf && installedPdfLatexExecutable() === "pdflatex") {
+    const pendingPdf = path.join(installedToolsDirectory(), "pdf-install-pending");
+    if (choice.pdf && (installedPdfLatexExecutable() === "pdflatex" || existsSync(pendingPdf))) {
+      await writeFile(pendingPdf, "PDF setup is not finished.\n");
       canCancel = false;
       if (process.platform === "win32") await installWindowsPdf(controller.signal);
       else if (process.platform === "darwin") await installMacPdf(controller.signal);
       else if (process.platform === "linux") await installLinuxPdf();
       else throw new Error("PDF setup is not available for this operating system.");
       await run(installedPdfLatexExecutable(), ["--version"], 10_000);
+      await unlink(pendingPdf);
     }
     message = "Selected tools are ready.";
   } catch (reason) {
