@@ -32,7 +32,7 @@ import {
   type CandidatureRecognitionCue,
   type RecencyFilter,
 } from "./candidature-projections";
-import { clearAiTask, getAiTask } from "./ai-task-store";
+import { clearAiTask, getAiTask, useAiTask } from "./ai-task-store";
 import { candidatureInferenceContext } from "./candidature-inference-context";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidatures.css";
@@ -240,6 +240,10 @@ export function CandidaturesWorkspace({
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const tagTask = useAiTask(`candidature-inference:${selectedId ?? ""}:tags`);
+  const bulkTask = useAiTask(`candidature-inference:${selectedId ?? ""}:missing`);
+  const bulkInferenceActive = bulkTask?.status === "queued" || bulkTask?.status === "working";
+  const tagInferenceActive = bulkInferenceActive || tagTask?.status === "queued" || tagTask?.status === "working";
   const selectedIdRef = useRef<string | null>(null);
   const [preselectedId, setPreselectedId] = useState<string | null>(null);
   const [tagFocus, setTagFocus] = useState<{ candidatureId: string; tagId: string } | null>(null);
@@ -1001,7 +1005,6 @@ export function CandidaturesWorkspace({
         ),
       )
     : false;
-  const selectedTag = attachedTags.find((tag) => tag.id === selectedTagId) ?? null;
   const applicationWorkingCvs = collections.workingCvs.filter(
     (item) => item.candidatureId === selected.id,
   );
@@ -1292,10 +1295,11 @@ export function CandidaturesWorkspace({
       <PageToolbar>
         <button type="button" aria-label="Return to applications" title="Applications" onClick={returnToCorpus}>←</button>
         {enabledMissingFields.length > 0 ? (
-          <button type="button" title="Fill empty fields with AI" onClick={() => void requestBulkInference()}>
-            Fill
+          <button type="button" title="Fill empty fields with AI" disabled={bulkInferenceActive} onClick={() => void requestBulkInference()}>
+            {bulkInferenceActive ? "Filling…" : "Fill"}
           </button>
         ) : null}
+        <button type="button" aria-label="Create application PDF" title={selectedPacketCvId && selectedPacketLetterId ? "PDF from the selected CV and letter" : "Add a CV and letter first"} disabled={packetBusy || !selectedPacketCvId || !selectedPacketLetterId || !selectedPacketBlueprintId} onClick={() => void createPacket()}>{packetBusy ? "Creating…" : "PDF"}</button>
         <button type="button" className="application-actions-trigger" aria-label="Application actions" title="More actions" popoverTarget="application-actions">⋯</button>
         <div id="application-actions" className="application-actions-menu" popover="auto">
           <button type="button" popoverTarget="application-actions" popoverTargetAction="hide" onClick={() => setExternalTaskOpen(true)}>AI task</button>
@@ -1384,7 +1388,7 @@ export function CandidaturesWorkspace({
           <div>
             <h3>Tags</h3>
           </div>
-          <button type="button" className="candidature-inline-control" aria-label="Suggest Tags with AI" title="Suggest Tags with AI" onClick={() => {
+          <button type="button" className="candidature-inline-control" aria-label="Suggest Tags with AI" title={tagInferenceActive ? "Suggesting Tags…" : "Suggest Tags with AI"} disabled={tagInferenceActive} onClick={() => {
             const bulkId = `candidature-inference:${selected.id}:missing`;
             const bulk = getAiTask<{ tagInference?: PartialTagInferenceResult }>(bulkId);
             const suggestions = bulk?.status === "completed" ? bulk.result?.tagInference : undefined;
@@ -1396,13 +1400,20 @@ export function CandidaturesWorkspace({
               return;
             }
             const id = `candidature-inference:${selected.id}:tags`;
-            const current = getAiTask(id);
+            const current = getAiTask<{ tagInference?: PartialTagInferenceResult }>(id);
+            const pending = current?.status === "completed" ? current.result?.tagInference : undefined;
+            const reviewed = tagProposalReviews[id]?.handled ?? [];
+            if (pending?.newTags.some((_, index) => !reviewed.includes(`new:${index}`))
+              || pending?.existingTags.some(tag => !selected.tagIds.includes(tag.tagId) && !reviewed.includes(`existing:${tag.tagId}`))) {
+              setTagInferenceOpen(true);
+              return;
+            }
             if (current && current.status !== "queued" && current.status !== "working") {
               if (!resetTagReview(id)) return;
               clearAiTask(id);
             }
             setTagInferenceOpen(true);
-          }}>✨</button>
+          }}>{tagInferenceActive ? "…" : "✨"}</button>
         </div>
         <div className="tag-chip-list" aria-label="Attached Tags">
           {attachedTags.length === 0 ? (
@@ -1417,6 +1428,7 @@ export function CandidaturesWorkspace({
                 >
                   {tag.name}
                 </button>
+                {tag.id === selectedTagId ? <button type="button" className="tag-chip-remove" aria-label={`Edit ${tag.name} Tag`} title="Edit shared Tag" onClick={() => editTag(tag)}>✎</button> : null}
                 <button
                   type="button"
                   className="tag-chip-remove"
@@ -1469,25 +1481,6 @@ export function CandidaturesWorkspace({
             </button>
           ) : null}
         </div>
-        {selectedTag ? (
-          <article className="selected-tag-definition">
-            <strong>{selectedTag.name}</strong>
-            <p>{selectedTag.definition}</p>
-            {selectedTag.aliases.length > 0 ? (
-              <p><strong>Aliases:</strong> {selectedTag.aliases.join(", ")}</p>
-            ) : null}
-            {selectedTag.notes ? (
-              <p><strong>Notes:</strong> {selectedTag.notes}</p>
-            ) : null}
-            <button
-              type="button"
-              className="compact-secondary"
-              onClick={() => editTag(selectedTag)}
-            >
-              Edit shared Tag
-            </button>
-          </article>
-        ) : null}
         {tagEditorOpen ? (
           <form
             className="tag-editor"
@@ -1590,24 +1583,17 @@ export function CandidaturesWorkspace({
       <section className="section-surface application-material-workbench" aria-label="Application documents">
         <div className="candidature-editor-heading application-material-heading">
           <div>
-            <p className="eyebrow">Application documents</p>
             <h3>CV + cover letter</h3>
-            <p>Edit the two source documents separately. Create one application PDF when both are ready.</p>
           </div>
-          <label className="application-document-ai-access">
+          <label className="application-document-ai-access" title="AI may use this application's documents">
             <input
               type="checkbox"
+              aria-label="AI may use this application's documents"
               checked={documentExternalAccessAllowed}
               disabled={documentExternalAccessBusy || selected.archived}
               onChange={(event) => void updateDocumentExternalAccess(event.target.checked)}
             />
-            <span>
-              <strong>Work on these documents with my AI</strong>
-              <small>
-                This selects this application for external CV, cover-letter and rendering actions.
-                Application-information and interview access are separate.
-              </small>
-            </span>
+            <span>AI access</span>
           </label>
         </div>
 
@@ -1712,40 +1698,12 @@ export function CandidaturesWorkspace({
           </article>
         </div>
 
-        <div className="application-output-bar">
-          <div>
-            <span className="item-kind">Application PDF</span>
-            <strong>One file from the current CV and cover letter</strong>
-            <small>The editable source documents stay separate.</small>
-          </div>
-          {selectedPacketCvId && selectedPacketLetterId && selectedPacketBlueprintId ? (
-            <div className="application-output-actions">
-              {packetBlueprints.length > 1 ? (
-                <label>
-                  PDF style
-                  <select
-                    value={selectedPacketBlueprintId}
-                    onChange={(event) => setPacketBlueprintId(event.target.value)}
-                  >
-                    {packetBlueprints.map((blueprint) => (
-                      <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <button
-                type="button"
-                className="compact-primary"
-                disabled={packetBusy}
-                onClick={() => void createPacket()}
-              >
-                {packetBusy ? "Creating PDF…" : "Create application PDF"}
-              </button>
-            </div>
-          ) : (
-            <small>Add both a CV and a cover letter to create the combined PDF.</small>
-          )}
-        </div>
+        {packetBlueprints.length > 1 ? <label className="application-document-choice">
+          PDF style
+          <select value={selectedPacketBlueprintId} onChange={event => setPacketBlueprintId(event.target.value)}>
+            {packetBlueprints.map(blueprint => <option key={blueprint.id} value={blueprint.id}>{blueprint.name}</option>)}
+          </select>
+        </label> : null}
 
         {(applicationRendered.length + applicationRenderedLetters.length + applicationPackets.length) > 0 ? (
           <details className="application-generated-files">

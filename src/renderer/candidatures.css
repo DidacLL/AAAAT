@@ -416,27 +416,12 @@
 }
 
 .application-document-ai-access {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-  max-width: 27rem;
-  padding: 8px 10px;
-  border: 1px solid #b9a78e;
-  border-radius: 4px;
-  background: #f7ead7;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: 0;
   color: var(--ink);
-  font-size: 12px;
-}
-
-.application-document-ai-access > span {
-  display: grid;
-  gap: 2px;
-}
-
-.application-document-ai-access small {
-  color: var(--muted-ink);
-  line-height: 1.4;
+  font-size: .9rem;
 }
 
 .application-document-pair {
@@ -447,10 +432,9 @@
 
 .application-document-source {
   display: grid;
-  align-content: space-between;
-  gap: 14px;
-  min-height: 170px;
-  padding: 14px;
+  align-content: start;
+  gap: 10px;
+  padding: 10px;
   border: 1px solid #b9a78e;
   border-radius: 4px;
   background: #fbf2e3;
@@ -476,8 +460,7 @@
 }
 
 .application-document-choice,
-.application-document-create-row label,
-.application-output-actions label {
+.application-document-create-row label {
   display: grid;
   gap: 4px;
   color: var(--muted-ink);
@@ -486,8 +469,7 @@
 }
 
 .application-document-choice select,
-.application-document-create-row select,
-.application-output-actions select {
+.application-document-create-row select {
   width: 100%;
   min-width: 0;
   padding: 7px 8px;
@@ -510,52 +492,6 @@
 .application-document-create-row-single {
   grid-template-columns: auto;
   justify-content: start;
-}
-
-.application-output-bar {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--machine-edge);
-  border-radius: 4px;
-  color: var(--machine-text);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 10%), transparent 40%),
-    var(--machine);
-}
-
-.application-output-bar > div:first-child {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.application-output-bar strong {
-  color: var(--machine-text);
-}
-
-.application-output-bar small,
-.application-output-bar .item-kind,
-.application-output-actions label {
-  color: var(--machine-muted);
-}
-
-.application-output-actions {
-  display: flex;
-  align-items: end;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.application-output-actions label {
-  min-width: 170px;
-}
-
-.application-output-actions select {
-  color: var(--ink);
 }
 
 .application-generated-files {
@@ -583,14 +519,6 @@
     grid-template-columns: 1fr;
   }
 
-  .application-output-bar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .application-output-actions {
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 560px) {

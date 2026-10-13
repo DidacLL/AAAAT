@@ -6,6 +6,7 @@ import {
   coverLetterDraftSchema,
   providerJobExtractionEnvelopeSchema,
   providerTagInferenceEnvelopeSchema,
+  providerTagInferenceResultSchema,
   type AiConnectionStatus,
   type CoverLetterDraft,
   type ProviderCvWritingContext,
@@ -91,10 +92,11 @@ const jobExtractionInstruction = [
 
 const tagInferenceInstruction = [
   "Suggest only useful reusable Tags supported by the supplied context.",
-  'Return one JSON object with existingTags and newTags arrays. Existing matches use {"tagRef":"..."}.',
+  'Return one JSON object with existingTags and newTags arrays. Each existing match is an object {"tagRef":"..."} using the exact tagRef supplied in tags. Each new Tag is an object {"name":"...","definition":"...","aliases":[]}; name and definition must be non-empty. Never return bare strings in either array. Use empty arrays when there are no suggestions.',
   "Strongly prefer a supplied Tag when its name, alias, or definition fits. Propose at most 3 new Tags only when the glossary genuinely lacks a reusable category.",
   "Do not suggest Tags for information represented by the supplied fieldTitles, including tech stack, remote work, compensation, or location when those fields exist. Do not create a Tag for every fact.",
   "Do not include reasoning or persist anything.",
+  "The tags list is a candidate glossary, not a list of matches. Do not echo it. Select an existing Tag only when the offer text or retained application information supports its meaning. A Tag definition is not evidence that the offer matches it. If none fit, return existingTags: [] and propose a supported new category when useful.",
 ].join(" ");
 
 export const AI_DEFAULT_INSTRUCTIONS: Readonly<Record<AiOperation, string>> = Object.freeze({
@@ -441,7 +443,7 @@ export function createOpenAiCompatibleProvider(
       return runStructuredOperation(fetchImpl, connection, "job_extraction", instructionFor("job_extraction"), request, providerJobExtractionEnvelopeSchema, timeout, signal);
     },
     async inferTags(connection, request, signal) {
-      return runStructuredOperation(fetchImpl, connection, "tag_inference", instructionFor("tag_inference"), request, providerTagInferenceEnvelopeSchema, timeout, signal);
+      return runStructuredOperation(fetchImpl, connection, "tag_inference", instructionFor("tag_inference"), request, providerTagInferenceResultSchema, timeout, signal);
     },
     async writeCvField(connection, context, signal) {
       return runTextOperation(
