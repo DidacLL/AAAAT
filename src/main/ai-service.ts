@@ -269,6 +269,15 @@ export function cvWritingContext(
   field: CvWritingField,
 ) {
   requireDocumentAiPermission(rootPath, workingCv.candidatureId ?? null);
+  return projectCvWritingContext(rootPath, workingCv, itemId, field);
+}
+
+function projectCvWritingContext(
+  rootPath: string,
+  workingCv: WorkingCvRecord,
+  itemId: string,
+  field: CvWritingField,
+) {
   const targetDetail = cvWritingFieldDetails[field];
   const targetLocation = workingCv.sections.flatMap((section) =>
     section.items.map((item, itemIndex) => ({ section, item, itemIndex })),
@@ -332,6 +341,17 @@ export function cvWritingContext(
     }),
     replacements,
     maxLength: targetDetail.maxLength,
+  };
+}
+
+export function previewCvWritingContext(rootPath: string, rawRequest: CvWritingRequest) {
+  const request = cvWritingRequestSchema.parse(rawRequest);
+  const retained = listDocumentCollections(rootPath).workingCvs.find(cv => cv.id === request.workingCvId);
+  const working = retained ?? (request.draft?.id === request.workingCvId ? request.draft : undefined);
+  if (!working) throw new AiServiceError("The selected CV no longer exists.");
+  return {
+    connection: getAiConnectionForOperation(rootPath, "cv_tailoring"),
+    context: projectCvWritingContext(rootPath, { ...working, sections: request.sections }, request.itemId, request.field).context,
   };
 }
 

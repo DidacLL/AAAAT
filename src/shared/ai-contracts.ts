@@ -14,6 +14,7 @@ export const aiChannels = Object.freeze({
   connectionCurrent: "aaaat:ai-connection-current",
   jobExtract: "aaaat:ai-job-extract",
   cvWrite: "aaaat:ai-cv-write",
+  cvWritingContext: "aaaat:ai-cv-writing-context",
   coverLetterDraft: "aaaat:ai-cover-letter-draft",
   coverLetterContext: "aaaat:ai-cover-letter-context",
 } as const);
@@ -203,6 +204,11 @@ export const providerCvWritingContextSchema = z
   })
   .strict();
 export type ProviderCvWritingContext = z.infer<typeof providerCvWritingContextSchema>;
+export const cvWritingContextPreviewSchema = z.object({
+  connection: optionalAiConnectionStatusSchema,
+  context: providerCvWritingContextSchema,
+}).strict();
+export type CvWritingContextPreview = z.infer<typeof cvWritingContextPreviewSchema>;
 
 export const providerCoverLetterSourceSchema = z
   .object({
@@ -247,6 +253,7 @@ export interface AiDesktopApi {
     readonly connection: () => Promise<AiConnectionStatus | null>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
     readonly writeCvField: (request: CvWritingRequest) => Promise<CvWritingResult>;
+    readonly cvWritingContext: (request: CvWritingRequest) => Promise<CvWritingContextPreview>;
     readonly draftCoverLetter: (request: CoverLetterDraftRequest) => Promise<CoverLetterDraft>;
     readonly coverLetterContext: (request: CoverLetterDraftRequest) => Promise<CoverLetterContextPreview>;
   };

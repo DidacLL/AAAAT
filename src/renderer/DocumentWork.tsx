@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import type { CoverLetterDraft, CoverLetterContextPreview, CvWritingField, CvWritingResult } from "../shared/ai-contracts";
+import type { CoverLetterDraft, CoverLetterContextPreview, CvWritingField, CvWritingRequest, CvWritingResult, CvWritingContextPreview } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
@@ -252,7 +252,7 @@ export function WorkingCvEditor({
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, openProfessionalInformationItem, openSettingsFor, returnToCandidature, returnToDocuments } = useContextualHandoffs();
+  const { documentHandoff, documentRemoved, openProfessionalInformationItem, openSettingsFor, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const documentAi = useApplicationDocumentAccess(document.candidatureId);
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
@@ -268,6 +268,7 @@ export function WorkingCvEditor({
   const [variantNameByItem, setVariantNameByItem] = useState<Record<string, string>>({});
   const [reuseChoiceByItem, setReuseChoiceByItem] = useState<Record<string, CvReuseTarget>>({});
   const [writingMessage, setWritingMessage] = useState<string | null>(null);
+  const [aiContext, setAiContext] = useState<CvWritingContextPreview | null>(null);
   const [writingTarget, setWritingTarget] = useState<{
     readonly itemId: string;
     readonly field: CvWritingField;
@@ -525,6 +526,19 @@ export function WorkingCvEditor({
     }
   };
 
+  const writingRequest = (itemId: string, field: CvWritingField): CvWritingRequest => ({
+    workingCvId: draft.id, itemId, field, sections: draft.sections,
+    ...(provisional ? { draft } : {}),
+  });
+  const inspectAiContext = async () => {
+    const items = draft.sections.flatMap(section => section.items);
+    const item = items.find(candidate => candidate.id === editingItemId) ?? items[0];
+    if (!item) return;
+    setAiContext(null);
+    try { setAiContext(await window.aaaat.ai.cvWritingContext(writingRequest(item.id, "description"))); }
+    catch (reason) { setError(readableDocumentError(reason, "AAAAT could not read the AI context.")); }
+  };
+
   const askAiToWrite = (item: WorkingCvItem, field: CvWritingField) => {
     if (writingActive || !documentAi.allowed) return;
     writingSnapshot.current = { itemId: item.id, field, item: JSON.stringify(item), value: String(item.content[field] ?? "") };
@@ -542,13 +556,7 @@ export function WorkingCvEditor({
         };
         signal.addEventListener("abort", cancelProvider, { once: true });
         try {
-          return await window.aaaat.aiTasks.writeCvField(writingTaskKey, {
-            workingCvId: draft.id,
-            itemId: item.id,
-            field,
-            sections: draft.sections,
-            ...(provisional ? { draft } : {}),
-          });
+          return await window.aaaat.aiTasks.writeCvField(writingTaskKey, writingRequest(item.id, field));
         } finally {
           signal.removeEventListener("abort", cancelProvider);
         }
@@ -556,6 +564,18 @@ export function WorkingCvEditor({
       `Write CV ${label.toLocaleLowerCase()}`,
       () => "Draft ready",
     );
+  };
+
+  const remove = async () => {
+    if (busy || provisional || !window.confirm(`Remove “${document.title}”? Unsaved edits will be discarded. Generated files and templates will remain.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await window.aaaat.documentDomain.removeWorkingCv(document.id);
+      documentRemoved(document.id);
+    } catch (reason) {
+      setError(readableDocumentError(reason, "AAAAT could not remove this CV."));
+    } finally { setBusy(false); }
   };
 
   const render = async () => {
@@ -588,6 +608,21 @@ export function WorkingCvEditor({
         <button type="button" disabled={busy} onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}>{provisional ? "Cancel" : "Close"}</button>
         <button type="button" disabled={(!dirty && !provisional) || busy} onClick={() => void save()}>Save</button>
         <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>{busy ? "Creating…" : "PDF"}</button>
+        <button type="button" className="cv-context-trigger" popoverTarget="cv-ai-context" disabled={!draft.sections.some(section => section.items.length)} title="AI context" onClick={() => void inspectAiContext()}>Context</button>
+        <div id="cv-ai-context" className="letter-ai-context cv-ai-context" popover="auto">
+          {aiContext ? <>
+            <strong>{aiContext.connection ? `${aiContext.connection.name} · ${aiContext.connection.model}` : "AI not configured"}</strong>
+            <dl>{aiContext.context.availableInformation.map((item, index) => <div key={index}>
+              <dt>{item.title}</dt><dd>{item.value.startsWith("[USERPRIVATE:") ? "Private" : item.value}</dd>
+            </div>)}</dl>
+          </> : <span>Loading…</span>}
+        </div>
+        {!provisional ? <>
+          <button type="button" className="document-actions-trigger" aria-label="Document actions" popoverTarget="cv-document-actions">•••</button>
+          <div id="cv-document-actions" className="application-actions-menu document-actions-menu" popover="auto">
+            <button type="button" disabled={busy} onClick={() => void remove()}>Remove CV</button>
+          </div>
+        </> : null}
       </PageToolbar>
 
       {error ? (
@@ -1043,7 +1078,7 @@ function LetterEditor({
   readonly onCollections: (collections: DocumentCollections) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
-  const { documentHandoff, returnToCandidature, returnToDocuments } = useContextualHandoffs();
+  const { documentHandoff, documentRemoved, returnToCandidature, returnToDocuments } = useContextualHandoffs();
   const documentAi = useApplicationDocumentAccess(document.candidatureId);
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
@@ -1202,6 +1237,18 @@ function LetterEditor({
     );
   };
 
+  const remove = async () => {
+    if (busy || provisional || !window.confirm(`Remove “${document.title}”? Unsaved edits will be discarded. Generated files will remain.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await window.aaaat.documentDomain.removeLetter(document.id);
+      documentRemoved(document.id);
+    } catch (reason) {
+      setError(readableDocumentError(reason, "AAAAT could not remove this cover letter."));
+    } finally { setBusy(false); }
+  };
+
   const renderLetter = async () => {
     setBusy(true);
     setError(null);
@@ -1250,6 +1297,12 @@ function LetterEditor({
         </div>
         <button type="button" disabled={(!dirty && !provisional) || busy} onClick={() => void save()}>Save</button>
         <button type="button" disabled={busy} onClick={() => void renderLetter()}>{busy ? "Creating…" : "PDF"}</button>
+        {!provisional ? <>
+          <button type="button" className="document-actions-trigger" aria-label="Document actions" popoverTarget="letter-document-actions">•••</button>
+          <div id="letter-document-actions" className="application-actions-menu document-actions-menu" popover="auto">
+            <button type="button" disabled={busy} onClick={() => void remove()}>Remove letter</button>
+          </div>
+        </> : null}
       </PageToolbar>
 
       {error || documentAi.error ? <p className="error-message document-editor-message" role="alert">{error ?? documentAi.error}</p> : null}

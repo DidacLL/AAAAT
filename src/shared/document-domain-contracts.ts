@@ -302,8 +302,8 @@ export type ApplicationPacketCreate = z.input<typeof applicationPacketCreateSche
 export const applicationPacketRecordSchema = z.object({
   id: z.string().uuid(),
   candidatureId: z.string().uuid(),
-  workingCvId: z.string().uuid(),
-  coverLetterId: z.string().uuid(),
+  workingCvId: optionalUuidSchema,
+  coverLetterId: optionalUuidSchema,
   title: z.string().min(1),
   createdAt: z.string().min(1),
   hasPdf: z.boolean(),

@@ -116,6 +116,8 @@ export function App() {
   const [aiAttentionConnectionName, setAiAttentionConnectionName] = useState<string | null>(null);
   const [applicationTagContext, setApplicationTagContext] = useState<ApplicationTagContext | null>(null);
   const [documentHandoff, setDocumentHandoff] = useState<DocumentHandoff | null>(null);
+  const activeDocument = useRef(documentHandoff);
+  useLayoutEffect(() => { activeDocument.current = documentHandoff; }, [documentHandoff]);
   const [professionalInformationHandoff, setProfessionalInformationHandoff] =
     useState<ProfessionalInformationHandoff | null>(null);
   const [settingsHandoff, setSettingsHandoff] = useState<SettingsHandoff | null>(null);
@@ -397,6 +399,15 @@ export function App() {
         setProfessionalInformationHandoff(null);
         setDocumentHandoff(null);
         setProductView("candidatures");
+      },
+      documentRemoved: (documentId: string) => {
+        const current = activeDocument.current;
+        if (current?.documentId !== documentId) return;
+        setDocumentDirty(false);
+        setDocumentHandoff(null);
+        setProfessionalInformationHandoff(null);
+        setDocumentWorkspaceRevision(revision => revision + 1);
+        setProductView(current.candidatureId ? "candidatures" : "documents");
       },
       returnToDocuments: () => {
         if (documentDirty && !window.confirm("Discard unsaved document edits and return to Documents?")) return;

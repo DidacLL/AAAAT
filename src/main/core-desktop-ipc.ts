@@ -8,6 +8,7 @@ import {
   coverLetterDraftSchema,
   coverLetterContextPreviewSchema,
   cvWritingRequestSchema,
+  cvWritingContextPreviewSchema,
   cvWritingResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
@@ -75,6 +76,7 @@ import {
 import {
   draftCoverLetter,
   previewCoverLetterContext,
+  previewCvWritingContext,
   extractJob,
   getAiConnection,
   writeCvField,
@@ -557,6 +559,10 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(aiChannels.coverLetterContext, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return coverLetterContextPreviewSchema.parse(previewCoverLetterContext(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input)));
+  });
+  ipcMain.handle(aiChannels.cvWritingContext, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return cvWritingContextPreviewSchema.parse(previewCvWritingContext(requireWorkspaceRoot(), cvWritingRequestSchema.parse(input)));
   });
 }
 
