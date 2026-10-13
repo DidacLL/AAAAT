@@ -14,7 +14,7 @@ Portable ZIPs are also built for each platform. Preview packages are unsigned: o
 
 On a fresh installed launch, choose either, both or neither. **Not now** takes you straight to AAAAT. You can return through **Settings → AI → Local AI** or **Settings → Documents → PDF setup**.
 
-**Local AI** downloads the official llama.cpp CPU runtime and IBM Granite 4.1 3B Q4_K_M, approximately 2 GB. This is the model tested with AAAAT. It runs on your computer; speed depends on your hardware. The installed server starts when you use Local Granite and stops when you quit AAAAT. New workspaces without an AI connection receive it automatically. Existing connections and manually deleted connections remain as you chose them.
+**Local AI** downloads the official llama.cpp CPU runtime and IBM Granite 4.1 3B Q4_K_M, approximately 2 GB. This is the model tested with AAAAT. It runs on your computer; speed depends on your hardware. The installed server starts with AAAAT and stops when you quit. **Settings → AI → Startup** provides an editable script, an on/off choice and **Use installed default**. Saved changes apply on the next launch. The generated default includes the installed executable and model paths; advanced users can configure their own setup. Startup scripts run locally with your account privileges and are not editable by connected AI tools. New workspaces without an AI connection receive it automatically. Existing connections and manually deleted connections remain as you chose them.
 
 **PDF generation** uses an existing pdfLaTeX installation where available. Otherwise it installs:
 

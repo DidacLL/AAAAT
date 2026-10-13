@@ -30,7 +30,7 @@ When the user asks for AI assistance inside AAAAT, AAAAT owns the local product 
 
 AI is optional. Manual/no-AI operation remains complete.
 
-Native installers cover Windows, macOS and Linux. Optional setup can install llama.cpp with the tested lightweight Granite model and a compatible pdfLaTeX distribution. MiKTeX is the default where supported; Apple Silicon uses BasicTeX and Linux ARM64 uses TeX Live. Existing tools and chosen AI connections remain intact. AAAAT may start and stop its own installed local model when needed; independently managed providers remain external resources. This bounded setup does not make AAAAT a model-management platform.
+Native installers cover Windows, macOS and Linux. Optional setup can install llama.cpp with the tested lightweight Granite model and a compatible pdfLaTeX distribution. MiKTeX is the default where supported; Apple Silicon uses BasicTeX and Linux ARM64 uses TeX Live. Existing tools and chosen AI connections remain intact. AAAAT starts its installed local model with the app using an installation-derived default script. Users can edit or disable the startup script, including for their own setup; independently managed providers remain external resources. This bounded setup does not make AAAAT a model-management platform.
 
 ### AI → AAAAT
 

@@ -64,7 +64,7 @@ In **Settings → AI**, add a named connection, its endpoint, model and credenti
 
 Connection and feature checks are optional diagnostics. Normal assistance does not require checking every feature first. A reachable server may still return an invalid or unhelpful result. Instructions are editable and can be reset to the shipped default.
 
-**Local AI** installs llama.cpp with the tested Granite 4.1 3B model. A workspace without connections receives **Local Granite** automatically. Existing connections are preserved. The installed server starts when you use it and stops when AAAAT quits; other servers remain under your own control.
+**Local AI** installs llama.cpp with the tested Granite 4.1 3B model. A workspace without connections receives **Local Granite** automatically. Existing connections are preserved. The installed server starts with AAAAT and stops when AAAAT quits. **Startup** holds its editable script, an on/off choice and **Use installed default**; saved changes apply on the next launch. Other servers remain under your own control.
 
 ### Use it beside your work
 

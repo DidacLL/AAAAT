@@ -62,8 +62,8 @@ export function OptionalToolsDialog({ initialChoice, onClose, onChanged }: {
     {error || status?.error ? <p className="error-message" role="alert">{error ?? status?.error}</p> : null}
     <details><summary>Downloads and licenses</summary><p>Only selected tools are downloaded. PDF setup may also download fonts and language packages. Existing tools and your workspaces are kept.</p><p>Sources: IBM Granite (Apache 2.0), llama.cpp (MIT), MiKTeX and TeX Live/BasicTeX under their published distribution licenses.</p></details>
     <div className="optional-tools-actions">
-      <button type="button" onClick={() => void close()}>{status?.busy ? "Continue in background" : status?.message ? "Done" : "Not now"}</button>
-      {status?.busy ? status.canCancel ? <button type="button" onClick={() => void window.aaaat.optionalTools.cancel()}>Cancel download</button> : null : <button type="button" disabled={!status || !selectable} onClick={() => void install()}>Install selected</button>}
+      <button className="secondary-action" type="button" onClick={() => void close()}>{status?.busy ? "Continue in background" : status?.message ? "Done" : "Not now"}</button>
+      {status?.busy ? status.canCancel ? <button className="secondary-action" type="button" onClick={() => void window.aaaat.optionalTools.cancel()}>Cancel download</button> : null : <button className="primary-action" type="button" disabled={!status || !selectable} onClick={() => void install()}>Install selected</button>}
     </div>
   </dialog>;
 }

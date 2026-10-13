@@ -1,8 +1,9 @@
 import { ipcMain, type BrowserWindow } from "electron";
 
-import { optionalToolsChannels, optionalToolsChoiceSchema, optionalToolsStatusSchema } from "../shared/optional-tools-contracts";
+import { optionalToolsChannels, optionalToolsChoiceSchema, optionalToolsStatusSchema, localAiStartupInputSchema } from "../shared/optional-tools-contracts";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 import { refreshSetupEnvironmentSnapshot } from "./setup-environment-service";
+import { localAiStartupSettings, saveLocalAiStartupSettings } from "./local-granite-runtime";
 import { cancelOptionalTools, dismissOptionalTools, installOptionalTools, optionalToolsStatus, prepareInstalledAiConnection } from "./optional-tools-service";
 
 export function registerOptionalToolsIpc(mainWindow: BrowserWindow): void {
@@ -30,5 +31,13 @@ export function registerOptionalToolsIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(optionalToolsChannels.dismiss, async event => {
     assertTrustedSender(event, mainWindow);
     await dismissOptionalTools();
+  });
+  ipcMain.handle(optionalToolsChannels.startupCurrent, event => {
+    assertTrustedSender(event, mainWindow);
+    return localAiStartupSettings();
+  });
+  ipcMain.handle(optionalToolsChannels.startupSave, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return saveLocalAiStartupSettings(localAiStartupInputSchema.parse(input));
   });
 }

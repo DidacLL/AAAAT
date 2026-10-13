@@ -5,7 +5,14 @@ export const optionalToolsChannels = Object.freeze({
   install: "aaaat:optional-tools-install",
   cancel: "aaaat:optional-tools-cancel",
   dismiss: "aaaat:optional-tools-dismiss",
+  startupCurrent: "aaaat:local-ai-startup-current",
+  startupSave: "aaaat:local-ai-startup-save",
 });
+
+export const localAiStartupInputSchema = z.object({ enabled: z.boolean(), script: z.string().max(16000) }).strict();
+export const localAiStartupSettingsSchema = localAiStartupInputSchema.extend({ defaultScript: z.string(), shell: z.enum(["PowerShell", "Shell"]), error: z.string().nullable() }).strict();
+export type LocalAiStartupInput = z.infer<typeof localAiStartupInputSchema>;
+export type LocalAiStartupSettings = z.infer<typeof localAiStartupSettingsSchema>;
 
 export const optionalToolsChoiceSchema = z.object({ localAi: z.boolean(), pdf: z.boolean() }).strict();
 export const optionalToolsStatusSchema = z.object({
@@ -31,5 +38,7 @@ export interface OptionalToolsDesktopApi {
     install(choice: OptionalToolsChoice): Promise<OptionalToolsStatus>;
     cancel(): Promise<void>;
     dismiss(): Promise<void>;
+    startupCurrent(): Promise<LocalAiStartupSettings>;
+    startupSave(input: LocalAiStartupInput): Promise<LocalAiStartupSettings>;
   };
 }

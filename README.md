@@ -97,7 +97,7 @@ The desktop workflow above needs no programming or AI knowledge. The options bel
 
 In **Settings → AI**, add a named connection with an endpoint and model, plus a credential if that server requires one. Set the general default, or choose a checked connection for an individual operation.
 
-For an easy local start, choose **Local AI** during optional setup or in **Settings → AI**. This downloads llama.cpp and the tested Granite 4.1 3B Q4 model (about 2 GB). AAAAT starts this installed model when needed and stops its own server when you quit. A new workspace without another connection gets **Local Granite** automatically; existing connections stay as you chose them.
+For an easy local start, choose **Local AI** during optional setup or in **Settings → AI**. This downloads llama.cpp and the tested Granite 4.1 3B Q4 model (about 2 GB). AAAAT starts this installed model when the app opens and stops its own server when you quit. **Settings → AI → Startup** contains the editable startup script, an on/off choice and the installed default. A new workspace without another connection gets **Local Granite** automatically; existing connections stay as you chose them.
 
 You can also connect your own server. The current adapter uses an OpenAI-compatible chat-completions endpoint. Loopback servers may use HTTP; remote endpoints must use HTTPS. For example, a local compatible server may expose `http://127.0.0.1:8080/v1`. You manage independently installed servers yourself.
 

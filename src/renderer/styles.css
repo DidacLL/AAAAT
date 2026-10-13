@@ -599,3 +599,5 @@ button:disabled {
 .optional-tools-dialog progress { display: block; width: 100%; margin: .5rem 0; }
 .optional-tools-dialog details { margin-top: 1rem; font-size: .85rem; }
 .optional-tools-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+.optional-tools-actions button { padding: .5rem .8rem; }
+.local-ai-startup textarea { width: 100%; min-height: 9rem; font: .85rem/1.45 monospace; margin: .75rem 0; resize: vertical; }

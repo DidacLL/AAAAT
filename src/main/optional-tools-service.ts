@@ -8,7 +8,7 @@ import { app } from "electron";
 import type { OptionalToolsChoice, OptionalToolsStatus } from "../shared/optional-tools-contracts";
 import { basicTexMac, graniteModel, llamaCpuArchives, miktexMac, miktexWindows } from "./optional-tool-assets";
 import { installedPdfLatexExecutable, installedToolsDirectory } from "./installed-tool-paths";
-import { installedGraniteFiles, localGraniteConnection } from "./local-granite-runtime";
+import { installedGraniteFiles, localGraniteConnection, startLocalAiWithApp } from "./local-granite-runtime";
 import { listAiConnections, saveNamedAiConnection } from "./ai-connection-service";
 import { downloadTool } from "./tool-download";
 import { withWorkspaceDatabase } from "./workspace";
@@ -92,7 +92,7 @@ async function obtain(source: Parameters<typeof downloadTool>[1], label: string,
 
 async function findExecutable(directory: string, filename: string): Promise<string> {
   for (const item of await readdir(directory, { withFileTypes: true })) {
-    if (item.isFile() && item.name === filename) return path.join(directory, item.name);
+    if ((item.isFile() || item.isSymbolicLink()) && item.name === filename && existsSync(path.join(directory, item.name))) return path.join(directory, item.name);
     if (item.isDirectory()) {
       try { return await findExecutable(path.join(directory, item.name), filename); } catch { /* Continue through the fixed archive. */ }
     }
@@ -111,7 +111,8 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
   if (process.platform === "win32") {
     const script = path.join(installedToolsDirectory(), "extract-llama.ps1");
     await writeFile(script, "param([string]$Archive,[string]$Destination)\n$ErrorActionPreference='Stop'\nExpand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force\n");
-    await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", script, "-Archive", downloaded, "-Destination", directory]);
+    const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    await run(powershell, ["-NoProfile", "-NonInteractive", "-File", script, "-Archive", downloaded, "-Destination", directory]);
   } else {
     await run("tar", ["-xzf", downloaded, "-C", directory]);
   }
@@ -120,6 +121,7 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
   const executable = await findExecutable(directory, process.platform === "win32" ? "llama-server.exe" : "llama-server");
   await run(executable, ["--version"], 10_000);
   writeFileSync(path.join(installedToolsDirectory(), "granite-installed.json"), JSON.stringify({ executable: path.relative(directory, executable), runtime: "b11429", modelSha256: graniteModel.hash }) + "\n");
+  startLocalAiWithApp();
 }
 
 const texLivePackages = "babel babel-english babel-catalan babel-spanish babel-french babel-german babel-italian babel-portuges geometry hyperref xcolor enumitem titlesec parskip microtype lm psnfss";

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
 import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
+import { LocalAiStartupPanel } from "./LocalAiStartupPanel";
 import { PageToolbar } from "./PageToolbar";
 import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
@@ -80,6 +81,7 @@ export function AiSettingsWorkspace({
   const [portabilityBusy, setPortabilityBusy] = useState<"export" | "import" | null>(null);
   const [portabilityStatus, setPortabilityStatus] = useState<string | null>(null);
   const [promptDirty, setPromptDirty] = useState(false);
+  const [startupDirty, setStartupDirty] = useState(false);
 
   const editing = useMemo(
     () => connections.find((connection) => connection.id === editingId) ?? null,
@@ -87,7 +89,7 @@ export function AiSettingsWorkspace({
   );
   const baseline = editing ? editable(editing) : emptyDraft;
   const connectionDirty = formOpen && JSON.stringify(draft) !== JSON.stringify(baseline);
-  const dirty = connectionDirty || promptDirty;
+  const dirty = connectionDirty || promptDirty || startupDirty;
   const defaultConnection = connections.find((connection) => connection.isDefault) ?? null;
   const showConnections = view !== "portability";
   const showPortability = view !== "connections";
@@ -472,6 +474,7 @@ export function AiSettingsWorkspace({
         </div>
       ) : null}
 
+      {showConnections ? <LocalAiStartupPanel revision={refreshRevision} onDirtyChange={setStartupDirty} /> : null}
       {showConnections ? <details className="profile-column">
         <summary>AI instructions</summary>
         <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} />
