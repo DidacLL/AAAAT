@@ -18,18 +18,8 @@ on:
       - "tsconfig*.json"
       - "eslint.config.mjs"
   pull_request:
-    paths:
-      - ".github/workflows/**"
-      - "src/**"
-      - "scripts/**"
-      - "package.json"
-      - "package-lock.json"
-      - ".npmrc"
-      - "vite*.ts"
-      - "vite*.mts"
-      - "forge.config.*"
-      - "tsconfig.json"
-      - "eslint.config.mjs"
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -40,33 +30,44 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck and lint
+    name: Verification gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Choose checks for changed files
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          code=true
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            code=false
+            git diff --name-only -z HEAD^1 HEAD > "$RUNNER_TEMP/aaaat-changed-files"
+            while IFS= read -r -d '' file; do
+              case "$file" in
+                *.md|docs/*|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.svg|LICENSE) ;;
+                *) code=true; break ;;
+              esac
+            done < "$RUNNER_TEMP/aaaat-changed-files"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [[ "$code" == "false" ]]; then
+            echo "Documentation/images only: no installation, typecheck, lint or packaging required." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/setup-node@v7
+        if: steps.scope.outputs.code == 'true'
         with:
           node-version: 24.20.0
           cache: npm
       - run: npm install --global npm@12.2.0
+        if: steps.scope.outputs.code == 'true'
       - run: npm ci
+        if: steps.scope.outputs.code == 'true'
       - run: npm run typecheck
+        if: steps.scope.outputs.code == 'true'
       - run: npm run lint
-  gate:
-    name: Verification gate
-    needs: verify
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require static hygiene
-        env:
-          VERIFY_RESULT: ${{ needs.verify.result }}
-        shell: bash
-        run: |
-          if [[ "$VERIFY_RESULT" != "success" ]]; then
-            echo "Static typecheck/lint hygiene finished as $VERIFY_RESULT" >&2
-            exit 1
-          fi
-          echo "Static hygiene passed. This check is branch-protection plumbing, not product acceptance." >> "$GITHUB_STEP_SUMMARY"
+        if: steps.scope.outputs.code == 'true'
