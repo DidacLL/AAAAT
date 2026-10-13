@@ -1,41 +1,23 @@
 # ADR 0008 — Official MCP stdio boundary
 
-> Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers, any coupling of external/provider wire contracts to internal identifier-bearing contracts, and the earlier field-catalogue/structured-create MCP surface described below. The retained MCP capability is source-only candidature creation.
-
-## Context
-
-M4 requires an official MCP integration after the first bounded external command is proven. The integration must reuse AAAAT application-service behavior without adding handwritten protocol framing, a network listener, broad agent privileges, or a general data API.
+Status: accepted transport boundary, updated for current bounded application/document/setup operations. Product Definition and current owner instructions govern capability meaning.
 
 ## Decision
 
-AAAAT uses the official MCP TypeScript v2 packages, pinned exactly. The packaged AAAAT executable exposes MCP only through a local stdio mode:
+The packaged executable exposes a local standard-input/output mode:
 
 ```text
 AAAAT --mcp --workspace <existing-workspace>
 ```
 
-The server is built with `@modelcontextprotocol/server` and the v2 `serveStdio` transport. The current MCP surface exposes one named task:
+The official `@modelcontextprotocol/server` SDK owns protocol framing. Startup validates the workspace and serves bounded tools without loading the desktop window/renderer. There is no network listener, daemon or homemade JSON-RPC implementation.
 
-- `candidature_create` accepts exactly one retained Source, validates the same dedicated source-only external create contract used by the one-shot command, and calls `createCandidature` with no structured candidature values. Its result is a narrow acknowledgement with no internal IDs, paths, source material, notes, or other private record content.
+Current registrations in `src/main/mcp-server.ts` cover Source-backed application creation, prepared application requests and proposal returns, selected document operations, and optional setup intentions. They call normal application services. Temporary session/request references are scoped to those intentions and do not grant arbitrary durable-ID mutation authority.
 
-There is no MCP candidature-field catalogue and no operation-reference machinery for candidature creation. Structured external contributions, if later required, must arrive as separate named operations with only the minimum temporary references needed for their own validated round trip; they are not implicit in `candidature_create`.
+The renderer remains unprivileged. The external host gets no generic entity catalogue, corpus query, raw SQLite, filesystem, shell or process capability from AAAAT. Its own computer access is a separate trust choice.
 
-This is a deliberately provided product task, not generic CRUD, entity browsing/listing/search/query, arbitrary entity-ID, or data-scraping access.
-
-The MCP startup path validates an existing workspace before serving and does not load the desktop main module, create a BrowserWindow, or register renderer IPC. Official `@modelcontextprotocol/client` is a development-only dependency used to prove the protocol contract and packaged stdio behavior.
+Application/document/context permissions are checked by the same local services that govern desktop work. Opening a request locally does not permit connected reads. Configurator/installer mutation requires its separately enabled bounded local authority.
 
 ## Consequences
 
-- MCP and the existing bounded command share source-only application-service semantics without sharing a generic dispatch framework or external data API.
-- The official SDK owns protocol framing and schema rejection.
-- Package/runtime evidence is selected by impact. Existing successful cross-platform launch evidence remains valid across later platform-neutral contract changes unless those changes affect packaging, startup, transport, or another platform-specific premise; the affected MCP contract itself still requires focused automated verification.
-- Additional MCP tasks remain separate demonstrated cases rather than an implied generic data-access surface.
-
-## Alternatives rejected
-
-- Handwritten MCP or JSON-RPC framing: prohibited by the specification and unnecessary.
-- Streamable HTTP, SSE, localhost listeners, or a daemon: no concrete network consumer or authentication design exists.
-- A generic capability registry or command bus: premature for this small MCP surface.
-- Direct SQLite access: bypasses application-service validation, activity semantics, and the deliberately small task surface.
-- MCP resources, prompts, sampling, elicitation, or model-provider calls: not required for the demonstrated external-control case.
-- Field-list plus structured candidature creation: unnecessary for source capture and wider than the current recovery contract; future structured contributions require their own bounded operation.
+MCP is one carrier, not product identity or an agent platform. The official client library is development tooling. A successful SDK connection, AAAAT-authored client or mocked provider proves only that mechanism; a useful third-party-host journey needs evidence through the actual host. Current product shaping does not manufacture tests or new gates to certify this boundary.

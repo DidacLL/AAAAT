@@ -123,8 +123,8 @@ interface RenderedLetterRow {
 interface PacketRow {
   readonly id: string;
   readonly candidatureId: string;
-  readonly workingCvId: string;
-  readonly coverLetterId: string;
+  readonly workingCvId: string|null;
+  readonly coverLetterId: string|null;
   readonly title: string;
   readonly projectRelativePath: string;
   readonly createdAt: string;
@@ -547,7 +547,8 @@ const sectionNameByKind: Readonly<Record<string, string>> = Object.freeze({
   certification: 'Education',
   skill: 'Skills',
   language: 'Languages',
-  link: 'Links'
+  link: 'Links',
+  other: 'Other'
 });
 function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] {
   const order = [
@@ -556,7 +557,7 @@ function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] 
   ];
   const grouped = new Map<string, WorkingCvItem[]>();
   for (const item of items) {
-    const name = sectionNameByKind[item.kind] ?? 'Other';
+    const name = sectionNameByKind[item.kind] ?? item.kind;
     const current = grouped.get(name) ?? [];
     current.push({
       id: randomUUID(),
@@ -568,7 +569,7 @@ function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] 
     });
     grouped.set(name, current);
   }
-  return order.flatMap((name) => {
+  return [...order, ...[...grouped.keys()].filter(name => !order.includes(name))].flatMap((name) => {
     const groupedItems = grouped.get(name);
     return groupedItems && groupedItems.length > 0 ?
         [{id: randomUUID(), name, presentationRole: 'main', items: groupedItems}] :
@@ -643,7 +644,14 @@ export function removeCvTemplate(rootPath: string, templateId: string): Document
     });
   });
 }
-export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
+function uniqueDocumentTitle(base: string, documents: readonly { readonly title: string }[]): string {
+  const used = new Set(documents.map(document => document.title.trim().toLocaleLowerCase()));
+  let title = base;
+  let suffix = 2;
+  while (used.has(title.toLocaleLowerCase())) title = base.slice(0, 190) + ' ' + suffix++;
+  return title;
+}
+export function prepareWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
   const input = workingCvCreateSchema.parse(rawInput);
   let sourceTemplateId: string|null = null;
   let language = input.language;
@@ -670,17 +678,20 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
         }));
   }
   pdfMetadata ??= defaultCvPdfMetadata(input.title, sections);
-  return withWorkspaceDatabase(rootPath, (database) => {
+  if (input.content) { sections = input.content.sections; pdfMetadata = input.content.pdfMetadata; parserSummary = input.content.parserSummary; }
+  return withWorkspaceDatabase(rootPath, database => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
-    const id = randomUUID();
+    const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
     const now = new Date().toISOString();
-    database
-        .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, input.title, nullable(language), sourceTemplateId, input.candidatureId,
-            JSON.stringify(pdfMetadata), parserSummary, JSON.stringify(sections), now, now);
-    return requireWorkingCv(database, id);
+    return workingCvRecordSchema.parse({ id: input.id ?? randomUUID(), title, language, sourceTemplateId, candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections, createdAt: now, updatedAt: now });
+  });
+}
+export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
+  const draft = prepareWorkingCv(rootPath, rawInput);
+  return withWorkspaceDatabase(rootPath, database => {
+    database.prepare('INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(draft.id, draft.title, nullable(draft.language), draft.sourceTemplateId, draft.candidatureId, JSON.stringify(draft.pdfMetadata), draft.parserSummary, JSON.stringify(draft.sections), draft.createdAt, draft.updatedAt);
+    return requireWorkingCv(database, draft.id);
   });
 }
 export function updateWorkingCv(rootPath: string, rawInput: WorkingCvUpdate): WorkingCvRecord {
@@ -883,7 +894,7 @@ export function renderedCvPdfPath(rootPath: string, renderedCvId: string): strin
     return pdf;
   });
 }
-export function duplicateRenderedCv(rootPath: string, renderedCvId: string): WorkingCvRecord {
+export function prepareRenderedCvCopy(rootPath: string, renderedCvId: string): WorkingCvRecord {
   const row =
       withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
   const snapshot = parseJson(
@@ -914,14 +925,12 @@ export function duplicateRenderedCv(rootPath: string, renderedCvId: string): Wor
                     };
                   })
         }));
-    database
-        .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, `${snapshot.title} copy`, nullable(snapshot.language), row.sourceTemplateId,
-            row.candidatureId, JSON.stringify(snapshot.pdfMetadata), snapshot.parserSummary,
-            JSON.stringify(sections), now, now);
-    return requireWorkingCv(database, id);
+    const title = uniqueDocumentTitle(`${snapshot.title} copy`, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
+    return workingCvRecordSchema.parse({
+      id, title, language: snapshot.language, sourceTemplateId: row.sourceTemplateId,
+      candidatureId: row.candidatureId, pdfMetadata: snapshot.pdfMetadata,
+      parserSummary: snapshot.parserSummary, sections, createdAt: now, updatedAt: now,
+    });
   });
 }
 function safeProjectName(title: string, id: string): string {
@@ -953,12 +962,22 @@ export function exportRenderedCvProject(
   return exportPortableProject(
       renderedProjectPath(rootPath, row), row.title, row.id, targetParent, 'cv');
 }
-export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
+export function prepareCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
   const sender = input.sender ?? defaultLetterSender(rootPath);
+  return withWorkspaceDatabase(rootPath, database => {
+    if (input.candidatureId) requireCandidature(database, input.candidatureId);
+    const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM cover_letters').all() as unknown as { title: string }[]);
+    const now = new Date().toISOString();
+    return coverLetterRecordSchema.parse({ ...input, title, sender, id: input.id ?? randomUUID(), createdAt: now, updatedAt: now });
+  });
+}
+export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
+  const input = prepareCoverLetter(rootPath, rawInput);
+  const sender = input.sender;
   return withWorkspaceDatabase(rootPath, (database) => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
-    const id = randomUUID();
+    const id = input.id;
     const now = new Date().toISOString();
     database
         .prepare(
@@ -989,10 +1008,6 @@ export function updateCoverLetter(
 export function removeCoverLetter(rootPath: string, letterId: string): DocumentCollections {
   return withWorkspaceDatabase(rootPath, (database) => {
     requireLetter(database, letterId);
-    if (database.prepare('SELECT 1 FROM application_packets WHERE cover_letter_id = ? LIMIT 1')
-            .get(letterId))
-      throw new DocumentDomainServiceError(
-          'This cover letter belongs to a retained Application packet and cannot be removed.');
     database.prepare('DELETE FROM cover_letters WHERE id = ?').run(letterId);
     return documentCollectionsSchema.parse({
       templates: readTemplates(database),

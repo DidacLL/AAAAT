@@ -1,122 +1,53 @@
-# AAAAT desktop interaction
+# AAAAT interaction direction
 
-This guide derives from current Product Owner intent and `PRODUCT_DEFINITION.md`. Prior screens, tests and historical interaction notes do not create product meaning.
+This is derived guidance from current Product Owner instructions and [Product Definition](../PRODUCT_DEFINITION.md). It describes intended interaction, not a claim that a green check or historical implementation established product acceptance. [Visual direction](UX_VISUAL_DIRECTION.md) preserves the accepted appearance; [SPEC](SPEC.md) owns technical boundaries.
 
-For visible implementation, read this together with `docs/UX_VISUAL_DIRECTION.md`. The visual direction is mandatory guidance for visible UI work; it does not override product behavior, but a behaviorally correct generic SaaS treatment is not a finished AAAAT UX/UI.
+## One calm desktop workspace
 
-## First run and loaded shell
+The top bar and left rail are fixed, without their own scrolling task lists. The work area scrolls. Main actions belong to the contextual top bar; supporting configuration and explanation appear on demand. Use short labels and meaningful tooltips instead of permanent instructions, reassurance banners or implementation vocabulary.
 
-Welcome has one primary job: establish a usable local workspace. It keeps AAAAT identity visible, shows the last workspace when useful, and offers **Create local workspace** / **Open existing workspace** as the primary decisions. Restore/recovery remains discoverable but secondary. AI and local PDF/TeX readiness may be stated compactly and truthfully, but neither is a prerequisite for workspace entry. The full first-run decision must remain reachable without branding pushing the primary actions out of the useful viewport.
+Home provides direct recent-work entry. Applications, Documents, My information and Settings remain independently useful; there is no required wizard, lifecycle, completion score or AI setup journey.
 
-Once a workspace is loaded, the persistent shell owns primary navigation and compact environment status. The rail may expose **Data: Demo/Local**, **AI: Off/Ready/Needs attention**, **PDF: Ready/Unavailable**, bounded task state and the shared Tag visor where useful. These are orientation aids, not a second workflow.
+## Application capture and recall
 
-Loaded **Home is a branded landing console**. It combines the AAAAT robot/product image and identity with concise operational shorthand and obvious continuations into ordinary work. It is neither a bare launcher nor a generic metrics dashboard. Once a workspace is already loaded, Home does not offer `New workspace`, `Open existing workspace`, `Open demo` or equivalent workspace-entry buttons as landing content. Workspace switching/creation belongs in a compact shell/options interaction or a deliberate interaction on the displayed workspace/path; complete workspace administration remains available in Settings. Home may surface meaningful recent/ongoing local work and status without merely duplicating every rail badge.
+New application presents raw material on the left and editable information on the right, reflowing at constrained widths. Either or both can be used. Save retains the useful information; Cancel abandons the draft. No choice screen or separate raw-retention wizard precedes this work.
 
-## Applications
+Source material remains independently retained. It is useful without extraction and never replaced by extraction. AI Fill is optional and contextual; manual entry stays available on the same surface.
 
-**Applications** is one configurable surface over the candidature corpus and selected candidature. There is no separate peer **Focus** / **All data** product mode. Rapid recognition and complete maintenance are different depths of the same information model.
+The corpus uses content-driven typographic covers composed from the user's field order and prominence. Small, Regular and Large express distinct hierarchy without fixed equal field boxes or manufactured whitespace. Expanded covers occupy about twice the width and height, keep the row and nearest outer edge, displace neighbours and expose useful fuller content. No random per-application colour themes.
 
-Opening Applications begins with the corpus/search surface rather than an automatically selected record or configuration panel. Search, creation affordances and recognizable candidature information own the useful viewport. Sparse/raw-only applications remain valid and recognizable. Field-definition/configuration machinery is progressively disclosed and must not push corpus work below administration.
+Cover composition applies only to collapsed/expanded application cards. Editing uses ordinary readable sans-serif labels and values. The star, eye, sparkle, pencil and gear retain their direct local functions; removing them to make the screen superficially quiet would remove user control.
 
-Selecting an application expands/transitions into the same information surface with a richer view of that candidature. Favourite/primary information is prominent; remaining configured information, Sources, history and secondary controls are available through progressive disclosure. Tags and their stored shared meaning are contextual application information, not a permanent complete-glossary list. Editing, presentation options and AI assistance are actions on one information object rather than separate competing field mechanisms.
+## Shared Tags
 
-### New application — two direct approaches
+Cards show Tag names only. Hover, focus or selection supplies the stored definition, aliases and notes in the left monitor. Do not duplicate those definitions inside expanded cards or permanent edit-body panels. A Tag-editing form may show its definition because that is the content being edited.
 
-`New application` presents two understandable peer intentions. Neither is canonical:
+Tags are shared objects. Repeated references to one Tag do not create multiple application associations. AI name/alias matches resolve to existing objects; differently named synonymous categories can still be proposed. New shared data remains editable/reviewable before creation. Newer manual association changes take precedence over an in-flight AI response.
 
-1. **Enter details** — direct structured entry for information the user already knows.
-2. **Paste or write material** — low-friction retention of an offer, recruiter message, form copy, note or other raw material.
+## Editing and navigation
 
-Direct entry is one coherent application-level task surface with useful recognition information first and one clear completion action. Sparse information is valid. Do not render a tall procession of unrelated mini-records each demanding separate administration.
+Ordinary navigation preserves unfinished edits without saving them. Explicit Save and Cancel define persistence and discard. Refreshing another object must not erase an active draft or route a late result into the newly selected application.
 
-The raw-material path is deliberately simpler:
+New CVs, letters and generated-file copies start provisionally. Names use meaningful document/application context. Save keeps the document; Cancel avoids an unwanted permanent record. PDF creation is an explicit retention operation, not ordinary navigation.
 
-```text
-paste / write material
-→ retain it as a Source
-```
+## Professional information and documents
 
-Retention alone is successful. Do not require a separate title, URL, company, role, status, priority or other structured value before saving the raw Source.
+My information presents reusable content first. Shipped groups, information types and document section names are editable defaults. Legitimate custom information requires no code/schema change. Saved variations and document-only edits remain understandable distinct choices.
 
-After retention, the same post-retention view shows both explicit continuations together:
+CVs and letters can be independent or application-linked. Templates preserve composition; Blueprints provide render-time presentation. Save-back actions are deliberate. Generated output remains separate from editable source; deleting a source does not erase retained output.
 
-- **Send to AI** — ask a suitable configured AI route to propose values for the currently configured application information;
-- **Fill manually** — keep the retained Source readily visible beside/with the editable candidature information so the user can transfer values without context switching.
+## Optional AI beside the task
 
-The manual route is first-class no-AI operation, not a fallback. AI failure never invalidates the retained Source. AI proposals never replace durable information until explicitly accepted.
+AI permission and local prominence are separate. Compact information controls identify what an operation may use. Empty untouched fields can receive valid requested values directly; existing/newer manual work is protected. Results that conflict with newer edits remain reviewable. Main-process permission checks precede provider calls, including application document assistance.
 
-## Application information and AI use
+The UI makes actual context accessible on demand without inserting a disclosure ceremony into every action. Errors and progress belong near the action or in on-demand Activity/Status, not permanent rail task cards.
 
-Flexible application information is user-maintainable product data. Ordinary UI speaks in terms of information/details rather than schemas, field IDs, cardinality or storage mechanics. Advanced value-format/definition controls remain deliberately deeper.
+Application AI requests are secondary, fully editable and linked to the application. Copy/Export use the exact visible request. Opening does not send or enable connected reads. Permission controls future reads only and cannot recall earlier disclosure. Editing switches future reads off while preserving local work.
 
-Favourite/primary presentation, order and card size are properties of the same information object and remain contextual rather than permanent heading chrome.
+Interview requests remain optional here, with application context and unrestricted local editing. They are not a featured advice capability, a global context-free task or a required workflow.
 
-Every editable application information item has one compact contextual affordance whose ordinary meaning is **AI may use this information**. Enabled+empty means Source extraction may request that information; enabled+populated means bounded AI assistance may receive the retained value; disabled means neither request nor disclosure. `Ask AI` is a separate operation, not a second permission mechanism. Ordinary UI does not expose `aiDiscovery`, `aiContextMode`, schema, projection, token or disclosure-engine vocabulary.
+## Settings and acceptance
 
-## Tags
+Settings has Workspace, AI, Documents and Backup sections. Main actions remain in the top bar. Diagnostics and advanced connection/setup actions are optional, and draft settings survive ordinary navigation. No mandatory all-feature AI check precedes normal use.
 
-Application Tags appear as attached chips/tokens with compact attach/search/create interaction. A missing Tag may be created with a real definition. Selecting an attached Tag reveals its shared canonical name, aliases, definition and notes and allows editing that shared meaning. The application screen never renders the whole glossary as a permanent checkbox/button list.
-
-Tags are also shared workspace vocabulary/retrieval aids. A compact rail visor may search the glossary and show stored shared meaning without becoming another full Tag administration destination. At constrained sizes the visor must not crowd the principal task merely because the rail has room at larger widths.
-
-## My information
-
-**My information** is read-first reusable professional content. The ordinary screen shows actual experience, skills, education, projects, identity/contact, languages, links, summaries, credentials and justified custom information that exists; sparse content is normal.
-
-Grouping is for recognition, not a closed profession taxonomy. Adding/editing begins from a useful human intent rather than schema administration. Saved item-level variations are optional reusable differences and remain secondary until deliberately invoked. Career objectives/preferences/constraints stay within the same My information experience while remaining semantically distinct from evidence such as experience or education.
-
-AI-use permission is contextual to the relevant reusable information and uses the same understandable meaning as application information. It must not become a permanent privacy/security console.
-
-Document → My information → document handoffs preserve the originating document context and dirty work. Editing reusable information is visibly distinct from changing only the current document.
-
-## CVs / Documents
-
-The **CVs/Documents** destination is a collection with visibly distinct groups for reusable **Templates**, editable/saved **Working CVs** where surfaced, **Rendered CVs**, **Letters**, and **Application packets** according to the current document model. A PDF is an output artifact, never a permanent editor tab or template section.
-
-A CV template is an ordered reusable composition. Its editor exposes compact metadata, ordered sections and selected information. The user can add/remove/rename/reorder sections and add/remove/reorder information items. Section role is semantic **Main** / **Secondary**, never rail/column geometry.
-
-Opening a template creates or opens a **Working CV**. A Working CV is read-first: by default it looks like a recognizable CV outline with compact section hierarchy and actual retained content, not a permanently expanded database form. Only a deliberately selected item enters edit mode at a time. Source choices use ordinary wording such as **My information — current**, **Saved variation — …**, or **This CV only**. Ordering/removal and ownership actions remain compact/contextual.
-
-Working-document edits remain local to that CV unless the user explicitly chooses an ownership action such as **Save to template**, **Save as new template**, **Save as profile variant**, or **Update My information**.
-
-**Render PDF** creates a separate **Rendered CV** containing the PDF and content/composition snapshot used. Blueprint choice is a render-time presentation input, not ownership on the editable CV/template. Advanced user-owned LaTeX source configuration remains outside ordinary content editing and must not expose raw internal paths or turn the product into a source-code editor.
-
-A cover letter created from an application is application-owned immediately and is surfaced in that application while remaining discoverable in **Letters**. Combined CV+letter output uses the **Application packet** concept; do not create another packet engine.
-
-## Settings and capability handoffs
-
-Settings uses recognizable tabs with one unmistakably active content panel rather than a launcher grid of explanatory cards. Current intended destinations are **Workspace**, **AI**, **Documents**, and **Backup**.
-
-Workspace switching/creation and full workspace administration live here even though a compact switch interaction may also be reachable from the shell workspace/path control. An invalid or unreachable configured AI URL produces **AI: Needs attention** in the shell and a concrete inline error beside the relevant Settings control. Missing TeX/PDF capability is contextual to rendering and Documents settings, not a global application failure.
-
-User-editable AI guidance belongs clearly in AI Settings. Contextual AI action surfaces execute a task and show relevant context/result state; they do not duplicate a competing prompt-configuration system.
-
-## Visual hierarchy, space and responsive behavior
-
-The useful information takes the viewport. AAAAT combines machine/panel surfaces for navigation/status/tools with paper/document surfaces for readable information. Identity and decoration must reinforce hierarchy rather than consume the work area.
-
-The visual target is the friendly worn retrofuturist AAAAT character defined in `UX_VISUAL_DIRECTION.md`: repaired field terminal / workshop instrument, paper dossier, restrained mid-century industrial cues, weathered warm materials and professional clarity. Historical dark/light logos, banners, backgrounds, loading art and `AAAATART.png` under `docs/owner-source/` are research inputs to inspect directly, not mandatory mockups to copy.
-
-AAAAT does not define an arbitrary fixed product minimum window size. Concrete dimensions used in tests/screenshots are verification samples only. At constrained sizes one principal intention owns the useful viewport; transition, reflow, stacking and vertical reachability are preferred over clipping or cramped persistent panes. At expanded sizes, information should make productive use of available space rather than remain in a narrow centered form surrounded by empty canvas.
-
-Empty and sparse states are intentional compositions: they explain the current state and make the next useful action clear. Large unused areas with a tiny floating control cluster are not a finished empty state.
-
-Light/dark presentation must be a deliberate coherent visual decision when implemented. Paired historical assets make both directions available as design evidence; do not accidentally equate the current fixed `color-scheme: light` implementation with product authority, and do not create a heavy theming framework without need.
-
-## Acceptance
-
-Natural-use review must establish that a person can:
-
-- enter or open a workspace without setup ceremony or first-run overflow;
-- understand loaded Home as AAAAT's landing console without redundant workspace-entry buttons;
-- find applications quickly and create one through either direct details or raw-material retention;
-- retain raw material and immediately choose AI or manual continuation without losing the no-AI path;
-- read and deliberately maintain application information without decoding schema mechanics;
-- attach/search/create Tags without glossary overload and retrieve shared Tag meaning;
-- review/edit reusable professional information without administering a database;
-- compose/read/edit a Working CV without decoding internal state or accidentally mutating reusable sources;
-- render separate artifacts and find application-owned letters/packets;
-- understand capability failures and Settings without development vocabulary;
-- use the app at constrained and expanded desktop sizes without clipping, wasted hierarchy or decorative obstruction.
-
-Behavior tests are necessary but not sufficient for visible UX/UI acceptance. The eventual coherent PLAN[5] candidate requires real rendered/packaged desktop evidence across these surfaces and the orchestrator must inspect that evidence directly.
+Inspect the actual product at constrained and expanded desktop sizes for hierarchy, density, useful space, layering and legibility. Current static engineering hygiene is typecheck/lint. Automated tests are not generated or repaired during this product-shaping phase, and cannot certify visual design or invent requirements.

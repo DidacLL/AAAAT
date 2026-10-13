@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { readableSourceText } from "../shared/source-text";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CandidatureSource,
@@ -23,17 +24,19 @@ function kindLabel(kind: CandidatureSourceKind): string {
 }
 
 function sourcePreview(source: CandidatureSource): string {
-  const normalized = source.sourceText.trim().replaceAll(/\s+/g, " ");
+  const normalized = readableSourceText(source.sourceText).replaceAll(/\s+/g, " ").trim();
   if (!normalized) return "";
   return normalized.length > 220 ? `${normalized.slice(0, 217)}…` : normalized;
 }
 
 export function CandidatureSourcesPanel({
   candidatureId,
+  refreshRevision = 0,
   onSourcesChanged,
   onDirtyChange,
 }: {
   candidatureId: string;
+  refreshRevision?: number;
   onSourcesChanged?: (sources: CandidatureSource[]) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
@@ -44,6 +47,7 @@ export function CandidatureSourcesPanel({
   const [draft, setDraft] = useState<CandidatureSourceInput>(() => emptySource(candidatureId));
   const [persistedDraft, setPersistedDraft] = useState<CandidatureSourceInput>(() => emptySource(candidatureId));
   const [error, setError] = useState<string | null>(null);
+  const loadedCandidatureId = useRef<string | null>(null);
 
   const dirty = useMemo(
     () => editorOpen && JSON.stringify(draft) !== JSON.stringify(persistedDraft),
@@ -104,6 +108,8 @@ export function CandidatureSourcesPanel({
       .then((next) => {
         if (!active) return;
         setSources(next);
+        if (loadedCandidatureId.current === candidatureId) return;
+        loadedCandidatureId.current = candidatureId;
         setReadingId(null);
         const empty = emptySource(candidatureId);
         setEditorOpen(false);
@@ -116,9 +122,10 @@ export function CandidatureSourcesPanel({
       });
     return () => {
       active = false;
-      onDirtyChange?.(false);
     };
-  }, [candidatureId, onDirtyChange]);
+  }, [candidatureId, refreshRevision]);
+
+  useEffect(() => () => onDirtyChange?.(false), [candidatureId, onDirtyChange]);
 
   const store = (next: CandidatureSource[]) => {
     setSources(next);
@@ -163,11 +170,11 @@ export function CandidatureSourcesPanel({
         </div>
         {readingSource ? (
           <button type="button" className="compact-secondary" onClick={() => setReadingId(null)}>
-            Back to Sources
+            Back
           </button>
         ) : !editorOpen ? (
           <button type="button" className="compact-secondary" onClick={startNew}>
-            Add source
+            Add
           </button>
         ) : null}
       </div>
@@ -182,18 +189,19 @@ export function CandidatureSourcesPanel({
               <h4>{sourceLabel(readingSource)}</h4>
             </div>
             <button type="button" className="compact-secondary" onClick={() => edit(readingSource)}>
-              Edit source
+              Edit
             </button>
           </div>
+          <details className="source-original-disclosure"><summary>Original</summary><pre>{readingSource.sourceText}</pre></details>
           {readingSource.url ? <p className="source-reference">{readingSource.url}</p> : null}
           {readingSource.sourceText ? (
-            <p className="source-reader-content">{readingSource.sourceText}</p>
+            <p className="source-reader-content">{readableSourceText(readingSource.sourceText)}</p>
           ) : (
             <p className="compact-empty">This Source has no retained text.</p>
           )}
         </article>
       ) : sources.length === 0 ? (
-        <p className="compact-empty">No source material yet. The opportunity can remain incomplete.</p>
+        <p className="compact-empty">No Sources.</p>
       ) : (
         <div className="source-card-list" aria-label="Source list">
           {sources.map((source) => {
@@ -206,7 +214,7 @@ export function CandidatureSourcesPanel({
                     <span>{kindLabel(source.kind)}</span>
                   </div>
                   <button type="button" className="compact-secondary" onClick={() => setReadingId(source.id)}>
-                    Read source
+                    Read
                   </button>
                 </div>
                 {source.url ? <p className="source-reference">{source.url}</p> : null}

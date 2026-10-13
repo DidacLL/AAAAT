@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { workingCvSectionSchema } from "./document-domain-contracts";
+import { workingCvSectionSchema, workingCvRecordSchema, coverLetterRecordSchema } from "./document-domain-contracts";
 
 import {
   candidatureChoiceDefinitionSchema,
@@ -14,7 +14,9 @@ export const aiChannels = Object.freeze({
   connectionCurrent: "aaaat:ai-connection-current",
   jobExtract: "aaaat:ai-job-extract",
   cvWrite: "aaaat:ai-cv-write",
+  cvWritingContext: "aaaat:ai-cv-writing-context",
   coverLetterDraft: "aaaat:ai-cover-letter-draft",
+  coverLetterContext: "aaaat:ai-cover-letter-context",
 } as const);
 
 export const aiConnectionInputSchema = z
@@ -85,10 +87,11 @@ export const cvWritingRequestSchema = z
     itemId: z.string().uuid(),
     field: cvWritingFieldSchema,
     sections: z.array(workingCvSectionSchema).max(40),
+    draft: workingCvRecordSchema.optional(),
   })
   .strict();
 export type CvWritingRequest = z.infer<typeof cvWritingRequestSchema>;
-export const coverLetterDraftRequestSchema = z.object({ coverLetterId: z.string().uuid() }).strict();
+export const coverLetterDraftRequestSchema = z.object({ coverLetterId: z.string().uuid(), draft: coverLetterRecordSchema.optional(), sourceIds: z.array(z.string().uuid()).max(100).optional() }).strict();
 export type CoverLetterDraftRequest = z.infer<typeof coverLetterDraftRequestSchema>;
 
 export const cvWritingResultSchema = z
@@ -201,6 +204,11 @@ export const providerCvWritingContextSchema = z
   })
   .strict();
 export type ProviderCvWritingContext = z.infer<typeof providerCvWritingContextSchema>;
+export const cvWritingContextPreviewSchema = z.object({
+  connection: optionalAiConnectionStatusSchema,
+  context: providerCvWritingContextSchema,
+}).strict();
+export type CvWritingContextPreview = z.infer<typeof cvWritingContextPreviewSchema>;
 
 export const providerCoverLetterSourceSchema = z
   .object({
@@ -224,6 +232,12 @@ export const providerCoverLetterContextSchema = z
   })
   .strict();
 export type ProviderCoverLetterContext = z.infer<typeof providerCoverLetterContextSchema>;
+export const coverLetterContextPreviewSchema = z.object({
+  connection: optionalAiConnectionStatusSchema,
+  context: providerCoverLetterContextSchema,
+  sources: z.array(providerCoverLetterSourceSchema.extend({ id: z.string().uuid() })),
+}).strict();
+export type CoverLetterContextPreview = z.infer<typeof coverLetterContextPreviewSchema>;
 
 export const externalCandidatureCreateInputSchema = z
   .object({ source: candidatureSourceDraftSchema })
@@ -239,6 +253,8 @@ export interface AiDesktopApi {
     readonly connection: () => Promise<AiConnectionStatus | null>;
     readonly extractJob: (request: JobExtractionRequest) => Promise<JobExtractionResult>;
     readonly writeCvField: (request: CvWritingRequest) => Promise<CvWritingResult>;
+    readonly cvWritingContext: (request: CvWritingRequest) => Promise<CvWritingContextPreview>;
     readonly draftCoverLetter: (request: CoverLetterDraftRequest) => Promise<CoverLetterDraft>;
+    readonly coverLetterContext: (request: CoverLetterDraftRequest) => Promise<CoverLetterContextPreview>;
   };
 }

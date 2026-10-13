@@ -33,7 +33,9 @@ import {
   createCoverLetter,
   createCvTemplate,
   createWorkingCv,
-  duplicateRenderedCv,
+  prepareWorkingCv,
+  prepareCoverLetter,
+  prepareRenderedCvCopy,
   exportApplicationPacketProject,
   exportRenderedCoverLetterProject,
   exportRenderedCvProject,
@@ -106,6 +108,14 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return workingCvRecordSchema.parse(createWorkingCv(requireWorkspaceRoot(), workingCvCreateSchema.parse(input)));
   });
+  ipcMain.handle(documentDomainChannels.workingPrepare, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return workingCvRecordSchema.parse(prepareWorkingCv(requireWorkspaceRoot(), workingCvCreateSchema.parse(input)));
+  });
+  ipcMain.handle(documentDomainChannels.letterPrepare, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return coverLetterRecordSchema.parse(prepareCoverLetter(requireWorkspaceRoot(), coverLetterInputSchema.parse(input)));
+  });
   ipcMain.handle(documentDomainChannels.workingUpdate, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return workingCvRecordSchema.parse(updateWorkingCv(requireWorkspaceRoot(), workingCvUpdateSchema.parse(input)));
@@ -130,10 +140,10 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
       await renderWorkingCv(requireWorkspaceRoot(), request.cvId, blueprintSource),
     );
   });
-  ipcMain.handle(documentDomainChannels.duplicateRenderedCv, (event, renderedCvId: unknown) => {
+  ipcMain.handle(documentDomainChannels.prepareRenderedCvCopy, (event, renderedCvId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return workingCvRecordSchema.parse(
-      duplicateRenderedCv(requireWorkspaceRoot(), renderedCvRecordSchema.shape.id.parse(renderedCvId)),
+      prepareRenderedCvCopy(requireWorkspaceRoot(), renderedCvRecordSchema.shape.id.parse(renderedCvId)),
     );
   });
   ipcMain.handle(documentDomainChannels.openRenderedCv, async (event, renderedCvId: unknown) => {

@@ -2,7 +2,9 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
+  coverLetterContextPreviewSchema,
   cvWritingRequestSchema,
+  cvWritingContextPreviewSchema,
   cvWritingResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
@@ -55,6 +57,7 @@ import {
   profileSnapshotSchema,
   recentWorkspacePathSchema,
   systemInfoSchema,
+  candidatureTagCreateSchema,
   tagInputSchema,
   tagListSchema,
   tagRecordSchema,
@@ -183,6 +186,8 @@ export function createDesktopApi(
     listTags: async () => tagListSchema.parse(await invoke(channels.candidatureListTags)),
     createTag: async (input: Parameters<DesktopApi["candidatures"]["createTag"]>[0]) =>
       tagRecordSchema.parse(await invoke(channels.candidatureCreateTag, tagInputSchema.parse(input))),
+    createAndAttachTag: async (input: Parameters<DesktopApi["candidatures"]["createAndAttachTag"]>[0]) =>
+      tagRecordSchema.parse(await invoke(channels.candidatureCreateAndAttachTag, candidatureTagCreateSchema.parse(input))),
     updateTag: async (update: Parameters<DesktopApi["candidatures"]["updateTag"]>[0]) =>
       tagRecordSchema.parse(await invoke(channels.candidatureUpdateTag, tagUpdateSchema.parse(update))),
     setTags: async (selection: Parameters<DesktopApi["candidatures"]["setTags"]>[0]) =>
@@ -192,6 +197,8 @@ export function createDesktopApi(
   });
 
   const ai = Object.freeze({
+    coverLetterContext: async (request: Parameters<AiDesktopApi["ai"]["coverLetterContext"]>[0]) => coverLetterContextPreviewSchema.parse(await invoke(aiChannels.coverLetterContext, coverLetterDraftRequestSchema.parse(request))),
+    cvWritingContext: async (request: Parameters<AiDesktopApi["ai"]["cvWritingContext"]>[0]) => cvWritingContextPreviewSchema.parse(await invoke(aiChannels.cvWritingContext, cvWritingRequestSchema.parse(request))),
     connection: async () => optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
     extractJob: async (request: Parameters<AiDesktopApi["ai"]["extractJob"]>[0]) =>
       jobExtractionResultSchema.parse(

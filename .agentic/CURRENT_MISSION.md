@@ -1,36 +1,21 @@
-# Current mission — v2 release readiness
+# Current mission — v2 preview integration and public repository cleanup
 
-Current explicit Product Owner instruction remains highest authority.
+Current explicit Product Owner instruction is to propagate the current AAAAT product through repository documentation, provide a user-focused README with an advanced second half and image prompts, merge the working refinement into main, and clean the public repository. This authorizes integration; it does not request a release tag or deployment.
 
-Base main: `9f34eea8a1551cd96f12bb05df6f7e406dc0af98`.
+[Issue #428](https://github.com/DidacLL/AAAAT/issues/428) carries the refinement and remaining integrated evidence. [PR #435](https://github.com/DidacLL/AAAAT/pull/435) contains the accepted direction plus the working base from PR #417. The rejected frontend in PR #433 is superseded and must not be reused. The owner has instructed that no further specialists be used.
 
-## PLAN state
+The accepted design is preserved in [visual direction](../docs/UX_VISUAL_DIRECTION.md) and [interaction direction](../docs/UX_DEFINITION.md). Application covers compose actual content with distinct prominence and anchored expansion; editing remains ordinary sans-serif. Direct field controls remain intact. The fixed rail monitors shared Tag meaning; the fixed top bar owns main actions. Capture combines material and fields. Explicit Save/Cancel, provisional documents and retained drafts preserve user control. Interview requests remain secondary, editable and application-linked.
 
-- PLAN[0] — COMPLETE / RETAINED
-- PLAN[1] — COMPLETE / RETAINED
-- PLAN[2] — COMPLETE
-- PLAN[3] — COMPLETE / RETAINED
-- PLAN[4] — COMPLETE
-- PLAN[5] — COMPLETE
+## Evidence and limits
 
-PLAN[5] completed through the integrated acceptance sequence under #314. The current release-readiness work does not reopen completed product work unless running/package evidence exposes a concrete defect.
+Code review and real Electron inspection covered the accepted covers, contextual Tag monitor, unified capture, navigation-retained edits, explicit cancellation, exact external-request copying, document permission controls, custom professional information, section renaming through Save/PDF/template reuse, provisional generated copies and document removal. A fresh workspace generated a two-page combined PDF, removed both editable sources and reopened the retained output; actual PDF text and pages were inspected. Affected layouts were inspected at constrained and expanded widths.
 
-PR #414 / `9f34eea` added bounded llama.cpp and packaged-AAAAT MCP preflights so the remaining real local-host evaluation fails at the actual missing boundary instead of stalling opaquely. Superseded PR #413 is closed.
+Normal desktop operations against the owner's local Granite model filled supported empty fields while preserving an existing Role and a Location changed during the call. A supported existing-Tag case attached shared objects directly. New Tag proposals remained editable across navigation and another application; explicit creation retained the edited shared definition and aliases. A real CV-writing response preserved a newer manual description and remained a separate draft. A later Tag response proposed a near-duplicate category and was dismissed: these examples do not establish semantic reliability across requests/models. Exact Tag identities are deduplicated independently of model reasoning.
 
-## Current objective
+Required static typecheck/lint passed for the implementation. No automated tests were generated, rewritten or run as product acceptance. Reuse this evidence for documentation-only changes. Native Computer capture timed out after recovery; actual Electron controls remained accessible.
 
-Prepare/deploy v2 from current `main` while the remaining real llama.cpp owner-run evidence continues independently.
+## Remaining work
 
-Release-readiness boundary:
-- one native release path for Windows, macOS and Linux;
-- x64 and ARM64 release targets where native GitHub runners exist;
-- unsigned alpha artifacts are acceptable; do not add signing/notarization/updater machinery without a separate concrete requirement;
-- tests and CI do not define AAAAT, product behavior, acceptance, or requirements; they are subordinate/disposable engineering machinery only;
-- static typecheck + lint are lightweight hygiene checks, not product evidence;
-- package/release automation proves only that a native distributable can be produced, not product acceptance or model usefulness;
-- remove obsolete prototype releases/tags from the public product surface while preserving their commits in Git history;
-- clean stale working branches without making historical commits unreachable: retain one archive ref for branch-tip history before deleting old branch refs;
-- no feature expansion, test-generation phase, architecture cleanup programme or compatibility/migration ceremony;
-- do not reopen #373, which remains a non-blocking future document-source enhancement.
+Fresh third-party-host use of the revised request boundary, native-picker source export, and an actual late existing-Tag match after manual detachment remain unverified. Keep those limitations visible in GitHub; the repository merge does not manufacture completion of these boundaries. No release has been published, and the package remains `2.0.0-alpha.0`.
 
-The Product Owner is not routine QA or a prompt courier.
+Current schemas replace disposable development representations directly. Do not add migration/compatibility layers or resurrect stale tests and plans to justify the product. Preserve local ownership, typed mutations, renderer isolation, optional AI and portable documents.

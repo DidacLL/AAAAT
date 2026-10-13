@@ -1,193 +1,50 @@
-import { useState } from "react";
-
-import {
-  CandidatureManualEntryPanel,
-  CandidatureRawCapturePanel,
-} from "./CandidatureManualEntryPanel";
+import { useContext, useEffect, useState } from "react";
+import { PageToolbar } from "./PageToolbar";
+import { ToolbarVisible } from "./toolbar-context";
+import { NewApplicationPanel } from "./NewApplicationPanel";
 import { CandidaturesWorkspace } from "./CandidaturesWorkspace";
 import type { ApplicationTagContext } from "./TagVisor";
 import "./candidature-capture.css";
 
-type NewApplicationIntent = "direct" | "raw";
-type ContinuationTask = "manual" | "ai";
-
-interface InitialSelection {
-  readonly candidatureId: string;
-  readonly rawRetained: boolean;
-  readonly task?: ContinuationTask;
-}
-
-export function CandidaturesAiWorkspace({
-  initialCandidatureId,
-  onInitialCandidatureCleared,
-  onDirtyChange,
-  onTagGlossaryChange,
-  onTagContextChange,
-}: {
+export function CandidaturesAiWorkspace({ initialCandidatureId, onInitialCandidatureCleared, onDirtyChange, onTagGlossaryChange, onTagContextChange }: {
   readonly initialCandidatureId?: string;
   readonly onInitialCandidatureCleared?: () => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onTagGlossaryChange?: () => void;
   readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
+  const toolbarVisible = useContext(ToolbarVisible);
   const [view, setView] = useState<"applications" | "new">("applications");
-  const [newIntent, setNewIntent] = useState<NewApplicationIntent | null>(null);
+  const [newStarted, setNewStarted] = useState(false);
+  const [draftRevision, setDraftRevision] = useState(0);
   const [revision, setRevision] = useState(0);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [selection, setSelection] = useState<InitialSelection | null>(() =>
-    initialCandidatureId ? { candidatureId: initialCandidatureId, rawRetained: false } : null,
-  );
-  const [dirty, setDirty] = useState(false);
-
-  const reportDirty = (next: boolean) => {
-    setDirty(next);
-    onDirtyChange?.(next);
+  const [selection, setSelection] = useState<string | null>(initialCandidatureId ?? null);
+  const [savedNewId, setSavedNewId] = useState<string | null>(null);
+  const [newDirty, setNewDirty] = useState(false);
+  const [applicationDirty, setApplicationDirty] = useState(false);
+  useEffect(() => { onDirtyChange?.(newDirty || applicationDirty); }, [newDirty, applicationDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  const finishDraft = () => { setNewStarted(false); setNewDirty(false); setDraftRevision(current => current + 1); setView("applications"); };
+  const created = (id: string) => {
+    finishDraft();
+    if (applicationDirty) setSavedNewId(id);
+    else { setSelection(id); setSavedNewId(null); }
+    setRevision(current => current + 1); onTagGlossaryChange?.();
   };
-
-  const switchView = (next: "applications" | "new") => {
-    if (next === view) return;
-    if (dirty && !window.confirm("Discard unsaved application edits?")) return;
-    reportDirty(false);
-    if (next === "new") {
-      setSelection(null);
-      setNotice(null);
-      setNewIntent(null);
-    } else {
-      setNewIntent(null);
-    }
-    setView(next);
+  const openSavedNew = () => {
+    if (!savedNewId || (applicationDirty && !window.confirm("Discard unsaved application edits and open the new application?"))) return;
+    setSelection(savedNewId); setSavedNewId(null); setView("applications");
   };
-
-  const createdDirectly = (candidatureId: string) => {
-    reportDirty(false);
-    setRevision((current) => current + 1);
-    setSelection({ candidatureId, rawRetained: false });
-    setNotice("Application saved. Add or change information whenever you need.");
-    setNewIntent(null);
-    setView("applications");
-  };
-
-  const retainedRaw = (candidatureId: string) => {
-    reportDirty(false);
-    setRevision((current) => current + 1);
-    setSelection({ candidatureId, rawRetained: true });
-    setNotice("Raw material retained as a Source.");
-    setNewIntent(null);
-    setView("applications");
-  };
-
-  const chooseContinuation = (task: ContinuationTask) => {
-    if (!selection?.rawRetained) return;
-    if (dirty && !window.confirm("Discard unsaved application edits?")) return;
-    reportDirty(false);
-    setSelection({ ...selection, task });
-  };
-
-  const clearInitialSelection = () => {
-    setSelection(null);
-    onInitialCandidatureCleared?.();
-  };
-  const workspaceKey = `${revision}:${selection?.candidatureId ?? "corpus"}:${selection?.task ?? "review"}`;
-
-  return (
-    <div className="candidature-capture-owner">
-      <nav className="application-view-switcher" aria-label="Application view">
-        <span className="console-section-code" aria-hidden="true">APPLICATIONS / LOCAL INDEX</span>
-        <div>
-          <button
-            type="button"
-            className={view === "applications" ? "active" : ""}
-            aria-pressed={view === "applications"}
-            onClick={() => switchView("applications")}
-          >
-            Applications
-          </button>
-          <button
-            type="button"
-            aria-label="New application"
-            className={view === "new" ? "active new-application-switch" : "new-application-switch"}
-            aria-pressed={view === "new"}
-            onClick={() => switchView("new")}
-          >
-            ＋ New
-          </button>
-        </div>
-      </nav>
-
-      {view === "new" ? (
-        newIntent === "direct" ? (
-          <CandidatureManualEntryPanel
-            title="Enter information directly"
-            onCancel={() => setNewIntent(null)}
-            onCreated={createdDirectly}
-            onDirtyChange={reportDirty}
-          />
-        ) : newIntent === "raw" ? (
-          <CandidatureRawCapturePanel
-            title="Retain raw material"
-            onCancel={() => setNewIntent(null)}
-            onCreated={retainedRaw}
-            onDirtyChange={reportDirty}
-          />
-        ) : (
-          <section className="new-application-start" aria-label="New application">
-            <div>
-              <p className="eyebrow">New application</p>
-              <h2>How do you want to start?</h2>
-              <p className="compact-help">Both paths create the same application. Start with what you already have.</p>
-            </div>
-            <div className="new-application-intention-grid">
-              <button type="button" onClick={() => setNewIntent("direct")}>
-                <strong>Enter information directly</strong>
-                <span>Use your current application information fields. No Source or AI is required.</span>
-              </button>
-              <button type="button" onClick={() => setNewIntent("raw")}>
-                <strong>Retain raw material</strong>
-                <span>Keep an offer, message, form copy, conversation, or notes first.</span>
-              </button>
-            </div>
-          </section>
-        )
-      ) : (
-        <>
-          {notice ? <p className="application-save-notice" role="status">{notice}</p> : null}
-          {selection?.rawRetained ? (
-            <section className="new-application-continuation" aria-label="Raw material continuation">
-              <div>
-                <p className="eyebrow">Source retained</p>
-                <strong>Continue with the same application</strong>
-              </div>
-              <div className="new-application-continuation-actions">
-                <button
-                  type="button"
-                  className={selection.task === "ai" ? "active" : ""}
-                  onClick={() => chooseContinuation("ai")}
-                >
-                  Use AI to suggest information
-                </button>
-                <button
-                  type="button"
-                  className={selection.task === "manual" ? "active" : ""}
-                  onClick={() => chooseContinuation("manual")}
-                >
-                  Fill information manually
-                </button>
-              </div>
-            </section>
-          ) : null}
-          <CandidaturesWorkspace
-            key={workspaceKey}
-            initialSelection={selection ? {
-              candidatureId: selection.candidatureId,
-              task: selection.task,
-            } : undefined}
-            onInitialSelectionCleared={clearInitialSelection}
-            onDirtyChange={reportDirty}
-            onTagGlossaryChange={onTagGlossaryChange}
-            onTagContextChange={onTagContextChange}
-          />
-        </>
-      )}
-    </div>
-  );
+  return <div className="candidature-capture-owner">
+    <PageToolbar><nav className="application-view-switcher" aria-label="Application view"><div>
+      <button type="button" className={view === "applications" ? "active" : ""} aria-pressed={view === "applications"} onClick={() => setView("applications")}>Applications</button>
+      <button type="button" aria-label={newStarted ? "Resume new application" : "New application"} className={view === "new" ? "active" : ""} aria-pressed={view === "new"} onClick={() => { setNewStarted(true); setView("new"); }}>{newStarted && view !== "new" ? "Draft" : "＋ New"}</button>
+    </div></nav>{savedNewId && view === "applications" ? <button type="button" onClick={openSavedNew} title="Open the newly saved application">Open new</button> : null}</PageToolbar>
+    {newStarted ? <ToolbarVisible.Provider value={toolbarVisible && view === "new"}><div hidden={view !== "new"}>
+      <NewApplicationPanel key={draftRevision} onCreated={created} onCancel={finishDraft} onDirtyChange={setNewDirty} />
+    </div></ToolbarVisible.Provider> : null}
+    <ToolbarVisible.Provider value={toolbarVisible && view === "applications"}><div hidden={view !== "applications"}>
+      <CandidaturesWorkspace refreshRevision={revision} initialSelection={selection ? { candidatureId: selection } : undefined} onInitialSelectionCleared={() => { setSelection(null); onInitialCandidatureCleared?.(); }} onDirtyChange={setApplicationDirty} onTagGlossaryChange={onTagGlossaryChange} onTagContextChange={onTagContextChange} />
+    </div></ToolbarVisible.Provider>
+  </div>;
 }

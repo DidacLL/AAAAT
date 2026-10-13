@@ -35,6 +35,7 @@ export const channels = Object.freeze({
   candidatureSourceRemove: "aaaat:candidature-source-remove",
   candidatureListTags: "aaaat:candidature-list-tags",
   candidatureCreateTag: "aaaat:candidature-create-tag",
+  candidatureCreateAndAttachTag: "aaaat:candidature-create-and-attach-tag",
   candidatureUpdateTag: "aaaat:candidature-update-tag",
   candidatureSetTags: "aaaat:candidature-set-tags",
 } as const);
@@ -198,7 +199,7 @@ export const candidatureFieldValueSchema = z
 export type CandidatureFieldValue = z.infer<typeof candidatureFieldValueSchema>;
 export const candidatureFieldValueListSchema = z.array(candidatureFieldValueSchema);
 export const candidatureFieldValueSetSchema = z
-  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema })
+  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema, onlyIfEmpty: z.boolean().optional() })
   .strict();
 export type CandidatureFieldValueSet = z.infer<typeof candidatureFieldValueSetSchema>;
 export const candidatureFieldValueClearSchema = z.object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid() }).strict();
@@ -208,6 +209,8 @@ export const candidatureInputSchema = z
   .object({
     source: candidatureSourceDraftSchema.optional(),
     values: z.array(candidatureFieldValueSetSchema.omit({ candidatureId: true })).max(64).default([]),
+    tagIds: z.array(z.string().uuid()).max(100).optional(),
+    newTags: z.array(z.lazy(() => tagInputSchema)).max(30).optional(),
   })
   .strict();
 export type CandidatureInput = z.infer<typeof candidatureInputSchema>;
@@ -273,13 +276,15 @@ export const tagInputSchema = z
     message: "Tag aliases must be unique.",
   });
 export type TagInput = z.infer<typeof tagInputSchema>;
+export const candidatureTagCreateSchema = z.object({ candidatureId: z.string().uuid(), tag: tagInputSchema }).strict();
+export type CandidatureTagCreate = z.infer<typeof candidatureTagCreateSchema>;
 export const tagRecordSchema = tagInputSchema.extend({ id: z.string().uuid() }).strict();
 export type TagRecord = z.infer<typeof tagRecordSchema>;
 export const tagListSchema = z.array(tagRecordSchema);
 export const tagUpdateSchema = tagInputSchema.extend({ id: z.string().uuid() }).strict();
 export type TagUpdate = z.infer<typeof tagUpdateSchema>;
 export const candidatureTagSelectionSchema = z
-  .object({ candidatureId: z.string().uuid(), tagIds: z.array(z.string().uuid()).max(100) })
+  .object({ candidatureId: z.string().uuid(), tagIds: z.array(z.string().uuid()).max(100), append: z.boolean().optional() })
   .strict()
   .refine((value) => new Set(value.tagIds).size === value.tagIds.length, { message: "Each tag can be associated only once." });
 export type CandidatureTagSelection = z.infer<typeof candidatureTagSelectionSchema>;
@@ -326,6 +331,7 @@ export interface DesktopApi {
     readonly removeSource: (remove: CandidatureSourceRemove) => Promise<CandidatureSource[]>;
     readonly listTags: () => Promise<TagRecord[]>;
     readonly createTag: (input: TagInput) => Promise<TagRecord>;
+    readonly createAndAttachTag: (input: CandidatureTagCreate) => Promise<TagRecord>;
     readonly updateTag: (update: TagUpdate) => Promise<TagRecord>;
     readonly setTags: (selection: CandidatureTagSelection) => Promise<CandidatureRecord>;
   };

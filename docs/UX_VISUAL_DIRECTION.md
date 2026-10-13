@@ -68,15 +68,17 @@ Do not turn every block into a novelty prop. The interface must still behave lik
 
 ## Typography
 
-Typography should reinforce the old-machine / paper contrast without sacrificing readability.
+**Accepted direction for v2 refinement:** the Product Owner accepted the running content-driven application-cover design on 13 October 2026. Preserve this composition while refining other surfaces. This accepts the visual direction, not the unfinished v2 product as a whole.
 
-Potential direction:
+On-screen text uses readable sans-serif throughout. Hierarchy comes from selective scale, weight, wrapping and grouping; neither serif faces, blanket bold text nor oversized headings express the intended cover design.
 
-- highly readable humanist/serif or utilitarian sans treatment for long-form information and document-like areas;
-- restrained monospace/terminal typography for technical metadata, diagnostics, labels or advanced surfaces;
-- occasional stamped/typewriter/industrial display treatment for headings or identity, not body text.
+Application covers compose the actual retained text according to the user's field order and prominence. Short information can sit beside a prominent value; longer information wraps beneath it. Fields do not occupy predefined width boxes, and equal card heights must not manufacture empty space. The application remains recognizable through its content and typographic composition, without random per-record colour themes.
 
-Do not use distressed, novelty or monospace fonts for substantial reading just to satisfy the theme.
+The existing warm paper and restrained machine surfaces provide continuity. Decoration remains subordinate to reading and direct control.
+
+The cover typography applies only to collapsed and expanded application cards. Application editing retains ordinary readable sans-serif values, clear field labels and contextual controls; it does not inherit the cover composition or condensed display treatment.
+
+Short cover values share a condensed sans-serif face. Large prominence is visibly larger and heavier than Regular, and Small is subordinate; switching prominence does not merely switch font families. Longer text retains a comfortable reading treatment. Expanded covers retain their row and nearest outer edge, displacing neighbouring cards. The fixed rail retains a contextual Tags monitor. Collapsed and expanded cards show Tag names only; hovering, focusing or selecting a Tag shows its stored definition in the monitor. Definitions are not duplicated inside cards, where useful application text owns the space.
 
 ## AAAAT as a character
 
@@ -115,7 +117,7 @@ Theme must reinforce rather than override UX hierarchy.
 
 In particular:
 
-- Candidature Focus remains calm and rapidly readable;
+- Application recall remains calm and rapidly readable;
 - Sources should feel trustworthy and document-like;
 - editing controls should be clear rather than hidden behind decorative machinery;
 - VCVGenerator should emphasize the cleanliness and ownership of the artifact being constructed;

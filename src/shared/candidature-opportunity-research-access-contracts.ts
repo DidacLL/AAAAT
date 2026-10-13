@@ -30,6 +30,7 @@ export const candidatureOpportunityResearchAccessSchema = z
   .object({
     candidatureId: z.string().uuid(),
     allowed: z.boolean(),
+    kind: z.enum(["application-information", "interview"]).nullable(),
   })
   .strict();
 export type CandidatureOpportunityResearchAccess = z.infer<
@@ -37,7 +38,15 @@ export type CandidatureOpportunityResearchAccess = z.infer<
 >;
 
 export const candidatureOpportunityResearchAccessUpdateSchema =
-  candidatureOpportunityResearchAccessSchema;
+  z.discriminatedUnion("allowed", [
+    z.object({ candidatureId: z.string().uuid(), allowed: z.literal(false) }).strict(),
+    z.object({
+      candidatureId: z.string().uuid(),
+      allowed: z.literal(true),
+      kind: z.enum(["application-information", "interview"]),
+      text: z.string().min(1).max(128 * 1024),
+    }).strict(),
+  ]);
 export type CandidatureOpportunityResearchAccessUpdate = z.infer<
   typeof candidatureOpportunityResearchAccessUpdateSchema
 >;
@@ -54,6 +63,15 @@ export type CandidatureExternalAiInstruction = z.infer<
 export const candidatureExternalAiResultTextSchema = z
   .string()
   .max(64 * 1024);
+
+export const candidatureExternalAiRequestTextSchema = z.object({
+  candidatureId: z.string().uuid(),
+  text: z.string().min(1).max(128 * 1024),
+}).strict();
+export const candidatureExternalAiResultInputSchema = z.object({
+  candidatureId: z.string().uuid(),
+  text: candidatureExternalAiResultTextSchema,
+}).strict();
 
 export const candidatureExternalAiCopyResultSchema = z.literal("copied");
 export type CandidatureExternalAiCopyResult = z.infer<
@@ -98,33 +116,34 @@ export interface CandidatureOpportunityResearchAccessDesktopApi {
       input: CandidatureOpportunityResearchAccessUpdate,
     ) => Promise<CandidatureOpportunityResearchAccess>;
     readonly applicationInformationTask: (
-      instruction: CandidatureExternalAiInstruction,
+      candidatureId: string,
     ) => Promise<ExternalApplicationInformationTask>;
     readonly takeApplicationInformationResult: (
       candidatureId: string,
     ) => Promise<ExternalApplicationInformationPendingResult | null>;
     readonly copyApplicationInformationTask: (
-      instruction: CandidatureExternalAiInstruction,
+      input: z.infer<typeof candidatureExternalAiRequestTextSchema>,
     ) => Promise<CandidatureExternalAiCopyResult>;
     readonly exportApplicationInformationTask: (
-      instruction: CandidatureExternalAiInstruction,
+      input: z.infer<typeof candidatureExternalAiRequestTextSchema>,
     ) => Promise<CandidatureExternalAiExportResult>;
     readonly submitApplicationInformationResult: (
-      resultText: string,
+      input: z.infer<typeof candidatureExternalAiResultInputSchema>,
     ) => Promise<ExternalApplicationInformationPendingResult>;
     readonly importApplicationInformationResult: (
+      candidatureId: string,
     ) => Promise<CandidatureApplicationInformationResultImportResult>;
-    readonly interviewContext: () => Promise<ExternalInterviewPreparationContext>;
+    readonly interviewContext: (candidatureId: string) => Promise<ExternalInterviewPreparationContext>;
     readonly copyInterviewTask: (
-      instruction: CandidatureExternalAiInstruction,
+      input: z.infer<typeof candidatureExternalAiRequestTextSchema>,
     ) => Promise<CandidatureExternalAiCopyResult>;
     readonly exportInterviewTask: (
-      instruction: CandidatureExternalAiInstruction,
+      input: z.infer<typeof candidatureExternalAiRequestTextSchema>,
     ) => Promise<CandidatureExternalAiExportResult>;
     readonly retainInterviewResult: (
-      resultText: string,
+      input: z.infer<typeof candidatureExternalAiResultInputSchema>,
     ) => Promise<CandidatureInterviewResultRetainResult>;
-    readonly importInterviewResult: () => Promise<CandidatureInterviewResultImportResult>;
+    readonly importInterviewResult: (candidatureId: string) => Promise<CandidatureInterviewResultImportResult>;
   };
 }
 

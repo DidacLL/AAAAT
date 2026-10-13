@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  candidatureTagCreateSchema,
+  type CandidatureTagCreate,
   tagInputSchema,
   tagListSchema,
   tagRecordSchema,
@@ -27,11 +29,12 @@ class TagServiceError extends Error {
   }
 }
 
-function transact(database: DatabaseSync, action: () => void): void {
+function transact<T>(database: DatabaseSync, action: () => T): T {
   database.exec("BEGIN IMMEDIATE");
   try {
-    action();
+    const result = action();
     database.exec("COMMIT");
+    return result;
   } catch (error) {
     database.exec("ROLLBACK");
     throw error;
@@ -93,22 +96,34 @@ export function listTags(rootPath: string): TagRecord[] {
   });
 }
 
-export function createTag(rootPath: string, input: TagInput): TagRecord {
+export function createTagInDatabase(database: DatabaseSync, input: TagInput, now: string): TagRecord {
   const tag = tagInputSchema.parse(input);
+  const id = randomUUID();
+  database.prepare(
+    `INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(id, tag.name, tag.definition, tag.notes ?? "", JSON.stringify(tag.aliases), now, now);
+  recordActivity(database, id, "tag.created", now);
+  return readTag(database, id);
+}
+
+export function createTag(rootPath: string, input: TagInput): TagRecord {
   return withWorkspaceDatabase(rootPath, (database) => {
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    transact(database, () => {
-      database
-        .prepare(
-          `INSERT INTO tags(id, name, definition, notes, aliases_json, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(id, tag.name, tag.definition, tag.notes ?? "", JSON.stringify(tag.aliases), now, now);
-      recordActivity(database, id, "tag.created", now);
-    });
-    return readTag(database, id);
+    return transact(database, () => createTagInDatabase(database, input, new Date().toISOString()));
   });
+}
+
+export function createAndAttachTag(rootPath: string, rawInput: CandidatureTagCreate): TagRecord {
+  const input = candidatureTagCreateSchema.parse(rawInput);
+  return withWorkspaceDatabase(rootPath, database => transact(database, () => {
+    if (!database.prepare("SELECT id FROM candidatures WHERE id = ?").get(input.candidatureId)) throw new TagServiceError("The application no longer exists.");
+    const now = new Date().toISOString();
+    const tag = createTagInDatabase(database, input.tag, now);
+    database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)").run(input.candidatureId, tag.id);
+    database.prepare("INSERT INTO candidature_activity(occurred_at, candidature_id, action) VALUES (?, ?, ?)").run(now, input.candidatureId, "candidature.tags-updated");
+    database.prepare("UPDATE candidatures SET updated_at = ? WHERE id = ?").run(now, input.candidatureId);
+    return tag;
+  }));
 }
 
 export function updateTag(rootPath: string, input: TagUpdate): TagRecord {

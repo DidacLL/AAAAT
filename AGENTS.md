@@ -22,7 +22,7 @@ current explicit Product Owner instruction
 → implementation
 ```
 
-Product Context and `docs/owner-source/` explain or preserve provenance. They never create requirements. A Mission, Issue, ADR, test, migration, existing implementation, historical name, or successful CI run never creates product meaning by itself.
+Product Context explains rationale; Git history preserves discarded owner-source transcripts and development representations. The remaining `docs/owner-source/` images are visual references only. They never create requirements. A Mission, Issue, ADR, test, migration, existing implementation, historical name, or successful CI run never creates product meaning by itself.
 
 After product meaning is established, use the derived technical order:
 

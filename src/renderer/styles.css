@@ -7,7 +7,7 @@
   text-rendering: optimizeLegibility;
   --ui-font: "Segoe UI", Tahoma, Arial, sans-serif;
   --machine-font: "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
-  --document-font: Georgia, Cambria, "Times New Roman", serif;
+  --document-font: var(--ui-font);
   --canvas: #6f766b;
   --paper: #eadfc9;
   --paper-strong: #f5ecdc;
@@ -36,6 +36,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+pre, code, kbd, samp {
+  font-family: var(--ui-font);
 }
 
 html,
@@ -176,7 +180,7 @@ summary:focus-visible {
 .workspace-path code {
   overflow-wrap: anywhere;
   color: var(--ink);
-  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-family: var(--ui-font);
   font-size: 13px;
 }
 

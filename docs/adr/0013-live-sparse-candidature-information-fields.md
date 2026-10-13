@@ -1,64 +1,23 @@
-# ADR 0013 — Live sparse candidature information fields
+# ADR 0013 — Sparse user-maintainable application information
 
-> Recovery clarification: [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. Unrelated decisions below remain in force.
-
-- Status: Accepted corrective technical decision; the historical M6 name is non-authoritative.
-- Date: 2026-09-04
-- Decision class: C
-- Issue: #150
-- Supersedes: ADR 0012 where it defines fixed candidature working-brief, priority, legacy source compatibility, or fixed ordinary candidature properties
-
-## Context
-
-Current Product Owner authority defines AAAAT as a sparse local candidature-information workspace and artifact generator, not an application lifecycle tracker, recruiter-preparation workflow, or completeness system. Ordinary candidature information is open-ended during normal product use: a user may add a field after many candidatures already exist, and missing values remain normal.
-
-M6 development code instead privileged a closed set of candidature columns, priority, one working-brief row, hard-coded Focus composition, and fixed AI extraction fields. There is no real-user v2 persistence baseline requiring those development representations to remain compatible.
-
-AAAAT must preserve explicit domain entities such as Sources, Concepts, ToDos, Documents/Artifacts, Profiles/Variants and AI Connections. The correction therefore needs one deliberately bounded extensibility seam rather than a generic entity/attribute platform.
+Status: accepted technical boundary, updated for current application and AI interaction. Historical fixed working briefs and lifecycle columns are discarded development representations.
 
 ## Decision
 
-`candidatures` stores structural candidature identity, archive state and timestamps only.
+The application root stores structural identity, archive state and timestamps. Ordinary information uses domain-specific field definitions, independent presentation/AI preferences and sparse field values. Missing values are normal.
 
-Ordinary candidature information is represented by three AAAAT-specific persistence concepts:
+Shipped definitions are editable defaults. A field's stable local identity preserves its values when labels change; neither labels nor system keys create hidden semantic identity. Adding legitimate user information does not require a code/schema change for each profession.
 
-1. `candidature_fields` — stable local field identity plus label, description, small value type, cardinality, optional stable choice IDs, enabled state and optional AAAAT-owned `system_key`.
-2. `candidature_field_preferences` — independent Focus visibility/order/prominence, identity order, AI discovery permission and AI context mode.
-3. `candidature_field_values` — one sparse JSON value per candidature/field pair, validated by the application service against the current field definition.
+Built-in and custom values use the same typed set/clear services. Definitions validate value shape and choices. Unsafe type/cardinality/choice changes are rejected while affected values exist; retirement is distinct from clearing a value. User-controlled favourites, order and prominence form local presentation rather than a second application model.
 
-No value row means AAAAT does not retain that information. It does not mean the candidature is incomplete.
+Sources are an explicit first-class collection. Tags are shared glossary objects with application associations, not duplicated definitions. Fixed priorities, preparation blocks, lifecycle stages and next actions are not privileged domain architecture.
 
-Built-in and later-created fields use the same value table and the same validated set/clear mutation path. A small seed catalogue provides optional organization, role, location, compensation, application date and notes fields. No seed creates a candidature value.
+AI extraction is scoped to the currently requested enabled fields and their permissions. Provider references are operation-local; returned values resolve through the current field contract and normal services. Valid untouched empty values can be applied by the requested action; existing/newer manual edits preserve precedence. A focused request remains separate from permission to use information.
 
-The application service enforces 64 enabled fields and 32 AI-discovery fields. These are product guardrails, not SQLite constraints. Type/cardinality or choice-ID changes are rejected while retained values exist; labels, descriptions and choice labels may change without changing field identity. Built-in fields may be retired but not physically deleted. Custom fields with retained values must be retired rather than deleted.
+Privacy projection precedes disclosure. It can expose, omit or locally substitute information as supported by the operation. Local restoration and validation must preserve the intended data without disclosing authoritative private values. Token spelling and intermediate identifiers are implementation, not product meaning.
 
-`candidature_sources` remains an explicit first-class relation. The old root source columns and `candidature_working_briefs` do not survive the corrected development schema.
-
-Filtering accepts only a registered field ID and a whitelisted operator derived from its type. SQL is application-owned and parameterized; callers cannot provide table/column names or SQL fragments. Many-choice `contains_any` and `contains_all` operate on sets of stable choice IDs; duplicate filter IDs do not change semantics.
-
-Focus is a projection over retained field values selected by field preferences plus explicit structural components such as Concepts and Documents. It does not persist another candidature-shaped value model and has no built-in recruiter-call hierarchy.
-
-AI Source discovery is generated from the currently enabled fields whose `ai_discovery` preference is true. Requests include stable field ID, current label/description/type/cardinality/choices. Provider proposals are rejected unless the field was requested and the value validates against the current definition. Accepted proposals use the ordinary field-value mutation path. Ordinary Source analysis cannot create field definitions.
-
-Historical rediscovery is a bounded proposal operation over explicitly retained Sources for one candidature and one registered field. It never writes or silently replaces an existing authoritative value. Retained Sources are not implicitly included in fit, variant-recommendation, CV-tailoring or cover-letter AI contexts; those operations receive only candidature information that has passed field-level AI context preferences. Source disclosure is operation-specific: a bounded operation may receive explicitly scoped retained Source material when its product purpose requires it and the operation's privacy/context rules permit it.
-
-Privacy projection may expose, omit, or locally replace/tokenize information. When tokenized, authoritative literals remain local and the provider receives opaque replacements; local restoration may occur where the operation requires it. Concrete token syntax, generation strategy, collision handling, namespace format, and rehydration algorithm are replaceable implementation details. The durable correctness requirements are non-disclosure of authoritative literals and correct local restoration without unintended chaining.
+Current schemas are corrected directly. There is no development-migration history, compatibility projection or generic entity/attribute framework. Contracts and service validation protect domain shape; historical tests and arbitrary old fixture limits do not establish product requirements.
 
 ## Consequences
 
-- A Source-only or completely sparse candidature is valid.
-- Adding a field creates no rows for existing candidatures and requires no migration, IPC contract, renderer component, filter implementation, or AI prompt change for that semantic field.
-- Field renames preserve values, filters, Focus and AI configuration through stable IDs.
-- Different professions can define their own ordinary candidature vocabulary without changing AAAAT code.
-- The renderer stays progressive: retained information is visible; missing registered fields appear only through `Add information` or configuration surfaces.
-- Manual/no-AI workflows remain complete.
-- Fixed status, priority, next action, recruiter preparation and working-brief semantics have no privileged architecture. A workspace may create equivalent optional fields if useful.
-- Development migrations and fixtures are corrected directly because no real-user v2 baseline exists. A future declared real-use baseline starts normal forward-only migration discipline from that point.
-
-## Rejected alternatives
-
-- Wide nullable candidature columns: every new user-relevant semantic field still requires coordinated code and schema changes.
-- Fixed columns plus `extras_json`: creates two classes of otherwise ordinary candidature information and two mechanisms for Focus/filtering/AI.
-- Universal EAV/custom database: erases domain boundaries and creates a framework disproportionate to AAAAT.
-- Keeping M6 fixed-field projections for compatibility: preserves rejected development assumptions for users who do not exist and creates duplicate authority paths.
-- Generic migration/conversion engine for field type changes: not required; reject unsafe shape changes while values exist.
+Applications can remain sparse or Source-only. Different professions share one understandable information model. The same retained content drives recognition covers and ordinary editing. Manual use is complete; optional AI assists the current task without gaining field-definition, corpus-query or generic mutation authority.

@@ -1,3 +1,4 @@
+import { readableSourceText } from "../shared/source-text";
 import type {
   CandidatureFieldConfiguration,
   CandidaturePresentationSize,
@@ -20,6 +21,7 @@ const recencyWindowMs: Readonly<Record<Exclude<RecencyFilter, "all">, number>> =
 export interface CandidatureRecognitionCue {
   readonly fieldId: string;
   readonly label: string;
+  readonly description?: string;
   readonly value: string;
   readonly presentationSize: CandidaturePresentationSize;
   readonly favourite: boolean;
@@ -89,6 +91,7 @@ export function candidatureSearchMatchCue(
     const cue = {
       fieldId: field.definition.id,
       label: field.definition.label,
+      description: field.definition.description,
       presentationSize: field.preferences.presentationSize,
       favourite: field.preferences.favourite,
     };
@@ -145,6 +148,7 @@ export function candidatureRecognitionCues(
       field,
       fieldId: field.definition.id,
       label: field.definition.label,
+      description: field.definition.description,
       value,
       presentationSize: field.preferences.presentationSize,
       favourite: field.preferences.favourite,
@@ -167,6 +171,7 @@ export function candidatureRecognitionCues(
     .map((cue) => ({
       fieldId: cue.fieldId,
       label: cue.label,
+      description: cue.description,
       value: cue.value,
       presentationSize: cue.presentationSize,
       favourite: cue.favourite,
@@ -177,7 +182,7 @@ export function candidatureRetainedSourceCue(
   record: CandidatureRecord,
   limit = 120,
 ): CandidatureRecognitionCue | null {
-  const normalized = record.sourceSearchText.replace(/\s+/g, " ").trim();
+  const normalized = readableSourceText(record.sourceSearchText).replace(/\s+/g, " ").trim();
   if (!normalized) return null;
   const boundedLimit = Math.max(2, limit);
   const value = normalized.length > boundedLimit
@@ -185,20 +190,23 @@ export function candidatureRetainedSourceCue(
     : normalized;
   return {
     fieldId: "retained-source",
-    label: "Retained source",
+    label: "Application text",
     value,
     presentationSize: "wide",
     favourite: false,
   };
 }
 
+export function candidatureSupportingCues(record: CandidatureRecord, fields: readonly CandidatureFieldConfiguration[]): CandidatureRecognitionCue[] {
+  return fields.flatMap((field) => {
+    if (!field.definition.enabled || field.preferences.favourite) return [];
+    const retained = record.values.find((value) => value.fieldId === field.definition.id);
+    if (!retained) return [];
+    const value = displayValue(field, retained.value, 2000).trim();
+    return value ? [{ fieldId: field.definition.id, label: field.definition.label, description: field.definition.description, value, presentationSize: field.preferences.presentationSize, favourite: false }] : [];
+  });
+}
 
-const cardCueWeight: Readonly<Record<CandidaturePresentationSize, number>> = {
-  compact: 1,
-  normal: 2,
-  wide: 3,
-};
-const collapsedCardCapacity = 9;
 
 export function candidatureCardRecognitionProjection(
   record: CandidatureRecord,
@@ -211,18 +219,7 @@ export function candidatureCardRecognitionProjection(
     Number.MAX_SAFE_INTEGER,
     2000,
   );
-  let primaryCues: readonly CandidatureRecognitionCue[] = allFavouriteCues;
-  if (!expanded) {
-    let used = 0;
-    const visible: CandidatureRecognitionCue[] = [];
-    for (const cue of allFavouriteCues) {
-      const weight = cardCueWeight[cue.presentationSize];
-      if (used + weight > collapsedCardCapacity) break;
-      visible.push(cue);
-      used += weight;
-    }
-    primaryCues = visible;
-  }
+  const primaryCues = allFavouriteCues;
   return {
     primaryCues,
     retainedSourceCue: primaryCues.length === 0

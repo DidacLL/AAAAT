@@ -1,24 +1,17 @@
 # ADR 0006 — Direct AI provider boundary
 
-> Status: Accepted technical boundary, revised for the authority-aligned AI connection model. [ADR 0015](0015-owner-approved-recovery-boundaries.md) supersedes outbound durable identifiers and any coupling of external/provider wire contracts to internal identifier-bearing contracts. `PRODUCT_DEFINITION.md` determines product meaning; this ADR records the technical boundary only.
-
-## Context
-
-AAAAT supports optional provider-neutral AI without giving the sandboxed renderer arbitrary networking or credential authority. A single-candidature opportunity review uses privacy projection before inference; it is evidence and questions, not a rating, ranking, career workflow, or prescribed action.
+Status: accepted technical boundary, updated for the current v2 preview. Product meaning comes from Product Definition and current owner instruction.
 
 ## Decision
 
-For the current demonstrated provider boundary:
+Optional AI operations run in privileged main-process services through one generic OpenAI-compatible adapter. The sandboxed renderer receives typed domain intentions, not networking or credential authority.
 
-- connection settings live in the user-owned workspace as `ai-connection.json`;
-- `http:` is accepted only for a loopback endpoint and a remote endpoint must use `https:`; URL credentials, query strings and fragments are rejected by this slice;
-- for each connection, the current slice stores the user-defined connection name, endpoint, and model; credential, authorization-header, API-key, OAuth, provider-account, and secret-storage configuration are outside this slice rather than prohibited product-wide;
-- privileged main code exposes only fixed connection and bounded operation IPC intentions;
-- one operation-oriented provider interface is implemented by one generic OpenAI-compatible HTTP adapter; there is no provider registry or plugin layer;
-- review context is rebuilt from authoritative local data and privacy-projected immediately before inference; token mappings stay transient and local;
-- provider output must satisfy the neutral review schema and remains transient unless a bounded operation explicitly returns a user-reviewable proposal applied through normal application services;
-- a remote endpoint may be used only when its authentication has already been handled outside AAAAT.
+Connections are named workspace-local configuration with endpoint/model and optional protected Bearer credential. HTTP is limited to loopback; remote endpoints require HTTPS. URL credentials, queries and fragments are rejected. Credential storage requires secure OS-backed protection; AAAAT does not implement provider accounts or OAuth.
+
+Current direct operations are application-information extraction, shared Tag suggestions, focused CV writing and cover-letter drafting. Context is constructed for the operation and filtered by the applicable local permissions before provider calls. Internal identities are not provider mutation authority; temporary references resolve results through typed local services.
+
+Application document permission applies to internal provider calls and external document access. The local context preview uses the same projection without enabling external reads. Returned structure is validated locally; useful partial results remain available. Untouched empty information may be filled directly by the requested action, while existing/newer manual work is preserved. New shared Tags remain reviewable before creation.
 
 ## Consequences
 
-The current path can work with a locally running compatible model server or an already-authenticated remote HTTPS endpoint without adding a credential or secret-storage subsystem to this slice. The renderer still receives no networking authority. This ADR does not prescribe API keys, OAuth, a provider marketplace, workflow engine, generic AI task model, or a provider-specific integration surface.
+Manual use remains complete. Providers supply information processing, not product authority. AAAAT owns its local context and mutation boundaries, not the external model's reasoning, policy, accuracy or account system. No provider registry, plugin framework or generic AI platform is introduced.

@@ -11,7 +11,7 @@
     "make": "electron-forge make",
     "build": "electron-forge package",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "lint": "eslint src scripts forge.config.ts vite.main.config.mts vite.preload.config.mts vite.renderer.config.mts --max-warnings 0",
+    "lint": "eslint src scripts test/ai-eval forge.config.ts vite.main.config.mts vite.preload.config.mts vite.renderer.config.mts --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:desktop": "playwright test --config playwright.config.ts",
@@ -63,7 +63,6 @@
   },
   "engines": {
     "node": ">=24.15.0 <25",
-    "npm": ">=11.12.0 <12"
-  },
-  "packageManager": "npm@11.19.0"
+    "npm": ">=11.12.0"
+  }
 }

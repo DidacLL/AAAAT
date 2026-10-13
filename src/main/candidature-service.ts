@@ -27,6 +27,7 @@ import {
 } from "./candidature-field-service";
 import { revokeApplicationDocumentExternalAccessInDatabase } from "./application-document-external-access-service";
 import { withWorkspaceDatabase } from "./workspace";
+import { createTagInDatabase } from "./tag-service";
 
 interface CandidatureRow {
   readonly id: string;
@@ -217,6 +218,11 @@ export function createCandidature(
           now,
         );
       }
+      const tagIds = new Set(input.tagIds ?? []);
+      for (const tagId of tagIds) requireTag(database, tagId);
+      for (const tag of input.newTags ?? []) tagIds.add(createTagInDatabase(database, tag, now).id);
+      const attachTag = database.prepare("INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)");
+      for (const tagId of tagIds) attachTag.run(id, tagId);
       recordActivity(database, id, "candidature.created", now);
     });
     return readCandidatureInDatabase(database, id);
@@ -361,9 +367,9 @@ export function setCandidatureTags(
     transact(database, () => {
       readCandidatureInDatabase(database, selection.candidatureId);
       for (const tagId of selection.tagIds) requireTag(database, tagId);
-      database.prepare("DELETE FROM candidature_tags WHERE candidature_id = ?").run(selection.candidatureId);
+      if (!selection.append) database.prepare("DELETE FROM candidature_tags WHERE candidature_id = ?").run(selection.candidatureId);
       const insert = database.prepare(
-        "INSERT INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)",
+        "INSERT OR IGNORE INTO candidature_tags(candidature_id, tag_id) VALUES (?, ?)",
       );
       for (const tagId of selection.tagIds) insert.run(selection.candidatureId, tagId);
       touch(database, selection.candidatureId, now);

@@ -51,7 +51,7 @@ export const cancellableAiConnectionValidationResultSchema = namedAiConnectionLi
 
 export const cancellableJobExtractionTaskRequestSchema = jobExtractionRequestSchema
   .extend({
-    targetFieldIds: z.array(z.string().uuid()).min(1).max(32).optional(),
+    targetFieldIds: z.array(z.string().uuid()).min(1).max(64).optional(),
   })
   .strict();
 export type CancellableJobExtractionTaskRequest = z.infer<

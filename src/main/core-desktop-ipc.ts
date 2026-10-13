@@ -6,7 +6,9 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
+  coverLetterContextPreviewSchema,
   cvWritingRequestSchema,
+  cvWritingContextPreviewSchema,
   cvWritingResultSchema,
   jobExtractionRequestSchema,
   jobExtractionResultSchema,
@@ -57,6 +59,7 @@ import {
   profileSnapshotSchema,
   recentWorkspacePathSchema,
   systemInfoSchema,
+  candidatureTagCreateSchema,
   tagInputSchema,
   tagListSchema,
   tagRecordSchema,
@@ -72,6 +75,8 @@ import {
 } from "../shared/workspace-recovery-contracts";
 import {
   draftCoverLetter,
+  previewCoverLetterContext,
+  previewCvWritingContext,
   extractJob,
   getAiConnection,
   writeCvField,
@@ -118,7 +123,7 @@ import {
   removeProfileItem,
   updateProfileItem,
 } from "./profile-service";
-import { createTag, listTags, updateTag } from "./tag-service";
+import { createAndAttachTag, createTag, listTags, updateTag } from "./tag-service";
 import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backup";
 import { assertTrustedSender } from "./desktop-ipc-context";
 import {
@@ -440,6 +445,10 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
       createTag(requireWorkspaceRoot(), tagInputSchema.parse(input)),
     );
   });
+  ipcMain.handle(channels.candidatureCreateAndAttachTag, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return tagRecordSchema.parse(createAndAttachTag(requireWorkspaceRoot(), candidatureTagCreateSchema.parse(input)));
+  });
   ipcMain.handle(channels.candidatureUpdateTag, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return tagRecordSchema.parse(
@@ -546,6 +555,14 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     return coverLetterDraftSchema.parse(
       await draftCoverLetter(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input)),
     );
+  });
+  ipcMain.handle(aiChannels.coverLetterContext, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return coverLetterContextPreviewSchema.parse(previewCoverLetterContext(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input)));
+  });
+  ipcMain.handle(aiChannels.cvWritingContext, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return cvWritingContextPreviewSchema.parse(previewCvWritingContext(requireWorkspaceRoot(), cvWritingRequestSchema.parse(input)));
   });
 }
 

@@ -1,5 +1,5 @@
 .app-shell {
-  grid-template-rows: 50px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .app-header {
@@ -49,7 +49,7 @@
 .workspace-chip code {
   overflow: hidden;
   color: var(--ink);
-  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-family: var(--ui-font);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -90,6 +90,10 @@
 }
 
 .workspace-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   padding: 10px 12px 18px;
 }
 
@@ -99,6 +103,8 @@
 }
 
 .work-shell {
+  flex: 1;
+  min-height: 0;
   display: grid;
   width: 100%;
   grid-template-columns: minmax(184px, 220px) minmax(0, 1fr);
@@ -671,7 +677,7 @@
 .primary-work-nav button { color: #e9dfc8; }
 .primary-work-nav .active-work-destination { color: #fff3d7; background: #4a524b; }
 .work-surface {
-  min-height: calc(100vh - 78px);
+  min-height: 0;
   padding: 8px;
   border: 1px solid #5f665d;
   background: rgb(233 223 200 / 88%);
@@ -685,7 +691,7 @@
 .work-shell { grid-template-columns: 206px minmax(0, 1fr); gap: 9px; }
 .work-rail {
   position: relative;
-  min-height: calc(100vh - 78px);
+  min-height: 0;
   align-content: start;
   padding: 9px;
   border: 1px solid #202823;
@@ -724,7 +730,7 @@
 .welcome-status span, .welcome-option { border-radius: 8px 2px 8px 2px; }
 
 @media (max-width: 900px) {
-  .work-shell { grid-template-columns: minmax(0, 1fr); }
+  .work-shell { grid-template-columns: 148px minmax(0, 1fr); }
   .work-rail { min-height: 0; border-radius: 12px 5px; }
   .rail-workspace { display: none; }
 }
@@ -785,3 +791,66 @@
   border-radius: 4px;
   background: var(--paper);
 }
+
+.work-rail { display: flex; flex-direction: column; align-self: stretch; min-height: 0; overflow: hidden; }
+.work-surface { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.app-header { flex-wrap: wrap; min-height: 50px; padding-block: 5px; }
+.page-toolbar { display: flex; flex: 1; min-width: 0; justify-content: flex-end; flex-wrap: wrap; gap: .35rem; }
+.page-toolbar-group, .workspace-utilities { display: flex; align-items: center; gap: .35rem; }
+.page-toolbar .application-view-switcher { margin: 0; padding: 0; border: 0; background: transparent; }
+.page-toolbar-group > button, .page-toolbar .application-view-switcher button, .workspace-utilities button { padding: .35rem .6rem; color: #f5ead4; border: 1px solid var(--machine-highlight); border-radius: 3px; background: var(--machine-raised); font-size: .85rem; font-weight: 650; }
+.page-toolbar-group > select { padding: .3rem .5rem; color: #f5ead4; border: 1px solid var(--machine-highlight); border-radius: 3px; background: var(--machine-raised); font: 600 .85rem var(--ui-font); }
+.application-actions-trigger { anchor-name: --application-actions; }
+.application-actions-menu { position: fixed; position-anchor: --application-actions; inset: auto; top: anchor(bottom); right: anchor(right); margin: .3rem 0; padding: .3rem; border: 1px solid var(--line); border-radius: 3px; background: var(--paper-sheet); color: var(--ink); box-shadow: var(--paper-shadow); }
+.application-actions-menu:popover-open { display: grid; gap: .25rem; }
+.application-actions-menu button { padding: .4rem .7rem; text-align: left; color: var(--ink); background: transparent; border: 0; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.application-actions-menu button:hover { background: var(--paper); }
+.document-actions-trigger { anchor-name: --document-actions; }
+.document-actions-menu { position-anchor: --document-actions; }
+.workspace-tool-dialog { width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 3rem); overflow: auto; padding: 1rem; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; background: var(--paper-sheet); box-shadow: var(--paper-shadow); }
+.workspace-tool-dialog::backdrop { background: rgb(25 31 27 / 45%); }
+.workspace-tool-dialog > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .7rem; }
+.workspace-tool-dialog > header strong { font-family: var(--document-font); font-size: 1.4rem; }
+.workspace-tool-dialog .tag-visor, .workspace-tool-dialog .shell-ai-task-status { width: 100%; }
+.application-task-dialog:has(textarea) { width: min(60rem, calc(100vw - 3rem)); }
+.letter-context-trigger { anchor-name: --letter-context; }
+.letter-ai-context { position: fixed; position-anchor: --letter-context; inset: auto; top: anchor(bottom); right: anchor(right); margin-top: .4rem; width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 5rem); overflow: auto; padding: 1rem; color: var(--ink); background: var(--paper-sheet); border: 1px solid var(--line); border-radius: 3px; box-shadow: var(--paper-shadow); }
+.letter-ai-context:popover-open { display: grid; gap: .7rem; }
+.letter-ai-context dl { display: grid; gap: .5rem; }
+.letter-ai-context dt { font-weight: 700; }
+.letter-ai-context dd { margin: .15rem 0 0; white-space: pre-wrap; }
+.letter-ai-context section { display: grid; gap: .5rem; }
+.letter-ai-context label { display: flex; align-items: center; gap: .4rem; }
+.cv-context-trigger { anchor-name: --cv-context; }
+.cv-ai-context { position-anchor: --cv-context; }
+@media(max-width:900px) { .primary-work-nav { flex-direction: column; overflow: hidden; } .primary-work-nav button { width: 100%; white-space: normal; } }
+
+.document-draft-trigger { anchor-name: --document-draft; }
+.document-draft-preview { position: fixed; position-anchor: --document-draft; position-try-fallbacks: flip-inline, flip-block; inset: auto; top: anchor(bottom); right: anchor(right); width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 5rem); overflow: auto; margin-top: .4rem; padding: .8rem; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; background: var(--paper-sheet); box-shadow: var(--paper-shadow); }
+.document-draft-preview header { display: flex; align-items: center; gap: .4rem; }
+.document-draft-preview header strong { flex: 1; }
+.document-draft-preview p { white-space: pre-wrap; font: 400 1rem/1.5 var(--ui-font); }
+.application-ai-request {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  min-width: 0;
+}
+.application-ai-request-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.application-ai-request-actions select { margin-right: auto; }
+.application-ai-request-text {
+  width: 100%;
+  min-height: min(48vh, 28rem);
+  resize: vertical;
+  font: 400 .95rem/1.5 "Segoe UI", Arial, sans-serif;
+}
+.application-ai-request [aria-pressed="true"] {
+  color: var(--paper-sheet);
+  background: var(--ink);
+}
+.application-ai-result textarea { width: 100%; margin: .6rem 0; }
