@@ -126,6 +126,7 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
 }
 
 const texLivePackages = "babel babel-english babel-catalan babel-spanish babel-french babel-german babel-italian babel-portuges geometry hyperref xcolor enumitem titlesec parskip microtype lm psnfss ec cm-super";
+const miktexPdfPackages = ["babel", "babel-english", "babel-catalan", "babel-german", "babel-spanish", "babel-french", "babel-italian", "babel-portuges", "hyperref", "ec", "cm-super"];
 
 async function installWindowsPdf(signal: AbortSignal): Promise<void> {
   const installer = await obtain(miktexWindows, "Downloading MiKTeX…", signal);
@@ -160,9 +161,12 @@ async function installMacPdf(signal: AbortSignal): Promise<void> {
       const initexmf = await findExecutable(destination, "initexmf");
       await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
       message = "Preparing MiKTeX packages…";
-      const miktex = await findExecutable(destination, "miktex");
-      await run(miktex, ["packages", "update-package-database"]);
-      await run(miktex, ["packages", "update"]);
+      // The official macOS DMG is MiKTeX 22.1; its packaged CLI is mpm.
+      const packageManager = await findExecutable(destination, "mpm");
+      await run(packageManager, ["--update-db"]);
+      await run(packageManager, ["--update"]);
+      for (const packageId of miktexPdfPackages) await run(packageManager, [`--install=${packageId}`]);
+      await run(initexmf, ["--dump=pdflatex"]);
     } finally { await run("hdiutil", ["detach", mount]); }
   }
 }
@@ -201,6 +205,11 @@ async function installLinuxPdf(): Promise<void> {
     const sibling = path.join(path.dirname(installedPdfLatexExecutable()), "initexmf");
     const initexmf = existsSync(sibling) ? sibling : "initexmf";
     await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
+    message = "Preparing MiKTeX packages…";
+    await run("miktex", ["packages", "update-package-database"]);
+    await run("miktex", ["packages", "update"]);
+    await run("miktex", ["packages", "install", ...miktexPdfPackages]);
+    await run("miktex", ["formats", "build", "pdflatex"]);
   }
 }
 
