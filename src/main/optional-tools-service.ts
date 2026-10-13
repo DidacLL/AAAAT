@@ -28,10 +28,11 @@ export function prepareInstalledAiConnection(rootPath: string): void {
   withWorkspaceDatabase(rootPath, database => database.prepare("INSERT INTO workspace_metadata(key, value) VALUES ('setup.local-ai-offered', 'true')").run());
 }
 
-function run(command: string, args: string[], timeout?: number): Promise<void> {
+function run(command: string, args: string[], timeout?: number, input?: string): Promise<void> {
   return new Promise((resolve, reject) => {
     let tail = "";
-    const child = spawn(command, args, { windowsHide: true, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, { windowsHide: true, shell: false, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"] });
+    if (input !== undefined) child.stdin?.end(input);
     const timer = timeout === undefined ? undefined : setTimeout(() => {
       child.kill();
       reject(new Error("Tool setup took too long. You can retry from Settings."));
@@ -148,7 +149,9 @@ async function installMacPdf(signal: AbortSignal): Promise<void> {
     const mount = path.join(root, "miktex-image");
     await mkdir(mount, { recursive: true });
     message = "Installing MiKTeX…";
-    await run("hdiutil", ["attach", image, "-nobrowse", "-readonly", "-mountpoint", mount]);
+    // The user's explicit install selection covers MiKTeX's published copying
+    // conditions; its DMG otherwise waits for an interactive stdin answer.
+    await run("hdiutil", ["attach", image, "-nobrowse", "-readonly", "-mountpoint", mount], undefined, "yes\n");
     try {
       const destination = path.join(root, "MiKTeX Console.app");
       await run("ditto", [path.join(mount, "MiKTeX Console.app"), destination]);

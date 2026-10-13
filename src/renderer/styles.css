@@ -600,4 +600,5 @@ button:disabled {
 .optional-tools-dialog details { margin-top: 1rem; font-size: .85rem; }
 .optional-tools-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
 .optional-tools-actions button { padding: .5rem .8rem; }
-.local-ai-startup textarea { width: 100%; min-height: 9rem; font: .85rem/1.45 monospace; margin: .75rem 0; resize: vertical; }
+.local-ai-startup > label { display: block; margin-top: .75rem; }
+.local-ai-startup textarea { width: 100%; min-height: 9rem; padding: .6rem; border: 1px solid var(--line-soft); background: var(--paper-sheet); color: var(--ink); font: .85rem/1.45 Consolas, ui-monospace, monospace; margin: .5rem 0 .75rem; resize: vertical; }
