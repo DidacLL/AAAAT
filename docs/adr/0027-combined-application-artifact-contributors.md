@@ -23,6 +23,8 @@ The combined artifact reuses the existing combined-document production path and 
 
 Both contributing working documents must already be associated with the candidature before combined retention. Renderer/preload authority remains ID-only; trusted main-process code resolves the workspace, documents, output and retained paths.
 
+The generated application packet remains independently retained when either editable source is removed. Its source-document references are nullable and become null on deletion; the immutable snapshot, portable project and PDF preserve the generated content. Contributor requirements at creation do not establish a permanent deletion restriction.
+
 ## Consequences
 
 Single-document retained artifacts remain the same product concept. Combined retained packets preserve both provenance roles and remain inspectable through the retained-PDF open capability.

@@ -1,6 +1,6 @@
 # ADR 0020 — Portable AI setup excludes environment validation
 
-**Status:** Accepted for Issue #185. Endpoint acceptance follows the current ADR 0006 boundary: loopback HTTP or already-authenticated remote HTTPS.
+**Status:** Accepted. Endpoint acceptance follows ADR 0006: loopback HTTP or remote HTTPS. Portable setup excludes credentials, which must be configured separately when required.
 
 ## Context
 
@@ -17,12 +17,12 @@ Format `aaaat-ai-setup`, version 1 contains only:
 
 The portable contract does not contain connection IDs, validated operations, per-operation defaults, workspace paths, credential material, career/application data, host artifacts, or machine inventory. Credential/authentication portability is outside this slice rather than prohibited product-wide.
 
-Import validates the complete portable file before replacing current AI setup. It reuses the existing plain-base-URL rules and current ADR 0006 endpoint acceptance, requires connection names to remain unique case-insensitively, and requires any named general default to identify an imported connection. Imported connections receive fresh local UUIDs. Their validated-operation sets and all operation defaults start empty, so operation routing must be validated again in the destination environment.
+Import validates the complete portable file before replacing current AI setup. It reuses the existing plain-base-URL rules and ADR 0006 endpoint acceptance, requires connection names to remain unique case-insensitively, and requires any named general default to identify an imported connection. Imported connections receive fresh local UUIDs. Their validated-operation sets and operation defaults start empty. Normal assistance can still use the general default; optional diagnostics and explicit operation-default choices are established in the destination environment.
 
 The renderer exposes only two no-argument intentions: export portable AI setup and import portable AI setup. Electron main owns the save/open dialogs and bounded file handling. Import accepts only a regular JSON file no larger than 64 KiB. Settings warns that import replaces the current connection setup and clears environment-specific validation/default state before invoking the import operation.
 
 ## Consequences
 
-Users can move their AI connection definitions and general preference without hand-editing JSON or coupling portability to whole-workspace backup. A moved setup is intentionally not immediately AI-ready merely because the source machine had validated capabilities; the user revalidates the operations they intend to use.
+Users can move their AI connection definitions and general preference without hand-editing JSON or coupling portability to whole-workspace backup. Prior diagnostic claims do not travel with configuration and cannot establish destination reachability or usefulness. Diagnostic checks remain optional for normal use.
 
 This decision does not establish a generic configuration framework, arbitrary file API, provider registry, credential portability mechanism, host-artifact format, or portability contract for unrelated AAAAT preferences. Those require separate demonstrated product need.

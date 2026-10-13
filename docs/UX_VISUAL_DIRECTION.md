@@ -117,7 +117,7 @@ Theme must reinforce rather than override UX hierarchy.
 
 In particular:
 
-- Candidature Focus remains calm and rapidly readable;
+- Application recall remains calm and rapidly readable;
 - Sources should feel trustworthy and document-like;
 - editing controls should be clear rather than hidden behind decorative machinery;
 - VCVGenerator should emphasize the cleanliness and ownership of the artifact being constructed;

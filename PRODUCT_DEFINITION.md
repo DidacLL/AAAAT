@@ -82,26 +82,11 @@ AAAAT does not require status, priority, stage, next action or completeness main
 
 ### Creating a candidature
 
-`New candidature` supports two direct approaches because both are normal:
+`New application` puts raw material and editable information on one screen: material on the left, fields on the right, reflowing when space is constrained. Direct entry, raw capture and using both together are peer intentions, not separate wizard branches.
 
-1. **Fill fields directly** — conventional information entry when the user already knows what they want to retain.
-2. **Paste raw material** — retain an offer, recruiter message, copied page, URL-containing text, notes or fragments first.
+The user may retain an offer, recruiter message, copied page, URL-containing text, notes or fragments without supplying structured values. Retaining that Source is already useful work. Manual entry remains available beside it; configured AI assistance is a direct optional action on the same task.
 
-Neither is the canonical route.
-
-The raw path can be as small as:
-
-```text
-paste raw material
-→ retain Source
-```
-
-After retention, the product should make both continuations clear:
-
-- use configured AI to propose information from that Source; and
-- fill/edit the candidature manually while keeping the retained Source readily visible.
-
-Retaining the Source is already successful work even if the user does nothing else.
+Valid requested values may fill untouched empty fields without per-value confirmation. Existing values and newer manual work remain protected, with useful conflicting results available for review. Navigation preserves unfinished work without silently saving it; explicit Save and Cancel govern ordinary edits.
 
 ## Sources
 
@@ -137,7 +122,9 @@ The same user-maintainable information drives compact corpus recognition and ric
 
 AAAAT does not assign semantic identity to fields because of their label or system key. A candidature's durable identity is its internal record identity; human-readable presentation is composed transiently from useful retained information.
 
-Selecting an application should expose progressively richer information rather than forcing the user through duplicate near-identical product modes. Displayed information keeps low-friction editing so corrections can be made during a call without leaving the current task.
+Collapsed and expanded application cards use content-driven sans-serif typographic covers. Field prominence and wrapping adapt to the actual content rather than predefined equal boxes. Expansion occupies roughly twice the width and height, preserves the nearest outer edge and makes neighbouring cards move aside while revealing fuller useful information. Editing uses ordinary readable forms rather than cover composition; direct field controls remain available.
+
+The top bar and left rail remain fixed without their own scrolling task lists. Main contextual actions belong to the top bar. Essential explanation must be conveyed by clear composition and short actions, with deeper help available on demand.
 
 ## Tags
 
@@ -150,6 +137,8 @@ Applications associate with shared Tags; they do not own independent copies of T
 Tag interaction must scale without dumping the full glossary into ordinary application work. Search/autocomplete, attach/create and contextual definition display are appropriate; ontology/knowledge-graph architecture is not.
 
 Optional AI may match existing Tags or propose new ones, but new shared Tag data remains reviewable before becoming durable workspace state.
+
+The same shared Tag can be associated only once with an application. Names and aliases identify exact reuse; similar meanings under different names still need user judgment. Cards show Tag names only. Their definitions, aliases and notes belong to the contextual monitor in the left rail, not duplicated inside expanded cards.
 
 ## Notes and lightweight reminders
 
@@ -200,6 +189,8 @@ A CV template is content/composition, not a rendered PDF and not presentation-en
 
 Users own editable document content, generated source, rendered output and portable document projects. LaTeX is an implementation technology; user ownership and reproducibility are the durable product requirements.
 
+Opening a new CV, letter or editable copy prepares provisional work, not a permanent record. The user can Save or Cancel it. Document names use meaningful context, and generated artifacts remain independent of later editable-source changes or removal.
+
 Multilingual document content is part of the intended document capability. Presentation/layout implementation belongs below this product definition.
 
 ## AI inside AAAAT
@@ -241,6 +232,10 @@ Removing information from primary presentation does not remove it. Hiding inform
 Privacy filtering happens before bounded context leaves AAAAT where AAAAT controls that boundary. An external agent with unrestricted filesystem or screen access is a separate trust decision and cannot be made safe by pretending the provider boundary is stronger than it is.
 
 Privacy controls must be understandable without dominating ordinary work.
+
+Application document permission applies before both configured-provider assistance and external document access. Actual context is inspectable on demand without adding repeated consent ceremonies. A request is fully editable in its application context; Copy/Export uses its visible text. Permission for future connected reads cannot recall a completed request or previously disclosed material.
+
+Interview requests may exist as secondary, fully editable application-linked work. They are not a featured advice capability and AAAAT does not own an external model's advice.
 
 ## Setup, recovery and integrations
 

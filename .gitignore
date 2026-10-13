@@ -24,7 +24,7 @@ __pycache__/
 *.log
 .private/
 
-# Local bootstrap source material. Canonical content lives in docs/SPEC.md.
+# Historical local bootstrap material. Product Definition owns product meaning.
 v2boostrap/
 
 # IDE / OS

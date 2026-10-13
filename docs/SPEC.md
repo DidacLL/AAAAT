@@ -74,7 +74,9 @@ Persisted domain objects do not dictate screen composition.
 
 After a workspace is opened, Applications supports corpus retrieval, selected-application work, direct field entry and raw capture without imposing a lifecycle.
 
-Raw capture retains Source material first. Optional AI extraction and manual field filling are continuations over the same retained Source, not prerequisites to successful capture.
+New application combines raw material and editable fields on one task surface. Capture can retain either or both. Optional AI fills requested untouched empty values through normal services; existing or newer manual edits retain precedence. Navigation preserves drafts rather than persisting them implicitly.
+
+The fixed shell owns contextual main actions in the top bar and shared Tag meaning in the left monitor. Neither rail nor toolbar becomes a scrolling task feed. Content-driven cover typography is scoped to corpus cards; ordinary editing retains legible field labels, values and direct controls. Expanded cards displace neighbours and expose richer content at roughly twice their collapsed width and height.
 
 Reusable professional information and document work are independently reachable. Document creation does not require a candidature or AI.
 
@@ -93,6 +95,8 @@ Document concepts remain explicit:
 - **Application packet** — generated application output combining a selected Rendered CV and letter where useful.
 
 Editing a Working CV does not implicitly rewrite reusable information/template state. Explicit save-back actions own those decisions.
+
+New documents and editable copies begin as provisional drafts. Explicit Save or rendering retains them; ordinary navigation does not. Contextual names distinguish associated documents. Retained combined output keeps its immutable project even when editable contributor references become null after source removal; the current schema uses nullable references rather than preventing that removal.
 
 ### LaTeX boundary
 
@@ -127,7 +131,7 @@ Product Owner correction preserved by PR #350 / Issue #351 establishes:
 - there is one shared AAAAT package/library rather than package-per-Blueprint ownership;
 - one Blueprint contract covers CV and cover-letter presentation.
 
-ADR 0015 also preserves user ownership of editable Blueprints and modified package sources. Issue #344 explicitly deferred persistent reuse/selection of modified Blueprint/package sources as later PLAN[4] work. The current source model must therefore be judged against that requirement without reopening the already-settled application-level configuration decision.
+User ownership includes the exact editable Blueprint and package sources retained/exported with each generated project. That does not establish a separate persistent modified-package registry or historical PLAN completion gate.
 
 Every retained/exported project contains the exact Blueprint and exact `aaaat.sty` source actually consumed, generated `data.tex`, entrypoint and build/PDF output using project-relative references.
 
@@ -160,6 +164,10 @@ user/domain intention
 Keep provider-facing contracts simple enough for constrained/local models where practical. Validate deterministically inside AAAAT rather than relying on provider-specific structured-output features when not necessary.
 
 AI output does not gain durable authority merely because a provider returned it. The relevant product interaction decides whether a proposal becomes retained candidature/professional/document state.
+
+Existing-Tag references are deduplicated by identity, and exact normalized names/aliases resolve new proposals to the glossary. New shared Tag proposals stay editable until creation. This is deterministic identity handling, not semantic synonym recognition. In-flight results preserve newer manual field/Tag/document edits; useful late CV writing remains a separate draft.
+
+Application document permission is enforced in main before provider calls and external reads. The local on-demand context preview uses the same projection as writing without granting external access. The current direct adapter supports optional protected Bearer credentials, loopback HTTP and remote HTTPS. Normal operations may use the general default without preliminary diagnostic calls; explicit per-operation defaults require recorded validation.
 
 AI-use/disclosure preferences are stored product state where the product requires them. Do not infer permanent privacy meaning from mutable labels, kinds or system keys unless direct Product Owner authority explicitly defines that behavior.
 
@@ -208,7 +216,7 @@ Staged rendering records durable artifacts only after successful generation. Fai
 
 ## Verification
 
-Tests protect user-visible behavior, domain invariants, privacy/local ownership, security boundaries, retained data and portable artifacts—not incidental implementation syntax.
+The current product-shaping phase uses typecheck/lint for required static hygiene and code review plus the real running/rendered product for product evidence. Do not add, rewrite or expand tests, repair stale selectors, or change product behavior to satisfy historical tests without explicit owner authorization. Existing automated tooling is subordinate incidental evidence, not a design or merge-acceptance authority.
 
 Evidence is scoped to the premise actually exercised:
 

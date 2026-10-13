@@ -1,93 +1,103 @@
-# AAAAT alpha user guide
+# AAAAT user guide
 
-AAAAT keeps applications, reusable professional information, CVs and cover letters in a local folder you choose. AI is optional.
+This guide describes the `2.0.0-alpha.0` desktop preview. Start with the [README tour](../README.md) for a quick introduction.
 
-Welcome appears first. You can continue with the last workspace, create or open another workspace, try demo data, or restore a backup. Once a workspace is loaded, the left rail is the main navigation and continuously shows compact **Data**, **AI** and **PDF** status.
+## Start or switch workspaces
 
-Use **New application** to choose one of two peer starting points. **Enter information directly** creates a sparse application from the application information fields you currently use; it requires neither a Source nor AI. **Retain raw material** first keeps an offer, message, form copy, conversation or notes exactly as a Source. After that Source is retained, the same application offers **Use AI to suggest information** and **Fill information manually** together. Manual work uses the ordinary application information and Source surface, and AI suggestions remain reviewable proposals until you explicitly use them.
+On Welcome, create a workspace in an empty folder, open an existing current workspace, try fictional demo data, or restore a backup. A workspace is the local home for your applications, professional information and documents.
 
-**Applications** is the single application surface over everything you retained. Use its search/filter controls for recognition and open an application for fuller retained detail; there is no separate peer **Focus** / **All data** product area. **CVs** is for reusable CV work; cover letters normally stay with their application, while standalone letters remain available as a secondary option. **My information** keeps reusable professional facts.
+After opening it, use the fixed left rail to move between Home, Applications, Documents, My information and Settings. Main actions follow your current work in the fixed top bar. Activity and Status open on demand rather than filling the rail with task logs.
 
-The application grid can search retained notes, Sources and useful details. Opening an application shows what you saved and its linked CV or letter. Empty fields are fine. An offer is one possible input, never a required workflow.
+Use **Settings → Workspace** to create or open another workspace. Reset and deletion are separate destructive actions with confirmation. Demo data lives in its own workspace.
+
+## Applications
+
+### Create one application
+
+Choose **Applications → New**. Source material and editable information share one screen: material on the left, fields on the right. You may paste an offer, a recruiter message, a URL-containing fragment or a note; you may also enter only the details you know. Neither side is required just to satisfy a template.
+
+Choose **Save** to retain the application, or **Cancel** to abandon it. With a configured AI connection, **Fill** uses the supplied material for AI-enabled empty information and Tag suggestions. Manual entry remains available throughout.
+
+### Find and inspect
+
+Search saved information, notes and Sources. Filters limit the visible collection. Collapsed application covers prioritise the information you chose; expanding one reveals fuller content at roughly twice the width and height while other cards make room. **Open / Edit** opens ordinary application editing.
+
+Presentation choices affect recognition, not the stored information. Favourites, ordering and Small/Regular/Large prominence belong to the same fields. Editing does not use cover typography.
+
+### Edit with control
+
+Use the small pencil to edit a value, the star for favourite information, the eye for AI permission, the sparkle for field assistance, and the gear for deeper options. Field help appears on demand instead of being permanently mixed with the value.
+
+An open edit has explicit Save/Cancel actions. Moving to another work area keeps the draft without implicitly saving it. Raw material remains available under Sources; changing fields or using AI does not replace the original.
+
+### Tags
+
+Attach a shared Tag by name or alias. Create a missing Tag with its meaning, or edit an existing shared definition. Hover, focus or select a Tag to read its meaning in the left monitor. Cards carry names only, including when expanded.
+
+The same Tag can be attached only once per application. AI matches to existing Tags can be attached directly when no newer manual Tag work intervened. New shared Tags remain proposals: edit their name, definition and aliases, then **Create**, or **Ignore**. Exact name/alias matches resolve to existing Tags; different names with similar meanings can still need your judgment. Edited proposals remain available when you navigate away and return.
 
 ## My information
 
-Use **My information** for reusable career material. The normal view is the information itself. Saved item-level variations, AI-use permission and other secondary controls appear only when relevant.
+Keep reusable professional facts here. Add, edit and arrange the information useful to you. Group names and information types are editable; shipped examples are not a closed category list. Custom groups also remain available when composing a CV.
 
-AAAAT keeps local storage, primary-presentation choices and AI-use permission as separate concepts. Information is not sent to AI merely because it is stored locally.
+Saved variations retain reusable alternate wording or emphasis. A CV-specific edit changes that CV alone unless you deliberately save it for reuse or update My information. Career preferences are user-stated context, distinct from factual experience.
 
-## Workspaces, demo data and reset
+The eye controls whether AI may use an item. Storing it locally or showing it prominently does not grant that permission.
 
-On first launch:
+## Documents
 
-- **Create workspace** chooses an empty local folder.
-- **Open existing workspace** opens a current compatible AAAAT workspace.
-- **Try with demo data** creates a clearly marked fake workspace without injecting fake records into real work.
-- **Restore a backup** restores into a separate empty destination.
+Start a CV from My information, a saved template or a blank page. Start a cover letter independently or inside an application. Opening a new document creates a provisional editor; Save keeps it, Cancel abandons it. Application names provide context in the document collection.
 
-**Settings → Workspace** shows the current workspace and provides create/open, reset and deletion actions. Reset and deletion are destructive and require confirmation.
+Compose a CV by editing information, arranging sections and choosing the wording you want. Section names are yours to change. Templates preserve reusable composition; Main/Secondary roles are presentation hints, not fixed left/right columns. Save-back controls distinguish reuse from edits to the current document.
 
-## Settings
+Choose **PDF** in the top bar to generate output. Within an application, select its CV and letter and use the application top-bar PDF action to create one combined file. Generated files remain separate from editable documents. Their retained project includes the source needed to reproduce them.
 
-Settings has exactly four top-level tabs:
+Saved documents have a secondary **Remove** action with confirmation. Removing an editable CV or letter preserves independently generated output; it does not delete an already produced PDF. Opening a generated CV for editing prepares a new provisional copy rather than rewriting that output.
 
-- **Workspace** — current workspace identity, create/open another workspace, reset and deletion.
-- **AI** — AI connections, capability validation/routing, diagnostics, effective instructions, portable AI setup, and advanced bounded external-assistant connection/authorization controls.
-- **Documents** — local PDF readiness, `pdflatex` status, setup guidance and the fixed rendering self-test.
-- **Backup** — workspace backup and restore/recovery.
+**Settings → Documents** shows PDF readiness and optional diagnostics. Local rendering requires `pdflatex` from a compatible TeX installation. Editing works without it. AAAAT does not silently install a TeX distribution.
 
-There is no separate Settings overview or external-assistants destination.
+## Optional AI
 
-## Local PDF rendering
+### Connect a model
 
-AAAAT owns document data and generated portable output. Local PDF rendering uses `pdflatex` from a compatible TeX distribution already available on the computer.
+In **Settings → AI**, add a named connection, its endpoint, model and credential when needed. The current adapter uses OpenAI-compatible chat completions. Loopback HTTP and remote HTTPS are accepted. Choose a general default or a validated per-operation default.
 
-Open **Settings → Documents** for live PDF status and AAAAT's rendering self-test. The self-test uses the fixed AAAAT rendering pipeline. Missing rendering tools do not prevent editing or local ownership. AAAAT does not silently install packages or expose arbitrary command execution.
+Connection and feature checks are optional diagnostics. Normal assistance does not require checking every feature first. A reachable server may still return an invalid or unhelpful result. Instructions are editable and can be reset to the shipped default.
 
-## Optional AI inside AAAAT
+### Use it beside your work
 
-AI connections are optional. **Settings → AI** owns connection names, endpoint/model editing, general/default routing, per-operation validation, diagnostics, effective instruction transparency and portable AI setup import/export.
+Application **Fill** populates supported empty, AI-enabled fields. Existing values and newer manual edits remain protected. A field sparkle requests focused help. Document assistance uses allowed My information and application context; the application's document AI permission must also be enabled. The document editor's **Context** control shows prepared context on demand.
 
-AAAAT validates support per bounded operation, distinguishes reachability from operation compatibility, and keeps failed AI exchanges inspectable. A reachable connection remains saved even if one operation is incompatible. One malformed proposal must not discard otherwise valid field proposals. AI output remains editable AAAAT data, not authority over the workspace.
+Results are editable. A CV response that arrives after a newer manual edit stays a separate draft to use or dismiss. Do not treat a fluent answer as a verified fact.
 
-## `installer.ai` and `configurator.ai`
+### Use another AI environment
 
-These names describe AAAAT's bounded setup capabilities, not provider plugins or copy/paste prompts.
+Open **⋯ → AI task** inside the relevant application. Edit the entire request, including its context. **Copy** and **Export** use exactly that text. Closing or navigating preserves the local draft and does not send it.
 
-- **`installer.ai`** exposes privacy-minimal setup/rendering status and, only when authorized, AAAAT's fixed rendering self-test.
-- **`configurator.ai`** exposes privacy-minimal AI configuration coverage and, only when authorized, typed connection save, per-operation capability validation and validated per-operation default selection.
+Connected reads require a separate explicit choice. Editing the request turns future reads off. Turning permission off stops future access through that route; it cannot undo an earlier model request or recall copied information.
 
-Status inspection remains available without mutation authority. Under **Settings → AI → Advanced: connect an external assistant**, the current workspace may separately enable **installer.ai actions** and **configurator.ai actions**. These switches grant only the operations above. They do not grant shell, process, arbitrary command, package-manager, filesystem, database, credential or generic provider-option authority.
+Interview work is an optional request in this secondary application-linked editor. The request stays fully editable; AAAAT does not prescribe model advice. Returned text can be deliberately retained as an application Source.
 
-The desktop's own **Settings → Documents** rendering self-test remains a local UI action; the installer switch authorizes the corresponding external-assistant mutation only.
+For a compatible local assistant host, **Settings → AI → Connect another AI to AAAAT** provides the executable/workspace arguments. The current integration uses bounded MCP tools for application, document and setup intentions. It grants no generic database, filesystem or shell access. Separate installer/configurator permissions enable only their named setup actions. Current registrations are defined in [the MCP server](../src/main/mcp-server.ts), rather than a frozen tool-count checklist.
 
-## External assistants and hosts
+## Backup and portable setup
 
-AAAAT is provider- and host-agnostic. In the packaged app, **Settings → AI → Advanced: connect an external assistant** shows the executable and workspace arguments for a compatible host that can start a local tool.
+Use **Settings → Backup** to create a backup or restore one into an empty destination. Restore validates the snapshot and retained files before activation. A failed restore must not replace the active workspace.
 
-The current MCP stdio surface registers exactly these bounded tools:
+Backup is a directory containing `workspace.sqlite`, retained files and a manifest with hashes. AI connection configuration and credential material are excluded. Export/import AI setup separately in **Settings → AI**; connection diagnostics are local to the current environment.
 
-- `candidature_create`
-- `opportunity_research_context_read`
-- `candidature_source_add`
-- `career_context_read`
-- `installer_status_read`
-- `installer_rendering_self_test`
-- `configurator_status_read`
-- `configurator_ai_connection_save`
-- `configurator_ai_operation_validate`
-- `configurator_ai_operation_default`
+Generated documents also expose **Export source project**. It copies the retained project, leaving the managed original intact. Advanced Blueprints choose presentation at render time and live in application-level configuration; CV templates choose content/composition.
 
-Setup mutation tools require the matching explicit local Settings authority. Configurator tools accept only typed AAAAT connection/operation inputs and continue to use normal endpoint and capability validation.
+## If something is unavailable
 
-These tools do not expose generic candidature/corpus browsing, database queries, filesystem access, shell/process execution, package installation, arbitrary local paths or unrelated private areas. AAAAT controls what its tools disclose; a host's own wider permissions remain a separate user trust choice.
+| Symptom | Where to look |
+| --- | --- |
+| AI action cannot run | Settings → AI: saved default, endpoint, model and the action's error |
+| AI supplied unusable information | Edit or dismiss the proposal; inspect the exchange on demand |
+| PDF cannot be generated | Settings → Documents: `pdflatex` availability and rendering error |
+| Old development workspace will not open | Use a fresh preview workspace; there is no historical-schema migration layer |
+| Need to undo an unfinished edit | Its explicit Cancel action; navigation alone preserves the draft |
 
-## Backup and restore
+There are no published releases yet. The preview is unsigned, has no automatic updater and has no established real-user upgrade baseline. Native cross-platform packaging exists; release availability and evidence limits are tracked in [Current Mission](../.agentic/CURRENT_MISSION.md) and GitHub. Instructions for running the preview are in the [README](../README.md#run-the-current-preview).
 
-Use **Settings → Backup** to create or restore a user-owned workspace backup. Restore validates the backup before activation and warns before replacing current workspace data. A failed restore does not silently replace the active workspace.
-
-AI connection portability belongs in **Settings → AI**, not Backup. Portable AI setup carries connection configuration; capability validations are local/runtime-specific and must be re-established after import.
-
-## Current alpha limitations
-
-Current alpha builds are unsigned. Release packaging targets Windows, macOS and Linux on x64 and ARM64 using native build runners. Windows and macOS use portable ZIPs; Linux also provides a DEB. There is not yet code signing, macOS notarization, an updater or a stable non-alpha release channel, so operating-system warnings may still appear.
+Please report problems with fictional examples. Keep real workspaces, career documents and credentials out of public issues; see [Security](../SECURITY.md).
