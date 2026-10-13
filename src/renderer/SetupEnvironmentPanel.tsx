@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PageToolbar } from "./PageToolbar";
 
 import { aiOperationLabels } from "../shared/ai-connection-contracts";
 import type { SetupAssistantAccess } from "../shared/setup-assistant-contracts";
@@ -197,11 +198,14 @@ export function SetupEnvironmentPanel({
   if (view === "rendering") {
     return (
       <section className="profile-workspace" aria-label="Setup environment">
+        <PageToolbar>
+          <button type="button" disabled={loading} onClick={() => void load()}>{loading ? "Checking…" : "Refresh"}</button>
+          <button type="button" disabled={selfTesting} onClick={() => void runSelfTest()}>{selfTesting ? "Checking…" : "Check PDF"}</button>
+        </PageToolbar>
         <div className="profile-column">
-          <div className="section-heading"><div><p className="eyebrow">PDF rendering</p><h2>{snapshot?.tex.documentRenderingReady ? "PDF Ready" : "PDF status"}</h2></div><button type="button" className="compact-secondary" disabled={loading} onClick={() => void load()}>{loading ? "Checking…" : "Refresh status"}</button></div>
-          <p>{snapshot ? snapshot.tex.documentRenderingReady ? "Local PDF rendering is ready on this computer." : "Document editing remains available, but PDF rendering needs pdflatex." : loading ? "Checking local rendering capability…" : "Rendering status is unavailable."}</p>
+          <div className="section-heading"><h2>{snapshot?.tex.documentRenderingReady ? "PDF Ready" : "PDF status"}</h2></div>
+          {!snapshot || !snapshot.tex.documentRenderingReady ? <p>{snapshot ? "PDF setup needed" : loading ? "Checking…" : "Status unavailable"}</p> : null}
           {snapshot && !snapshot.tex.documentRenderingReady ? <p className="compact-help">Install a compatible TeX distribution that makes <code>pdflatex</code> available on your system PATH, then refresh this status.</p> : null}
-          <div className="button-row"><button type="button" disabled={selfTesting} onClick={() => void runSelfTest()}>{selfTesting ? "Running self-test…" : "Run rendering self-test"}</button></div>
           {selfTestResult ? <p className="document-notice" role="status">{selfTestResult}</p> : null}
           {error ? <p className="error-message" role="alert">{error}</p> : null}
           {snapshot ? <details><summary>Technical details</summary>{snapshot.tex.commands.map((command) => <p key={command.command}><code>{command.command}</code>: {command.available ? "available" : "not found"}{command.version ? ` · ${command.version}` : ""}</p>)}</details> : null}

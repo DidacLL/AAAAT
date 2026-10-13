@@ -127,8 +127,8 @@ export function DocumentsStartWorkspace({
     setCreating("cv");
     setError(null);
     try {
-      const editable = await window.aaaat.documentDomain.duplicateRenderedCv(renderedCvId);
-      onOpenDocument(editable.id);
+      const editable = await window.aaaat.documentDomain.prepareRenderedCvCopy(renderedCvId);
+      openDocumentDraft({ kind: "cv", document: editable });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not make an editable copy.");
     } finally {

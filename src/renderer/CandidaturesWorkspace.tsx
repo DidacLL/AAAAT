@@ -10,12 +10,13 @@ import type {
   TagRecord,
 } from "../shared/contracts";
 import type { BlueprintSummary, DocumentCollections } from "../shared/document-domain-contracts";
+import type { PartialTagInferenceResult } from "../shared/ai-proposal-outcomes";
 import { CandidatureActivityPanel } from "./CandidatureActivityPanel";
 import { CandidatureBulkAiReview } from "./CandidatureBulkAiReview";
 import { CandidatureFieldAiState } from "./CandidatureFieldAiState";
 import { CandidatureFieldDefinitionsPanel } from "./CandidatureFieldDefinitionsPanel";
 import { CandidatureFieldValueEditor } from "./CandidatureFieldValueEditor";
-import { CandidatureInferencePanel } from "./CandidatureInferencePanel";
+import { CandidatureInferencePanel, type TagProposalReviewState } from "./CandidatureInferencePanel";
 import { CandidatureOpportunityResearchAccessPanel, type ApplicationAiDrafts } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
@@ -262,6 +263,9 @@ export function CandidaturesWorkspace({
   const [openFieldOptionsId, setOpenFieldOptionsId] = useState<string | null>(null);
   const [bulkInferenceOpen, setBulkInferenceOpen] = useState(false);
   const [tagInferenceOpen, setTagInferenceOpen] = useState(false);
+  const [inferenceRunRevision, setInferenceRunRevision] = useState(0);
+  const [tagProposalReviews, setTagProposalReviews] = useState<Record<string, TagProposalReviewState>>({});
+  const tagEditRevisions = useRef(new Map<string, number>());
   const [bulkAiFeedback, setBulkAiFeedback] = useState<AiRequestFeedback | null>(null);
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
@@ -272,6 +276,10 @@ export function CandidaturesWorkspace({
   const [externalTaskDrafts, setExternalTaskDrafts] = useState<Record<string, ApplicationAiDrafts>>({});
   const externalTaskDialog = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const rememberTagReview = useCallback((taskId: string, review: TagProposalReviewState) => {
+    setTagProposalReviews(current => ({ ...current, [taskId]: review }));
+  }, []);
 
   useEffect(() => {
     const dialog = externalTaskDialog.current;
@@ -300,11 +308,13 @@ export function CandidaturesWorkspace({
   const hasUnsavedChanges = sourceDirty || tagEditorDirty || taskContextDirty;
   const hasEditedAiRequests = Object.values(externalTaskDrafts).some(draft =>
     Object.values(draft.requests).some(request => request.edited));
+  const hasEditedTagProposals = Object.values(tagProposalReviews).some(review =>
+    [...Object.keys(review.drafts), ...Object.keys(review.aliases)].some(index => !review.handled.includes(`new:${index}`)));
 
   useEffect(() => {
-    onDirtyChange?.(hasUnsavedChanges || hasEditedAiRequests);
+    onDirtyChange?.(hasUnsavedChanges || hasEditedAiRequests || hasEditedTagProposals);
     return () => onDirtyChange?.(false);
-  }, [hasUnsavedChanges, hasEditedAiRequests, onDirtyChange]);
+  }, [hasUnsavedChanges, hasEditedAiRequests, hasEditedTagProposals, onDirtyChange]);
 
   const resetEditorDrafts = useCallback((record?: CandidatureRecord) => {
     setSelectedTagIds(record?.tagIds ?? []);
@@ -318,7 +328,7 @@ export function CandidaturesWorkspace({
     setTagAliasesText(""); setActivityOpen(false); setExternalTaskOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
     setDocumentExternalAccessAllowed(false); setDocumentExternalAccessBusy(false);
-  }, []);
+  }, [setActivityOpen]);
 
   const hydrate = useCallback((record: CandidatureRecord) => {
     selectedIdRef.current = record.id;
@@ -599,6 +609,7 @@ export function CandidaturesWorkspace({
 
   const persistTagIds = async (nextIds: string[]) => {
     if (!selected) return;
+    tagEditRevisions.current.set(selected.id, (tagEditRevisions.current.get(selected.id) ?? 0) + 1);
     try {
       const updated = await window.aaaat.candidatures.setTags({ candidatureId: selected.id, tagIds: nextIds });
       storeRecord(updated); setSelectedTagIds(updated.tagIds);
@@ -620,6 +631,7 @@ export function CandidaturesWorkspace({
   const saveTag = async () => {
     const input = { ...tagEditorDraft, name: tagEditorDraft.name.trim(), definition: tagEditorDraft.definition.trim(), aliases: aliasesFromText(tagAliasesText) };
     if (!input.name || !input.definition || !selected) return;
+    tagEditRevisions.current.set(selected.id, (tagEditRevisions.current.get(selected.id) ?? 0) + 1);
     try {
       const isNew = editingTagId === null;
       const saved = editingTagId ? await window.aaaat.candidatures.updateTag({ id: editingTagId, ...input }) : await window.aaaat.candidatures.createAndAttachTag({ candidatureId: selected.id, tag: input });
@@ -738,8 +750,23 @@ export function CandidaturesWorkspace({
       setBulkAiFeedback("active");
       return;
     }
+    if (current && !resetTagReview(taskId)) return;
     if (current) clearAiTask(taskId);
     setBulkInferenceOpen(true);
+  };
+
+  const resetTagReview = (taskId: string): boolean => {
+    const review = tagProposalReviews[taskId];
+    const edited = review && [...Object.keys(review.drafts), ...Object.keys(review.aliases)]
+      .some(index => !review.handled.includes(`new:${index}`));
+    if (edited && !window.confirm("Discard edited Tag suggestions and request new results?")) return false;
+    setTagProposalReviews(current => {
+      const next = { ...current };
+      delete next[taskId];
+      return next;
+    });
+    setInferenceRunRevision(current => current + 1);
+    return true;
   };
 
   const setFavourite = async (
@@ -1358,9 +1385,22 @@ export function CandidaturesWorkspace({
             <h3>Tags</h3>
           </div>
           <button type="button" className="candidature-inline-control" aria-label="Suggest Tags with AI" title="Suggest Tags with AI" onClick={() => {
+            const bulkId = `candidature-inference:${selected.id}:missing`;
+            const bulk = getAiTask<{ tagInference?: PartialTagInferenceResult }>(bulkId);
+            const suggestions = bulk?.status === "completed" ? bulk.result?.tagInference : undefined;
+            const handled = tagProposalReviews[bulkId]?.handled ?? [];
+            if ((bulkInferenceOpen && (bulk?.status === "queued" || bulk?.status === "working"))
+              || suggestions?.newTags.some((_, index) => !handled.includes(`new:${index}`))
+              || suggestions?.existingTags.some(tag => !selected.tagIds.includes(tag.tagId) && !handled.includes(`existing:${tag.tagId}`))) {
+              setBulkInferenceOpen(true);
+              return;
+            }
             const id = `candidature-inference:${selected.id}:tags`;
             const current = getAiTask(id);
-            if (current && current.status !== "queued" && current.status !== "working") clearAiTask(id);
+            if (current && current.status !== "queued" && current.status !== "working") {
+              if (!resetTagReview(id)) return;
+              clearAiTask(id);
+            }
             setTagInferenceOpen(true);
           }}>✨</button>
         </div>
@@ -1373,7 +1413,7 @@ export function CandidaturesWorkspace({
                 <button
                   type="button"
                   className="tag-chip-label"
-                  onClick={() => setSelectedTagId(tag.id)}
+                  onClick={() => { setSelectedTagId(tag.id); setTagFocus({ candidatureId: selected.id, tagId: tag.id }); }}
                 >
                   {tag.name}
                 </button>
@@ -1519,6 +1559,31 @@ export function CandidaturesWorkspace({
               </button>
             </div>
           </form>
+        ) : null}
+        {tagInferenceOpen ? <CandidatureInferencePanel
+          key={`tags-${selected.id}-${inferenceRunRevision}`}
+          candidature={selected} fields={fields} targetFieldIds={[]}
+          taskId={`candidature-inference:${selected.id}:tags`} title="Suggest Tags" includeTagInference
+          initialTagReview={tagProposalReviews[`candidature-inference:${selected.id}:tags`]}
+          onTagReviewChange={rememberTagReview}
+          tagRevision={() => tagEditRevisions.current.get(selected.id) ?? 0}
+          onTagEdit={() => tagEditRevisions.current.set(selected.id, (tagEditRevisions.current.get(selected.id) ?? 0) + 1)}
+          onChanged={() => void refreshInformation()} /> : null}
+        {bulkInferenceOpen ? (
+          <CandidatureInferencePanel
+            key={`bulk-${selected.id}-${inferenceRunRevision}`}
+            candidature={selected} fields={fields}
+            targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
+            taskId={`candidature-inference:${selected.id}:missing`} title="Fill missing information"
+            includeTagInference
+            initialTagReview={tagProposalReviews[`candidature-inference:${selected.id}:missing`]}
+            onTagReviewChange={rememberTagReview}
+            tagRevision={() => tagEditRevisions.current.get(selected.id) ?? 0}
+            onTagEdit={() => tagEditRevisions.current.set(selected.id, (tagEditRevisions.current.get(selected.id) ?? 0) + 1)}
+            fieldRevision={fieldId => fieldEditRevisions.current.get(fieldId) ?? 0}
+            canFillField={fieldId => !dirtyValueEditors.current.has(fieldId)}
+            onChanged={() => void refreshInformation()}
+          />
         ) : null}
       </section>
 
@@ -1764,20 +1829,6 @@ export function CandidaturesWorkspace({
           targetFieldIds={[discoveryField.definition.id]}
           taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`}
           title={`Fill ${discoveryField.definition.label}`}
-          fieldRevision={fieldId => fieldEditRevisions.current.get(fieldId) ?? 0}
-          canFillField={fieldId => !dirtyValueEditors.current.has(fieldId)}
-          onChanged={() => void refreshInformation()}
-        />
-      ) : null}
-      {tagInferenceOpen ? <CandidatureInferencePanel candidature={selected} fields={fields} targetFieldIds={[]} taskId={`candidature-inference:${selected.id}:tags`} title="Suggest Tags" includeTagInference onChanged={() => void refreshInformation()} /> : null}
-      {bulkInferenceOpen ? (
-        <CandidatureInferencePanel
-          candidature={selected}
-          fields={fields}
-          targetFieldIds={enabledMissingFields.map((field) => field.definition.id)}
-          taskId={`candidature-inference:${selected.id}:missing`}
-          title="Fill missing information"
-          includeTagInference
           fieldRevision={fieldId => fieldEditRevisions.current.get(fieldId) ?? 0}
           canFillField={fieldId => !dirtyValueEditors.current.has(fieldId)}
           onChanged={() => void refreshInformation()}

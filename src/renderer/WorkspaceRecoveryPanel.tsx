@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { WorkspaceInfo } from "../shared/contracts";
+import { PageToolbar } from "./PageToolbar";
 
 interface WorkspaceRecoveryPanelProps {
   readonly currentWorkspace: WorkspaceInfo | null;
@@ -82,34 +83,20 @@ export function WorkspaceRecoveryPanel({
 
   return (
     <section className="profile-workspace" aria-label="Workspace recovery">
+      <PageToolbar>
+        <button type="button" disabled={busy !== null} onClick={() => void backUp()}>{busy === "backup" ? "Saving…" : "Back up"}</button>
+        <button type="button" disabled={busy !== null} onClick={() => void restore()}>{busy === "restore" ? "Restoring…" : "Restore"}</button>
+      </PageToolbar>
       <div className="profile-column">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Recovery</p>
-            <h2>Workspace backup and restore</h2>
+            <h2>Workspace backup</h2>
           </div>
         </div>
-        <p>
-          Backups are user-owned directories. Restore validates the backup into a separate empty folder before AAAAT switches workspaces.
-        </p>
-        <div className="workspace-actions">
-          <button
-            type="button"
-            className="secondary-action"
-            disabled={busy !== null}
-            onClick={() => void backUp()}
-          >
-            {busy === "backup" ? "Backing up…" : "Back up workspace"}
-          </button>
-          <button
-            type="button"
-            className="secondary-action"
-            disabled={busy !== null}
-            onClick={() => void restore()}
-          >
-            {busy === "restore" ? "Restoring…" : "Restore workspace backup"}
-          </button>
-        </div>
+        <strong>{currentWorkspace.rootPath}</strong>
+        <details><summary>About backups</summary>
+          <p>A backup contains your saved workspace data and files. Restore uses a separate empty folder and then opens it.</p>
+        </details>
         {notice ? <p role="status">{notice}</p> : null}
         {error ? <p className="error-message" role="alert">{error}</p> : null}
       </div>

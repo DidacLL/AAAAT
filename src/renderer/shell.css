@@ -799,6 +799,7 @@
 .page-toolbar-group, .workspace-utilities { display: flex; align-items: center; gap: .35rem; }
 .page-toolbar .application-view-switcher { margin: 0; padding: 0; border: 0; background: transparent; }
 .page-toolbar-group > button, .page-toolbar .application-view-switcher button, .workspace-utilities button { padding: .35rem .6rem; color: #f5ead4; border: 1px solid var(--machine-highlight); border-radius: 3px; background: var(--machine-raised); font-size: .85rem; font-weight: 650; }
+.page-toolbar-group > select { padding: .3rem .5rem; color: #f5ead4; border: 1px solid var(--machine-highlight); border-radius: 3px; background: var(--machine-raised); font: 600 .85rem var(--ui-font); }
 .application-actions-trigger { anchor-name: --application-actions; }
 .application-actions-menu { position: fixed; position-anchor: --application-actions; inset: auto; top: anchor(bottom); right: anchor(right); margin: .3rem 0; padding: .3rem; border: 1px solid var(--line); border-radius: 3px; background: var(--paper-sheet); color: var(--ink); box-shadow: var(--paper-shadow); }
 .application-actions-menu:popover-open { display: grid; gap: .25rem; }

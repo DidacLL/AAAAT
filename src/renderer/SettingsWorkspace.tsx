@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import type {
@@ -6,16 +6,19 @@ import type {
   ExternalAssistantGuidance,
 } from "../shared/setup-environment-contracts";
 import { AiSettingsWorkspace } from "./AiSettingsWorkspace";
+import { PageToolbar } from "./PageToolbar";
 import { SetupActionAuthorityPanel } from "./SetupActionAuthorityPanel";
 import { SetupEnvironmentPanel } from "./SetupEnvironmentPanel";
 import { WorkspaceRecoveryPanel } from "./WorkspaceRecoveryPanel";
+import { ToolbarVisible } from "./toolbar-context";
 
 export type SettingsView = "workspace" | "ai" | "documents" | "backup";
 
 interface SettingsWorkspaceProps {
   readonly currentWorkspace: WorkspaceInfo;
   readonly demoWorkspace: boolean;
-  readonly initialView?: SettingsView;
+  readonly view: SettingsView;
+  readonly onViewChange: (view: SettingsView) => void;
   readonly onChooseWorkspace: (choice: WorkspaceChoice) => void;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onEnvironmentChange: () => void;
@@ -94,10 +97,9 @@ function ExternalAssistantGuidancePanel() {
           <h2>Use AAAAT with another AI</h2>
         </div>
       </div>
-      <p>
-        Give your preferred AI these reusable AAAAT instructions once, for example as project instructions,
-        custom instructions or a skill. Individual tasks can then stay focused on the work itself.
-      </p>
+      <details><summary>How to use these instructions</summary>
+        <p>Add these to your AI's project instructions, custom instructions or skills.</p>
+      </details>
       {guidance ? (
         <details>
           <summary>Preview reusable instructions</summary>
@@ -106,7 +108,7 @@ function ExternalAssistantGuidancePanel() {
       ) : null}
       <div className="button-row">
         <button type="button" disabled={busy !== null || !guidance} onClick={() => void copy()}>
-          {busy === "copy" ? "Copying…" : "Copy reusable instructions"}
+          {busy === "copy" ? "Copying…" : "Copy"}
         </button>
         <button
           type="button"
@@ -114,7 +116,7 @@ function ExternalAssistantGuidancePanel() {
           disabled={busy !== null || !guidance}
           onClick={() => void exportGuidance()}
         >
-          {busy === "export" ? "Saving…" : "Save instructions…"}
+          {busy === "export" ? "Saving…" : "Export"}
         </button>
       </div>
       {message ? <p>{message}</p> : null}
@@ -205,7 +207,8 @@ function DeleteWorkspacePanel({ onDeleted }: { readonly onDeleted: () => void })
 export function SettingsWorkspace({
   currentWorkspace,
   demoWorkspace,
-  initialView = "workspace",
+  view,
+  onViewChange,
   onChooseWorkspace,
   onDirtyChange,
   onEnvironmentChange,
@@ -215,8 +218,8 @@ export function SettingsWorkspace({
   onWorkspaceDeleted,
   protectedWorkDirty = false,
 }: SettingsWorkspaceProps) {
-  const [view, setView] = useState<SettingsView>(initialView);
   const [detailDirty, setDetailDirty] = useState(false);
+  const visible = useContext(ToolbarVisible);
 
   useEffect(() => {
     onDirtyChange(detailDirty);
@@ -225,26 +228,20 @@ export function SettingsWorkspace({
 
   const selectView = (next: SettingsView) => {
     if (next === view) return;
-    if (detailDirty && !window.confirm("Discard unsaved Settings edits and leave this section?")) return;
-    setDetailDirty(false);
-    setView(next);
+    onViewChange(next);
   };
 
   return (
     <section className="settings-workspace" aria-label="Settings">
-      <nav className="settings-tab-strip" aria-label="Settings sections">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={view === tab ? "active-settings-tab" : ""}
-            aria-current={view === tab ? "page" : undefined}
-            onClick={() => selectView(tab)}
-          >
-            {settingsLabels[tab]}
-          </button>
-        ))}
-      </nav>
+      <PageToolbar>
+        <select aria-label="Settings section" value={view} onChange={event => selectView(event.target.value as SettingsView)}>
+          {tabs.map(tab => <option key={tab} value={tab}>{settingsLabels[tab]}</option>)}
+        </select>
+        {view === "workspace" ? <>
+          <button type="button" onClick={() => onChooseWorkspace("create")}>New workspace</button>
+          <button type="button" onClick={() => onChooseWorkspace("open")}>Open workspace</button>
+        </> : null}
+      </PageToolbar>
 
       <section className="settings-active-panel" aria-label={`${settingsLabels[view]} settings`}>
         {view === "workspace" ? (
@@ -256,59 +253,50 @@ export function SettingsWorkspace({
                 <span>Data: {demoWorkspace ? "Demo" : "Local"}</span>
                 <code>{currentWorkspace.rootPath}</code>
               </div>
-              <div className="button-row">
-                <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("create")}>Create another workspace</button>
-                <button className="compact-secondary" type="button" onClick={() => onChooseWorkspace("open")}>Open another workspace</button>
-              </div>
             </div>
-            <div className="settings-destructive-stack">
+            <details className="settings-destructive-stack">
+              <summary>Reset or delete workspace data</summary>
               <ResetWorkspacePanel onReset={onWorkspaceReset} />
               <DeleteWorkspacePanel onDeleted={onWorkspaceDeleted} />
-            </div>
+            </details>
           </div>
         ) : null}
 
-        {view === "ai" ? (
-          <>
+        <ToolbarVisible.Provider value={visible && view === "ai"}>
+          <div hidden={view !== "ai"}>
             <AiSettingsWorkspace
               view="all"
               onDirtyChange={setDetailDirty}
               onEnvironmentChange={onEnvironmentChange}
               onValidationState={onAiValidationState}
             />
-            <section className="profile-column" aria-label="Connect another AI to AAAAT">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">External AI</p>
-                  <h2>Connect another AI to AAAAT</h2>
-                </div>
-              </div>
-              <p>
-                A compatible local or tool-capable AI can connect directly to AAAAT's bounded local tools.
-                AAAAT uses a local MCP connection for this; the existing privacy projections and explicit
-                action controls still apply.
-              </p>
+            <details className="profile-column" aria-label="Connect another AI to AAAAT">
+              <summary>Connect another AI</summary>
               <details>
                 <summary>Connection setup</summary>
                 <ExternalAssistantConnectionPanel />
               </details>
               <SetupActionAuthorityPanel />
-            </section>
-            <ExternalAssistantGuidancePanel />
-          </>
-        ) : null}
+              <ExternalAssistantGuidancePanel />
+            </details>
+          </div>
+        </ToolbarVisible.Provider>
 
-        {view === "documents" ? (
+        <ToolbarVisible.Provider value={visible && view === "documents"}>
+          <div hidden={view !== "documents"}>
           <SetupEnvironmentPanel view="rendering" onEnvironmentChange={onEnvironmentChange} />
-        ) : null}
+          </div>
+        </ToolbarVisible.Provider>
 
-        {view === "backup" ? (
+        <ToolbarVisible.Provider value={visible && view === "backup"}>
+          <div hidden={view !== "backup"}>
           <WorkspaceRecoveryPanel
             currentWorkspace={currentWorkspace}
             editorDirty={detailDirty || protectedWorkDirty}
             onRestored={onRestored}
           />
-        ) : null}
+          </div>
+        </ToolbarVisible.Provider>
       </section>
     </section>
   );

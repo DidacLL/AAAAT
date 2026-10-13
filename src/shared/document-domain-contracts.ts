@@ -15,7 +15,7 @@ export const documentDomainChannels = Object.freeze({
   workingSaveItem: "aaaat:working-cv-save-item",
   workingSaveTemplate: "aaaat:working-cv-save-template",
   renderCv: "aaaat:working-cv-render",
-  duplicateRenderedCv: "aaaat:rendered-cv-duplicate",
+  prepareRenderedCvCopy: "aaaat:rendered-cv-prepare-copy",
   openRenderedCv: "aaaat:rendered-cv-open",
   exportRenderedCv: "aaaat:rendered-cv-export",
   letterCreate: "aaaat:cover-letter-create",
@@ -344,7 +344,7 @@ export interface DocumentDomainDesktopApi {
     readonly saveWorkingItem: (input: WorkingCvSaveItem) => Promise<WorkingCvRecord>;
     readonly saveWorkingAsTemplate: (input: WorkingCvSaveTemplate) => Promise<CvTemplateRecord>;
     readonly renderCv: (input: RenderCvRequest) => Promise<RenderedCvRecord>;
-    readonly duplicateRenderedCv: (renderedCvId: string) => Promise<WorkingCvRecord>;
+    readonly prepareRenderedCvCopy: (renderedCvId: string) => Promise<WorkingCvRecord>;
     readonly openRenderedCv: (renderedCvId: string) => Promise<OpenGeneratedResult>;
     readonly exportRenderedCv: (renderedCvId: string) => Promise<PortableProjectExportResult>;
     readonly createLetter: (input: CoverLetterInput) => Promise<CoverLetterRecord>;

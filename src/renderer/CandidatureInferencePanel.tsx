@@ -34,6 +34,12 @@ interface InferenceTaskResult extends PartialJobExtractionResult {
   readonly fieldInferenceFailureExchange?: AiExchangeDiagnostic;
 }
 
+export interface TagProposalReviewState {
+  readonly handled: readonly string[];
+  readonly drafts: Readonly<Record<number, TagInferenceNewTag>>;
+  readonly aliases: Readonly<Record<number, string>>;
+}
+
 interface Props {
   readonly candidature: CandidatureRecord;
   readonly fields: readonly CandidatureFieldConfiguration[];
@@ -44,6 +50,10 @@ interface Props {
   readonly onChanged?: () => void | Promise<void>;
   readonly fieldRevision?: (fieldId: string) => number;
   readonly canFillField?: (fieldId: string) => boolean;
+  readonly tagRevision?: () => number;
+  readonly onTagEdit?: () => void;
+  readonly initialTagReview?: TagProposalReviewState;
+  readonly onTagReviewChange?: (taskId: string, review: TagProposalReviewState) => void;
 }
 
 function routeReady(
@@ -66,16 +76,23 @@ export function CandidatureInferencePanel({
   onChanged,
   fieldRevision,
   canFillField,
+  tagRevision,
+  onTagEdit,
+  initialTagReview,
+  onTagReviewChange,
 }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
   const task = useAiTask<InferenceTaskResult>(taskId);
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
-  const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
-  const [tagDrafts, setTagDrafts] = useState<Record<number, TagInferenceNewTag>>({});
-  const [tagAliases, setTagAliases] = useState<Record<number, string>>({});
+  const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set(initialTagReview?.handled));
+  const [tagDrafts, setTagDrafts] = useState<Readonly<Record<number, TagInferenceNewTag>>>(() => initialTagReview?.drafts ?? {});
+  const [tagAliases, setTagAliases] = useState<Readonly<Record<number, string>>>(() => initialTagReview?.aliases ?? {});
   const [tagActionError, setTagActionError] = useState<string | null>(null);
   const [tagActionBusy, setTagActionBusy] = useState(false);
+  useEffect(() => {
+    if (includeTagInference) onTagReviewChange?.(taskId, { handled: [...handledTags], drafts: tagDrafts, aliases: tagAliases });
+  }, [handledTags, includeTagInference, onTagReviewChange, tagAliases, tagDrafts, taskId]);
   const scopeFieldIds = task?.scopeFieldIds ?? targetFieldIds;
   const targetSet = useMemo(() => new Set(scopeFieldIds), [scopeFieldIds]);
   const requestedFields = useMemo(
@@ -129,6 +146,7 @@ export function CandidatureInferencePanel({
     startAiTask<InferenceTaskResult>(
       taskId,
       async (updateDetail, signal) => {
+        const startedTagRevision = tagRevision?.() ?? 0;
         const revisions = new Map(requestedFields.map(field => [field.definition.id, fieldRevision?.(field.definition.id) ?? 0]));
         const complete = async (result: InferenceTaskResult): Promise<InferenceTaskResult> => {
           if (signal.aborted) return result;
@@ -150,7 +168,7 @@ export function CandidatureInferencePanel({
               if (saved.values.some(value => value.fieldId === proposal.fieldId && JSON.stringify(value.value) === JSON.stringify(proposal.value))) applied.push(proposal.fieldId);
             } catch { /* Keep a valid proposal reviewable if it cannot be applied to current information. */ }
           }
-          if (!signal.aborted && result.tagInference?.existingTags.length) {
+          if (!signal.aborted && (tagRevision?.() ?? 0) === startedTagRevision && result.tagInference?.existingTags.length) {
             try {
               await window.aaaat.candidatures.setTags({ candidatureId: candidature.id, tagIds: result.tagInference.existingTags.map(tag => tag.tagId), append: true });
               setHandledTags(current => new Set([...current, ...result.tagInference!.existingTags.map(tag => `existing:${tag.tagId}`)]));
@@ -263,26 +281,25 @@ export function CandidatureInferencePanel({
     fieldRevision,
     canFillField,
     onChanged,
+    tagRevision,
   ]);
 
   const attachExistingTag = async (proposal: TagInferenceExistingTag) => {
-    const current = (await window.aaaat.candidatures.list()).find(
-      (item) => item.id === candidature.id,
-    );
-    if (!current) return;
-
-    await window.aaaat.candidatures.setTags({
-      candidatureId: candidature.id,
-      tagIds: [proposal.tagId],
-      append: true,
-    });
-    setHandledTags((handled) => new Set(handled).add(`existing:${proposal.tagId}`));
-    await onChanged?.();
+    if (tagActionBusy) return;
+    setTagActionBusy(true); setTagActionError(null);
+    onTagEdit?.();
+    try {
+      await window.aaaat.candidatures.setTags({ candidatureId: candidature.id, tagIds: [proposal.tagId], append: true });
+      setHandledTags((handled) => new Set(handled).add(`existing:${proposal.tagId}`));
+      await onChanged?.();
+    } catch (reason) { setTagActionError(aiTaskFailure(reason).message); }
+    finally { setTagActionBusy(false); }
   };
 
   const createAndAttachTag = async (proposal: TagInferenceNewTag, index: number) => {
     if (tagActionBusy) return;
     setTagActionBusy(true); setTagActionError(null);
+    onTagEdit?.();
     try {
       const tag = tagDrafts[index] ?? proposal;
       await window.aaaat.candidatures.createAndAttachTag({ candidatureId: candidature.id, tag: { name: tag.name, definition: tag.definition, aliases: tagAliases[index] === undefined ? tag.aliases : tagAliases[index].split(",").map(alias => alias.trim()).filter(Boolean) } });
@@ -387,7 +404,7 @@ export function CandidatureInferencePanel({
                 <strong>{proposal.name}</strong>
                 {proposal.evidence ? <p>{proposal.evidence}</p> : null}
                 <div className="button-row">
-                  <button type="button" onClick={() => void attachExistingTag(proposal)}>
+                  <button type="button" disabled={tagActionBusy} onClick={() => void attachExistingTag(proposal)}>
                     Attach Tag
                   </button>
                   <button

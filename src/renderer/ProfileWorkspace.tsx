@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ProfileItem, ProfileItemInput, ProfileSnapshot } from "../shared/contracts";
 import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
 import { ProfileItemAiDisclosureControl } from "./ProfileItemAiDisclosureControl";
+import { PageToolbar } from "./PageToolbar";
 
 interface ItemFormState {
   kind: string;
@@ -167,6 +168,7 @@ export function ProfileWorkspace({
   const [variants, setVariants] = useState<ProfileVariantRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialItemId ?? null);
   const [creating, setCreating] = useState(false);
+  const selectionBeforeCreate = useRef<string | null>(null);
   const [editingItem, setEditingItem] = useState(false);
   const [draft, setDraft] = useState<ItemFormState>({ ...emptyItem });
   const [itemDetails, setItemDetails] = useState<OptionalDetail[]>([]);
@@ -260,6 +262,7 @@ export function ProfileWorkspace({
 
   const startNew = () => {
     if (!confirmDiscard()) return;
+    selectionBeforeCreate.current = selectedId;
     setCreating(true);
     setEditingItem(true);
     setSelectedId(null);
@@ -284,9 +287,9 @@ export function ProfileWorkspace({
     if (itemDirty && !window.confirm("Discard unsaved My information edits?")) return;
     if (creating) {
       setCreating(false);
-      const first = snapshot.items[0] ?? null;
-      setSelectedId(first?.id ?? null);
-      const nextDraft = itemForm(first ?? undefined);
+      const previous = snapshot.items.find(item => item.id === selectionBeforeCreate.current) ?? snapshot.items[0] ?? null;
+      setSelectedId(previous?.id ?? null);
+      const nextDraft = itemForm(previous ?? undefined);
       setDraft(nextDraft);
       setItemDetails(retainedOptionalDetails(nextDraft));
     } else if (selected) {
@@ -434,15 +437,22 @@ export function ProfileWorkspace({
 
   return (
     <section className="profile-workspace professional-information-area" aria-label="My information">
-      <header className="document-console-heading">
-        <div>
-          <p className="eyebrow">Reusable professional information</p>
-          <h1>My information</h1>
-        </div>
-        <button type="button" className="compact-primary" onClick={startNew}>
-          ＋ Add information
-        </button>
-      </header>
+      <PageToolbar>
+        <strong>{editingVariant ? `Variation · ${selected?.title ?? "My information"}` : creating ? "New information" : "My information"}</strong>
+        <button type="button" aria-label="New information" onClick={startNew} disabled={busy}>＋ New</button>
+        {editingVariant ? <>
+          <button type="button" disabled={!variantDirty || !variant.name.trim() || !variant.title.trim() || busy} onClick={() => void saveVariant()}>Save</button>
+          <button type="button" disabled={busy} onClick={closeVariant}>Cancel</button>
+          {editingVariantId ? <button type="button" disabled={busy} onClick={() => void removeVariant()}>Remove</button> : null}
+        </> : creating || editingItem ? <>
+          <button type="button" disabled={!itemDirty || !draft.title.trim() || busy} onClick={() => void saveItem()}>Save</button>
+          <button type="button" disabled={busy} onClick={cancelItemEdit}>Cancel</button>
+          {selected ? <button type="button" disabled={busy} onClick={() => void removeItem()}>Remove</button> : null}
+        </> : selected ? <>
+          <button type="button" disabled={busy} onClick={startItemEdit}>Edit</button>
+          <button type="button" disabled={busy} onClick={() => void removeItem()}>Remove</button>
+        </> : null}
+      </PageToolbar>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
 
       <div className="professional-information-layout">
@@ -488,10 +498,12 @@ export function ProfileWorkspace({
                   <div className="profile-item-form">
                     <label>
                       Information type
-                      <select
-                        value={informationTypes.some(([value]) => value === draft.kind) ? draft.kind : "other"}
+                      <input list="profile-information-types"
+                        value={informationTypes.find(([value]) => value === draft.kind)?.[1] ?? draft.kind}
                         onChange={(event) => {
-                          const kind = event.target.value;
+                          const entered = event.target.value;
+                          const kind = informationTypes.find(([value, label]) =>
+                            [value.toLowerCase(), label.toLowerCase()].includes(entered.trim().toLowerCase()))?.[0] ?? entered;
                           setDraft((current) => ({
                             ...current,
                             kind,
@@ -501,21 +513,22 @@ export function ProfileWorkspace({
                                 : current.subtitle,
                           }));
                         }}
-                      >
-                        {informationTypes.map(([value, label]) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
+                      />
+                      <datalist id="profile-information-types">
+                        {[...new Set([...informationTypes.map(([, label]) => label), ...groups.filter(kind => !informationTypes.some(([value]) => value === kind))])]
+                          .map(label => <option key={label} value={label} />)}
+                      </datalist>
                     </label>
                     {draft.kind === "contact" ? (
                       <label>
                         Contact type
-                        <select
-                          value={contactTypes.includes(draft.subtitle as typeof contactTypes[number]) ? draft.subtitle : "Other"}
+                        <input list="profile-contact-types"
+                          value={draft.subtitle}
                           onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
-                        >
-                          {contactTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-                        </select>
+                        />
+                        <datalist id="profile-contact-types">
+                          {contactTypes.map(type => <option key={type} value={type} />)}
+                        </datalist>
                       </label>
                     ) : null}
                     <label className={draft.kind === "contact" ? "profile-wide-field" : undefined}>
@@ -575,17 +588,6 @@ export function ProfileWorkspace({
                     </label>
                   ) : null}
 
-                  <div className="button-row">
-                    <button type="button" disabled={!draft.title.trim() || busy} onClick={() => void saveItem()}>
-                      {busy ? "Saving…" : "Save"}
-                    </button>
-                    <button type="button" className="compact-secondary" onClick={cancelItemEdit}>Cancel</button>
-                    {selected ? (
-                      <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeItem()}>
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
                 </div>
               ) : selected ? (
                 <>
@@ -599,10 +601,6 @@ export function ProfileWorkspace({
                       <p className="profile-item-meta"><span>Link</span><span>{selected.url}</span></p>
                     ) : null}
                   </div>
-                  <div className="button-row profile-item-primary-actions">
-                    <button type="button" onClick={startItemEdit}>Edit</button>
-                    <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeItem()}>Remove</button>
-                  </div>
                 </>
               ) : null}
 
@@ -614,7 +612,6 @@ export function ProfileWorkspace({
                   </summary>
                   <div className="profile-variations-content">
                     <div className="profile-variations-heading">
-                      <p className="compact-help">Optional reusable alternate content for this item. The base information above remains the primary record.</p>
                       {!editingVariant ? (
                         <button type="button" className="compact-secondary" onClick={() => editVariant()}>
                           New variation
@@ -623,7 +620,7 @@ export function ProfileWorkspace({
                     </div>
 
                     {selectedVariants.length === 0 && !editingVariant ? (
-                      <p className="compact-empty">No saved variations. None is required for ordinary use.</p>
+                      <p className="compact-empty">No variations yet.</p>
                     ) : null}
 
                     {selectedVariants.length > 0 ? (
@@ -707,15 +704,6 @@ export function ProfileWorkspace({
                           </label>
                         ) : null}
 
-                        <div className="button-row profile-variant-actions">
-                          <button type="button" disabled={!variant.name.trim() || !variant.title.trim() || busy} onClick={() => void saveVariant()}>
-                            {busy ? "Saving…" : "Save variation"}
-                          </button>
-                          {editingVariantId ? (
-                            <button type="button" className="compact-secondary" disabled={busy} onClick={() => void removeVariant()}>Remove variation</button>
-                          ) : null}
-                          <button type="button" className="compact-secondary" onClick={closeVariant}>Close</button>
-                        </div>
                       </div>
                     ) : null}
                   </div>

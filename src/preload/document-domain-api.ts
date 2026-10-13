@@ -69,7 +69,7 @@ export function createDocumentDomainDesktopApi(invoke: Invoke): DocumentDomainDe
       saveWorkingItem: async (input: WorkingCvSaveItem) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.workingSaveItem, workingCvSaveItemSchema.parse(input))),
       saveWorkingAsTemplate: async (input: WorkingCvSaveTemplate) => cvTemplateRecordSchema.parse(await invoke(documentDomainChannels.workingSaveTemplate, workingCvSaveTemplateSchema.parse(input))),
       renderCv: async (input: RenderCvRequest) => renderedCvRecordSchema.parse(await invoke(documentDomainChannels.renderCv, renderCvRequestSchema.parse(input))),
-      duplicateRenderedCv: async (renderedCvId: string) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.duplicateRenderedCv, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
+      prepareRenderedCvCopy: async (renderedCvId: string) => workingCvRecordSchema.parse(await invoke(documentDomainChannels.prepareRenderedCvCopy, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
       openRenderedCv: async (renderedCvId: string) => openGeneratedResultSchema.parse(await invoke(documentDomainChannels.openRenderedCv, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
       exportRenderedCv: async (renderedCvId: string) => portableProjectExportResultSchema.parse(await invoke(documentDomainChannels.exportRenderedCv, renderedCvRecordSchema.shape.id.parse(renderedCvId))),
       createLetter: async (input: CoverLetterInput) => coverLetterRecordSchema.parse(await invoke(documentDomainChannels.letterCreate, coverLetterInputSchema.parse(input))),

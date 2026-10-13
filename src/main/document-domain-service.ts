@@ -547,7 +547,8 @@ const sectionNameByKind: Readonly<Record<string, string>> = Object.freeze({
   certification: 'Education',
   skill: 'Skills',
   language: 'Languages',
-  link: 'Links'
+  link: 'Links',
+  other: 'Other'
 });
 function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] {
   const order = [
@@ -556,7 +557,7 @@ function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] 
   ];
   const grouped = new Map<string, WorkingCvItem[]>();
   for (const item of items) {
-    const name = sectionNameByKind[item.kind] ?? 'Other';
+    const name = sectionNameByKind[item.kind] ?? item.kind;
     const current = grouped.get(name) ?? [];
     current.push({
       id: randomUUID(),
@@ -568,7 +569,7 @@ function sectionsFromProfile(items: readonly ProfileItem[]): WorkingCvSection[] 
     });
     grouped.set(name, current);
   }
-  return order.flatMap((name) => {
+  return [...order, ...[...grouped.keys()].filter(name => !order.includes(name))].flatMap((name) => {
     const groupedItems = grouped.get(name);
     return groupedItems && groupedItems.length > 0 ?
         [{id: randomUUID(), name, presentationRole: 'main', items: groupedItems}] :
@@ -893,7 +894,7 @@ export function renderedCvPdfPath(rootPath: string, renderedCvId: string): strin
     return pdf;
   });
 }
-export function duplicateRenderedCv(rootPath: string, renderedCvId: string): WorkingCvRecord {
+export function prepareRenderedCvCopy(rootPath: string, renderedCvId: string): WorkingCvRecord {
   const row =
       withWorkspaceDatabase(rootPath, (database) => requireRenderedRow(database, renderedCvId));
   const snapshot = parseJson(
@@ -924,14 +925,12 @@ export function duplicateRenderedCv(rootPath: string, renderedCvId: string): Wor
                     };
                   })
         }));
-    database
-        .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, `${snapshot.title} copy`, nullable(snapshot.language), row.sourceTemplateId,
-            row.candidatureId, JSON.stringify(snapshot.pdfMetadata), snapshot.parserSummary,
-            JSON.stringify(sections), now, now);
-    return requireWorkingCv(database, id);
+    const title = uniqueDocumentTitle(`${snapshot.title} copy`, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
+    return workingCvRecordSchema.parse({
+      id, title, language: snapshot.language, sourceTemplateId: row.sourceTemplateId,
+      candidatureId: row.candidatureId, pdfMetadata: snapshot.pdfMetadata,
+      parserSummary: snapshot.parserSummary, sections, createdAt: now, updatedAt: now,
+    });
   });
 }
 function safeProjectName(title: string, id: string): string {

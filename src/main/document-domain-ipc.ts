@@ -35,7 +35,7 @@ import {
   createWorkingCv,
   prepareWorkingCv,
   prepareCoverLetter,
-  duplicateRenderedCv,
+  prepareRenderedCvCopy,
   exportApplicationPacketProject,
   exportRenderedCoverLetterProject,
   exportRenderedCvProject,
@@ -140,10 +140,10 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
       await renderWorkingCv(requireWorkspaceRoot(), request.cvId, blueprintSource),
     );
   });
-  ipcMain.handle(documentDomainChannels.duplicateRenderedCv, (event, renderedCvId: unknown) => {
+  ipcMain.handle(documentDomainChannels.prepareRenderedCvCopy, (event, renderedCvId: unknown) => {
     assertTrustedSender(event, mainWindow);
     return workingCvRecordSchema.parse(
-      duplicateRenderedCv(requireWorkspaceRoot(), renderedCvRecordSchema.shape.id.parse(renderedCvId)),
+      prepareRenderedCvCopy(requireWorkspaceRoot(), renderedCvRecordSchema.shape.id.parse(renderedCvId)),
     );
   });
   ipcMain.handle(documentDomainChannels.openRenderedCv, async (event, renderedCvId: unknown) => {

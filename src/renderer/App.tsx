@@ -20,7 +20,7 @@ import { LoadedHome } from "./LoadedHome";
 import { ToolbarHost, ToolbarVisible } from "./toolbar-context";
 import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
-import { SettingsWorkspace } from "./SettingsWorkspace";
+import { SettingsWorkspace, type SettingsView } from "./SettingsWorkspace";
 import "./settings-rail-recovery.css";
 import "./shell.css";
 import { TagVisor, type ApplicationTagContext } from "./TagVisor";
@@ -104,6 +104,7 @@ export function App() {
   const [productView, setProductView] = useState<ProductView>("candidatures");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsView, setSettingsView] = useState<SettingsView>("workspace");
   const [candidatureDirty, setCandidatureDirty] = useState(false);
   const [documentDirty, setDocumentDirty] = useState(false);
   const [professionalInformationDirty, setProfessionalInformationDirty] = useState(false);
@@ -317,8 +318,6 @@ export function App() {
 
   const leaveSettings = () => {
     if (!settingsOpen) return true;
-    if (settingsDirty && !window.confirm("Discard unsaved Settings edits and leave Settings?")) return false;
-    setSettingsDirty(false);
     setSettingsOpen(false);
     setSettingsHandoff(null);
     return true;
@@ -431,15 +430,13 @@ export function App() {
         setProductView("documents");
       },
       openSettingsFor: (view: SettingsHandoff["view"], origin: SettingsHandoff["origin"]) => {
-        setSettingsDirty(false);
+        setSettingsView(view);
         setSettingsHandoff({ view, origin });
         setProductView(origin);
         setSettingsOpen(true);
       },
       returnFromSettings: () => {
-        if (settingsDirty && !window.confirm("Discard unsaved Settings edits and return to your work?")) return;
         const origin = settingsHandoff?.origin ?? productView;
-        setSettingsDirty(false);
         setSettingsOpen(false);
         setSettingsHandoff(null);
         setProductView(origin);
@@ -451,7 +448,6 @@ export function App() {
       productView,
       professionalInformationDirty,
       professionalInformationHandoff,
-      settingsDirty,
       settingsHandoff,
     ],
   );
@@ -459,7 +455,6 @@ export function App() {
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
-  const keepCandidaturesMounted = productView === "candidatures" || candidatureDirty || Boolean(documentHandoff?.candidatureId);
   const keepDocumentsMounted =
     productView === "documents" || documentDirty || documentHandoff !== null ||
     professionalInformationHandoff !== null ||
@@ -553,8 +548,8 @@ export function App() {
               <section className="work-surface" ref={workSurface}>
                 {welcomeOpen ? loadedHomeContent : null}
 
-                {!welcomeOpen && settingsOpen ? (
-                  <div className="settings-area" key={`settings-${workspace.rootPath}-${String(workspaceContentRevision)}-${settingsHandoff?.view ?? "workspace"}`}>
+                <ToolbarVisible.Provider value={!welcomeOpen && settingsOpen}>
+                  <div hidden={welcomeOpen || !settingsOpen} className="settings-area" key={`settings-${workspace.rootPath}-${String(workspaceContentRevision)}`}>
                     {settingsHandoff ? <div className="shell-section-heading">
                       <h1 className="visually-hidden">Settings</h1>
                       <button className="compact-secondary" type="button" onClick={handoffApi.returnFromSettings}>
@@ -564,7 +559,8 @@ export function App() {
                     <SettingsWorkspace
                       currentWorkspace={workspace}
                       demoWorkspace={demoWorkspace}
-                      initialView={settingsHandoff?.view ?? "workspace"}
+                      view={settingsView}
+                      onViewChange={setSettingsView}
                       onChooseWorkspace={(choice) => void chooseWorkspace(choice)}
                       onDirtyChange={setSettingsDirty}
                       onEnvironmentChange={refreshRailStatus}
@@ -575,9 +571,8 @@ export function App() {
                       protectedWorkDirty={protectedWorkDirty}
                     />
                   </div>
-                ) : null}
+                </ToolbarVisible.Provider>
 
-                {keepCandidaturesMounted ? (
                   <ToolbarVisible.Provider value={!welcomeOpen && !settingsOpen && productView === "candidatures"}>
                   <div hidden={welcomeOpen || settingsOpen || productView !== "candidatures"}>
                     <CandidaturesArea
@@ -589,8 +584,6 @@ export function App() {
                     />
                   </div>
                   </ToolbarVisible.Provider>
-                ) : null}
-
                 {keepDocumentsMounted ? (
                   <ToolbarVisible.Provider value={!welcomeOpen && !settingsOpen && productView === "documents"}>
                   <div hidden={welcomeOpen || settingsOpen || productView !== "documents"}>

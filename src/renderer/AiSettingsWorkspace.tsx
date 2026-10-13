@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NamedAiConnection } from "../shared/ai-connection-contracts";
 import { AiConnectionValidationPanel } from "./AiConnectionValidationPanel";
 import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
+import { PageToolbar } from "./PageToolbar";
 import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
 import { clearAiTask } from "./ai-task-store";
 
@@ -69,7 +70,7 @@ export function AiSettingsWorkspace({
   const [connections, setConnections] = useState<NamedAiConnection[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [formOpen, setFormOpen] = useState(initialFormOpen ?? view === "all");
+  const [formOpen, setFormOpen] = useState(initialFormOpen ?? false);
   const [error, setError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -294,7 +295,7 @@ export function AiSettingsWorkspace({
         acceptConnections(result.connections);
         setEditingId(null);
         setDraft(emptyDraft);
-        setFormOpen(initialFormOpen ?? view === "all");
+        setFormOpen(initialFormOpen ?? false);
         setPortabilityStatus(
           "Portable AI setup imported. Validate AI capabilities on this computer before using AI assistance.",
         );
@@ -308,10 +309,15 @@ export function AiSettingsWorkspace({
 
   return (
     <div className="profile-workspace">
+      {showConnections ? <PageToolbar>
+        {formOpen ? <>
+          <button type="button" disabled={saving || !connectionDirty || !draft.name.trim() || !draft.model.trim() || !draft.endpoint.trim()} onClick={() => void save()}>{saving ? "Saving…" : "Save"}</button>
+          <button type="button" disabled={saving} onClick={closeForm}>Cancel</button>
+        </> : <button type="button" onClick={beginNew}>New connection</button>}
+      </PageToolbar> : null}
       {showConnections ? (
         <div className="profile-column">
-          {view === "all" ? <div className="section-heading"><div><h2>AI connections</h2></div></div> : null}
-          <p>Connect a model server for help with offers, CVs and letters. AI is optional.</p>
+          {formOpen ? <div className="section-heading"><h2>{editing ? "Edit connection" : "New connection"}</h2></div> : null}
           {error ? <p className="error-message" role="alert">{error}</p> : null}
           {saveNotice ? <p className="document-notice" role="status">{saveNotice}</p> : null}
 
@@ -323,12 +329,6 @@ export function AiSettingsWorkspace({
                 void save();
               }}
             >
-              <div className="section-heading wide-field">
-                <div><h3>{editing ? "Edit connection" : "Add connection"}</h3></div>
-                {(view === "connections" || initialFormOpen === false) ? (
-                  <button type="button" className="compact-secondary" onClick={closeForm}>Cancel</button>
-                ) : null}
-              </div>
               <label>
                 Connection name
                 <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="Local model" />
@@ -350,7 +350,7 @@ export function AiSettingsWorkspace({
               </label>
               {addressError ? <small id="ai-address-error" className="error-message wide-field" role="alert">{addressError}</small> : null}
               <div className="wide-field">
-                <strong>API key / Bearer credential (optional)</strong>
+                {editing?.hasCredential ? <strong>Saved credential</strong> : null}
                 {editing?.hasCredential && draft.credentialIntent === "unchanged" ? (
                   <>
                     <p>Credential configured. The stored secret is hidden and is sent only with requests to this model server.</p>
@@ -385,7 +385,7 @@ export function AiSettingsWorkspace({
                 ) : (
                   <>
                     <label>
-                      {editing?.hasCredential ? "Replacement credential" : "Credential"}
+                      {editing?.hasCredential ? "Replacement credential" : "API key (optional)"}
                       <input
                         type="password"
                         autoComplete="new-password"
@@ -406,9 +406,9 @@ export function AiSettingsWorkspace({
                         placeholder="Optional API key or Bearer token"
                       />
                     </label>
-                    <p className="compact-help">
-                      Leave blank for servers that do not require authentication. AAAAT sends a configured credential as an Authorization: Bearer header and does not display it again after saving.
-                    </p>
+                    <details><summary>About credentials</summary>
+                      <p>Leave blank if your server needs no credential. AAAAT sends it only to this server and keeps the saved value hidden.</p>
+                    </details>
                     {editing?.hasCredential ? (
                       <button
                         type="button"
@@ -421,14 +421,8 @@ export function AiSettingsWorkspace({
                   </>
                 )}
               </div>
-              <div className="form-actions wide-field">
-                <button className="compact-primary" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save connection" : "Add connection"}</button>
-                {editing && view === "all" ? <button type="button" className="compact-secondary" onClick={beginNew}>Add another</button> : null}
-              </div>
             </form>
-          ) : (
-            <button className="compact-primary" type="button" onClick={beginNew}>Add connection</button>
-          )}
+          ) : null}
         </div>
       ) : null}
 
@@ -473,23 +467,25 @@ export function AiSettingsWorkspace({
           )}
 
           {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. Choose one unless every AI action has its own selected connection.</p> : null}
-          <p className="compact-help">One visible check runs the remaining supported AI actions in sequence. Each action is still checked separately, and you can keep using AAAAT while it runs.</p>
         </div>
       ) : null}
 
-      {showConnections ? <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} /> : null}
+      {showConnections ? <details className="profile-column">
+        <summary>AI instructions</summary>
+        <AiPromptTransparencyPanel onDirtyChange={setPromptDirty} />
+      </details> : null}
 
       {showPortability ? (
-        <div className="profile-column">
-          <div className="section-heading"><div><p className="eyebrow">Configuration portability</p><h2>Portable AI setup</h2></div></div>
+        <details className="profile-column">
+          <summary>Import or export AI connections</summary>
           {view === "portability" && error ? <p className="error-message" role="alert">{error}</p> : null}
-          <p>Export or import connection names, endpoints, models and the general default. This is configuration portability, not a workspace backup; local IDs and capability validation are excluded.</p>
+          <p>Connection names, servers, models and the default connection. Credentials are excluded.</p>
           <div className="button-row">
-            <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void exportPortable()}>{portabilityBusy === "export" ? "Exporting…" : "Export AI setup"}</button>
-            <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void importPortable()}>{portabilityBusy === "import" ? "Importing…" : "Import AI setup"}</button>
+            <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void exportPortable()}>{portabilityBusy === "export" ? "Exporting…" : "Export"}</button>
+            <button type="button" className="compact-secondary" disabled={portabilityBusy !== null} onClick={() => void importPortable()}>{portabilityBusy === "import" ? "Importing…" : "Import"}</button>
           </div>
           {portabilityStatus ? <p role="status">{portabilityStatus}</p> : null}
-        </div>
+        </details>
       ) : null}
     </div>
   );
