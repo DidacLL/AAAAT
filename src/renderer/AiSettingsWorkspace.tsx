@@ -60,12 +60,14 @@ export function AiSettingsWorkspace({
   onValidationState,
   view = "all",
   initialFormOpen,
+  refreshRevision = 0,
 }: {
   readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onEnvironmentChange?: () => void;
   readonly onValidationState?: (connectionName: string, needsAttention: boolean) => void;
   readonly view?: AiSettingsView;
   readonly initialFormOpen?: boolean;
+  readonly refreshRevision?: number;
 }) {
   const [connections, setConnections] = useState<NamedAiConnection[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export function AiSettingsWorkspace({
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshRevision]);
 
   const confirmDiscard = () =>
     !connectionDirty || window.confirm("Discard unsaved AI connection edits?");

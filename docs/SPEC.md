@@ -204,6 +204,12 @@ Setup is product infrastructure. Ordinary UI describes practical outcomes rather
 
 The same underlying setup knowledge may support normal UI and optional AI-assisted configuration; do not build a general installer/orchestration platform before a concrete need exists.
 
+Native packaging produces per-user Windows Inno Setup EXEs, macOS DMGs and Linux DEBs, alongside portable ZIPs. Optional tools are installed through a single typed main-process intention with two fixed choices: local Granite and PDF generation. Renderer inputs cannot supply commands, download URLs, installation paths or privileged scripts. Fixed upstream archives and the tested IBM GGUF revision are verified by their pinned cryptographic digest before use. Existing TeX installations and named AI connections are preserved.
+
+The installed llama.cpp CPU runtime binds only loopback and starts lazily for its fixed Local Granite connection. AAAAT stops only its own child on quit. Ordinary AI permission/context checks still precede provider invocation. Model files and runtime live in local application data, separately from portable workspaces. A workspace receives this connection only once and only when it has no existing connections; explicit deletion does not resurrect it.
+
+PDF setup selects MiKTeX on Windows and x64 macOS/Linux, BasicTeX on Apple Silicon, and distribution TeX Live on Linux ARM64. OS authorization is used where necessary. Downloads can be canceled; native package installation is allowed to complete rather than being killed mid-write. Rendering and readiness probes resolve the same installed executable, without requiring users to edit PATH. This setup is not exposed as arbitrary external-agent process authority.
+
 Workspace backup/recovery and portable AI/integration configuration are distinct boundaries. Keep secrets/local-machine concerns separate from user-owned workspace data where required.
 
 ## Local ownership and privileged operations

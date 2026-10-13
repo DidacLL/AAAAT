@@ -1,4 +1,8 @@
-# Current mission — v2 preview integration and public repository cleanup
+# Current mission — native installers and optional tools
+
+The latest Product Owner instruction adds native Windows, macOS and Linux installers with optional llama.cpp plus the tested Granite 4.1 3B Q4 model and optional pdfLaTeX setup. The owner explicitly chose BasicTeX on Apple Silicon and native TeX Live on Linux ARM64 where MiKTeX is unsupported. [Issue #438](https://github.com/DidacLL/AAAAT/issues/438) tracks this bounded delivery. No release tag or publication has been requested.
+
+Implementation is in progress on `agentic/native-installers`. Static checks pass for the first implementation checkpoint; native build, installed-runtime and setup-flow evidence remain pending. Preserve existing AI connections and TeX installations. Optional setup cannot block ordinary manual work or introduce generic process/download authority. Do not declare a native setup path complete from a package build alone.
 
 Current explicit Product Owner instruction is to propagate the current AAAAT product through repository documentation, provide a user-focused README with an advanced second half and image prompts, merge the working refinement into main, and clean the public repository. This authorizes integration; it does not request a release tag or deployment.
 

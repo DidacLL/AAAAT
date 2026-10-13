@@ -7,6 +7,7 @@ import type { CandidatureOpportunityResearchAccessDesktopApi } from "../shared/c
 import type { CandidatureSearchDesktopApi } from "../shared/candidature-search-contracts";
 import type { CareerContextAiDisclosureDesktopApi } from "../shared/career-context-ai-disclosure-contracts";
 import type { DesktopApi } from "../shared/contracts";
+import type { OptionalToolsDesktopApi } from "../shared/optional-tools-contracts";
 import type { DocumentDomainDesktopApi } from "../shared/document-domain-contracts";
 import type { ProfileAiContextDesktopApi } from "../shared/profile-ai-context-contracts";
 import type { ProfileVariantDesktopApi } from "../shared/profile-variant-contracts";
@@ -17,6 +18,7 @@ import type { WorkspaceRecoveryDesktopApi } from "../shared/workspace-recovery-c
 declare global {
   interface Window {
     readonly aaaat: DesktopApi &
+      OptionalToolsDesktopApi &
       AiDesktopApi &
       AiTaskCancellationDesktopApi &
       AiConnectionDesktopApi &

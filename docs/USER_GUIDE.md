@@ -54,7 +54,7 @@ Choose **PDF** in the top bar to generate output. Within an application, select 
 
 Saved documents have a secondary **Remove** action with confirmation. Removing an editable CV or letter preserves independently generated output; it does not delete an already produced PDF. Opening a generated CV for editing prepares a new provisional copy rather than rewriting that output.
 
-**Settings → Documents** shows PDF readiness and optional diagnostics. Local rendering requires `pdflatex` from a compatible TeX installation. Editing works without it. AAAAT does not silently install a TeX distribution.
+**Settings → Documents** shows PDF readiness and optional diagnostics. Choose **PDF setup** to install the supported TeX distribution for your device; an existing installation is reused. Editing works without it. Downloads require your explicit selection. See [installation](INSTALLATION.md).
 
 ## Optional AI
 
@@ -63,6 +63,8 @@ Saved documents have a secondary **Remove** action with confirmation. Removing a
 In **Settings → AI**, add a named connection, its endpoint, model and credential when needed. The current adapter uses OpenAI-compatible chat completions. Loopback HTTP and remote HTTPS are accepted. Choose a general default or a validated per-operation default.
 
 Connection and feature checks are optional diagnostics. Normal assistance does not require checking every feature first. A reachable server may still return an invalid or unhelpful result. Instructions are editable and can be reset to the shipped default.
+
+**Local AI** installs llama.cpp with the tested Granite 4.1 3B model. A workspace without connections receives **Local Granite** automatically. Existing connections are preserved. The installed server starts when you use it and stops when AAAAT quits; other servers remain under your own control.
 
 ### Use it beside your work
 

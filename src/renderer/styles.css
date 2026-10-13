@@ -580,3 +580,22 @@ button:disabled {
 .loaded-home-recent {
   background-color: var(--paper);
 }
+
+.optional-tools-dialog {
+  width: min(34rem, calc(100vw - 3rem));
+  padding: 1.25rem;
+  border: 1px solid var(--line-soft);
+  border-radius: .35rem;
+  background: var(--paper-sheet);
+  color: var(--ink);
+  font-family: var(--ui-font);
+}
+.optional-tools-dialog::backdrop { background: rgb(0 0 0 / 40%); }
+.optional-tools-dialog h2 { margin: 0 0 1rem; font-size: 1.3rem; }
+.optional-tools-choices { display: grid; gap: .75rem; margin-bottom: 1rem; }
+.optional-tools-choices label { display: flex; gap: .6rem; align-items: start; padding: .75rem; border: 1px solid var(--line-soft); }
+.optional-tools-choices span { display: grid; gap: .25rem; }
+.optional-tools-choices small { color: var(--muted-ink); }
+.optional-tools-dialog progress { display: block; width: 100%; margin: .5rem 0; }
+.optional-tools-dialog details { margin-top: 1rem; font-size: .85rem; }
+.optional-tools-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }

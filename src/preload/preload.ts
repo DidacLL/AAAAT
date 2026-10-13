@@ -7,6 +7,7 @@ import { createCandidatureOpportunityResearchAccessDesktopApi } from "./candidat
 import { createCandidatureSearchDesktopApi } from "./candidature-search-api";
 import { createCareerContextAiDisclosureDesktopApi } from "./career-context-ai-disclosure-api";
 import { createDesktopApi } from "./api";
+import { createOptionalToolsApi } from "./optional-tools-api";
 import { createDocumentDomainDesktopApi } from "./document-domain-api";
 import { createProfileAiContextDesktopApi } from "./profile-ai-context-api";
 import { createProfileVariantDesktopApi } from "./profile-variant-api";
@@ -21,6 +22,7 @@ contextBridge.exposeInMainWorld(
   "aaaat",
   Object.freeze({
     ...coreApi,
+    ...createOptionalToolsApi(invoke),
     ...createAiConnectionDesktopApi(invoke),
     ...createAiPromptDesktopApi(invoke),
     ...createCandidatureActivityDesktopApi(invoke),

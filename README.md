@@ -78,7 +78,7 @@ Opening a new editor prepares a draft. **Save** keeps it; **Cancel** lets you le
 
 Edit content, arrange sections, and choose **PDF** when you are ready. Within an application, the top-bar **PDF** action combines the selected CV and letter. Editable documents and generated files remain separate, so later edits do not rewrite a PDF you already produced.
 
-Local PDF generation needs `pdflatex`. **Settings → Documents** shows readiness and setup information. You can keep editing while PDF setup is unavailable.
+Choose **PDF generation** during optional setup, or **Settings → Documents → PDF setup** later. AAAAT uses an existing installation when available. You can keep editing while PDF setup downloads.
 
 ### 6. Leave and come back
 
@@ -97,7 +97,9 @@ The desktop workflow above needs no programming or AI knowledge. The options bel
 
 In **Settings → AI**, add a named connection with an endpoint and model, plus a credential if that server requires one. Set the general default, or choose a checked connection for an individual operation.
 
-The current adapter uses an OpenAI-compatible chat-completions endpoint. Loopback servers may use HTTP; remote endpoints must use HTTPS. For example, a local compatible server may expose `http://127.0.0.1:8080/v1`. AAAAT does not start or manage your model server.
+For an easy local start, choose **Local AI** during optional setup or in **Settings → AI**. This downloads llama.cpp and the tested Granite 4.1 3B Q4 model (about 2 GB). AAAAT starts this installed model when needed and stops its own server when you quit. A new workspace without another connection gets **Local Granite** automatically; existing connections stay as you chose them.
+
+You can also connect your own server. The current adapter uses an OpenAI-compatible chat-completions endpoint. Loopback servers may use HTTP; remote endpoints must use HTTPS. For example, a local compatible server may expose `http://127.0.0.1:8080/v1`. You manage independently installed servers yourself.
 
 Normal AI use does not require running all feature checks first. Connection and per-feature checks are optional diagnostics; reachability is different from producing useful, valid results. Instructions for application information, Tags, CV writing and letters are editable, with a reset to the shipped default.
 
@@ -152,9 +154,9 @@ To make a native package for the current machine:
 npm run make
 ```
 
-Packages appear under `out/make/`. The release workflow targets Windows, macOS and Linux, each on x64 and ARM64. Windows/macOS use ZIPs; Linux also has a DEB. Preview packages are unsigned and there is no automatic updater.
+Packages appear under `out/make/`. Windows builds additionally require [Inno Setup 6](https://jrsoftware.org/isdl.php); a compiler outside its standard location can be selected with `ISCC_PATH`. The release workflow builds native Windows setup EXEs, macOS DMGs and Linux DEBs, each on x64 and ARM64, plus portable ZIPs. Preview packages are unsigned and there is no automatic updater.
 
-PDF generation additionally needs a compatible TeX installation exposing `pdflatex`. AI additionally needs your chosen compatible server. Neither blocks ordinary application work or document editing.
+Optional setup installs MiKTeX for PDF generation on Windows and x64 macOS/Linux. Apple Silicon uses BasicTeX; Linux ARM64 uses TeX Live. Downloads start only after you select them. See [installation details](docs/INSTALLATION.md) for supported systems, download sources and permissions. Neither AI nor PDF setup blocks ordinary application work or document editing.
 
 ## Help improve AAAAT
 

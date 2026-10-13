@@ -1,12 +1,17 @@
 import { app, safeStorage } from "electron";
 
 import { configureAiCredentialProtection } from "./ai-connection-service";
+import { initializeInstalledToolPaths } from "./installed-tool-paths";
+import { stopInstalledGranite } from "./local-granite-runtime";
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
 import {
   isWorkspaceBackupInvocation,
   isWorkspaceRestoreInvocation,
   runWorkspaceRecoveryProcess,
 } from "./workspace-backup";
+
+initializeInstalledToolPaths(app.getPath("userData"));
+app.on("before-quit", stopInstalledGranite);
 
 configureAiCredentialProtection({
   isSecure: () =>

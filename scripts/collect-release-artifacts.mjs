@@ -45,10 +45,10 @@ mkdirSync(outputDirectory, { recursive: true });
 
 const distributables = filesUnder(sourceDirectory).filter((file) => {
   const extension = path.extname(file).toLowerCase();
-  return extension === ".zip" || extension === ".deb";
+  return [".zip", ".deb", ".dmg", ".exe"].includes(extension);
 });
 if (distributables.length === 0) {
-  throw new Error("No .zip or .deb distributables found under " + sourceDirectory);
+  throw new Error("No native distributables found under " + sourceDirectory);
 }
 
 const usedNames = new Set();

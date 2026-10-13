@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ensureInstalledGranite } from "./local-granite-runtime";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -192,6 +193,7 @@ export async function probeAiConnection(
   const connection = connectionById(configuration, connectionId);
   const providerConnection = providerConnectionForStored(connection);
   try {
+    await ensureInstalledGranite(connection.endpoint, connection.model);
     const response = await fetchImpl(modelsUrl(connection.endpoint), {
       method: "GET",
       headers: {

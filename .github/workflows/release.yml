@@ -86,7 +86,22 @@ jobs:
       - run: npm install --global npm@12.2.0
       - run: npm ci
       - name: Build native distributables
+        if: runner.os != 'Windows'
         run: npm run make -- --arch=${{ matrix.arch }}
+      - name: Build Windows setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $compilerInstaller = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.3.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $compilerInstaller
+          $signature = Get-AuthenticodeSignature -LiteralPath $compilerInstaller
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Pyrsys B.V.') { throw 'Inno Setup signature could not be verified.' }
+          $compilerDirectory = Join-Path $env:RUNNER_TEMP 'inno-compiler'
+          $compilerProcess = Start-Process -FilePath $compilerInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', ('/DIR="' + $compilerDirectory + '"')) -WindowStyle Hidden -Wait -PassThru
+          if ($compilerProcess.ExitCode -ne 0) { throw 'Could not install the build compiler.' }
+          $env:ISCC_PATH = Join-Path $compilerDirectory 'ISCC.exe'
+          npm run make -- --arch=${{ matrix.arch }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Normalize release artifacts
         run: node scripts/collect-release-artifacts.mjs --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
