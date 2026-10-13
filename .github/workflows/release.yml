@@ -5,14 +5,6 @@ on:
   push:
     tags:
       - "v2*"
-  pull_request:
-    paths:
-      - ".github/workflows/release.yml"
-      - "forge.config.ts"
-      - "package.json"
-      - "package-lock.json"
-      - ".npmrc"
-      - "scripts/collect-release-artifacts.mjs"
 
 permissions:
   contents: read
