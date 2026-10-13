@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import type {
   CandidatureFieldConfiguration,
@@ -20,10 +20,12 @@ import { CandidatureOfferPanel } from "./CandidatureOfferPanel";
 import { CandidatureOpportunityResearchAccessPanel } from "./CandidatureOpportunityResearchAccessPanel";
 import { CandidatureSourcesPanel } from "./CandidatureSourcesPanel";
 import { useContextualHandoffs } from "./contextual-handoffs";
+import { PageToolbar } from "./PageToolbar";
 import {
   candidatureCardRecognitionProjection,
-  candidatureRecognitionProjection,
   candidatureSearchMatchCue,
+  candidatureSupportingCues,
+  candidatureRetainedSourceCue,
   filterCandidatures,
   type ArchiveFilter,
   type CandidatureRecognitionCue,
@@ -103,87 +105,83 @@ function cueLengthClass(value: string): "short" | "medium" | "long" {
   return "long";
 }
 
-function CorpusRecognitionCue({
-  cue,
-  expanded,
-  sourceLabel = false,
-}: {
-  readonly cue: CandidatureRecognitionCue;
-  readonly expanded: boolean;
-  readonly sourceLabel?: boolean;
-}) {
-  const cueRef = useRef<HTMLSpanElement>(null);
-  const contentRef = useRef<HTMLSpanElement>(null);
-
+function CorpusCard({ expanded, children }: { readonly expanded: boolean; readonly children: ReactNode }) {
+  const card = useRef<HTMLElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const collapsedHeight = useRef(0);
+  const placement = useRef<{ column: number; row: number } | null>(null);
   useLayoutEffect(() => {
-    const cueElement = cueRef.current;
-    const contentElement = contentRef.current;
-    const grid = cueElement?.parentElement;
-    if (!cueElement || !contentElement || !grid) return;
-
-    const updateSpan = () => {
-      const styles = getComputedStyle(grid);
-      const rowHeight = Number.parseFloat(styles.gridAutoRows);
-      const rowGap = Number.parseFloat(styles.rowGap) || 0;
-      if (!Number.isFinite(rowHeight) || rowHeight <= 0) {
-        cueElement.style.gridRowEnd = "";
-        return;
+    const element = card.current;
+    const body = content.current;
+    if (!element || !body) return;
+    body.style.minHeight = expanded && collapsedHeight.current ? `${collapsedHeight.current * 2 - 2}px` : "";
+    if (!expanded) { element.style.gridColumn = ""; element.style.gridRowStart = ""; }
+    const measure = () => {
+      if (!body.getBoundingClientRect().width) return;
+      if (expanded && placement.current && element.parentElement) {
+        const columns = getComputedStyle(element.parentElement).gridTemplateColumns.split(" ").length;
+        element.style.gridColumn = columns > 1 ? `${Math.min(placement.current.column, columns - 1)} / span 2` : "1 / -1";
+        element.style.gridRowStart = String(placement.current.row);
       }
-      const height = contentElement.getBoundingClientRect().height;
-      cueElement.style.gridRowEnd =
-        `span ${String(Math.max(1, Math.ceil((height + rowGap) / (rowHeight + rowGap))))}`;
+      const height = element.getBoundingClientRect().height;
+      if (!expanded) collapsedHeight.current = height;
+      const spacing = Number.parseFloat(getComputedStyle(element).marginBottom) || 0;
+      element.style.gridRowEnd = `span ${Math.ceil(height + spacing)}`;
     };
-
-    updateSpan();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(updateSpan);
-    observer.observe(contentElement);
+    const observer = new ResizeObserver(measure);
+    observer.observe(body);
+    measure();
     return () => observer.disconnect();
-  }, [cue.value, cue.presentationSize, expanded]);
+  }, [expanded]);
+  return <article ref={card} className={`candidature-corpus-card${expanded ? " candidature-corpus-card-preselected" : ""}`}
+    onClickCapture={event => {
+      if (expanded || !(event.target instanceof Element) || !event.target.closest(".candidature-corpus-entry")) return;
+      const element = card.current;
+      const grid = element?.parentElement;
+      if (!element || !grid) return;
+      const bounds = element.getBoundingClientRect();
+      const gridBounds = grid.getBoundingClientRect();
+      const gap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0;
+      placement.current = { column: Math.round((bounds.left - gridBounds.left) / (bounds.width + gap)) + 1, row: Math.round(bounds.top - gridBounds.top) + 1 };
+      collapsedHeight.current = bounds.height;
+    }}>
+    <div ref={content} className="candidature-cover-content">{children}</div>
+  </article>;
+}
 
-  return (
-    <span
-      ref={cueRef}
-      className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}${sourceLabel ? " candidature-retained-source-cue" : ""}`}
-    >
-      <span ref={contentRef} className="candidature-cue-content">
-        {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
-        <span className="candidature-cue-value">{cue.value}</span>
-      </span>
-    </span>
-  );
+function CorpusRecognitionCue({ cue, sourceLabel = false }: { readonly cue: CandidatureRecognitionCue; readonly sourceLabel?: boolean }) {
+  return <span title={cue.description ? `${cue.label}: ${cue.description}` : cue.label} className={`candidature-recognition-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}>
+    {sourceLabel ? <span className="candidature-cue-label">{cue.label}</span> : null}
+    <span className="candidature-cue-value">{cue.value}</span>
+  </span>;
 }
 
 function ExpandedCorpusRecognition({
   cues,
   retainedSourceCue,
+  supportingCues,
 }: {
   readonly cues: readonly CandidatureRecognitionCue[];
   readonly retainedSourceCue: CandidatureRecognitionCue | null;
+  readonly supportingCues: readonly CandidatureRecognitionCue[];
 }) {
   const available = cues.length > 0
     ? cues
     : retainedSourceCue
       ? [retainedSourceCue]
       : [];
-  if (available.length === 0) {
+  if (available.length === 0 && supportingCues.length === 0) {
     return <span className="candidature-neutral-reference">Saved application</span>;
   }
-
-  const wide = available.filter((cue) => cue.presentationSize === "wide");
-  const prominentIds = new Set(
-    (wide.length > 0 ? wide : available.slice(0, 1)).map((cue) => cue.fieldId),
-  );
-  const supporting = available.filter((cue) => !prominentIds.has(cue.fieldId));
-  const prominent = available.filter((cue) => prominentIds.has(cue.fieldId));
 
   return (
     <span className="candidature-expanded-summary">
       <span className="candidature-expanded-prominent">
-        {prominent.map((cue) => (
+        {available.map((cue) => (
           <span
             className={`candidature-expanded-cue candidature-expanded-cue-prominent candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}
             key={cue.fieldId}
+            title={cue.label}
           >
             {cue.fieldId === "retained-source" ? (
               <span className="candidature-cue-label">{cue.label}</span>
@@ -192,12 +190,13 @@ function ExpandedCorpusRecognition({
           </span>
         ))}
       </span>
-      {supporting.length > 0 ? (
+      {supportingCues.length > 0 ? (
         <span className="candidature-expanded-supporting">
-          {supporting.map((cue) => (
+          {supportingCues.map((cue) => (
             <span
               className={`candidature-expanded-cue candidature-cue-size-${cue.presentationSize} candidature-cue-length-${cueLengthClass(cue.value)}`}
               key={cue.fieldId}
+              title={cue.label}
             >
               <span className="candidature-expanded-value">{cue.value}</span>
             </span>
@@ -221,7 +220,7 @@ export function CandidaturesWorkspace({
   readonly onTagGlossaryChange?: () => void;
   readonly onTagContextChange?: (context: ApplicationTagContext | null) => void;
 }) {
-  const { documentHandoff, openDocumentFromCandidature, openSettingsFor } = useContextualHandoffs();
+  const { documentHandoff, openDocumentFromCandidature, openDocumentDraft, openSettingsFor } = useContextualHandoffs();
   const [records, setRecords] = useState<CandidatureRecord[]>([]);
   const [fields, setFields] = useState<CandidatureFieldConfiguration[]>([]);
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
@@ -238,6 +237,7 @@ export function CandidaturesWorkspace({
   const [mode, setMode] = useState<CandidatureMode>("corpus");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [preselectedId, setPreselectedId] = useState<string | null>(null);
+  const [tagFocus, setTagFocus] = useState<{ candidatureId: string; tagId: string } | null>(null);
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{ readonly query: string; readonly ids: ReadonlySet<string> } | null>(null);
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
@@ -247,6 +247,8 @@ export function CandidaturesWorkspace({
   const [tagQuery, setTagQuery] = useState("");
   const [sourceDirty, setSourceDirty] = useState(false);
   const [valueEditorDirty, setValueEditorDirty] = useState<ReadonlySet<string>>(new Set());
+  const dirtyValueEditors = useRef(new Set<string>());
+  const fieldEditRevisions = useRef(new Map<string, number>());
   const [activeFieldEditorId, setActiveFieldEditorId] = useState<string | null>(null);
   const [fieldDefinitionsDirty, setFieldDefinitionsDirty] = useState(false);
   const [fieldDefinitionDraft, setFieldDefinitionDraft] = useState<SharedFieldDefinitionDraft | null>(null);
@@ -260,7 +262,16 @@ export function CandidaturesWorkspace({
   const [tagEditorDraft, setTagEditorDraft] = useState<TagInput>(emptyTag);
   const [tagAliasesText, setTagAliasesText] = useState("");
   const [activityOpen, setActivityOpen] = useState(false);
+  const [externalTaskOpen, setExternalTaskOpen] = useState(false);
+  const externalTaskDialog = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const dialog = externalTaskDialog.current;
+    if (!dialog) return;
+    if (externalTaskOpen && !dialog.open) dialog.showModal();
+    if (!externalTaskOpen && dialog.open) dialog.close();
+  }, [externalTaskOpen]);
 
   const initialSelectionId = initialSelection?.candidatureId;
   const initialTask = initialSelection?.task;
@@ -288,12 +299,13 @@ export function CandidaturesWorkspace({
   const resetEditorDrafts = useCallback((record?: CandidatureRecord) => {
     setSelectedTagIds(record?.tagIds ?? []);
     setSelectedTagId(record?.tagIds[0] ?? null);
+    dirtyValueEditors.current.clear();
     setTagQuery(""); setSourceDirty(false); setValueEditorDirty(new Set());
     setActiveFieldEditorId(null);
     setFieldDefinitionsDirty(false); setFieldDefinitionDraft(null); setDiscoveryFieldId(null); setFieldAiFeedback(null);
     setOpenFieldOptionsId(null); setBulkInferenceOpen(false); setBulkAiFeedback(null);
     setTagEditorOpen(false); setEditingTagId(null); setTagEditorDraft(emptyTag);
-    setTagAliasesText(""); setActivityOpen(false);
+    setTagAliasesText(""); setActivityOpen(false); setExternalTaskOpen(false);
     setApplicationCvSource("profile"); setPacketWorkingCvId(""); setPacketLetterId("");
     setDocumentExternalAccessAllowed(false); setDocumentExternalAccessBusy(false);
   }, []);
@@ -393,15 +405,16 @@ export function CandidaturesWorkspace({
   );
   const contextualRecord = mode === "selected"
     ? selected
-    : visibleRecords.find((record) => record.id === preselectedId) ?? null;
+    : visibleRecords.find((record) => record.id === (tagFocus?.candidatureId ?? preselectedId)) ?? null;
   const tagContext = useMemo<ApplicationTagContext | null>(
     () => contextualRecord
       ? {
           candidatureId: contextualRecord.id,
           tags: tags.filter((tag) => contextualRecord.tagIds.includes(tag.id)),
+          focusedTagId: tagFocus?.candidatureId === contextualRecord.id ? tagFocus.tagId : undefined,
         }
       : null,
-    [contextualRecord, tags],
+    [contextualRecord, tags, tagFocus],
   );
   useEffect(() => {
     onTagContextChange?.(tagContext);
@@ -417,6 +430,7 @@ export function CandidaturesWorkspace({
     setMode("selected");
   };
   const inspectRecord = (record: CandidatureRecord) => {
+    setTagFocus(null);
     setPreselectedId((current) => current === record.id ? null : record.id);
     setError(null);
   };
@@ -427,9 +441,11 @@ export function CandidaturesWorkspace({
     onInitialSelectionCleared?.();
   };
 
-  const setEditorDirty = (fieldId: string, dirty: boolean) => setValueEditorDirty((current) => {
-    const next = new Set(current); if (dirty) next.add(fieldId); else next.delete(fieldId); return next;
-  });
+  const setEditorDirty = (fieldId: string, dirty: boolean) => {
+    fieldEditRevisions.current.set(fieldId, (fieldEditRevisions.current.get(fieldId) ?? 0) + 1);
+    if (dirty) dirtyValueEditors.current.add(fieldId); else dirtyValueEditors.current.delete(fieldId);
+    setValueEditorDirty(new Set(dirtyValueEditors.current));
+  };
   const requestFieldEditor = (fieldId: string) => {
     if (activeFieldEditorId === fieldId) return;
     if (activeFieldEditorId && valueEditorDirty.has(activeFieldEditorId)) {
@@ -637,12 +653,13 @@ export function CandidaturesWorkspace({
     if (!selected || documentCreationBusy) return;
     setDocumentCreationBusy("cover_letter"); setError(null);
     try {
-      const created = await window.aaaat.documentDomain.createLetter({
+      const contextTitle = candidatureCardRecognitionProjection(selected, fields, false).primaryCues.slice(0, 2).map(cue => cue.value).join(" · ");
+      const created = await window.aaaat.documentDomain.prepareLetter({
         candidatureId: selected.id,
-        title: "Application cover letter",
+        title: contextTitle ? `Letter — ${contextTitle}`.slice(0, 190) : "Application letter",
         bodyParagraphs: [],
       });
-      await refreshCollections(); openDocument(created.id);
+      openDocumentDraft({ kind: "letter", document: created });
     } catch (reason) {
       setError(readableDocumentError(reason, "AAAAT could not create the cover letter."));
     } finally { setDocumentCreationBusy(null); }
@@ -657,12 +674,13 @@ export function CandidaturesWorkspace({
         : applicationCvSource === "blank"
           ? { kind: "blank" as const }
           : { kind: "profile" as const };
-      const created = await window.aaaat.documentDomain.createWorkingCv({
-        title: "Application CV",
+      const contextTitle = candidatureCardRecognitionProjection(selected, fields, false).primaryCues.slice(0, 2).map(cue => cue.value).join(" · ");
+      const created = await window.aaaat.documentDomain.prepareWorkingCv({
+        title: contextTitle ? `CV — ${contextTitle}`.slice(0, 190) : "Application CV",
         candidatureId: selected.id,
         source,
       });
-      await refreshCollections(); openDocument(created.id);
+      openDocumentDraft({ kind: "cv", document: created });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not create the application CV.");
     } finally { setDocumentCreationBusy(null); }
@@ -822,6 +840,11 @@ export function CandidaturesWorkspace({
               const recordTags = tags.filter((tag) => record.tagIds.includes(tag.id));
               const recognition = candidatureCardRecognitionProjection(record, fields, preselected);
               const primaryCues = recognition.primaryCues;
+              const supportingCues = preselected ? candidatureSupportingCues(record, fields) : [];
+              if (preselected && !recognition.retainedSourceCue) {
+                const sourceCue = candidatureRetainedSourceCue(record, 1200);
+                if (sourceCue) supportingCues.push({ ...sourceCue, presentationSize: "compact" });
+              }
               const actionIdentity = corpusActionIdentity(primaryCues, recognition.retainedSourceCue);
               const searchMatchCue =
                 normalizedQuery && textMatches?.has(record.id)
@@ -835,10 +858,7 @@ export function CandidaturesWorkspace({
                   ? searchMatchCue
                   : null;
               return (
-                <article
-                  className={`candidature-corpus-card${preselected ? " candidature-corpus-card-preselected" : ""}`}
-                  key={record.id}
-                >
+                <CorpusCard expanded={preselected} key={record.id}>
                   <button
                     type="button"
                     className="candidature-corpus-entry"
@@ -850,16 +870,17 @@ export function CandidaturesWorkspace({
                       <ExpandedCorpusRecognition
                         cues={primaryCues}
                         retainedSourceCue={recognition.retainedSourceCue}
+                        supportingCues={supportingCues}
                       />
                     ) : primaryCues.length > 0 ? (
                       <span className="candidature-recognition-cues">
                         {primaryCues.map((cue) => (
-                          <CorpusRecognitionCue cue={cue} expanded={false} key={cue.fieldId} />
+                          <CorpusRecognitionCue cue={cue} key={cue.fieldId} />
                         ))}
                       </span>
                     ) : recognition.retainedSourceCue ? (
                       <span className="candidature-recognition-cues">
-                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} expanded={false} sourceLabel />
+                        <CorpusRecognitionCue cue={recognition.retainedSourceCue} sourceLabel />
                       </span>
                     ) : (
                       <span className="candidature-neutral-reference">Saved application</span>
@@ -871,12 +892,17 @@ export function CandidaturesWorkspace({
                       </span>
                     ) : null}
                   </button>
-                  {!preselected ? (
-                    <div className="candidature-card-footer">
+                    <div className={`candidature-card-footer${preselected ? " candidature-card-footer-expanded" : ""}`}>
                       {recordTags.length > 0 ? (
                         <span className="candidature-collapsed-tags" aria-label="Related Tags">
                           {recordTags.map((tag) => (
-                            <span className="candidature-collapsed-tag" key={tag.id}>{tag.name}</span>
+                            <button type="button" className={preselected ? "candidature-expanded-tag" : "candidature-collapsed-tag"} key={tag.id}
+                              title={`${tag.name}: ${tag.definition}`}
+                              onFocus={() => setTagFocus({ candidatureId: record.id, tagId: tag.id })}
+                              onMouseEnter={() => setTagFocus({ candidatureId: record.id, tagId: tag.id })}
+                              onClick={() => setTagFocus({ candidatureId: record.id, tagId: tag.id })}>
+                              {preselected ? <><strong>{tag.name}</strong><span>{tag.definition}</span></> : tag.name}
+                            </button>
                           ))}
                         </span>
                       ) : <span />}
@@ -884,7 +910,6 @@ export function CandidaturesWorkspace({
                         {new Date(record.createdAt).toLocaleDateString()}
                       </time>
                     </div>
-                  ) : null}
                   {preselected ? (
                     <div className="candidature-corpus-inspection" aria-label="Application inspection">
                       <button
@@ -897,7 +922,7 @@ export function CandidaturesWorkspace({
                       </button>
                     </div>
                   ) : null}
-                </article>
+                </CorpusCard>
               );
             })}
           </div>
@@ -966,10 +991,6 @@ export function CandidaturesWorkspace({
   )
     ? packetBlueprintId
     : packetBlueprints[0]?.id ?? "";
-  const selectedRecognition = candidatureRecognitionProjection(selected, fields, 1);
-  const sourceOwnsInitialContext =
-    initialTask !== undefined || selectedRecognition.retainedSourceCue !== null;
-
   const createPacket = async () => {
     if (!selectedPacketCvId || !selectedPacketLetterId || !selectedPacketBlueprintId || packetBusy) return;
     setPacketBusy(true);
@@ -1010,13 +1031,12 @@ export function CandidaturesWorkspace({
     return (
       <article
         key={field.definition.id}
-        className={`retained-information-card candidature-information-unit${longReading ? " candidature-information-unit-long-content" : mediumReading ? " candidature-information-unit-medium-content" : ""}`}
+        className={`retained-information-card candidature-information-unit candidature-information-size-${field.preferences.presentationSize}${longReading ? " candidature-information-unit-long-content" : mediumReading ? " candidature-information-unit-medium-content" : ""}`}
         aria-label={`${field.definition.label} information`}
       >
         <div className="candidature-information-unit-heading">
           <div className="candidature-information-unit-meta">
-            <h4>{field.definition.label}</h4>
-            {field.definition.description ? <p>{field.definition.description}</p> : null}
+            <h4 title={field.definition.description}>{field.definition.label}</h4>
           </div>
           <div className="candidature-field-context-controls" role="group" aria-label={`${field.definition.label} field controls`}>
             <button
@@ -1060,6 +1080,7 @@ export function CandidaturesWorkspace({
             </button>
             <details
               className="candidature-field-options"
+              style={{ "--field-anchor": `--field-${field.definition.id}` } as CSSProperties}
               open={openFieldOptionsId === field.definition.id}
             >
               <summary
@@ -1073,7 +1094,8 @@ export function CandidaturesWorkspace({
                 <span aria-hidden="true">⚙</span>
               </summary>
               {openFieldOptionsId === field.definition.id ? (
-                <div className="candidature-field-options-panel">
+                <div className="candidature-field-options-panel" popover="manual" ref={(node) => { if (node?.isConnected && !node.matches(":popover-open")) node.showPopover(); }} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); toggleFieldOptions(field); } }}>
+                  <button type="button" className="field-options-close" aria-label={`Close ${field.definition.label} options`} onClick={() => toggleFieldOptions(field)}>×</button>
                   {favourite ? (
                     <>
                       <div className="candidature-field-order-actions">
@@ -1097,7 +1119,7 @@ export function CandidaturesWorkspace({
                         </button>
                       </div>
                       <label className="candidature-prominence-control">
-                        Card size
+                        Prominence
                         <select
                           aria-label={`${field.definition.label} card size`}
                           value={field.preferences.presentationSize}
@@ -1108,9 +1130,9 @@ export function CandidaturesWorkspace({
                             })
                           }
                         >
-                          <option value="compact">Compact</option>
-                          <option value="normal">Normal</option>
-                          <option value="wide">Wide</option>
+                          <option value="compact">Small</option>
+                          <option value="normal">Regular</option>
+                          <option value="wide">Large</option>
                         </select>
                       </label>
                     </>
@@ -1226,23 +1248,19 @@ export function CandidaturesWorkspace({
 
   return (
     <section className="candidatures-workspace candidature-selected" aria-label="Application information">
-      <div className="candidature-selected-actions">
-        <button type="button" className="compact-secondary" onClick={returnToCorpus}>
-          ← Applications
-        </button>
-        <button
-          type="button"
-          className="compact-secondary"
-          onClick={() => void setArchived(!selected.archived)}
-        >
-          {selected.archived ? "Restore" : "Archive"}
-        </button>
+      <PageToolbar>
+        <button type="button" aria-label="Return to applications" title="Applications" onClick={returnToCorpus}>←</button>
         {enabledMissingFields.length > 0 ? (
-          <button type="button" className="compact-secondary" onClick={() => void requestBulkInference()}>
-            Ask AI to fill missing information
+          <button type="button" title="Fill empty fields with AI" onClick={() => void requestBulkInference()}>
+            Fill
           </button>
         ) : null}
-      </div>
+        <button type="button" className="application-actions-trigger" aria-label="Application actions" title="More actions" popoverTarget="application-actions">⋯</button>
+        <div id="application-actions" className="application-actions-menu" popover="auto">
+          <button type="button" popoverTarget="application-actions" popoverTargetAction="hide" onClick={() => setExternalTaskOpen(true)}>AI task</button>
+          <button type="button" popoverTarget="application-actions" popoverTargetAction="hide" onClick={() => void setArchived(!selected.archived)}>{selected.archived ? "Restore" : "Archive"}</button>
+        </div>
+      </PageToolbar>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       {bulkAiFeedback ? (
         <div
@@ -1262,21 +1280,17 @@ export function CandidaturesWorkspace({
         </div>
       ) : null}
 
-      {initialTask ? null : (
+      <dialog className="workspace-tool-dialog application-task-dialog" ref={externalTaskDialog} onClose={() => setExternalTaskOpen(false)}>
+        <header>
+          <strong>Application AI task</strong>
+          <button type="button" aria-label="Close application AI task" onClick={() => setExternalTaskOpen(false)}>×</button>
+        </header>
         <CandidatureOpportunityResearchAccessPanel
           key={`external-ai-${selected.id}`}
           candidatureId={selected.id}
           contextDirty={taskContextDirty}
         />
-      )}
-
-      {sourceOwnsInitialContext ? (
-        <CandidatureSourcesPanel
-          candidatureId={selected.id}
-          onSourcesChanged={() => void handleSourcesChanged()}
-          onDirtyChange={setSourceDirty}
-        />
-      ) : null}
+      </dialog>
 
       <section
         className="section-surface candidature-primary-information"
@@ -1284,10 +1298,7 @@ export function CandidaturesWorkspace({
       >
         <div className="candidature-information-heading">
           <div>
-            <p className="eyebrow">Primary information</p>
-            <p className="compact-help">
-              Choose which information stays up front. Order and card size are available under the gear control.
-            </p>
+            <h3>Application</h3>
           </div>
         </div>
         {favouriteFields.length > 0 ? (
@@ -1307,8 +1318,7 @@ export function CandidaturesWorkspace({
       >
         <div className="candidature-editor-heading candidature-information-heading">
           <div>
-            <p className="eyebrow">Information</p>
-            <h3>Remaining information</h3>
+            <h3>Details</h3>
           </div>
         </div>
         <CandidatureBulkAiReview candidature={selected} fields={fields} onRetry={() => void requestBulkInference()} />
@@ -1328,7 +1338,6 @@ export function CandidaturesWorkspace({
       <section className="section-surface candidature-tags-direct" aria-label="Tags">
         <div className="candidature-editor-heading">
           <div>
-            <p className="eyebrow">Shared glossary</p>
             <h3>Tags</h3>
           </div>
         </div>
@@ -1704,13 +1713,11 @@ export function CandidaturesWorkspace({
         <summary>Sources & history</summary>
         <div className="candidature-more-content">
           <CandidatureOfferPanel candidatureId={selected.id} />
-          {sourceOwnsInitialContext ? null : (
             <CandidatureSourcesPanel
               candidatureId={selected.id}
               onSourcesChanged={() => void handleSourcesChanged()}
               onDirtyChange={setSourceDirty}
             />
-          )}
           <section
             className="section-surface candidature-secondary-controls"
             aria-label="Application history"
@@ -1734,9 +1741,12 @@ export function CandidaturesWorkspace({
           targetFieldIds={[discoveryField.definition.id]}
           taskId={`candidature-inference:${selected.id}:${discoveryField.definition.id}`}
           title={`Fill ${discoveryField.definition.label}`}
+          fieldRevision={fieldId => fieldEditRevisions.current.get(fieldId) ?? 0}
+          canFillField={fieldId => !dirtyValueEditors.current.has(fieldId)}
+          onChanged={() => void refreshInformation()}
         />
       ) : null}
-      {bulkInferenceOpen && enabledMissingFields.length > 0 ? (
+      {bulkInferenceOpen ? (
         <CandidatureInferencePanel
           candidature={selected}
           fields={fields}
@@ -1744,6 +1754,8 @@ export function CandidaturesWorkspace({
           taskId={`candidature-inference:${selected.id}:missing`}
           title="Fill missing information"
           includeTagInference
+          fieldRevision={fieldId => fieldEditRevisions.current.get(fieldId) ?? 0}
+          canFillField={fieldId => !dirtyValueEditors.current.has(fieldId)}
           onChanged={() => void refreshInformation()}
         />
       ) : null}

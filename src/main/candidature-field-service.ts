@@ -488,9 +488,11 @@ export function setCandidatureFieldValueInDatabase(
   database: DatabaseSync,
   input: CandidatureFieldValueSet,
   now: string,
-): void {
+): boolean {
   requireCandidature(database, input.candidatureId);
+  if (input.onlyIfEmpty && database.prepare("SELECT 1 FROM candidature_field_values WHERE candidature_id = ? AND field_id = ?").get(input.candidatureId, input.fieldId)) return false;
   const normalized = validateCandidatureFieldValueInDatabase(database, input.fieldId, input.value);
+  if (input.onlyIfEmpty && normalized === null) return false;
   if (normalized === null) {
     database
       .prepare(
@@ -512,6 +514,7 @@ export function setCandidatureFieldValueInDatabase(
   database
     .prepare("UPDATE candidatures SET updated_at = ? WHERE id = ?")
     .run(now, input.candidatureId);
+  return true;
 }
 
 export function clearCandidatureFieldValueInDatabase(
@@ -587,8 +590,7 @@ export function setCandidatureFieldValue(
   withWorkspaceDatabase(rootPath, (database) =>
     transact(database, () => {
       const now = new Date().toISOString();
-      setCandidatureFieldValueInDatabase(database, input, now);
-      recordValueActivity(database, input.candidatureId, "candidature.field-value-set", now);
+      if (setCandidatureFieldValueInDatabase(database, input, now)) recordValueActivity(database, input.candidatureId, "candidature.field-value-set", now);
     }),
   );
 }

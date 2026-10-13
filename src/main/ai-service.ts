@@ -24,11 +24,13 @@ import type { CandidatureRuntimeValue } from "../shared/contracts";
 import type { WorkingCvRecord } from "../shared/document-domain-contracts";
 import {
   getDefaultAiConnection,
+  getAiConnectionForOperation,
   requireAiProviderConnectionForOperation,
   saveDefaultAiConnection,
 } from "./ai-connection-service";
 import type { ModelProvider } from "./ai-provider";
 import { createWorkspaceAiProvider } from "./ai-prompt-service";
+import { getApplicationDocumentExternalAccess } from "./application-document-external-access-service";
 import { listCandidatureFields } from "./candidature-field-service";
 import { getCandidature, listCandidatureSources } from "./candidature-service";
 import { getCareerContextAiDisclosure } from "./career-context-ai-disclosure-service";
@@ -47,6 +49,12 @@ export class AiServiceError extends Error {
 
 function requireStoredConnection(rootPath: string, operation: AiOperation) {
   return requireAiProviderConnectionForOperation(rootPath, operation);
+}
+
+function requireDocumentAiPermission(rootPath: string, candidatureId: string | null): void {
+  if (candidatureId && !getApplicationDocumentExternalAccess(rootPath, candidatureId).allowed) {
+    throw new AiServiceError("Allow AI to use this application's documents before requesting assistance.");
+  }
 }
 
 export function getAiConnection(rootPath: string): AiConnectionStatus | null {
@@ -161,6 +169,7 @@ const privatePlaceholderPattern = /\[USERPRIVATE:[^\]\r\n]+\]/u;
 function coverLetterContext(
   rootPath: string,
   candidatureId: string | null,
+  sourceIds: readonly string[] = [],
 ): { readonly context: ProviderCoverLetterContext; readonly replacements: PrivateReplacements } {
   const replacements: PrivateReplacements = new Map();
   const sources: Array<{ title: string; url: string; sourceText: string }> = [];
@@ -171,7 +180,9 @@ function coverLetterContext(
     const fields = new Map(
       listCandidatureFields(rootPath).map((field) => [field.definition.id, field]),
     );
-    for (const source of listCandidatureSources(rootPath, candidatureId)) {
+    const retainedSources = listCandidatureSources(rootPath, candidatureId);
+    if (sourceIds.some(id => !retainedSources.some(source => source.id === id))) throw new AiServiceError("A selected Source no longer belongs to this application.");
+    for (const source of retainedSources.filter(source => sourceIds.includes(source.id))) {
       sources.push({
         title: source.title,
         url: source.url,
@@ -257,6 +268,7 @@ export function cvWritingContext(
   itemId: string,
   field: CvWritingField,
 ) {
+  requireDocumentAiPermission(rootPath, workingCv.candidatureId ?? null);
   const targetDetail = cvWritingFieldDetails[field];
   const targetLocation = workingCv.sections.flatMap((section) =>
     section.items.map((item, itemIndex) => ({ section, item, itemIndex })),
@@ -330,11 +342,13 @@ export async function writeCvField(
   signal?: AbortSignal,
 ): Promise<CvWritingResult> {
   const request = cvWritingRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath, "cv_tailoring");
-  const workingCv = listDocumentCollections(rootPath).workingCvs.find(
+  const retainedCv = listDocumentCollections(rootPath).workingCvs.find(
     (candidate) => candidate.id === request.workingCvId,
   );
+  const workingCv = retainedCv ?? (request.draft?.id === request.workingCvId ? request.draft : undefined);
   if (!workingCv) throw new AiServiceError("The selected Working CV no longer exists.");
+  requireDocumentAiPermission(rootPath, workingCv.candidatureId);
+  const stored = requireStoredConnection(rootPath, "cv_tailoring");
   const projection = cvWritingContext(
     rootPath,
     { ...workingCv, sections: request.sections },
@@ -355,6 +369,18 @@ export async function writeCvField(
   });
 }
 
+export function previewCoverLetterContext(rootPath: string, rawRequest: CoverLetterDraftRequest) {
+  const request = coverLetterDraftRequestSchema.parse(rawRequest);
+  const retained = listDocumentCollections(rootPath).letters.find(letter => letter.id === request.coverLetterId);
+  const letter = retained ?? (request.draft?.id === request.coverLetterId ? request.draft : undefined);
+  if (!letter) throw new AiServiceError("The selected cover letter no longer exists.");
+  return {
+    connection: getAiConnectionForOperation(rootPath, "cover_letter_draft"),
+    context: coverLetterContext(rootPath, letter.candidatureId, request.sourceIds).context,
+    sources: letter.candidatureId ? listCandidatureSources(rootPath, letter.candidatureId).map(source => ({ id: source.id, title: source.title, url: source.url, sourceText: source.sourceText })) : [],
+  };
+}
+
 export async function draftCoverLetter(
   rootPath: string,
   rawRequest: CoverLetterDraftRequest,
@@ -362,13 +388,15 @@ export async function draftCoverLetter(
   signal?: AbortSignal,
 ): Promise<CoverLetterDraft> {
   const request = coverLetterDraftRequestSchema.parse(rawRequest);
-  const stored = requireStoredConnection(rootPath, "cover_letter_draft");
-  const letter = listDocumentCollections(rootPath).letters.find(
+  const retainedLetter = listDocumentCollections(rootPath).letters.find(
     (candidate) => candidate.id === request.coverLetterId,
   );
+  const letter = retainedLetter ?? (request.draft?.id === request.coverLetterId ? request.draft : undefined);
   if (!letter) throw new AiServiceError("The selected cover letter no longer exists.");
+  requireDocumentAiPermission(rootPath, letter.candidatureId);
+  const stored = requireStoredConnection(rootPath, "cover_letter_draft");
 
-  const projected = coverLetterContext(rootPath, letter.candidatureId ?? null);
+  const projected = coverLetterContext(rootPath, letter.candidatureId ?? null, request.sourceIds);
   const drafted = await provider.draftCoverLetter(stored, projected.context, signal);
   return restoredCoverLetterDraft(drafted, projected.replacements);
 }

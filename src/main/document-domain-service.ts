@@ -643,7 +643,14 @@ export function removeCvTemplate(rootPath: string, templateId: string): Document
     });
   });
 }
-export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
+function uniqueDocumentTitle(base: string, documents: readonly { readonly title: string }[]): string {
+  const used = new Set(documents.map(document => document.title.trim().toLocaleLowerCase()));
+  let title = base;
+  let suffix = 2;
+  while (used.has(title.toLocaleLowerCase())) title = base.slice(0, 190) + ' ' + suffix++;
+  return title;
+}
+export function prepareWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
   const input = workingCvCreateSchema.parse(rawInput);
   let sourceTemplateId: string|null = null;
   let language = input.language;
@@ -670,17 +677,20 @@ export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): Wo
         }));
   }
   pdfMetadata ??= defaultCvPdfMetadata(input.title, sections);
-  return withWorkspaceDatabase(rootPath, (database) => {
+  if (input.content) { sections = input.content.sections; pdfMetadata = input.content.pdfMetadata; parserSummary = input.content.parserSummary; }
+  return withWorkspaceDatabase(rootPath, database => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
-    const id = randomUUID();
+    const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
     const now = new Date().toISOString();
-    database
-        .prepare(
-            `INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(
-            id, input.title, nullable(language), sourceTemplateId, input.candidatureId,
-            JSON.stringify(pdfMetadata), parserSummary, JSON.stringify(sections), now, now);
-    return requireWorkingCv(database, id);
+    return workingCvRecordSchema.parse({ id: randomUUID(), title, language, sourceTemplateId, candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections, createdAt: now, updatedAt: now });
+  });
+}
+export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
+  const draft = prepareWorkingCv(rootPath, rawInput);
+  return withWorkspaceDatabase(rootPath, database => {
+    database.prepare('INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(draft.id, draft.title, nullable(draft.language), draft.sourceTemplateId, draft.candidatureId, JSON.stringify(draft.pdfMetadata), draft.parserSummary, JSON.stringify(draft.sections), draft.createdAt, draft.updatedAt);
+    return requireWorkingCv(database, draft.id);
   });
 }
 export function updateWorkingCv(rootPath: string, rawInput: WorkingCvUpdate): WorkingCvRecord {
@@ -953,9 +963,19 @@ export function exportRenderedCvProject(
   return exportPortableProject(
       renderedProjectPath(rootPath, row), row.title, row.id, targetParent, 'cv');
 }
-export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
+export function prepareCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
   const input = coverLetterInputSchema.parse(rawInput);
   const sender = input.sender ?? defaultLetterSender(rootPath);
+  return withWorkspaceDatabase(rootPath, database => {
+    if (input.candidatureId) requireCandidature(database, input.candidatureId);
+    const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM cover_letters').all() as unknown as { title: string }[]);
+    const now = new Date().toISOString();
+    return coverLetterRecordSchema.parse({ ...input, title, sender, id: randomUUID(), createdAt: now, updatedAt: now });
+  });
+}
+export function createCoverLetter(rootPath: string, rawInput: CoverLetterInput): CoverLetterRecord {
+  const input = prepareCoverLetter(rootPath, rawInput);
+  const sender = input.sender;
   return withWorkspaceDatabase(rootPath, (database) => {
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const id = randomUUID();

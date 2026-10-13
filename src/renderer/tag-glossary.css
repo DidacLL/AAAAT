@@ -1,124 +1,21 @@
-.tag-visor {
-  display: grid;
-  min-width: 0;
-  gap: 0.38rem;
-  padding: 0.55rem;
-  border: 1px solid var(--machine-edge);
-  border-radius: 5px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 18%), transparent 32%),
-    var(--machine);
-}
-
-.tag-visor-heading {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem;
-}
-
-.tag-visor-heading strong {
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.tag-visor-heading span,
-.tag-visor-message {
-  color: var(--muted-ink);
-  font-size: 0.68rem;
-}
-
-.tag-visor-heading span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-visor-search,
-.tag-visor-search input {
-  min-width: 0;
-  width: 100%;
-}
-
-.tag-visor-search input {
-  padding: 0.38rem 0.45rem;
-  border: 1px solid #aa987f;
-  border-radius: 3px;
-  color: var(--ink);
-  background: var(--paper-strong);
-}
-
-.tag-visor-message {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.tag-visor-results {
-  display: grid;
-  max-height: 9rem;
-  gap: 0.2rem;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.tag-visor-results li {
-  min-width: 0;
-}
-
-.tag-visor-results button {
-  width: 100%;
-  min-width: 0;
-  padding: 0.35rem 0.42rem;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  color: var(--ink);
-  background: transparent;
-  overflow-wrap: anywhere;
-  text-align: left;
-}
-
-.tag-visor-results button:hover,
-.tag-visor-results button:focus-visible,
-.tag-visor-results button[aria-pressed="true"] {
-  border-color: var(--line);
-  background: var(--paper);
-}
-
-.tag-visor-readout {
-  display: grid;
-  min-width: 0;
-  gap: 0.28rem;
-  padding-top: 0.42rem;
-  border-top: 1px solid var(--line);
-  overflow-wrap: anywhere;
-}
-
-.tag-visor-readout > strong {
-  font-size: 0.8rem;
-}
-
-.tag-visor-readout p {
-  margin: 0;
-  color: var(--ink);
-  font-size: 0.72rem;
-  line-height: 1.35;
-}
-
-.tag-visor-readout p > span {
-  display: block;
-  margin-bottom: 0.08rem;
-  color: var(--muted-ink);
-  font-size: 0.62rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
+.tag-visor { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; gap: .45rem; margin-top: .75rem; padding: .6rem; border-top: 1px solid var(--machine-edge); color: #eee3ce; }
+.tag-visor-heading { font-size: .85rem; font-weight: 600; }
+.tag-visor input { min-width: 0; width: 100%; padding: .35rem .4rem; border: 1px solid #aa987f; border-radius: 3px; color: var(--ink); background: var(--paper-sheet); font-family: inherit; font-size: .8rem; }
+.tag-visor-context { display: flex; flex-wrap: wrap; gap: .25rem; }
+.tag-visor-context button { padding: .15rem .3rem; border: 1px solid var(--machine-edge); border-radius: 3px; color: #eee3ce; background: transparent; font-family: inherit; font-size: .8rem; }
+.tag-visor-context button[aria-pressed="true"] { border-color: #c7b79c; background: rgb(255 255 255 / 9%); }
+.tag-visor-readout { display: flex; flex-direction: column; gap: .4rem; min-height: 0; overflow: hidden; }
+.tag-visor-term { anchor-name: var(--tag-anchor); padding: .15rem 0; border: 0; color: #f6ecdc; background: transparent; font-family: inherit; font-size: .9rem; font-weight: 600; text-align: left; cursor: pointer; }
+.tag-visor-readout > p { margin: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; font-size: .85rem; line-height: 1.4; color: #eee3ce; }
+.tag-visor-readout > small { color: #cfbea0; font-size: .75rem; }
+.tag-visor-readout > .tag-visor-notes { -webkit-line-clamp: 3; }
+.tag-meaning { position: fixed; position-anchor: var(--tag-anchor); position-try-fallbacks: flip-inline, flip-block; inset: auto; top: anchor(top); left: anchor(right); margin: 0 .75rem; width: min(26rem, calc(100vw - 2rem)); max-height: calc(100dvh - 5rem); overflow: auto; padding: .8rem; border: 1px solid var(--line); border-radius: 3px; background: var(--paper-sheet); color: var(--ink); box-shadow: var(--paper-shadow); }
+.tag-meaning header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.tag-meaning header strong { font-size: 1.1rem; font-weight: 600; }
+.tag-meaning header button { padding: .2rem .4rem; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.tag-meaning p { white-space: pre-wrap; line-height: 1.5; }
+.tag-meaning p small { display: block; color: var(--muted-ink); }
+.work-rail > .tag-visor { flex: 1; }
 .candidature-tags-direct {
   gap: 0.55rem;
   padding-block: 0.7rem;
@@ -136,95 +33,4 @@
 
 .candidature-tags-direct .tag-attach-control {
   max-width: 34rem;
-}
-
-.work-rail {
-  max-height: calc(100vh - 78px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-right: 1px;
-}
-
-@media (max-width: 900px) {
-  .work-rail {
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-  }
-
-  .tag-visor {
-    grid-template-columns: auto minmax(0, 1fr);
-    max-width: none;
-    align-items: center;
-    gap: 0.28rem 0.45rem;
-    padding: 0.4rem 0.5rem;
-  }
-
-  .tag-visor-heading {
-    align-items: center;
-  }
-
-  .tag-visor-heading span,
-  .tag-visor-message,
-  .tag-visor-results,
-  .tag-visor-readout {
-    display: none;
-  }
-
-  .tag-visor-search {
-    grid-column: 2;
-  }
-
-  .tag-visor:focus-within {
-    align-items: start;
-  }
-
-  .tag-visor:focus-within .tag-visor-message {
-    display: block;
-    grid-column: 1 / -1;
-  }
-
-  .tag-visor:focus-within .tag-visor-results,
-  .tag-visor:focus-within .tag-visor-readout {
-    display: grid;
-    grid-column: 1 / -1;
-  }
-}
-
-
-.tag-visor-monitor-list {
-  display: grid;
-  min-width: 0;
-  gap: 0.42rem;
-}
-
-.tag-visor-monitor-list .tag-visor-readout:first-child {
-  padding-top: 0.2rem;
-}
-
-.tag-visor-aliases {
-  color: var(--muted-ink) !important;
-}
-
-@media (max-width: 900px) {
-  .tag-visor {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-
-  .tag-visor-heading span,
-  .tag-visor-message {
-    display: block;
-  }
-
-  .tag-visor-monitor-list {
-    display: grid;
-    max-height: 6.5rem;
-    overflow-y: auto;
-  }
-
-  .tag-visor-monitor-list .tag-visor-readout {
-    display: grid;
-  }
 }

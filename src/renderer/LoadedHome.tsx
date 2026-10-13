@@ -95,7 +95,6 @@ export function LoadedHome({
         <div className="loaded-home-intro">
           <p className="console-section-code">AAAAT / LOCAL CONSOLE</p>
           <h1>Welcome back</h1>
-          <p>Pick up recent local work or use the rail for another work area.</p>
         </div>
         <div className="loaded-home-workspace" aria-label="Active workspace">
           <span>WORKSPACE</span>
@@ -138,8 +137,7 @@ export function LoadedHome({
                   onClick={() => onOpenApplication(record.id)}
                 >
                   {cues.length > 0 ? cues.map((cue) => (
-                    <span className="loaded-home-cue" key={cue.fieldId}>
-                      <small>{cue.label}</small>
+                    <span className="loaded-home-cue" title={cue.label} key={cue.fieldId}>
                       <strong>{cue.value}</strong>
                     </span>
                   )) : sourceCue ? (

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import type { CoverLetterDraft, CvWritingField, CvWritingResult } from "../shared/ai-contracts";
+import type { CoverLetterDraft, CoverLetterContextPreview, CvWritingField, CvWritingResult } from "../shared/ai-contracts";
 import type { ProfileItem } from "../shared/contracts";
 import type {
   BlueprintSummary,
@@ -16,6 +16,8 @@ import type {
 import type { ProfileVariantRecord } from "../shared/profile-variant-contracts";
 import { startAiTask, useAiTask } from "./ai-task-store";
 import { useContextualHandoffs } from "./contextual-handoffs";
+import { PageToolbar } from "./PageToolbar";
+import { ToolbarVisible } from "./toolbar-context";
 import "./documents.css";
 
 const emptyCollections: DocumentCollections = {
@@ -208,8 +210,26 @@ function populatedOptionalDetails(content: WorkingCvItem["content"]): OptionalCv
     .map(({ key }) => key);
 }
 
+function useApplicationDocumentAccess(candidatureId: string | null) {
+  const visible = useContext(ToolbarVisible);
+  const [allowed, setAllowed] = useState(candidatureId === null);
+  useEffect(() => {
+    if (!candidatureId || !visible) return;
+    let active = true;
+    void window.aaaat.documentDomain.externalApplicationAccess(candidatureId).then(access => { if (active) setAllowed(access.allowed); }).catch(() => { if (active) setAllowed(false); });
+    return () => { active = false; };
+  }, [candidatureId, visible]);
+  const toggle = async () => {
+    if (!candidatureId) return;
+    const saved = await window.aaaat.documentDomain.updateExternalApplicationAccess({ candidatureId, allowed: !allowed });
+    setAllowed(saved.allowed);
+  };
+  return { allowed, toggle };
+}
+
 export function WorkingCvEditor({
   document,
+  provisional = false,
   profile,
   variants,
   collections,
@@ -218,6 +238,7 @@ export function WorkingCvEditor({
   onDirtyChange,
 }: {
   readonly document: WorkingCvRecord;
+  readonly provisional?: boolean;
   readonly profile: readonly ProfileItem[];
   readonly variants: readonly ProfileVariantRecord[];
   readonly collections: DocumentCollections;
@@ -329,7 +350,11 @@ export function WorkingCvEditor({
   };
 
   const persistDraft = async (): Promise<WorkingCvRecord> => {
-    const saved = await window.aaaat.documentDomain.updateWorkingCv({
+    const saved = provisional ? await window.aaaat.documentDomain.createWorkingCv({
+      title: draft.title, language: draft.language, candidatureId: draft.candidatureId,
+      source: draft.sourceTemplateId ? { kind: "template", templateId: draft.sourceTemplateId } : { kind: "blank" },
+      content: { sections: draft.sections, pdfMetadata: draft.pdfMetadata, parserSummary: draft.parserSummary },
+    }) : await window.aaaat.documentDomain.updateWorkingCv({
       id: draft.id,
       title: draft.title,
       language: draft.language,
@@ -442,7 +467,7 @@ export function WorkingCvEditor({
     if (target === "profile_variant" && !variantName) return;
     setError(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
+      const saved = dirty || provisional ? await persistDraft() : draft;
       const refreshed = await window.aaaat.documentDomain.saveWorkingItem({
         workingCvId: saved.id,
         itemId: item.id,
@@ -466,7 +491,7 @@ export function WorkingCvEditor({
     if (!template) return;
     setError(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
+      const saved = dirty || provisional ? await persistDraft() : draft;
       onCollections(await window.aaaat.documentDomain.updateTemplate({
         id: template.id,
         name: template.name,
@@ -486,7 +511,7 @@ export function WorkingCvEditor({
     if (!name) return;
     setError(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
+      const saved = dirty || provisional ? await persistDraft() : draft;
       await window.aaaat.documentDomain.saveWorkingAsTemplate({ workingCvId: saved.id, name });
       onCollections(await window.aaaat.documentDomain.collections());
       setTemplateName("");
@@ -516,6 +541,7 @@ export function WorkingCvEditor({
             itemId: item.id,
             field,
             sections: draft.sections,
+            ...(provisional ? { draft } : {}),
           });
         } finally {
           signal.removeEventListener("abort", cancelProvider);
@@ -532,7 +558,7 @@ export function WorkingCvEditor({
     setError(null);
     setRenderSettingsSuggested(false);
     try {
-      const saved = dirty ? await persistDraft() : draft;
+      const saved = dirty || provisional ? await persistDraft() : draft;
       const rendered = await window.aaaat.documentDomain.renderCv({
         cvId: saved.id,
         blueprintId: selectedBlueprintId,
@@ -550,27 +576,11 @@ export function WorkingCvEditor({
 
   return (
     <section className="document-work document-page-editor working-cv-editor" aria-label="CV editor">
-      <header className="document-editor-toolbar">
-        <div className="document-editor-context">
-          <button
-            type="button"
-            className="document-back-button"
-            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
-          >
-            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
-          </button>
-          <div>
-            <p className="eyebrow">CV</p>
-            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
-          </div>
-        </div>
-        <div className="document-editor-actions">
-          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" className="compact-primary" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>
-            {busy ? "Creating PDF…" : "Create PDF"}
-          </button>
-        </div>
-      </header>
+      <PageToolbar>
+        <button type="button" disabled={busy} onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}>{provisional ? "Cancel" : "Close"}</button>
+        <button type="button" disabled={(!dirty && !provisional) || busy} onClick={() => void save()}>Save</button>
+        <button type="button" disabled={busy || !selectedBlueprintId} onClick={() => void render()}>{busy ? "Creating…" : "PDF"}</button>
+      </PageToolbar>
 
       {error ? (
         <div className="document-editor-message">
@@ -590,7 +600,7 @@ export function WorkingCvEditor({
           />
           <small>{draft.candidatureId ? "Application CV" : "Standalone CV"}</small>
         </header>
-        {draft.sections.length === 0 ? <p className="compact-empty">This CV is blank. Add a section, then add My information or custom content.</p> : null}
+        {draft.sections.length === 0 ? <p className="compact-empty">Empty CV</p> : null}
         {draft.sections.length > 0 ? (
           <ol className="working-cv-sections" aria-label="CV sections">
             {draft.sections.map((section, sectionIndex) => (
@@ -1007,6 +1017,7 @@ export function WorkingCvEditor({
 
 function LetterEditor({
   document,
+  provisional = false,
   profile,
   collections,
   onSaved,
@@ -1014,6 +1025,7 @@ function LetterEditor({
   onDirtyChange,
 }: {
   readonly document: CoverLetterRecord;
+  readonly provisional?: boolean;
   readonly profile: readonly ProfileItem[];
   readonly collections: DocumentCollections;
   readonly onSaved: (document: CoverLetterRecord) => void;
@@ -1021,6 +1033,7 @@ function LetterEditor({
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { documentHandoff, returnToCandidature, returnToDocuments } = useContextualHandoffs();
+  const documentAi = useApplicationDocumentAccess(document.candidatureId);
   const [draft, setDraft] = useState(document);
   const [body, setBody] = useState(document.bodyParagraphs.join("\n\n"));
   const draftingTaskKey = `document:cover-letter-draft:${document.id}`;
@@ -1031,6 +1044,13 @@ function LetterEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productionMessage, setProductionMessage] = useState<string | null>(null);
+  const [aiContext, setAiContext] = useState<CoverLetterContextPreview | null>(null);
+  const [sourceIds, setSourceIds] = useState<string[]>([]);
+  const contextRequest = () => ({ coverLetterId: draft.id, sourceIds, ...(provisional ? { draft } : {}) });
+  const inspectAiContext = async () => {
+    try { setAiContext(await window.aaaat.ai.coverLetterContext(contextRequest())); }
+    catch (reason) { setError(readableDocumentError(reason, "AAAAT could not read the AI context.")); }
+  };
 
   const latestRendered = collections.renderedLetters.find(
     (candidate) => candidate.coverLetterId === document.id,
@@ -1058,7 +1078,10 @@ function LetterEditor({
   }, [draftingTask]);
 
   const persistDraft = async (): Promise<CoverLetterRecord> => {
-    const saved = await window.aaaat.documentDomain.updateLetter({
+    const saved = provisional ? await window.aaaat.documentDomain.createLetter({
+      candidatureId: draft.candidatureId, title: draft.title, language: draft.language,
+      sender: draft.sender, recipient: draft.recipient, subject: draft.subject, bodyParagraphs, closing: draft.closing,
+    }) : await window.aaaat.documentDomain.updateLetter({
       id: draft.id,
       title: draft.title,
       language: draft.language,
@@ -1148,6 +1171,8 @@ function LetterEditor({
         try {
           return await window.aaaat.aiTasks.draftCoverLetter(draftingTaskKey, {
             coverLetterId: draft.id,
+            sourceIds,
+            ...(provisional ? { draft } : {}),
           });
         } finally {
           signal.removeEventListener("abort", cancelProvider);
@@ -1163,7 +1188,7 @@ function LetterEditor({
     setError(null);
     setProductionMessage(null);
     try {
-      const saved = dirty ? await persistDraft() : draft;
+      const saved = dirty || provisional ? await persistDraft() : draft;
       const rendered = await window.aaaat.documentDomain.renderLetter({
         letterId: saved.id,
       });
@@ -1191,30 +1216,21 @@ function LetterEditor({
 
   return (
     <section className="document-work document-page-editor letter-page-editor" aria-label="Cover letter editor">
-      <header className="document-editor-toolbar">
-        <div className="document-editor-context">
-          <button
-            type="button"
-            className="document-back-button"
-            onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}
-          >
-            ← {documentHandoff?.candidatureId ? "Application" : "Documents"}
-          </button>
-          <div>
-            <p className="eyebrow">Cover letter</p>
-            <span className="document-save-state">{dirty ? "Unsaved changes" : "Saved"}</span>
-          </div>
+      <PageToolbar>
+        <button type="button" disabled={busy} onClick={documentHandoff?.candidatureId ? returnToCandidature : returnToDocuments}>{provisional ? "Cancel" : "Close"}</button>
+        {draft.candidatureId ? <button type="button" aria-pressed={documentAi.allowed} aria-label="Allow AI for this application's documents" title="AI may use this application's documents" onClick={() => void documentAi.toggle()}>👁</button> : null}
+        <button type="button" disabled={busy || draftingActive || !documentAi.allowed} title="Draft with AI using AI-allowed My information, application details and Sources" onClick={askAi}>{draftingActive ? "Drafting…" : "Draft"}</button>
+        <button type="button" className="letter-context-trigger" popoverTarget="letter-ai-context" title="AI context" onClick={() => void inspectAiContext()}>Context</button>
+        <div id="letter-ai-context" className="letter-ai-context" popover="auto">
+          {aiContext ? <>
+            <strong>{aiContext.connection ? aiContext.connection.name + " · " + aiContext.connection.model : "AI not configured"}</strong>
+            {[{ title: "My information", values: aiContext.context.myInformation }, { title: "Career context", values: aiContext.context.careerContext }, { title: "Application", values: aiContext.context.applicationInformation }].filter(group => group.values.length).map(group => <details key={group.title}><summary>{group.title}</summary><dl>{group.values.map((item, index) => <div key={index}><dt>{item.title}</dt><dd>{item.value.startsWith("[USERPRIVATE:") ? "Private" : item.value}</dd></div>)}</dl></details>)}
+            {aiContext.sources.length ? <section><strong>Sources</strong>{aiContext.sources.map(source => <div key={source.id}><label><input type="checkbox" checked={sourceIds.includes(source.id)} onChange={event => setSourceIds(current => event.target.checked ? [...current, source.id] : current.filter(id => id !== source.id))} />{source.title || source.url || "Application text"}</label><details><summary>Read</summary><p>{source.sourceText}</p></details></div>)}</section> : null}
+          </> : <span>Loading…</span>}
         </div>
-        <div className="document-editor-actions">
-          <button type="button" className="compact-secondary" disabled={busy || draftingActive} onClick={askAi}>
-            {draftingActive ? "AI working…" : "Draft with AI"}
-          </button>
-          <button type="button" disabled={!dirty || busy} onClick={() => void save()}>Save</button>
-          <button type="button" className="compact-primary" disabled={busy} onClick={() => void renderLetter()}>
-            {busy ? "Creating PDF…" : "Create PDF"}
-          </button>
-        </div>
-      </header>
+        <button type="button" disabled={(!dirty && !provisional) || busy} onClick={() => void save()}>Save</button>
+        <button type="button" disabled={busy} onClick={() => void renderLetter()}>{busy ? "Creating…" : "PDF"}</button>
+      </PageToolbar>
 
       {error ? <p className="error-message document-editor-message" role="alert">{error}</p> : null}
       {productionMessage ? <p className="compact-note document-editor-message" role="status">{productionMessage}</p> : null}
@@ -1369,7 +1385,7 @@ function LetterEditor({
 }
 
 export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirty: boolean) => void }) {
-  const { documentHandoff } = useContextualHandoffs();
+  const { documentHandoff, completeDocumentDraft } = useContextualHandoffs();
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [profile, setProfile] = useState<ProfileItem[]>([]);
   const [variants, setVariants] = useState<ProfileVariantRecord[]>([]);
@@ -1394,21 +1410,21 @@ export function DocumentWork({ onDirtyChange }: { readonly onDirtyChange?: (dirt
     return () => { active = false; };
   }, [documentHandoff?.documentId]);
 
-  const id = documentHandoff?.documentId ?? null;
-  const working = useMemo(() => collections.workingCvs.find((candidate) => candidate.id === id) ?? null, [collections, id]);
-  const letter = useMemo(() => collections.letters.find((candidate) => candidate.id === id) ?? null, [collections, id]);
+  const id = documentHandoff?.draft?.document.id ?? documentHandoff?.documentId ?? null;
+  const working = documentHandoff?.draft?.kind === "cv" ? documentHandoff.draft.document : collections.workingCvs.find(candidate => candidate.id === id) ?? null;
+  const letter = documentHandoff?.draft?.kind === "letter" ? documentHandoff.draft.document : collections.letters.find(candidate => candidate.id === id) ?? null;
   const storeWorking = (saved: WorkingCvRecord) => setCollections((current) => ({
     ...current,
-    workingCvs: current.workingCvs.map((candidate) => candidate.id === saved.id ? saved : candidate),
+    workingCvs: [...current.workingCvs.filter(candidate => candidate.id !== saved.id), saved],
   }));
   const storeLetter = (saved: CoverLetterRecord) => setCollections((current) => ({
     ...current,
-    letters: current.letters.map((candidate) => candidate.id === saved.id ? saved : candidate),
+    letters: [...current.letters.filter(candidate => candidate.id !== saved.id), saved],
   }));
 
   if (error) return <section className="document-work"><p className="error-message" role="alert">{error}</p></section>;
   if (!id) return <section className="document-work"><p className="compact-empty">Choose a CV or cover letter to edit.</p></section>;
-  if (working) return <WorkingCvEditor key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={storeWorking} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
-  if (letter) return <LetterEditor key={letter.id} document={letter} profile={profile} collections={collections} onSaved={storeLetter} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (working) return <WorkingCvEditor provisional={Boolean(documentHandoff?.draft)} key={working.id} document={working} profile={profile} variants={variants} collections={collections} onSaved={saved => { storeWorking(saved); if (documentHandoff?.draft) completeDocumentDraft(saved.id); }} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
+  if (letter) return <LetterEditor provisional={Boolean(documentHandoff?.draft)} key={letter.id} document={letter} profile={profile} collections={collections} onSaved={saved => { storeLetter(saved); if (documentHandoff?.draft) completeDocumentDraft(saved.id); }} onCollections={setCollections} onDirtyChange={onDirtyChange} />;
   return <section className="document-work"><p className="error-message" role="alert">This editable document no longer exists.</p></section>;
 }

@@ -1,36 +1,15 @@
-# Current mission — v2 release readiness
+# Current mission — v2 refinement, deployment blocked
 
-Current explicit Product Owner instruction remains highest authority.
+Current explicit Product Owner instructions remain highest authority. These defects block v2; they are not deferred to v2.1. Earlier PLAN completion claims do not establish product acceptance.
 
-Base main: `9f34eea8a1551cd96f12bb05df6f7e406dc0af98`.
+The working branch is `agentic/428-clean-restart`, based on `4c7fa319ba12cf3524320de076a045c3330f7a29`. That commit supplies the underlying working implementation, not an approved visual design. The Product Owner rejected the integrated frontend in draft PR #433 (`agentic/428-v2-integrated`); do not use it as the design or implementation source. Investigate useful backend corrections against owner authority and implement them afresh. The Product Owner has instructed that no further specialists be used.
 
-## PLAN state
+The original requirements govern the whole application: frictionless ordinary use, full user control, legible typographic prominence, productive use of wide screens, fixed top bar and left rail without scrollbars, short contextual top-bar actions, and direct per-field controls. Collapsed application cards are minimal covers; expansion occupies roughly twice the current collapsed width and height and reveals useful additional information. Interview assistance remains secondary, editable, and attached to its application context.
 
-- PLAN[0] — COMPLETE / RETAINED
-- PLAN[1] — COMPLETE / RETAINED
-- PLAN[2] — COMPLETE
-- PLAN[3] — COMPLETE / RETAINED
-- PLAN[4] — COMPLETE
-- PLAN[5] — COMPLETE
+The Product Owner accepted the running application-cover design as the good direction on 13 October 2026. Preserve its content-driven flex composition, distinct typographic prominence, neutral paper surfaces, anchored expansion and contextual Tags console. The lasting visual guidance is in docs/UX_VISUAL_DIRECTION.md. Do not replace this direction with equal field boxes, random colour skins, fixed empty card heights or another flat redesign.
 
-PLAN[5] completed through the integrated acceptance sequence under #314. The current release-readiness work does not reopen completed product work unless running/package evidence exposes a concrete defect.
+The rewrite remains partial. Running-renderer inspection covers the accepted application-card direction, Tag meaning retrieval, unified source-and-fields creation, provisional document Save/Cancel, distinct names and ordinary draft retention. Static typecheck/lint are hygiene only; no new or rewritten automated tests are authorized. AI processing has not been exercised against a real model during this refinement.
 
-PR #414 / `9f34eea` added bounded llama.cpp and packaged-AAAAT MCP preflights so the remaining real local-host evaluation fails at the actual missing boundary instead of stalling opaquely. Superseded PR #413 is closed.
+Next: preserve unsaved application edits when creating another application, then finish application-scoped editable AI task/context handling and document result/edit protection. Saved-information filling, Tag assistance, My information, Settings, Home and portable document work still need coherent boundary review and affected running-product evidence. The permission guard and removal of development migration routines are implemented afresh, not product acceptance by themselves.
 
-## Current objective
-
-Prepare/deploy v2 from current `main` while the remaining real llama.cpp owner-run evidence continues independently.
-
-Release-readiness boundary:
-- one native release path for Windows, macOS and Linux;
-- x64 and ARM64 release targets where native GitHub runners exist;
-- unsigned alpha artifacts are acceptable; do not add signing/notarization/updater machinery without a separate concrete requirement;
-- tests and CI do not define AAAAT, product behavior, acceptance, or requirements; they are subordinate/disposable engineering machinery only;
-- static typecheck + lint are lightweight hygiene checks, not product evidence;
-- package/release automation proves only that a native distributable can be produced, not product acceptance or model usefulness;
-- remove obsolete prototype releases/tags from the public product surface while preserving their commits in Git history;
-- clean stale working branches without making historical commits unreachable: retain one archive ref for branch-tip history before deleting old branch refs;
-- no feature expansion, test-generation phase, architecture cleanup programme or compatibility/migration ceremony;
-- do not reopen #373, which remains a non-blocking future document-source enhancement.
-
-The Product Owner is not routine QA or a prompt courier.
+Development workspaces are disposable. Preserve sound local ownership, typed mutation boundaries, renderer isolation, optional AI, and portable document capabilities; do not introduce migration or compatibility machinery. Deployment remains blocked until the complete running product satisfies the original owner requirements.

@@ -2,6 +2,7 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
+  coverLetterContextPreviewSchema,
   cvWritingRequestSchema,
   cvWritingResultSchema,
   jobExtractionRequestSchema,
@@ -192,6 +193,7 @@ export function createDesktopApi(
   });
 
   const ai = Object.freeze({
+    coverLetterContext: async (request: Parameters<AiDesktopApi["ai"]["coverLetterContext"]>[0]) => coverLetterContextPreviewSchema.parse(await invoke(aiChannels.coverLetterContext, coverLetterDraftRequestSchema.parse(request))),
     connection: async () => optionalAiConnectionStatusSchema.parse(await invoke(aiChannels.connectionCurrent)),
     extractJob: async (request: Parameters<AiDesktopApi["ai"]["extractJob"]>[0]) =>
       jobExtractionResultSchema.parse(

@@ -334,13 +334,11 @@ export function CandidatureOpportunityResearchAccessPanel({
 
   return (
     <section className="manual-source-warning" aria-label="Use my AI for this application">
-      <h3>Use my AI</h3>
       {error ? <p className="error-message" role="alert">{error}</p> : null}
       {message ? <p>{message}</p> : null}
 
       {!intent ? (
         <>
-          <p>Choose what you want your AI to help with. AAAAT keeps validation and saving under your control.</p>
           {contextDirty ? <p className="compact-help">Save or discard the application edits first.</p> : null}
           <div className="button-row">
             <button
@@ -350,7 +348,7 @@ export function CandidatureOpportunityResearchAccessPanel({
             >
               {busy === "open-application-information"
                 ? "Preparing…"
-                : "Fill application information with my AI"}
+                : "Application details"}
             </button>
             <button
               type="button"
@@ -360,7 +358,7 @@ export function CandidatureOpportunityResearchAccessPanel({
             >
               {busy === "open-interview"
                 ? "Preparing…"
-                : "Prepare for interview with my AI"}
+                : "Interview"}
             </button>
           </div>
         </>

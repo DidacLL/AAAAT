@@ -141,3 +141,5 @@
   .loaded-home-robot { width: 54px; }
   .loaded-home-recent { padding: 9px; }
 }
+
+.loaded-home-cue strong { font-family: var(--ui-font); font-size: 1.05rem; font-weight: 500; line-height: 1.3; }

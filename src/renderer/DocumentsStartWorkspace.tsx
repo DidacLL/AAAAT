@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import type { DocumentCollections } from "../shared/document-domain-contracts";
+import { useContextualHandoffs } from "./contextual-handoffs";
+import { PageToolbar } from "./PageToolbar";
 
 const emptyCollections: DocumentCollections = {
   templates: [],
@@ -11,16 +13,6 @@ const emptyCollections: DocumentCollections = {
   applicationPackets: [],
 };
 
-function nextCvTitle(collections: DocumentCollections): string {
-  const used = new Set(
-    collections.workingCvs.map((document) => document.title.trim().toLocaleLowerCase()),
-  );
-  if (!used.has("cv")) return "CV";
-  let index = 2;
-  while (used.has(`cv ${String(index)}`)) index += 1;
-  return `CV ${String(index)}`;
-}
-
 export function DocumentsStartWorkspace({
   onOpenDocument,
   onDirtyChange,
@@ -28,12 +20,12 @@ export function DocumentsStartWorkspace({
   readonly onOpenDocument: (documentId: string) => void;
   readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const { openDocumentDraft } = useContextualHandoffs();
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
-  const [cvTitle, setCvTitle] = useState("");
   const [cvSource, setCvSource] = useState("profile");
   const [creating, setCreating] = useState<"cv" | "letter" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const dirty = cvTitle.trim().length > 0 || cvSource !== "profile";
+  const dirty = cvSource !== "profile";
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -61,14 +53,13 @@ export function DocumentsStartWorkspace({
         : cvSource === "blank"
           ? { kind: "blank" as const }
           : { kind: "profile" as const };
-      const created = await window.aaaat.documentDomain.createWorkingCv({
-        title: cvTitle.trim() || nextCvTitle(collections),
+      const created = await window.aaaat.documentDomain.prepareWorkingCv({
+        title: "CV",
         candidatureId: null,
         source,
       });
-      setCvTitle("");
       setCvSource("profile");
-      onOpenDocument(created.id);
+      openDocumentDraft({ kind: "cv", document: created });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not create the CV.");
     } finally {
@@ -81,12 +72,12 @@ export function DocumentsStartWorkspace({
     setCreating("letter");
     setError(null);
     try {
-      const created = await window.aaaat.documentDomain.createLetter({
+      const created = await window.aaaat.documentDomain.prepareLetter({
         candidatureId: null,
         title: "Cover letter",
         bodyParagraphs: [],
       });
-      onOpenDocument(created.id);
+      openDocumentDraft({ kind: "letter", document: created });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not create the cover letter.");
     } finally {
@@ -99,12 +90,12 @@ export function DocumentsStartWorkspace({
     setCreating("cv");
     setError(null);
     try {
-      const created = await window.aaaat.documentDomain.createWorkingCv({
+      const created = await window.aaaat.documentDomain.prepareWorkingCv({
         title: name,
         candidatureId: null,
         source: { kind: "template", templateId },
       });
-      onOpenDocument(created.id);
+      openDocumentDraft({ kind: "cv", document: created });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not use that template.");
     } finally {
@@ -169,72 +160,22 @@ export function DocumentsStartWorkspace({
 
   return (
     <section className="document-intent-home document-hub" aria-label="Documents">
-      <header className="document-console-heading document-hub-heading">
-        <div>
-          <p className="eyebrow">Documents</p>
-          <h1>Write first. Produce PDFs when you need them.</h1>
-          <p>CVs and cover letters stay editable. Generated files are kept separately.</p>
-        </div>
-      </header>
+      <PageToolbar>
+        <select aria-label="New CV from" value={cvSource} onChange={event => setCvSource(event.target.value)}>
+          <option value="profile">My information</option><option value="blank">Blank</option>
+          {collections.templates.map(template => <option key={template.id} value={"template:" + template.id}>{template.name}</option>)}
+        </select>
+        <button type="button" disabled={creating !== null} onClick={() => void createCv()}>New CV</button>
+        <button type="button" disabled={creating !== null} onClick={() => void createLetter()}>New letter</button>
+      </PageToolbar>
+      <header className="document-console-heading document-hub-heading"><h1>Documents</h1></header>
 
       {error ? <p className="error-message" role="alert">{error}</p> : null}
-
-      <section className="document-hub-create" aria-label="Create a document">
-        <article className="document-create-card">
-          <div>
-            <span className="item-kind">CV</span>
-            <h2>Start a CV</h2>
-            <p>Begin from My information, a reusable template, or a blank page.</p>
-          </div>
-          <div className="document-create-card-controls">
-            <label>
-              Start from
-              <select value={cvSource} onChange={(event) => setCvSource(event.target.value)}>
-                <option value="profile">My information</option>
-                <option value="blank">Blank CV</option>
-                {collections.templates.map((template) => (
-                  <option key={template.id} value={`template:${template.id}`}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <details>
-              <summary>Name it now</summary>
-              <label>
-                CV name
-                <input
-                  value={cvTitle}
-                  onChange={(event) => setCvTitle(event.target.value)}
-                  placeholder={nextCvTitle(collections)}
-                />
-              </label>
-            </details>
-            <button type="button" disabled={creating !== null} onClick={() => void createCv()}>
-              {creating === "cv" ? "Opening…" : "Create CV"}
-            </button>
-          </div>
-        </article>
-
-        <article className="document-create-card">
-          <div>
-            <span className="item-kind">Cover letter</span>
-            <h2>Write a cover letter</h2>
-            <p>Open a clean letter page. You can write yourself or ask AI for a draft inside the editor.</p>
-          </div>
-          <div className="document-create-card-controls">
-            <button type="button" disabled={creating !== null} onClick={() => void createLetter()}>
-              {creating === "letter" ? "Opening…" : "Create cover letter"}
-            </button>
-          </div>
-        </article>
-      </section>
 
       <section className="document-hub-continue" aria-label="Editable documents">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Continue editing</p>
-            <h2>Your documents</h2>
+            <h2>Editable</h2>
           </div>
           <span>{editableDocuments.length}</span>
         </div>

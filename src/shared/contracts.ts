@@ -198,7 +198,7 @@ export const candidatureFieldValueSchema = z
 export type CandidatureFieldValue = z.infer<typeof candidatureFieldValueSchema>;
 export const candidatureFieldValueListSchema = z.array(candidatureFieldValueSchema);
 export const candidatureFieldValueSetSchema = z
-  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema })
+  .object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid(), value: candidatureRuntimeValueSchema, onlyIfEmpty: z.boolean().optional() })
   .strict();
 export type CandidatureFieldValueSet = z.infer<typeof candidatureFieldValueSetSchema>;
 export const candidatureFieldValueClearSchema = z.object({ candidatureId: z.string().uuid(), fieldId: z.string().uuid() }).strict();
@@ -208,6 +208,8 @@ export const candidatureInputSchema = z
   .object({
     source: candidatureSourceDraftSchema.optional(),
     values: z.array(candidatureFieldValueSetSchema.omit({ candidatureId: true })).max(64).default([]),
+    tagIds: z.array(z.string().uuid()).max(100).optional(),
+    newTags: z.array(z.lazy(() => tagInputSchema)).max(30).optional(),
   })
   .strict();
 export type CandidatureInput = z.infer<typeof candidatureInputSchema>;
@@ -279,7 +281,7 @@ export const tagListSchema = z.array(tagRecordSchema);
 export const tagUpdateSchema = tagInputSchema.extend({ id: z.string().uuid() }).strict();
 export type TagUpdate = z.infer<typeof tagUpdateSchema>;
 export const candidatureTagSelectionSchema = z
-  .object({ candidatureId: z.string().uuid(), tagIds: z.array(z.string().uuid()).max(100) })
+  .object({ candidatureId: z.string().uuid(), tagIds: z.array(z.string().uuid()).max(100), append: z.boolean().optional() })
   .strict()
   .refine((value) => new Set(value.tagIds).size === value.tagIds.length, { message: "Each tag can be associated only once." });
 export type CandidatureTagSelection = z.infer<typeof candidatureTagSelectionSchema>;

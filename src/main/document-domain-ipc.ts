@@ -33,6 +33,8 @@ import {
   createCoverLetter,
   createCvTemplate,
   createWorkingCv,
+  prepareWorkingCv,
+  prepareCoverLetter,
   duplicateRenderedCv,
   exportApplicationPacketProject,
   exportRenderedCoverLetterProject,
@@ -105,6 +107,14 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(documentDomainChannels.workingCreate, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return workingCvRecordSchema.parse(createWorkingCv(requireWorkspaceRoot(), workingCvCreateSchema.parse(input)));
+  });
+  ipcMain.handle(documentDomainChannels.workingPrepare, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return workingCvRecordSchema.parse(prepareWorkingCv(requireWorkspaceRoot(), workingCvCreateSchema.parse(input)));
+  });
+  ipcMain.handle(documentDomainChannels.letterPrepare, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return coverLetterRecordSchema.parse(prepareCoverLetter(requireWorkspaceRoot(), coverLetterInputSchema.parse(input)));
   });
   ipcMain.handle(documentDomainChannels.workingUpdate, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);

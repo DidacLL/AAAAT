@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
 import { AiTaskStatus } from "./AiTaskStatus";
@@ -17,6 +17,7 @@ import { DocumentsStartWorkspace } from "./DocumentsStartWorkspace";
 import { DocumentsWorkspace } from "./DocumentsWorkspace";
 import "./intent-recovery.css";
 import { LoadedHome } from "./LoadedHome";
+import { ToolbarHost, ToolbarVisible } from "./toolbar-context";
 import "./owner-feedback-recovery.css";
 import { ProfileWorkspace } from "./ProfileWorkspace";
 import { SettingsWorkspace } from "./SettingsWorkspace";
@@ -88,6 +89,13 @@ function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: bool
 }
 
 export function App() {
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+  const [utility, setUtility] = useState<"activity" | "status" | null>(null);
+  const utilityDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (utility) utilityDialog.current?.showModal();
+    else utilityDialog.current?.close();
+  }, [utility]);
   const [workspacePhase, setWorkspacePhase] = useState<WorkspacePhase>("loading");
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [recentWorkspacePath, setRecentWorkspacePath] = useState<string | null>(null);
@@ -111,6 +119,18 @@ export function App() {
     useState<ProfessionalInformationHandoff | null>(null);
   const [settingsHandoff, setSettingsHandoff] = useState<SettingsHandoff | null>(null);
   const [homeCandidatureId, setHomeCandidatureId] = useState<string | null>(null);
+  const workSurface = useRef<HTMLElement>(null);
+  const scrollPositions = useRef(new Map<string, number>());
+  const scrollKey = welcomeOpen ? "home" : settingsOpen ? "settings" : productView === "documents"
+    ? `documents:${documentHandoff?.draft?.document.id ?? documentHandoff?.documentId ?? "library"}` : productView;
+  const previousScrollKey = useRef(scrollKey);
+  useLayoutEffect(() => {
+    const surface = workSurface.current;
+    if (!surface || previousScrollKey.current === scrollKey) return;
+    scrollPositions.current.set(previousScrollKey.current, surface.scrollTop);
+    surface.scrollTop = scrollPositions.current.get(scrollKey) ?? 0;
+    previousScrollKey.current = scrollKey;
+  }, [scrollKey]);
 
   const refreshRailStatus = useCallback(() => {
     setRailStatusRevision((current) => current + 1);
@@ -223,12 +243,7 @@ export function App() {
   };
 
   const openHome = () => {
-    if (anyDirty && !window.confirm("Discard unsaved edits and return home?")) return;
-    if (anyDirty) {
-      resetDirty();
-      setWorkspaceContentRevision((current) => current + 1);
-    }
-    resetHandoffs();
+    if (!leaveSettings()) return;
     setSettingsOpen(false);
     setWelcomeOpen(true);
   };
@@ -311,33 +326,15 @@ export function App() {
 
   const selectProductView = (next: ProductView) => {
     if (welcomeOpen) {
-      resetHandoffs();
-      if (next === "candidatures") {
-        setCandidatureWorkspaceRevision((current) => current + 1);
-      } else if (next === "documents") {
-        setDocumentWorkspaceRevision((current) => current + 1);
-      }
       setWelcomeOpen(false);
       setSettingsOpen(false);
       setProductView(next);
       return;
     }
     if (next === productView && !settingsOpen) {
-      if (next === "documents" && documentHandoff) {
-        if (protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
-        setDocumentDirty(false);
-        setDocumentHandoff(null);
-        setProfessionalInformationHandoff(null);
-        setDocumentWorkspaceRevision((current) => current + 1);
-      }
       return;
     }
     if (!leaveSettings()) return;
-    if (next !== productView && protectedWorkDirty && !window.confirm("Discard unsaved edits and leave this work?")) return;
-    if (next === "candidatures" && documentHandoff?.candidatureId) {
-      setCandidatureWorkspaceRevision((current) => current + 1);
-    }
-    resetHandoffs();
     setProductView(next);
   };
 
@@ -374,6 +371,18 @@ export function App() {
       documentHandoff,
       professionalInformationHandoff,
       settingsHandoff,
+      openDocumentDraft: (draft: NonNullable<DocumentHandoff["draft"]>) => {
+        if (documentDirty && !window.confirm("Discard the current document edits and start another document?")) return;
+        setDocumentHandoff({ draft, ...(draft.document.candidatureId ? { candidatureId: draft.document.candidatureId } : {}) });
+        setDocumentDirty(false);
+        setSettingsOpen(false);
+        setWelcomeOpen(false);
+        setProductView("documents");
+      },
+      completeDocumentDraft: (documentId: string) => {
+        scrollPositions.current.set(`documents:${documentId}`, workSurface.current?.scrollTop ?? 0);
+        setDocumentHandoff(current => ({ ...(current?.candidatureId ? { candidatureId: current.candidatureId } : {}), documentId }));
+      },
       openDocumentFromCandidature: (candidatureId: string, documentId?: string) => {
         setSettingsOpen(false);
         setSettingsHandoff(null);
@@ -450,12 +459,12 @@ export function App() {
   const ready = (workspacePhase === "ready" || workspacePhase === "choosing") && workspace !== null;
   const choosing = workspacePhase === "choosing";
   const loading = workspacePhase === "loading";
-  const keepCandidaturesMounted = productView === "candidatures" || Boolean(documentHandoff?.candidatureId);
+  const keepCandidaturesMounted = productView === "candidatures" || candidatureDirty || Boolean(documentHandoff?.candidatureId);
   const keepDocumentsMounted =
-    productView === "documents" ||
+    productView === "documents" || documentDirty || documentHandoff !== null ||
     professionalInformationHandoff !== null ||
     settingsHandoff?.origin === "documents";
-  const keepProfessionalInformationMounted = productView === "professional-information";
+  const keepProfessionalInformationMounted = productView === "professional-information" || professionalInformationDirty;
   const documentDetailActive =
     documentHandoff !== null || professionalInformationHandoff !== null || settingsHandoff?.origin === "documents";
   const applicationContextActive =
@@ -507,6 +516,7 @@ export function App() {
   ) : null;
 
   return (
+    <ToolbarHost.Provider value={toolbarHost}>
     <ContextualHandoffContext.Provider value={handoffApi}>
       <div className="app-shell">
         <header className="app-header">
@@ -514,6 +524,11 @@ export function App() {
             <img className="brand-mark" src={logoMachine} alt="" />
             <span className="brand-name">AAAAT</span>
           </div>
+          <div className="page-toolbar" ref={setToolbarHost} />
+          {ready ? <div className="workspace-utilities">
+            <button type="button" onClick={() => setUtility("activity")}>Activity</button>
+            <button type="button" onClick={() => setUtility("status")}>Status</button>
+          </div> : null}
         </header>
 
         {ready ? (
@@ -532,17 +547,10 @@ export function App() {
                   <button type="button" className={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "active-work-destination" : ""} aria-current={!welcomeOpen && !settingsOpen && productView === "professional-information" ? "page" : undefined} onClick={() => selectProductView("professional-information")}>My information</button>
                   <button type="button" className={settingsOpen ? "active-work-destination" : ""} aria-current={settingsOpen ? "page" : undefined} onClick={openSettings}>Settings</button>
                 </nav>
-                <WorkspaceRailStatus
-                  key={workspace.rootPath}
-                  demo={demoWorkspace}
-                  refreshRevision={railStatusRevision}
-                  attentionConnectionName={aiAttentionConnectionName}
-                />
                 <TagVisor applicationContext={applicationContextActive ? applicationTagContext : null} />
-                <AiTaskStatus />
               </aside>
 
-              <section className="work-surface">
+              <section className="work-surface" ref={workSurface}>
                 {welcomeOpen ? loadedHomeContent : null}
 
                 {!welcomeOpen && settingsOpen ? (
@@ -570,6 +578,7 @@ export function App() {
                 ) : null}
 
                 {keepCandidaturesMounted ? (
+                  <ToolbarVisible.Provider value={!welcomeOpen && !settingsOpen && productView === "candidatures"}>
                   <div hidden={welcomeOpen || settingsOpen || productView !== "candidatures"}>
                     <CandidaturesArea
                       key={`candidatures-${workspace.rootPath}-${String(workspaceContentRevision)}-${String(candidatureWorkspaceRevision)}`}
@@ -579,9 +588,11 @@ export function App() {
                       onTagContextChange={setApplicationTagContext}
                     />
                   </div>
+                  </ToolbarVisible.Provider>
                 ) : null}
 
                 {keepDocumentsMounted ? (
+                  <ToolbarVisible.Provider value={!welcomeOpen && !settingsOpen && productView === "documents"}>
                   <div hidden={welcomeOpen || settingsOpen || productView !== "documents"}>
                     {documentDetailActive ? (
                       <DocumentsArea
@@ -596,9 +607,11 @@ export function App() {
                       />
                     )}
                   </div>
+                  </ToolbarVisible.Provider>
                 ) : null}
 
                 {keepProfessionalInformationMounted ? (
+                  <ToolbarVisible.Provider value={!welcomeOpen && !settingsOpen && productView === "professional-information"}>
                   <div hidden={welcomeOpen || settingsOpen || productView !== "professional-information"}>
                     {professionalInformationHandoff ? (
                       <div className="contextual-return-bar" role="status">
@@ -614,6 +627,7 @@ export function App() {
                       onDirtyChange={setProfessionalInformationDirty}
                     />
                   </div>
+                  </ToolbarVisible.Provider>
                 ) : null}
               </section>
             </div>
@@ -621,7 +635,13 @@ export function App() {
         ) : (
           <main className={loading ? "empty-state startup-state" : "empty-state first-run-state"}>{welcomeContent}</main>
         )}
+        <dialog className="workspace-tool-dialog" ref={utilityDialog} onCancel={() => setUtility(null)}>
+          <header><strong>{utility === "activity" ? "Activity" : "Status"}</strong><button type="button" aria-label="Close" onClick={() => setUtility(null)}>×</button></header>
+          {ready && utility === "activity" ? <AiTaskStatus /> : null}
+          {ready && utility === "status" ? <WorkspaceRailStatus key={workspace.rootPath} demo={demoWorkspace} refreshRevision={railStatusRevision} attentionConnectionName={aiAttentionConnectionName} /> : null}
+        </dialog>
       </div>
     </ContextualHandoffContext.Provider>
+    </ToolbarHost.Provider>
   );
 }

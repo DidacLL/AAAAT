@@ -27,6 +27,7 @@ import { AiExchangeInspector } from "./AiExchangeInspector";
 import { useContextualHandoffs } from "./contextual-handoffs";
 
 interface InferenceTaskResult extends PartialJobExtractionResult {
+  readonly appliedFieldIds?: readonly string[];
   readonly tagInference?: PartialTagInferenceResult;
   readonly tagInferenceError?: string;
   readonly tagInferenceFailureExchange?: AiExchangeDiagnostic;
@@ -42,6 +43,8 @@ interface Props {
   readonly title: string;
   readonly includeTagInference?: boolean;
   readonly onChanged?: () => void | Promise<void>;
+  readonly fieldRevision?: (fieldId: string) => number;
+  readonly canFillField?: (fieldId: string) => boolean;
 }
 
 function routeReady(
@@ -61,13 +64,16 @@ export function CandidatureInferencePanel({
   title,
   includeTagInference = false,
   onChanged,
+  fieldRevision,
+  canFillField,
 }: Props) {
   const { openSettingsFor } = useContextualHandoffs();
   const task = useAiTask<InferenceTaskResult>(taskId);
   const [sources, setSources] = useState<CandidatureSource[] | null>(null);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [handledTags, setHandledTags] = useState<Set<string>>(() => new Set());
-  const targetSet = useMemo(() => new Set(targetFieldIds), [targetFieldIds]);
+  const scopeFieldIds = task?.scopeFieldIds ?? targetFieldIds;
+  const targetSet = useMemo(() => new Set(scopeFieldIds), [scopeFieldIds]);
   const requestedFields = useMemo(
     () =>
       fields.filter(
@@ -119,6 +125,36 @@ export function CandidatureInferencePanel({
     startAiTask<InferenceTaskResult>(
       taskId,
       async (updateDetail, signal) => {
+        const revisions = new Map(requestedFields.map(field => [field.definition.id, fieldRevision?.(field.definition.id) ?? 0]));
+        const complete = async (result: InferenceTaskResult): Promise<InferenceTaskResult> => {
+          if (signal.aborted) return result;
+          let currentSources: CandidatureSource[];
+          let currentFields: CandidatureFieldConfiguration[];
+          try {
+            [currentSources, currentFields] = await Promise.all([window.aaaat.candidatures.listSources(candidature.id), window.aaaat.candidatures.listFields()]);
+          } catch { return result; }
+          if (JSON.stringify(currentSources) !== JSON.stringify(sources)) return result;
+          const applied: string[] = [];
+          for (const proposal of result.proposals) {
+            if (signal.aborted) break;
+            if (candidature.values.some(value => value.fieldId === proposal.fieldId)
+              || canFillField?.(proposal.fieldId) === false
+              || (fieldRevision?.(proposal.fieldId) ?? 0) !== revisions.get(proposal.fieldId)
+              || !currentFields.some(field => field.definition.id === proposal.fieldId && field.definition.enabled && field.preferences.aiUseAllowed)) continue;
+            try {
+              const saved = await window.aaaat.candidatures.setFieldValue({ candidatureId: candidature.id, fieldId: proposal.fieldId, value: proposal.value, onlyIfEmpty: true });
+              if (saved.values.some(value => value.fieldId === proposal.fieldId && JSON.stringify(value.value) === JSON.stringify(proposal.value))) applied.push(proposal.fieldId);
+            } catch { /* Keep a valid proposal reviewable if it cannot be applied to current information. */ }
+          }
+          if (!signal.aborted && result.tagInference?.existingTags.length) {
+            try {
+              await window.aaaat.candidatures.setTags({ candidatureId: candidature.id, tagIds: result.tagInference.existingTags.map(tag => tag.tagId), append: true });
+              setHandledTags(current => new Set([...current, ...result.tagInference!.existingTags.map(tag => `existing:${tag.tagId}`)]));
+            } catch { /* Retain suggestions when current Tag associations cannot be updated. */ }
+          }
+          try { await onChanged?.(); } catch { /* Applying a useful result and refreshing its view are separate outcomes. */ }
+          return { ...result, appliedFieldIds: applied };
+        };
         updateDetail(
           requestedFields.length === 1
             ? `Finding ${requestedFields[0]?.definition.label ?? "this information"}…`
@@ -142,7 +178,7 @@ export function CandidatureInferencePanel({
             targetFieldIds: [...targetFieldIds],
           });
 
-          if (!includeTagInference || !tagContext) return await fieldPromise;
+          if (!includeTagInference || !tagContext) return await complete(await fieldPromise);
 
           const tagPromise = window.aaaat.aiTasks.inferTags(tagProviderTaskId, {
             sourceTitle: "Retained AAAAT candidature Sources",
@@ -168,7 +204,7 @@ export function CandidatureInferencePanel({
             ? fieldOutcome.value
             : { proposals: [], issues: [] };
 
-          return {
+          return await complete({
             ...fieldResult,
             ...(fieldFailure
               ? {
@@ -189,7 +225,7 @@ export function CandidatureInferencePanel({
                     : {}),
                 }
               : {}),
-          };
+          });
         } finally {
           signal.removeEventListener("abort", cancelProvider);
         }
@@ -208,6 +244,9 @@ export function CandidatureInferencePanel({
     );
   }, [
     aiReady,
+    candidature.id,
+    candidature.values,
+    sources,
     fieldContext,
     includeTagInference,
     requestedFields,
@@ -217,6 +256,9 @@ export function CandidatureInferencePanel({
     task,
     taskId,
     title,
+    fieldRevision,
+    canFillField,
+    onChanged,
   ]);
 
   const attachExistingTag = async (proposal: TagInferenceExistingTag) => {
@@ -227,7 +269,8 @@ export function CandidatureInferencePanel({
 
     await window.aaaat.candidatures.setTags({
       candidatureId: candidature.id,
-      tagIds: [...new Set([...current.tagIds, proposal.tagId])],
+      tagIds: [proposal.tagId],
+      append: true,
     });
     setHandledTags((handled) => new Set(handled).add(`existing:${proposal.tagId}`));
     await onChanged?.();
@@ -246,7 +289,8 @@ export function CandidatureInferencePanel({
 
     await window.aaaat.candidatures.setTags({
       candidatureId: candidature.id,
-      tagIds: [...new Set([...current.tagIds, tag.id])],
+      tagIds: [tag.id],
+      append: true,
     });
     setHandledTags((handled) => new Set(handled).add(`new:${index}`));
     await onChanged?.();

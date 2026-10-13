@@ -9,6 +9,7 @@ export const documentDomainChannels = Object.freeze({
   templateUpdate: "aaaat:cv-template-update",
   templateRemove: "aaaat:cv-template-remove",
   workingCreate: "aaaat:working-cv-create",
+  workingPrepare: "aaaat:working-cv-prepare",
   workingUpdate: "aaaat:working-cv-update",
   workingRemove: "aaaat:working-cv-remove",
   workingSaveItem: "aaaat:working-cv-save-item",
@@ -18,6 +19,7 @@ export const documentDomainChannels = Object.freeze({
   openRenderedCv: "aaaat:rendered-cv-open",
   exportRenderedCv: "aaaat:rendered-cv-export",
   letterCreate: "aaaat:cover-letter-create",
+  letterPrepare: "aaaat:cover-letter-prepare",
   letterUpdate: "aaaat:cover-letter-update",
   letterRemove: "aaaat:cover-letter-remove",
   renderLetter: "aaaat:cover-letter-render",
@@ -154,6 +156,11 @@ export const workingCvCreateSchema = z.object({
   language: optionalLanguageSchema,
   candidatureId: optionalUuidSchema,
   source: workingCvSourceSchema,
+  content: z.object({
+    sections: z.array(workingCvSectionSchema).max(40),
+    pdfMetadata: cvPdfMetadataSchema,
+    parserSummary: cvParserSummarySchema,
+  }).strict().optional(),
 }).strict().readonly();
 export type WorkingCvCreate = z.infer<typeof workingCvCreateSchema>;
 export const workingCvRecordSchema = z.object({
@@ -329,6 +336,7 @@ export interface DocumentDomainDesktopApi {
     readonly updateTemplate: (input: CvTemplateUpdate) => Promise<DocumentCollections>;
     readonly removeTemplate: (templateId: string) => Promise<DocumentCollections>;
     readonly createWorkingCv: (input: WorkingCvCreate) => Promise<WorkingCvRecord>;
+    readonly prepareWorkingCv: (input: WorkingCvCreate) => Promise<WorkingCvRecord>;
     readonly updateWorkingCv: (input: WorkingCvUpdate) => Promise<WorkingCvRecord>;
     readonly removeWorkingCv: (workingCvId: string) => Promise<DocumentCollections>;
     readonly saveWorkingItem: (input: WorkingCvSaveItem) => Promise<WorkingCvRecord>;
@@ -338,6 +346,7 @@ export interface DocumentDomainDesktopApi {
     readonly openRenderedCv: (renderedCvId: string) => Promise<OpenGeneratedResult>;
     readonly exportRenderedCv: (renderedCvId: string) => Promise<PortableProjectExportResult>;
     readonly createLetter: (input: CoverLetterInput) => Promise<CoverLetterRecord>;
+    readonly prepareLetter: (input: CoverLetterInput) => Promise<CoverLetterRecord>;
     readonly updateLetter: (input: CoverLetterUpdate) => Promise<CoverLetterRecord>;
     readonly removeLetter: (letterId: string) => Promise<DocumentCollections>;
     readonly renderLetter: (input: RenderLetterRequest) => Promise<RenderedCoverLetterRecord>;

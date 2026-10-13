@@ -1066,7 +1066,7 @@
 }
 
 .working-cv-document-card strong {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--ui-font);
   font-size: 1.05rem;
 }
 
@@ -1381,8 +1381,8 @@
   color: var(--ink);
   background: transparent;
   font-family: var(--document-font) !important;
-  font-size: clamp(1.45rem, 2.2vw, 2rem);
-  font-weight: 700;
+  font-size: clamp(1.25rem, 1.8vw, 1.5rem);
+  font-weight: 600;
   line-height: 1.15;
 }
 

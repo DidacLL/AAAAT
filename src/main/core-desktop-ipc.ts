@@ -6,6 +6,7 @@ import {
   aiChannels,
   coverLetterDraftRequestSchema,
   coverLetterDraftSchema,
+  coverLetterContextPreviewSchema,
   cvWritingRequestSchema,
   cvWritingResultSchema,
   jobExtractionRequestSchema,
@@ -72,6 +73,7 @@ import {
 } from "../shared/workspace-recovery-contracts";
 import {
   draftCoverLetter,
+  previewCoverLetterContext,
   extractJob,
   getAiConnection,
   writeCvField,
@@ -546,6 +548,10 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     return coverLetterDraftSchema.parse(
       await draftCoverLetter(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input)),
     );
+  });
+  ipcMain.handle(aiChannels.coverLetterContext, (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return coverLetterContextPreviewSchema.parse(previewCoverLetterContext(requireWorkspaceRoot(), coverLetterDraftRequestSchema.parse(input)));
   });
 }
 
