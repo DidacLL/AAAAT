@@ -1,4 +1,5 @@
-<p align="center"><img width="360" alt="aaaat-logo-title" src="https://github.com/user-attachments/assets/e0b83396-f2f1-4384-bcfb-be0d517b1581" />
+<p align="center"><img width="420" alt="aaaat-log" src="https://github.com/user-attachments/assets/9dc35ba8-c2eb-4687-9004-7837afc41079" />
+
 </p>
 
 # Agent-Agnostic Auto Application Tracker
