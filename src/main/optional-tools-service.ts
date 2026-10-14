@@ -198,19 +198,27 @@ function linuxDistribution(): { family: "ubuntu" | "debian"; suite: string } {
     return [line.slice(0, separator), line.slice(separator + 1).replace(/^"|"$/g, "")];
   }));
   const suite = values.UBUNTU_CODENAME ?? values.VERSION_CODENAME ?? "";
-  if (["jammy", "noble", "resolute"].includes(suite)) return { family: "ubuntu", suite };
-  if (["bullseye", "bookworm", "trixie"].includes(suite)) return { family: "debian", suite };
-  throw new Error("Automatic PDF setup supports current Ubuntu, Linux Mint and Debian releases. An existing pdfLaTeX installation can still be used.");
+  const families = [values.ID, ...(values.ID_LIKE ?? "").split(/\s+/)];
+  const family = values.UBUNTU_CODENAME || families.includes("ubuntu") ? "ubuntu" : families.includes("debian") ? "debian" : null;
+  if (family && /^[a-z][a-z0-9-]*$/.test(suite)) return { family, suite };
+  throw new Error("Automatic MiKTeX setup needs an Ubuntu or Debian repository base. An existing pdfLaTeX installation can still be used.");
 }
 
 async function installLinuxPdf(): Promise<void> {
   const root = installedToolsDirectory();
-  const distribution = linuxDistribution();
+  const apt = spawnSync("apt-get", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (apt.status !== 0) throw new Error("Automatic PDF setup needs APT. Install pdfLaTeX with your system's package manager; AAAAT can use it directly.");
   const script = path.join(root, "install-pdf.sh");
   let commands: string;
   if (process.arch === "arm64") {
     commands = "apt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-lang-european texlive-lang-spanish texlive-lang-french texlive-lang-german texlive-lang-italian texlive-lang-portuguese\n";
   } else {
+    const distribution = linuxDistribution();
+    const repository = await fetch(`https://miktex.org/download/${distribution.family}/dists/${distribution.suite}/Release`, { signal: AbortSignal.timeout(30_000) });
+    await repository.body?.cancel();
+    if (!repository.ok) throw new Error(repository.status === 404
+      ? "MiKTeX does not publish a repository for this system. An existing pdfLaTeX installation can still be used."
+      : "Could not check the MiKTeX repository. Please retry.");
     const response = await fetch("https://miktex.org/download/key", { signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error("Could not download the official MiKTeX repository key.");
     const key = path.join(root, "miktex-key.asc");
