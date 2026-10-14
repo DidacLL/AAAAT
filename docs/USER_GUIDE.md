@@ -74,7 +74,7 @@ Results are editable. A CV response that arrives after a newer manual edit stays
 
 ### Use another AI environment
 
-Open **⋯ → AI task** inside the relevant application. Edit the entire request, including its context. **Copy** and **Export** use exactly that text. Closing or navigating preserves the local draft and does not send it.
+Open **⋯ → AI task** inside the relevant application and choose a request. **Application details** prepares help for missing AI-enabled information; the demo’s sparse Library services recruiter message is a useful example. Edit the entire request, including its context. **Copy** and **Export** use exactly that text. Closing or navigating preserves the local draft and does not send it.
 
 Connected reads require a separate explicit choice. Editing the request turns future reads off. Turning permission off stops future access through that route; it cannot undo an earlier model request or recall copied information.
 
