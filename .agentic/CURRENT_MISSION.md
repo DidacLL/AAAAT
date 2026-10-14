@@ -1,4 +1,6 @@
-# Current mission — remove v2 configuration and ownership drift
+# Current mission — prepare v2 for publication
+
+The Product Owner requests the technical v2 release, appropriate version/tag and downloadable packages, with public release and README/website publication held for marketing review. Prepare `2.0.0` and the annotated `v2.0.0` tag. Tagged packaging must create or update a draft release, never publish it automatically. V1 has no remaining public tags/releases; preserve its history without presenting it as a current product or adding migration work. Keep this step to release preparation, not another product refactor.
 
 The current Product Owner instruction authorizes cautious corrections to the nearly ready v2 product, without a broad refactor or additional specialists. There is no user-data migration baseline: change the current schema directly and add no compatibility machinery. Preserve the accepted covers, fixed toolbar/rail, Tag monitor, direct field controls, flexible information, provisional documents and disclosure boundaries.
 
@@ -20,4 +22,4 @@ The packaged app also saved and generated a Dutch-language CV with the existing 
 
 The final Locations form was inspected in the rebuilt package. Chosen tool/download folders and an existing pdfLaTeX executable persisted after reopening it. [Native packaging run 38584029041](https://github.com/DidacLL/AAAAT/actions/runs/38584029041) built installer/portable artifacts successfully for Windows x64/ARM64, macOS Intel/Apple Silicon, and Linux x64/ARM64 from product code `c3699e88`. Its release-publication job was skipped. These are build results, not claims that each platform's native tool installer was exercised.
 
-No release has been published. The package remains `2.0.0-alpha.0`. Cross-platform native installer handoffs have changed, so the older automated-installation observations cannot certify the new handoffs. Do not turn commercial-provider verification or a new certification programme into a release prerequisite.
+Version `2.0.0` is being staged as a draft release. Publication awaits the owner's marketing review. Cross-platform native installer handoffs have changed, so the older automated-installation observations cannot certify the new handoffs. The runtime limits above remain recorded; do not turn commercial-provider verification or a new certification programme into a release prerequisite.
