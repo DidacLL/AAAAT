@@ -41,22 +41,36 @@ jobs:
         id: scope
         env:
           EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
         shell: bash
         run: |
           code=true
+          comparison_base=""
+          comparison_head=HEAD
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            comparison_base=HEAD^1
+          elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+            if ! git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "$PUSH_BEFORE" || true
+            fi
+            if git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+              comparison_base="$PUSH_BEFORE"
+              comparison_head="$PUSH_AFTER"
+            fi
+          fi
+          if [[ -n "$comparison_base" ]] && git diff --name-only -z "$comparison_base" "$comparison_head" > "$RUNNER_TEMP/aaaat-changed-files"; then
             code=false
-            git diff --name-only -z HEAD^1 HEAD > "$RUNNER_TEMP/aaaat-changed-files"
             while IFS= read -r -d '' file; do
               case "$file" in
-                *.md|docs/*|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.svg|LICENSE) ;;
+                site/*|.github/workflows/pages.yml|*.md|docs/*|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.svg|LICENSE) ;;
                 *) code=true; break ;;
               esac
             done < "$RUNNER_TEMP/aaaat-changed-files"
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           if [[ "$code" == "false" ]]; then
-            echo "Documentation/images only: no installation, typecheck, lint or packaging required." >> "$GITHUB_STEP_SUMMARY"
+            echo "Website/documentation/images only: no installation, typecheck, lint or packaging required." >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/setup-node@v7
         if: steps.scope.outputs.code == 'true'
