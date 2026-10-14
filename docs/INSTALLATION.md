@@ -28,7 +28,7 @@ On Windows, Local AI checks whether llama.cpp can start with the available runti
 | Ubuntu / Debian x64 | MiKTeX |
 | Ubuntu / Debian ARM64 | Native TeX Live |
 
-Automatic Linux PDF setup uses APT and may ask for administrator authorization. ARM64 uses the distribution's TeX Live packages; x64 uses MiKTeX's published repository for the detected Ubuntu/Debian base, without a release-name whitelist. Other systems can use an existing pdfLaTeX installation. The DEB includes the small authorization/key prerequisites; portable ZIP users need `pkexec` and `gpg` for automatic PDF setup. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
+Automatic Linux PDF setup uses APT and `pkexec` for administrator authorization. These are needed only for that optional setup; they are not added as AAAAT installation requirements. ARM64 uses the distribution's TeX Live packages; x64 uses MiKTeX's published repository for the detected Ubuntu/Debian base, without a release-name whitelist or a separate key-conversion tool. Other systems can use an existing pdfLaTeX installation. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
 
 You can cancel a download or continue using AAAAT while setup runs. Once native installation starts, allow it to finish. A failed optional download leaves completed tools available and does not prevent manual work. Setup errors remain visible so you can retry.
 
@@ -36,7 +36,7 @@ You can cancel a download or continue using AAAAT while setup runs. Once native 
 
 Downloads come from [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/b11429), [IBM Granite](https://huggingface.co/ibm-granite/granite-4.1-3b-GGUF), [MiKTeX](https://miktex.org/download) and [BasicTeX](https://www.tug.org/mactex/morepackages.html). llama.cpp uses the MIT license; Granite uses Apache 2.0. TeX distributions contain components under their own published licenses.
 
-The Windows prerequisite comes from [Microsoft's Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). Setup pins version 14.50, matching the working Windows runtime used with the tested Granite model, and verifies the download digest. Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
+The optional Windows prerequisite comes from [Microsoft's Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). AAAAT verifies the downloaded installer, but does not require that version when the available runtime already works. Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
 
 AAAAT pins the CPU runtime and exact tested GGUF revision and verifies downloaded archives against their published hashes. It keeps these files in its local application-data directory, outside your career workspace. Its local server listens only on `127.0.0.1`, at port `47842`. There is no public network listener, model marketplace or general server-management system.
 

@@ -208,22 +208,19 @@ async function installLinuxPdf(): Promise<void> {
   const root = installedToolsDirectory();
   const apt = spawnSync("apt-get", ["--version"], { encoding: "utf8", timeout: 5000 });
   if (apt.status !== 0) throw new Error("Automatic PDF setup needs APT. Install pdfLaTeX with your system's package manager; AAAAT can use it directly.");
+  const authorization = spawnSync("pkexec", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (authorization.status !== 0) throw new Error("Automatic PDF setup needs pkexec for administrator authorization. You can install pdfLaTeX separately and keep using AAAAT.");
   const script = path.join(root, "install-pdf.sh");
   let commands: string;
   if (process.arch === "arm64") {
     commands = "apt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-lang-european texlive-lang-spanish texlive-lang-french texlive-lang-german texlive-lang-italian texlive-lang-portuguese\n";
   } else {
     const distribution = linuxDistribution();
-    const repository = await fetch(`https://miktex.org/download/${distribution.family}/dists/${distribution.suite}/Release`, { signal: AbortSignal.timeout(30_000) });
-    await repository.body?.cancel();
-    if (!repository.ok) throw new Error(repository.status === 404
-      ? "MiKTeX does not publish a repository for this system. An existing pdfLaTeX installation can still be used."
-      : "Could not check the MiKTeX repository. Please retry.");
     const response = await fetch("https://miktex.org/download/key", { signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error("Could not download the official MiKTeX repository key.");
     const key = path.join(root, "miktex-key.asc");
     await writeFile(key, await response.text());
-    commands = `gpg --batch --yes --dearmor -o /usr/share/keyrings/aaaat-miktex.gpg "$1"\nprintf '%s\\n' 'deb [signed-by=/usr/share/keyrings/aaaat-miktex.gpg] https://miktex.org/download/${distribution.family} ${distribution.suite} universe' > /etc/apt/sources.list.d/aaaat-miktex.list\napt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y miktex\n`;
+    commands = `install -m 644 "$1" /usr/share/keyrings/aaaat-miktex.asc\nprintf '%s\\n' 'deb [signed-by=/usr/share/keyrings/aaaat-miktex.asc] https://miktex.org/download/${distribution.family} ${distribution.suite} universe' > /etc/apt/sources.list.d/aaaat-miktex.list\napt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y miktex\n`;
   }
   await writeFile(script, `#!/bin/sh\nset -eu\n${commands}`);
   message = `Installing ${process.arch === "arm64" ? "TeX Live" : "MiKTeX"} · approve the system request…`;
