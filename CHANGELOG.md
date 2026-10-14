@@ -1,8 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+- Public website rebuilt around the original AAAAT artwork, with a cleaned roadside masthead, one-row mobile navigation and real application captures.
+- Illustrated first-use guidance includes cover prominence and reusable career information; the complete guide opens in focused chapters with accurate control instructions.
+- Fictional demo labels are shorter, with varied field prominence and consistent career, CV and letter examples.
+
 ## 2.0.0
 
-- Public product website with beginner instructions, independent feature chapters, a clearly labelled fictional interactive preview and platform-specific download guidance.
+- Initial public product website with beginner instructions, feature chapters and platform-specific download guidance.
 - A deliberately written 12-opportunity demo spanning community, editorial, visitor services and other work, with consistent fictional career information and reusable documents.
 
 - One application creation screen combines original material and editable information.

@@ -1,6 +1,6 @@
 # Install AAAAT
 
-Choose the AAAAT 2 package for your device from [the download page](https://didacll.github.io/AAAAT/download.html) or [v2.0.0 Releases](https://github.com/DidacLL/AAAAT/releases/tag/v2.0.0). See [Get Started](https://didacll.github.io/AAAAT/get-started.html) for your first workspace and independent application/document tasks.
+Choose the AAAAT 2 package for your device from [the download page](https://didacll.github.io/AAAAT/download.html) or [latest release](https://github.com/DidacLL/AAAAT/releases/latest). See [Get Started](https://didacll.github.io/AAAAT/get-started.html) for your first workspace and independent application/document tasks.
 
 | Device | Package | Installation |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ The **Locations** controls also let you choose where future tools and downloads 
 Ordinary CV and cover-letter editing stays inside AAAAT. People familiar with LaTeX have two further options:
 
 - **Make a reusable Blueprint:** copy the project's [default Blueprint](../src/main/latex/default-blueprint.tex), edit it in an external text editor, and place a named `.tex` file inside the `blueprints` folder of AAAAT's application configuration directory (Electron `userData`, not the career workspace). Reopen the CV editor and use **Document options → PDF style** to select it when more than one Blueprint is available. This affects presentation, not the stored CV facts. Read the shared [AAAAT LaTeX API](../src/main/latex/aaaat.sty) when authoring a compatible style.
-- **Modify one exported document:** find a PDF under **Documents → Generated files**, choose **Export source project**, then edit the exported `.tex` source outside AAAAT. Current exported projects contain an entry file such as `cv.tex`, `cover-letter.tex` or `application-document.tex`, with `aaaat.sty` and retained outputs. Compile the applicable entry file using your own `pdflatex` installation. Editing the exported copy does not rewrite the retained PDF, working document or reusable Blueprint in AAAAT.
+- **Modify one exported document:** for a rendered letter, open its editor and expand **Document options → Export source project**. For a combined application PDF, open the application and find **Export source project** beside its generated PDF. Edit the exported `.tex` source outside AAAAT and compile it using your own `pdflatex`. Editing that copy does not rewrite the retained PDF, working document or Blueprint. The current CV screen has no source-export button; its generated project remains in the workspace’s `rendered-cvs/<output>/` folder with `cv.tex`, `aaaat.sty` and the PDF. Letter and combined projects use `cover-letter.tex` or `application-document.tex`.
 
 The full [PDF and Blueprint walkthrough](https://didacll.github.io/AAAAT/explore.html#pdf) gives the specific UI actions.
 

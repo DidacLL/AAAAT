@@ -12,9 +12,9 @@ Use **Settings → Workspace** to create or open another workspace. Reset and de
 
 ### Home, status and activity
 
-**Home** shows the current workspace, **Recent applications** and **Recent editable work**. Open a recent item directly, or use **Open Applications** / **Open Documents** for the full collections.
+**Home** shows the current workspace, **Recent applications** and **Recent editable work**. Open a recent item directly, or choose **Applications** / **Documents** in the left navigation for the full collections.
 
-The left rail gives compact environment readiness: **Data** is Demo or Local; **AI** is Off, Checking, Ready or Needs attention; and **PDF** is Ready or Unavailable. Use **Test AI** or **Retry AI** if a saved connection is not responding; edit its address/model/credentials in **Settings → AI**. For PDF readiness, go to **Settings → Documents** and check the detected `pdflatex` executable.
+Choose top-bar **Status** for environment readiness: **Data** is Demo or Local; **AI** is Off, Checking, Ready or Needs attention; and **PDF** is Ready or Unavailable. In that panel, **Test AI** or **Retry AI** checks a selected connection's reachability. Edit its address/model/credentials in **Settings → AI**. For PDF setup, go to **Settings → Documents** and check the detected `pdflatex` executable. These indicators are in the Status panel, rather than the navigation rail.
 
 The top bar's **Activity** opens the AI activity monitor; **Status** opens the environment-status view without navigating away from your work. Neither is a required application-stage workflow.
 
@@ -47,6 +47,8 @@ The same Tag can be attached only once per application. AI matches to existing T
 ## My information
 
 Keep reusable professional facts here. Add, edit and arrange the information useful to you. Group names and information types are editable; shipped examples are not a closed category list. Custom groups also remain available when composing a CV.
+
+Choose **＋ New**, enter a suggested or custom **Information type**, and use **Add detail** for additional information. For example, typing **Community work** creates that grouping when the item is saved. Open a saved item, expand **Saved variations**, choose **New variation**, enter the alternate version and **Save**. In a CV item editor, **Use My information** selects **Current version** or a named variation; document-specific edits remain separate unless you deliberately save them for reuse.
 
 Saved variations retain reusable alternate wording or emphasis. A CV-specific edit changes that CV alone unless you deliberately save it for reuse or update My information. Career preferences are user-stated context, distinct from factual experience.
 
@@ -95,18 +97,22 @@ The **Header**, **Main body**, **Secondary body**, and **Footer** section positi
 
 ### Export and modify an entire document outside AAAAT
 
-1. Open **Documents → Generated files**, or a retained generated file inside its application, and choose **Export source project**.
+1. For a letter's latest rendered PDF, open the editable letter and choose **Document options → Export source project**. For a combined Application PDF, open its application and choose **Generated files → Export source project** beside that output.
 2. Choose a writable destination. AAAAT exports a separate copy of the actual retained PDF project, leaving the managed original intact.
 3. Edit the exported LaTeX in another program. Current generator entry files are typically `cv.tex`, `cover-letter.tex`, or `application-document.tex`, with `aaaat.sty` in the project.
 4. Recompile using the matching `pdflatex` command in that exported folder, such as `pdflatex cv.tex`. The document and any required TeX packages must be supported by the installed distribution.
 
 Changes to the exported copy do not update AAAAT's working CV or earlier retained PDFs. This is intentional: the user owns both the original output and any separately modified version.
 
+The current CV editor and **Documents → Generated files** do not offer a CV source-export button. Complete CV projects are still retained under `rendered-cvs` in the workspace, in a subfolder per output containing `cv.tex`, `aaaat.sty` and its PDF. Advanced users can identify the desired output by inspecting the PDF/source, copy its complete subfolder elsewhere and edit the copy while leaving the managed original intact. Find the workspace location in **Settings → Workspace**.
+
 ## Optional AI
 
 ### Connect a model
 
 In **Settings → AI**, add a named connection, its endpoint, model and credential when needed. The current adapter uses OpenAI-compatible chat completions. Loopback HTTP and remote HTTPS are accepted. Choose the connection AAAAT will use for assistance.
+
+Choose **New connection**, fill **Connection name**, **Model**, **Model server address** and **API key (optional)** if required, then **Save**. Use the server's compatible API base address, such as `http://127.0.0.1:8080/v1` when exposed by your local server. Under **Saved connections**, **Use** selects the model for in-app assistance; **Edit** changes it and **Remove** deletes that saved connection. Copy-paste requests for an external LLM do not require a saved connection here.
 
 The optional connection check reports reachability without changing the selected connection. There are no per-feature checks or routing prerequisites. A reachable server may still return an invalid or unhelpful result. Instructions are editable **per AI action**, not just as one permanent instruction for every job. Under **Settings → AI → AI instructions**, open an action, read **Context AAAAT sends** and **Expected response**, edit **Effective instruction**, then **Save**. Choose **Reset to shipped default** to undo a change; the **Shipped default** can be inspected before resetting.
 
@@ -121,6 +127,8 @@ Results are editable. A CV response that arrives after a newer manual edit stays
 ### Use another AI environment
 
 Open **⋯ → AI task** inside the relevant application and choose a request. **Application details** prepares help for missing AI-enabled information; the demo’s sparse Library services recruiter message is a useful example. Edit the entire request, including its context. **Copy** and **Export** use exactly that text. Closing or navigating preserves the local draft and does not send it.
+
+Expand **Result** to paste a returned answer or choose **Import** for a result file. **Application details → Use suggestions** expects the structured proposal response requested in the prepared text and places it on the application fields for review. **Interview → Save as Source** retains returned text as an application Source. Review the answer before using either action.
 
 Connected reads require a separate explicit choice. Editing the request turns future reads off. Turning permission off stops future access through that route; it cannot undo an earlier model request or recall copied information.
 
@@ -140,7 +148,7 @@ Use **Settings → Backup** to create a backup or restore one into an empty dest
 
 Backup is a directory containing `workspace.sqlite`, retained files and a manifest with hashes. AI connection configuration and credential material are excluded. Export/import AI setup separately in **Settings → AI**; connection diagnostics are local to the current environment.
 
-Generated documents also expose **Export source project**. It copies the retained project, leaving the managed original intact. Advanced Blueprints choose presentation at render time and live in application-level configuration; CV templates choose content/composition.
+Available letter and combined-application **Export source project** actions copy retained projects without altering the managed original. See the document section above for the current CV export limitation and its locally retained files. Advanced Blueprints choose presentation at render time and live in application-level configuration; CV templates choose content/composition.
 
 ## If something is unavailable
 
