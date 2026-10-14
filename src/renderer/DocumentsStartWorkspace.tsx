@@ -15,23 +15,14 @@ const emptyCollections: DocumentCollections = {
 
 export function DocumentsStartWorkspace({
   onOpenDocument,
-  onDirtyChange,
 }: {
   readonly onOpenDocument: (documentId: string) => void;
-  readonly onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { openDocumentDraft } = useContextualHandoffs();
   const [collections, setCollections] = useState<DocumentCollections>(emptyCollections);
   const [cvSource, setCvSource] = useState("profile");
   const [creating, setCreating] = useState<"cv" | "letter" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const dirty = cvSource !== "profile";
-
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-    return () => onDirtyChange?.(false);
-  }, [dirty, onDirtyChange]);
-
   useEffect(() => {
     let active = true;
     void window.aaaat.documentDomain.collections()

@@ -617,7 +617,6 @@ export function App() {
                       <DocumentsStartWorkspace
                         key={`document-start-${workspace.rootPath}-${String(workspaceContentRevision)}`}
                         onOpenDocument={openStandaloneDocument}
-                        onDirtyChange={setDocumentDirty}
                       />
                     )}
                   </div>
