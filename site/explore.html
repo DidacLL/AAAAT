@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Explore AAAAT · AAAAT</title>
-<meta name="description" content="Independent guides to applications, Sources, Tags, reusable career information, documents, optional AI and local ownership.">
+<meta name="description" content="AAAAT full guide: practical applications, tailored documents, flexible information, local Granite AI, pdfLaTeX, reusable custom LaTeX Blueprints and portable source projects.">
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/site.css">
 <script src="assets/site.js" defer></script>
@@ -28,9 +28,9 @@
 <a href="#profile">Professional information</a>
 <a href="#cv">CVs</a>
 <a href="#letters">Cover letters & application PDFs</a>
-<a href="#pdf">PDFs and document files</a>
+<a href="#pdf">pdfLaTeX, custom styles &amp; source projects</a>
 <a href="#ai-choices">Choose your AI</a>
-<a href="#ai-connections">AI connections and startup</a>
+<a href="#ai-connections">Included Granite AI and other models</a>
 <a href="#ai-prompts">Edit AI instructions</a>
 <a href="#ai-information">Control AI information</a>
 <a href="#ai-work">AI help while you work</a>
@@ -228,19 +228,72 @@
 </section>
 
 <section class="section guide-section" id="pdf">
-<p class="eyebrow">Documents · Finish and keep your outputs</p>
-<h2>Turn editable work into documents you own.</h2>
+<p class="eyebrow">Documents · PDF production from simple to fully custom</p>
+<h2>Create PDFs with pdfLaTeX—and own the source.</h2>
 <div class="prose">
+<p>AAAAT lets you edit CVs and cover letters without learning LaTeX. To generate the PDF, it uses <strong>pdfLaTeX</strong>, the <code>pdflatex</code> executable supplied by a compatible TeX distribution. You can use AAAAT's guided setup, keep your own TeX installation, change the layout with a custom Blueprint, or export and edit the full LaTeX source project yourself.</p>
+
+<h3>Use the guided PDF setup</h3>
 <ol class="guide-steps">
-<li>On first launch, choose <strong>PDF generation</strong> under <strong>Make AAAAT ready for you</strong> if you want to produce PDFs. You can return later through <strong>Settings → Documents → PDF setup</strong>.</li>
-<li>AAAAT uses an existing compatible PDF tool if found, or launches the native setup for your operating system. Follow any third-party installer or system-software-manager choices shown on your device.</li>
-<li>In a CV or letter, choose <strong>PDF</strong>. Read the finished result before sending it. Change the editable original and render again if you need another version.</li>
-<li>In <strong>Documents → Generated files</strong>, you can reopen retained CV PDFs, letter PDFs and combined application PDFs.</li>
-<li>Advanced users can use <strong>Export source project</strong> on a generated document to take its retained editable presentation sources elsewhere. Ordinary users do not need to know LaTeX to create or send a PDF.</li>
+<li>At first launch, choose <strong>PDF generation</strong> in <strong>Make AAAAT ready for you</strong> and select <strong>Set up</strong>. Or return through <strong>Settings → Documents → PDF setup</strong>.</li>
+<li>If AAAAT detects an existing <code>pdflatex</code>, the dialog says <strong>Already available</strong>. Nothing else needs installing for this prerequisite.</li>
+<li>If it is missing, AAAAT opens the third-party installer or system software manager appropriate for your machine. Finish that installation on your computer, return to <strong>Settings → Documents</strong> and select <strong>Refresh</strong> or <strong>Check PDF</strong>.</li>
 </ol>
-<p>The editable document and the finished file are different things. Later edits or removal of an editable document do not retroactively rewrite the PDF you already created.</p>
+<table><thead><tr><th>Computer</th><th>PDF setup offered by AAAAT</th></tr></thead><tbody>
+<tr><td>Windows x64; Windows 11 ARM64 through x64 emulation</td><td>MiKTeX</td></tr>
+<tr><td>Intel Mac</td><td>MiKTeX</td></tr>
+<tr><td>Apple Silicon Mac</td><td>BasicTeX (small TeX Live distribution)</td></tr>
+<tr><td>Linux x64 / ARM64</td><td>TeX Live through your system software manager</td></tr>
+</tbody></table>
+<p>On Linux, if the APT installation link does not open a software manager, install TeX Live using your distribution's software manager and then refresh AAAAT. MiKTeX is not a required vendor: any compatible installation supplying <code>pdflatex</code> can be used.</p>
+
+<h3>Already use TeX? Point AAAAT to your executable</h3>
+<ol class="guide-steps">
+<li>Open <strong>Settings → Documents → PDF setup</strong>. Expand <strong>Locations</strong> in <strong>Make AAAAT ready for you</strong>.</li>
+<li>Beside <strong>pdfLaTeX</strong>, choose <strong>Browse</strong> and locate the actual <code>pdflatex</code> executable (<code>pdflatex.exe</code> on Windows). Choose the executable, not the containing folder or a PDF viewer.</li>
+<li>Select <strong>Save</strong>. The same Locations area lets you edit <strong>Local tools</strong> and <strong>Downloads</strong> for future installations; existing installed files are not moved.</li>
+<li>Return to <strong>Settings → Documents</strong> and choose <strong>Refresh</strong>, then <strong>Check PDF</strong> if you want to verify document rendering.</li>
+</ol>
+
+<h3>Render an ordinary CV, letter, or combined application</h3>
+<ol class="guide-steps">
+<li>Open your CV or cover letter in <strong>Documents</strong> or from its saved application. Edit the content and choose <strong>Save</strong>.</li>
+<li>In a CV, open <strong>Document options</strong> to set document language, PDF metadata and optional parser summary. When more than one style is installed, use <strong>PDF style</strong> to choose its appearance.</li>
+<li>Choose <strong>PDF</strong> in the top bar. Open the output to check its layout and content; if you need a different result, return to the editable document and render again.</li>
+<li>For a combined document, open an application and select its CV and cover letter under <strong>CV + cover letter</strong>. Use the top-bar <strong>PDF</strong> when the required documents and style are available.</li>
+</ol>
+<p>The editable document and finished PDFs are separate. Previously generated files and their source projects remain available even if you later change or remove the working CV or letter.</p>
+
+<h3 id="blueprints">Advanced: make your own LaTeX Blueprint</h3>
+<p>A <strong>Blueprint</strong> controls the CV's LaTeX presentation: section arrangement, spacing, typography and page layout. It is not a CV template: a template saves reusable content and composition. A Blueprint lets you render the <em>same</em> CV through a different visual style without changing career facts.</p>
+<ol class="guide-steps">
+<li>Copy the <a href="https://github.com/DidacLL/AAAAT/blob/main/src/main/latex/default-blueprint.tex">built-in Blueprint source</a> into a text editor. Give your modified copy a name such as <code>my-style.tex</code>. The <a href="https://github.com/DidacLL/AAAAT/blob/main/src/main/latex/aaaat.sty">AAAAT LaTeX package</a> documents the CV rendering commands Blueprint authors can use.</li>
+<li>Save the <code>.tex</code> file under <code>blueprints</code> inside AAAAT's <strong>application configuration directory</strong> (Electron <code>userData</code>), not inside your career workspace. Typical locations are <code>%APPDATA%\AAAAT\blueprints</code> on Windows, <code>~/Library/Application Support/AAAAT/blueprints</code> on macOS, or <code>~/.config/AAAAT/blueprints</code> on Linux. Actual configuration locations may differ on your computer.</li>
+<li>Open or reopen the CV editor. Under <strong>Document options</strong>, the <strong>PDF style</strong> selector appears when more than one style is available, listing <strong>AAAAT Default</strong> and compatible <code>.tex</code> files by name.</li>
+<li>Choose your new style, select <strong>PDF</strong> and inspect the output. If your LaTeX changes cause a compile error, edit the file and retry, or select <strong>AAAAT Default</strong> to use the built-in layout.</li>
+</ol>
+<p>A CV section's <strong>Header</strong>, <strong>Main body</strong>, <strong>Secondary body</strong> or <strong>Footer</strong> placement describes its purpose. The selected Blueprint decides the actual arrangement; these roles are not fixed columns. AAAAT is not an in-app LaTeX code editor, so Blueprint development happens in the external editor you prefer.</p>
+
+<h3 id="source-projects">Advanced: export, edit and rebuild the actual source</h3>
+<ol class="guide-steps">
+<li>Open <strong>Documents → Generated files</strong>, locate your PDF and choose <strong>Export source project</strong>. Application PDFs offer the same export through their application view.</li>
+<li>Choose a writable destination folder. AAAAT creates a separate copy of the retained project rather than changing the original used by the workspace.</li>
+<li>Open the exported folder using a text editor or your preferred LaTeX editor. The current generator writes entry files such as <code>cv.tex</code>, <code>cover-letter.tex</code> or <code>application-document.tex</code>, alongside <code>aaaat.sty</code> and the retained build/output files.</li>
+<li>To compile an edited project outside AAAAT, open a terminal in that folder and run <code>pdflatex cv.tex</code>, <code>pdflatex cover-letter.tex</code>, or <code>pdflatex application-document.tex</code> as appropriate. Use a compatible TeX installation and resolve any missing package errors from your TeX distribution.</li>
+<li>Keep your changed project and finished PDF wherever you like. Editing an exported project does not rewrite the saved working CV in AAAAT or automatically install a reusable Blueprint. To alter future AAAAT layouts, use the Blueprint folder and render-time <strong>PDF style</strong> selection above.</li>
+</ol>
+
+<h3>What to check when PDF generation fails</h3>
+<ol class="guide-steps">
+<li><strong>pdfLaTeX unavailable:</strong> use <strong>Settings → Documents → PDF setup → Locations → pdfLaTeX</strong> to choose the executable, or complete the offered native distribution installation.</li>
+<li><strong>Distribution installed but still not ready:</strong> return to <strong>Settings → Documents</strong> and refresh. On Linux, ensure the TeX Live packages providing <code>pdflatex</code> were actually installed.</li>
+<li><strong>PDF Ready, but a document fails:</strong> read the TeX compilation message. It may identify a missing package, unsupported document content or an error in a custom Blueprint. Retry with <strong>AAAAT Default</strong> to distinguish a custom layout problem.</li>
+<li><strong>Need the exact earlier result:</strong> open the retained PDF or export its original source project. A fresh render of today's edited CV may legitimately differ.</li>
+</ol>
+<p>For operating-system installer details, see the <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/INSTALLATION.md">installation guide</a>.</p>
 </div>
-<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine AAAAT-generated CV PDF." width="953" height="1348" loading="lazy"></a><figcaption>A real generated document, not an illustration of a software interface.</figcaption></figure>
+<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine AAAAT-generated CV PDF." width="953" height="1348" loading="lazy"></a><figcaption>An actual AAAAT PDF. The future local capture should match the CV shown in the editor.</figcaption></figure>
+<!-- LOCAL CODEX: real screenshot of Locations with pdfLaTeX, Documents PDF Ready/Check PDF, PDF style with custom Blueprint; do not mock the desktop interface. -->
 </section>
 
 <section class="section guide-section" id="ai-choices">
