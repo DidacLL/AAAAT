@@ -28,7 +28,7 @@ On Windows, Local AI also checks its Microsoft Visual C++ runtime dependency. A 
 | Ubuntu / Debian x64 | MiKTeX |
 | Ubuntu / Debian ARM64 | Native TeX Live |
 
-Automatic Linux PDF setup supports Ubuntu 22.04, 24.04 and 26.04, corresponding Linux Mint releases, and Debian 11–13. It uses the system package manager and may ask for administrator authorization. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
+Automatic Linux PDF setup supports Ubuntu 22.04, 24.04 and 26.04, corresponding Linux Mint releases, and Debian 11–13. It uses the system package manager and may ask for administrator authorization. The DEB includes the small authorization/key prerequisites; portable ZIP users need `pkexec` and `gpg` for automatic PDF setup. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
 
 You can cancel a download or continue using AAAAT while setup runs. Once native installation starts, allow it to finish. A failed optional download leaves completed tools available and does not prevent manual work. Setup errors remain visible so you can retry.
 
