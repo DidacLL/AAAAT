@@ -10,6 +10,14 @@ After opening it, use the fixed left rail to move between Home, Applications, Do
 
 Use **Settings → Workspace** to create or open another workspace. Reset and deletion are separate destructive actions with confirmation. Demo data lives in its own workspace. It contains 12 fictional opportunities across community programmes, editorial work, visitor services and other professions. Alex Morgan’s fictional profile includes a custom **Community work** group and a saved **Public-facing emphasis** variation. Explore the Common Ground Cooperative CV and cover letter, the standalone general CV and the **Community & communications** composition template without using personal information.
 
+### Home, status and activity
+
+**Home** shows the current workspace, **Recent applications** and **Recent editable work**. Open a recent item directly, or use **Open Applications** / **Open Documents** for the full collections.
+
+The left rail gives compact environment readiness: **Data** is Demo or Local; **AI** is Off, Checking, Ready or Needs attention; and **PDF** is Ready or Unavailable. Use **Test AI** or **Retry AI** if a saved connection is not responding; edit its address/model/credentials in **Settings → AI**. For PDF readiness, go to **Settings → Documents** and check the detected `pdflatex` executable.
+
+The top bar's **Activity** opens the AI activity monitor; **Status** opens the environment-status view without navigating away from your work. Neither is a required application-stage workflow.
+
 ## Applications
 
 ### Create one application
@@ -45,6 +53,12 @@ Saved variations retain reusable alternate wording or emphasis. A CV-specific ed
 The eye controls whether AI may use an item. Storing it locally or showing it prominently does not grant that permission.
 
 ## Documents
+
+In **Documents**, the top-bar **New CV from** selector offers **My information**, **Blank** and saved templates; choose **New CV** to start. **New letter** starts a standalone cover letter.
+
+The **Editable** collection contains the CVs and letters you can still change. Expand **CV templates** to start another CV from saved content or to rename a template. Expand **Generated files** to reopen finished CV, letter and combined application PDFs. Use **Edit a copy** beside a generated CV to create a new working version; it does not rewrite the existing PDF.
+
+
 
 Start a CV from My information, a saved template or a blank page. Start a cover letter independently or inside an application. Opening a new document creates a provisional editor; Save keeps it, Cancel abandons it. Application names provide context in the document collection.
 
