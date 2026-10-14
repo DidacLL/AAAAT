@@ -139,7 +139,7 @@ The v2 preview has no established real-user upgrade baseline. Development-era wo
 
 ## Run the current preview
 
-For source users: Node.js **24.15 or later within major 24**, and npm **11.12 or later**. npm 11 and 12 are supported.
+For source users: use a current Node.js LTS release and its bundled npm. The locked dependencies declare their actual tool requirements; AAAAT adds no separate npm version gate or Node major ceiling. Installed packages include their own runtime and do not need Node.js or npm.
 
 ```sh
 git clone https://github.com/DidacLL/AAAAT.git

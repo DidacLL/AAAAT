@@ -114,24 +114,29 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
     await writeFile(script, "param([string]$Archive,[string]$Destination)\n$ErrorActionPreference='Stop'\nExpand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force\n");
     const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
     await run(powershell, ["-NoProfile", "-NonInteractive", "-File", script, "-Archive", downloaded, "-Destination", directory]);
-    await installWindowsRuntime(signal);
+    await installWindowsRuntime(signal, await findExecutable(directory, "llama-server.exe"));
   } else {
     await run("tar", ["-xzf", downloaded, "-C", directory]);
   }
-  await obtain(graniteModel, "Downloading Granite 4.1 3B · about 2 GB…", signal);
   message = "Checking local AI…";
   const executable = await findExecutable(directory, process.platform === "win32" ? "llama-server.exe" : "llama-server");
   await run(executable, ["--version"], 10_000);
+  await obtain(graniteModel, "Downloading Granite 4.1 3B · about 2 GB…", signal);
   writeFileSync(path.join(installedToolsDirectory(), "granite-installed.json"), JSON.stringify({ executable: path.relative(directory, executable), runtime: "b11429", modelSha256: graniteModel.hash }) + "\n");
   startLocalAiWithApp();
 }
 
-async function installWindowsRuntime(signal: AbortSignal): Promise<void> {
+async function installWindowsRuntime(signal: AbortSignal, executable: string): Promise<void> {
   const system = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
-  const query = spawnSync(path.join(system, "reg.exe"), ["query", `HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\${process.arch}`, "/reg:64"], { windowsHide: true, encoding: "utf8", timeout: 5000 });
-  const version = query.stdout?.match(/Version\s+REG_SZ\s+v?([\d.]+)/i)?.[1]?.split(".").map(Number);
-  const [major = 0, minor = 0] = version ?? [];
-  if (/Installed\s+REG_DWORD\s+0x1/i.test(query.stdout ?? "") && (major > 14 || (major === 14 && minor >= 50))) return;
+  const probe = spawnSync(executable, ["--version"], { windowsHide: true, encoding: "utf8", timeout: 10_000 });
+  if (probe.status === 0) return;
+  if (probe.error) throw probe.error;
+  // Windows loader errors: missing DLL or an unavailable DLL entry point.
+  // A working runtime needs no version-based replacement.
+  const status = (probe.status ?? 0) >>> 0;
+  if (status !== 0xc0000135 && status !== 0xc0000139) {
+    throw new Error(probe.stderr?.trim() || probe.stdout?.trim() || "The downloaded llama.cpp runtime could not start on this device.");
+  }
   // Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
   const installer = await obtain(visualCppWindows, "Downloading the Microsoft runtime…", signal);
   message = "Microsoft runtime · follow its Windows setup…";

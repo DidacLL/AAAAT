@@ -17,7 +17,7 @@ M0 uses exact mutually compatible stable pins in the approved stack:
 - Zod 4.5.4;
 - Vitest 4.1.11 and React Testing Library 16.3.3.
 
-Node 24.20.0 and its bundled npm 11.19.0 are the development/CI toolchain. Electron 44.1.1 supplies Node 24.19.0 to the packaged application.
+CI uses a current Node.js LTS release and its bundled npm. The lockfile records dependencies and their own engine requirements; a selected CI version does not create an additional Node/npm restriction. The packaged application uses Electron's embedded runtime and requires neither a separate Node installation nor npm. Its Windows installer follows Electron's Windows 10 baseline and the executable's actual architecture requirements.
 
 M0 must prove development startup, production packaging, packaged launch, the sandboxed preload boundary, and file-backed `node:sqlite` migrate/write/read/close/reopen behavior on native Windows, macOS, and Linux runners.
 
