@@ -18,6 +18,8 @@ On a fresh installed launch, choose either, both or neither. **Not now** takes y
 
 **PDF generation** uses an existing pdfLaTeX installation where available. Otherwise it installs:
 
+On Windows, Local AI also checks its Microsoft Visual C++ runtime dependency. A working tested version is reused. If it is missing, Microsoft's own setup opens with its license and permission choices; AAAAT does not approve these for you.
+
 | Device | PDF tool |
 | --- | --- |
 | Windows 11, including ARM64 through Windows x64 support | MiKTeX |
@@ -33,6 +35,8 @@ You can cancel a download or continue using AAAAT while setup runs. Once native 
 ## Sources and advanced details
 
 Downloads come from [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/b11429), [IBM Granite](https://huggingface.co/ibm-granite/granite-4.1-3b-GGUF), [MiKTeX](https://miktex.org/download) and [BasicTeX](https://www.tug.org/mactex/morepackages.html). llama.cpp uses the MIT license; Granite uses Apache 2.0. TeX distributions contain components under their own published licenses.
+
+The Windows prerequisite comes from [Microsoft's Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). Setup pins version 14.50, matching the working Windows runtime used with the tested Granite model, and verifies the download digest. Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
 
 AAAAT pins the CPU runtime and exact tested GGUF revision and verifies downloaded archives against their published hashes. It keeps these files in its local application-data directory, outside your career workspace. Its local server listens only on `127.0.0.1`, at port `47842`. There is no public network listener, model marketplace or general server-management system.
 

@@ -22,6 +22,11 @@ export const miktexWindows = Object.freeze({
   url: "https://miktex.org/download/ctan/systems/win32/miktex/setup/windows-x64/basic-miktex-25.12-x64.exe",
   hash: "14b42dd9f4b4a7813a8bfd69c8f99316c2888cc4ee26f631f397e163d85d6c62",
 });
+export const visualCppWindows = Object.freeze({
+  filename: "vc-redist-14.50-x64.exe",
+  url: "https://download.visualstudio.microsoft.com/download/pr/6f02464a-5e9b-486d-a506-c99a17db9a83/8995548DFFFCDE7C49987029C764355612BA6850EE09A7B6F0FDDC85BDC5C280/VC_redist.x64.exe",
+  hash: "8995548dfffcde7c49987029c764355612ba6850ee09a7b6f0fddc85bdc5c280",
+});
 export const miktexMac = Object.freeze({
   filename: "miktex-22.1-darwin-x86_64.dmg",
   url: "https://miktex.org/download/ctan/systems/win32/miktex/setup/darwin-x86_64/miktex-22.1-darwin-x86_64.dmg",

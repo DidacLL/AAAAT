@@ -26,7 +26,7 @@ const latexEscapes: Readonly<Record<string, string>> = Object.freeze({
 
 const babelLanguageByPrimaryCode: Readonly<Record<string, string>> = Object.freeze({
   ca: "catalan",
-  de: "german",
+  de: "ngerman",
   en: "english",
   es: "spanish",
   fr: "french",
@@ -38,7 +38,7 @@ const babelLanguageByName: Readonly<Record<string, string>> = Object.freeze({
   catalan: "catalan",
   english: "english",
   french: "french",
-  german: "german",
+  german: "ngerman",
   italian: "italian",
   portuguese: "portuguese",
   spanish: "spanish",

@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -6,7 +6,7 @@ import path from "node:path";
 import { app } from "electron";
 
 import type { OptionalToolsChoice, OptionalToolsStatus } from "../shared/optional-tools-contracts";
-import { basicTexMac, graniteModel, llamaCpuArchives, miktexMac, miktexWindows } from "./optional-tool-assets";
+import { basicTexMac, graniteModel, llamaCpuArchives, miktexMac, miktexWindows, visualCppWindows } from "./optional-tool-assets";
 import { installedPdfLatexExecutable, installedToolsDirectory } from "./installed-tool-paths";
 import { installedGraniteFiles, localGraniteConnection, startLocalAiWithApp } from "./local-granite-runtime";
 import { listAiConnections, saveNamedAiConnection } from "./ai-connection-service";
@@ -114,6 +114,7 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
     await writeFile(script, "param([string]$Archive,[string]$Destination)\n$ErrorActionPreference='Stop'\nExpand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force\n");
     const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
     await run(powershell, ["-NoProfile", "-NonInteractive", "-File", script, "-Archive", downloaded, "-Destination", directory]);
+    await installWindowsRuntime(signal);
   } else {
     await run("tar", ["-xzf", downloaded, "-C", directory]);
   }
@@ -123,6 +124,20 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
   await run(executable, ["--version"], 10_000);
   writeFileSync(path.join(installedToolsDirectory(), "granite-installed.json"), JSON.stringify({ executable: path.relative(directory, executable), runtime: "b11429", modelSha256: graniteModel.hash }) + "\n");
   startLocalAiWithApp();
+}
+
+async function installWindowsRuntime(signal: AbortSignal): Promise<void> {
+  const system = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
+  const query = spawnSync(path.join(system, "reg.exe"), ["query", `HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\${process.arch}`, "/reg:64"], { windowsHide: true, encoding: "utf8", timeout: 5000 });
+  const version = query.stdout?.match(/Version\s+REG_SZ\s+v?([\d.]+)/i)?.[1]?.split(".").map(Number);
+  const [major = 0, minor = 0] = version ?? [];
+  if (/Installed\s+REG_DWORD\s+0x1/i.test(query.stdout ?? "") && (major > 14 || (major === 14 && minor >= 50))) return;
+  // Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
+  const installer = await obtain(visualCppWindows, "Downloading the Microsoft runtime…", signal);
+  message = "Microsoft runtime · follow its Windows setup…";
+  const script = path.join(installedToolsDirectory(), "install-microsoft-runtime.ps1");
+  await writeFile(script, `param([string]$Installer)\n$ErrorActionPreference='Stop'\n$setup = Start-Process -FilePath $Installer -ArgumentList @('/install','/norestart') -Verb RunAs -WindowStyle Normal -Wait -PassThru\nif ($setup.ExitCode -eq 3010) { throw 'Restart Windows to finish the Microsoft runtime, then retry Local AI setup.' }\nif ($setup.ExitCode -ne 0 -and $setup.ExitCode -ne 1638) { throw 'Microsoft runtime setup was canceled or could not finish.' }\n`);
+  await run(path.join(system, "WindowsPowerShell", "v1.0", "powershell.exe"), ["-NoProfile", "-NonInteractive", "-File", script, "-Installer", installer]);
 }
 
 const texLivePackages = "babel babel-english babel-catalan babel-spanish babel-french babel-german babel-italian babel-portuges geometry hyperref xcolor enumitem titlesec parskip microtype lm psnfss ec cm-super";
