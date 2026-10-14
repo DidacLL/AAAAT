@@ -24,9 +24,9 @@ There is no required application stage or completeness checklist. AAAAT does not
 
 ## Start simply
 
-Install the package for your device, open AAAAT and **Create workspace** in an empty folder. AI and PDF tools can be configured later. Installed packages include the application runtime; Node.js and npm are unnecessary for ordinary use.
+Install the package for your device, open AAAAT and **New workspace** in an empty folder. AI and PDF tools can be configured later. Installed packages include the application runtime; Node.js and npm are unnecessary for ordinary use.
 
-Choose **Try with demo data** in a separate empty folder to explore 12 fictional opportunities across community work, editorial work, visitor services and other professions. Alex Morgan’s fictional background includes reusable information, a custom Community work group, a wording variation, CVs, a letter and a composition template.
+Choose **Open demo** in a separate empty folder to explore 12 fictional opportunities across community work, editorial work, visitor services and other professions. Alex Morgan’s fictional background includes reusable information, a custom Community work group, a wording variation, CVs, a letter and a composition template.
 
 [First minutes](https://didacll.github.io/AAAAT/get-started.html) · [Explore the capabilities](https://didacll.github.io/AAAAT/explore.html) · [Installation details](docs/INSTALLATION.md)
 
