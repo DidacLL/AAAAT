@@ -179,3 +179,12 @@ figcaption { margin-top: 10px; font-size: .84rem; color: var(--muted); line-heig
  .manual .guide-section { padding-block: 34px; }
  .guide-steps { padding-left: 1.35em; }
 }
+
+/* Dense factual setup comparison: readable on large and small screens. */
+.manual .guide-section .prose table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: .96rem; }
+.manual .guide-section .prose th { background: var(--paper-strong); text-align: left; font-weight: 750; }
+.manual .guide-section .prose td, .manual .guide-section .prose th { padding: 14px 16px; border: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+@media (max-width: 680px) {
+  .manual .guide-section .prose table { display: block; overflow-x: auto; }
+  .manual .guide-section .prose td, .manual .guide-section .prose th { min-width: 155px; padding: 11px 13px; }
+}

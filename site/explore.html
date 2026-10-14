@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Explore AAAAT · AAAAT</title>
-<meta name="description" content="Independent guides to applications, Sources, Tags, reusable career information, documents, optional AI and local ownership.">
+<meta name="description" content="AAAAT full guide: practical applications, tailored documents, flexible information, local Granite AI, pdfLaTeX, reusable custom LaTeX Blueprints and portable source projects.">
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/site.css">
 <script src="assets/site.js" defer></script>
@@ -21,16 +21,18 @@
 </header>
 <nav class="toc guide-index" aria-label="Everything in this guide">
 <a href="#orientation">Find your way</a>
+<a href="#home-status">Home, status and activity</a>
 <a href="#applications">Save & find opportunities</a>
 <a href="#sources">Sources and conversations</a>
 <a href="#fields">Your fields and card appearance</a>
 <a href="#tags">Tags</a>
 <a href="#profile">Professional information</a>
+<a href="#documents-hub">Your document collection</a>
 <a href="#cv">CVs</a>
 <a href="#letters">Cover letters & application PDFs</a>
-<a href="#pdf">PDFs and document files</a>
+<a href="#pdf">pdfLaTeX, custom styles &amp; source projects</a>
 <a href="#ai-choices">Choose your AI</a>
-<a href="#ai-connections">AI connections and startup</a>
+<a href="#ai-connections">Included Granite AI and other models</a>
 <a href="#ai-prompts">Edit AI instructions</a>
 <a href="#ai-information">Control AI information</a>
 <a href="#ai-work">AI help while you work</a>
@@ -41,18 +43,42 @@
 </nav>
 
 <section class="section guide-section" id="orientation">
-<p class="eyebrow">Start here · Finding your way</p>
-<h2>Find the right place in AAAAT.</h2>
+<p class="eyebrow">Start here · Choose how you want to work</p>
+<h2>Know what AAAAT needs—and what it gives you.</h2>
 <div class="prose">
-<p>After opening a workspace, AAAAT has three main places to work: <strong>Applications</strong> for opportunities and related notes; <strong>My information</strong> for professional details you will reuse; and <strong>Documents</strong> for editable CVs, cover letters and generated files. <strong>Settings</strong> is where you choose your workspace, AI connections, document tools and backups.</p>
+<p>AAAAT's installed desktop application runs on Windows, macOS and Linux. Download the package matching your computer; its runtime is included, with no Node.js, account or paid AI subscription needed. <a href="download.html">Choose your download →</a></p>
+<h3>Pick the capabilities you want</h3>
 <ol class="guide-steps">
-<li><strong>Just installed AAAAT?</strong> On the welcome screen, choose <strong>Open demo</strong> to explore examples or <strong>New workspace</strong> to start with your own information. Each uses a folder you choose.</li>
-<li><strong>Want finished PDFs or private AI assistance?</strong> On the first-run <strong>Make AAAAT ready for you</strong> panel, select <strong>PDF generation</strong>, <strong>Local AI</strong> or both, then <strong>Set up</strong>. Existing compatible PDF tools can be reused. AI remains optional.</li>
-<li><strong>Where are the actions?</strong> Look in the fixed top bar for actions such as <strong>New</strong>, <strong>Save</strong>, <strong>PDF</strong> and the <strong>⋯</strong> menu; the actions change with the area you are using. Use the left navigation to switch areas.</li>
+<li><strong>Applications, notes, professional information and document editing:</strong> ready inside the desktop workspace, without optional AI or TeX software.</li>
+<li><strong>Finished PDF files:</strong> require a compatible TeX distribution supplying <code>pdflatex</code>. AAAAT offers a native setup or can reuse your own installation. <a href="#pdf">PDF setup and customization →</a></li>
+<li><strong>Private local AI assistance:</strong> optional <strong>IBM Granite 4.1 3B Q4_K_M</strong> running through the <strong>llama.cpp CPU runtime</strong>. Expect an approximately 2 GB download plus runtime storage and memory usage. Performance varies by hardware. If local AI is not offered for your device, you can configure another compatible model or work through copy and paste. <a href="#ai-connections">Local AI and other models →</a></li>
 </ol>
-<p>To see a complete first-use walkthrough before continuing, use <a href="get-started.html">Get Started</a>. You can return here at any point for the deeper controls.</p>
+<h3>On your first launch</h3>
+<ol class="guide-steps">
+<li>In <strong>Make AAAAT ready for you</strong>, choose <strong>PDF generation</strong>, <strong>Local AI</strong> or both, then <strong>Set up</strong>. A detected pdfLaTeX installation appears as <strong>Already available</strong>. If you want to use your own executable, expand <strong>Locations</strong>.</li>
+<li>Choose <strong>Open demo</strong> for a ready-made fictional workspace to explore, or <strong>New workspace</strong> for your own career information. Each uses a folder you choose.</li>
+<li>From the left navigation use <strong>Applications</strong>, <strong>Documents</strong>, <strong>My information</strong> or <strong>Settings</strong>. Main task actions appear in the top bar. You can revisit PDF and AI setup at any time through Settings.</li>
+</ol>
+<p>Nothing here is a required sequence: you may start with a CV, only save applications, use no AI, or configure everything on the first day. <a href="get-started.html">Follow the illustrated first-use guide →</a></p>
 </div>
-<!-- LOCAL CODEX: actual first-launch optional-tools panel and welcome screen, screenshots only, no mock UI. -->
+<!-- LOCAL CODEX: show actual welcome screen and the setup dialog with both capabilities and Locations expanded; no invented UI. -->
+</section>
+
+<section class="section guide-section" id="home-status">
+<p class="eyebrow">Home · Keep your bearings</p>
+<h2>Come back to the work you were doing.</h2>
+<div class="prose">
+<p>When you open a workspace, <strong>Home</strong> shows the active workspace and recent work. <strong>Recent applications</strong> lets you reopen an opportunity you've already saved. <strong>Recent editable work</strong> opens a working CV or letter so you can continue editing it. To see more than the recent items, choose <strong>Open Applications</strong> or <strong>Open Documents</strong>.</p>
+<h3>Know whether your tools are ready</h3>
+<ol class="guide-steps">
+<li>In the left rail, check <strong>Data</strong> for <strong>Demo</strong> or <strong>Local</strong>. This tells you which workspace you are using, not whether your information has been sent online.</li>
+<li>Check <strong>AI</strong> for <strong>Off</strong>, <strong>Checking</strong>, <strong>Ready</strong> or <strong>Needs attention</strong>. If an AI connection exists, <strong>Test AI</strong> or <strong>Retry AI</strong> checks reachability. To change the model or credential, use <strong>Settings → AI</strong>.</li>
+<li>Check <strong>PDF</strong> for <strong>Ready</strong> or <strong>Unavailable</strong>. If it is unavailable, use <strong>Settings → Documents → PDF setup</strong> to install or select pdfLaTeX and then refresh the status.</li>
+<li>Use <strong>Activity</strong> in the top bar to inspect current or recent AI operations. Use <strong>Status</strong> for the environment status without leaving your current page. These panels are optional; they do not become an application-stage checklist.</li>
+</ol>
+<p>If something is missing from Home, it may simply not be among your recent entries. Search in Applications or open Documents to find the saved work.</p>
+</div>
+<!-- LOCAL CODEX: real Home with active workspace and recent work, and real Status/Activity overlays as separate captures; no simulated UI. -->
 </section>
 
 <section class="section guide-section" id="applications">
@@ -169,6 +195,21 @@
 <!-- LOCAL CODEX: real Saved variations editor plus AI-permission control and Career preferences, using same fictional profile. -->
 </section>
 
+<section class="section guide-section" id="documents-hub">
+<p class="eyebrow">Documents · Find, reuse and continue</p>
+<h2>Know which file is editable and which one is finished.</h2>
+<div class="prose">
+<ol class="guide-steps">
+<li>Open <strong>Documents</strong>. In the top bar, <strong>New CV from</strong> offers <strong>My information</strong>, <strong>Blank</strong>, and any saved CV templates. Select the starting point you want, then choose <strong>New CV</strong>. Choose <strong>New letter</strong> to create a cover letter independently.</li>
+<li>Under <strong>Editable</strong>, open an existing CV or letter to continue changing its content. An item labelled <strong>For an application</strong> is associated with a particular opportunity; <strong>Standalone</strong> items are not.</li>
+<li>Expand <strong>CV templates</strong> to create a fresh CV from a saved composition or use <strong>Rename</strong> to give a template a more useful name. A template is not a finished PDF.</li>
+<li>Expand <strong>Generated files</strong> to open previously created <strong>CV PDF</strong>, <strong>Letter PDF</strong>, or <strong>Application PDF</strong> outputs. On a CV PDF, choose <strong>Edit a copy</strong> when you need a new editable version without overwriting the old generated file.</li>
+</ol>
+<p>If you need to share a different version, edit its working document and generate a new PDF. If you want to change the LaTeX outside AAAAT, use the retained output's <strong>Export source project</strong> action where available. <a href="#source-projects">See the exported-source guide →</a></p>
+</div>
+<!-- LOCAL CODEX: real Documents hub showing Editable, CV templates and Generated files in one coherent fictional workspace. -->
+</section>
+
 <section class="section guide-section" id="cv">
 <p class="eyebrow">Documents · Full CV control</p>
 <h2>Build, tailor, save and reuse your CVs.</h2>
@@ -228,19 +269,72 @@
 </section>
 
 <section class="section guide-section" id="pdf">
-<p class="eyebrow">Documents · Finish and keep your outputs</p>
-<h2>Turn editable work into documents you own.</h2>
+<p class="eyebrow">Documents · PDF production from simple to fully custom</p>
+<h2>Create PDFs with pdfLaTeX—and own the source.</h2>
 <div class="prose">
+<p>AAAAT lets you edit CVs and cover letters without learning LaTeX. To generate the PDF, it uses <strong>pdfLaTeX</strong>, the <code>pdflatex</code> executable supplied by a compatible TeX distribution. You can use AAAAT's guided setup, keep your own TeX installation, change the layout with a custom Blueprint, or export and edit the full LaTeX source project yourself.</p>
+
+<h3>Use the guided PDF setup</h3>
 <ol class="guide-steps">
-<li>On first launch, choose <strong>PDF generation</strong> under <strong>Make AAAAT ready for you</strong> if you want to produce PDFs. You can return later through <strong>Settings → Documents → PDF setup</strong>.</li>
-<li>AAAAT uses an existing compatible PDF tool if found, or launches the native setup for your operating system. Follow any third-party installer or system-software-manager choices shown on your device.</li>
-<li>In a CV or letter, choose <strong>PDF</strong>. Read the finished result before sending it. Change the editable original and render again if you need another version.</li>
-<li>In <strong>Documents → Generated files</strong>, you can reopen retained CV PDFs, letter PDFs and combined application PDFs.</li>
-<li>Advanced users can use <strong>Export source project</strong> on a generated document to take its retained editable presentation sources elsewhere. Ordinary users do not need to know LaTeX to create or send a PDF.</li>
+<li>At first launch, choose <strong>PDF generation</strong> in <strong>Make AAAAT ready for you</strong> and select <strong>Set up</strong>. Or return through <strong>Settings → Documents → PDF setup</strong>.</li>
+<li>If AAAAT detects an existing <code>pdflatex</code>, the dialog says <strong>Already available</strong>. Nothing else needs installing for this prerequisite.</li>
+<li>If it is missing, AAAAT opens the third-party installer or system software manager appropriate for your machine. Finish that installation on your computer, return to <strong>Settings → Documents</strong> and select <strong>Refresh</strong> or <strong>Check PDF</strong>.</li>
 </ol>
-<p>The editable document and the finished file are different things. Later edits or removal of an editable document do not retroactively rewrite the PDF you already created.</p>
+<table><thead><tr><th>Computer</th><th>PDF setup offered by AAAAT</th></tr></thead><tbody>
+<tr><td>Windows x64; Windows 11 ARM64 through x64 emulation</td><td>MiKTeX</td></tr>
+<tr><td>Intel Mac</td><td>MiKTeX</td></tr>
+<tr><td>Apple Silicon Mac</td><td>BasicTeX (small TeX Live distribution)</td></tr>
+<tr><td>Linux x64 / ARM64</td><td>TeX Live through your system software manager</td></tr>
+</tbody></table>
+<p>On Linux, if the APT installation link does not open a software manager, install TeX Live using your distribution's software manager and then refresh AAAAT. MiKTeX is not a required vendor: any compatible installation supplying <code>pdflatex</code> can be used.</p>
+
+<h3>Already use TeX? Point AAAAT to your executable</h3>
+<ol class="guide-steps">
+<li>Open <strong>Settings → Documents → PDF setup</strong>. Expand <strong>Locations</strong> in <strong>Make AAAAT ready for you</strong>.</li>
+<li>Beside <strong>pdfLaTeX</strong>, choose <strong>Browse</strong> and locate the actual <code>pdflatex</code> executable (<code>pdflatex.exe</code> on Windows). Choose the executable, not the containing folder or a PDF viewer.</li>
+<li>Select <strong>Save</strong>. The same Locations area lets you edit <strong>Local tools</strong> and <strong>Downloads</strong> for future installations; existing installed files are not moved.</li>
+<li>Return to <strong>Settings → Documents</strong> and choose <strong>Refresh</strong>, then <strong>Check PDF</strong> if you want to verify document rendering.</li>
+</ol>
+
+<h3>Render an ordinary CV, letter, or combined application</h3>
+<ol class="guide-steps">
+<li>Open your CV or cover letter in <strong>Documents</strong> or from its saved application. Edit the content and choose <strong>Save</strong>.</li>
+<li>In a CV, open <strong>Document options</strong> to set document language, PDF metadata and optional parser summary. When more than one style is installed, use <strong>PDF style</strong> to choose its appearance.</li>
+<li>Choose <strong>PDF</strong> in the top bar. Open the output to check its layout and content; if you need a different result, return to the editable document and render again.</li>
+<li>For a combined document, open an application and select its CV and cover letter under <strong>CV + cover letter</strong>. Use the top-bar <strong>PDF</strong> when the required documents and style are available.</li>
+</ol>
+<p>The editable document and finished PDFs are separate. Previously generated files and their source projects remain available even if you later change or remove the working CV or letter.</p>
+
+<h3 id="blueprints">Advanced: make your own LaTeX Blueprint</h3>
+<p>A <strong>Blueprint</strong> controls the CV's LaTeX presentation: section arrangement, spacing, typography and page layout. It is not a CV template: a template saves reusable content and composition. A Blueprint lets you render the <em>same</em> CV through a different visual style without changing career facts.</p>
+<ol class="guide-steps">
+<li>Copy the <a href="https://github.com/DidacLL/AAAAT/blob/main/src/main/latex/default-blueprint.tex">built-in Blueprint source</a> into a text editor. Give your modified copy a name such as <code>my-style.tex</code>. The <a href="https://github.com/DidacLL/AAAAT/blob/main/src/main/latex/aaaat.sty">AAAAT LaTeX package</a> documents the CV rendering commands Blueprint authors can use.</li>
+<li>Save the <code>.tex</code> file under <code>blueprints</code> inside AAAAT's <strong>application configuration directory</strong> (Electron <code>userData</code>), not inside your career workspace. Typical locations are <code>%APPDATA%\AAAAT\blueprints</code> on Windows, <code>~/Library/Application Support/AAAAT/blueprints</code> on macOS, or <code>~/.config/AAAAT/blueprints</code> on Linux. Actual configuration locations may differ on your computer.</li>
+<li>Open or reopen the CV editor. Under <strong>Document options</strong>, the <strong>PDF style</strong> selector appears when more than one style is available, listing <strong>AAAAT Default</strong> and compatible <code>.tex</code> files by name.</li>
+<li>Choose your new style, select <strong>PDF</strong> and inspect the output. If your LaTeX changes cause a compile error, edit the file and retry, or select <strong>AAAAT Default</strong> to use the built-in layout.</li>
+</ol>
+<p>A CV section's <strong>Header</strong>, <strong>Main body</strong>, <strong>Secondary body</strong> or <strong>Footer</strong> placement describes its purpose. The selected Blueprint decides the actual arrangement; these roles are not fixed columns. AAAAT is not an in-app LaTeX code editor, so Blueprint development happens in the external editor you prefer.</p>
+
+<h3 id="source-projects">Advanced: export, edit and rebuild the actual source</h3>
+<ol class="guide-steps">
+<li>Open <strong>Documents → Generated files</strong>, locate your PDF and choose <strong>Export source project</strong>. Application PDFs offer the same export through their application view.</li>
+<li>Choose a writable destination folder. AAAAT creates a separate copy of the retained project rather than changing the original used by the workspace.</li>
+<li>Open the exported folder using a text editor or your preferred LaTeX editor. The current generator writes entry files such as <code>cv.tex</code>, <code>cover-letter.tex</code> or <code>application-document.tex</code>, alongside <code>aaaat.sty</code> and the retained build/output files.</li>
+<li>To compile an edited project outside AAAAT, open a terminal in that folder and run <code>pdflatex cv.tex</code>, <code>pdflatex cover-letter.tex</code>, or <code>pdflatex application-document.tex</code> as appropriate. Use a compatible TeX installation and resolve any missing package errors from your TeX distribution.</li>
+<li>Keep your changed project and finished PDF wherever you like. Editing an exported project does not rewrite the saved working CV in AAAAT or automatically install a reusable Blueprint. To alter future AAAAT layouts, use the Blueprint folder and render-time <strong>PDF style</strong> selection above.</li>
+</ol>
+
+<h3>What to check when PDF generation fails</h3>
+<ol class="guide-steps">
+<li><strong>pdfLaTeX unavailable:</strong> use <strong>Settings → Documents → PDF setup → Locations → pdfLaTeX</strong> to choose the executable, or complete the offered native distribution installation.</li>
+<li><strong>Distribution installed but still not ready:</strong> return to <strong>Settings → Documents</strong> and refresh. On Linux, ensure the TeX Live packages providing <code>pdflatex</code> were actually installed.</li>
+<li><strong>PDF Ready, but a document fails:</strong> read the TeX compilation message. It may identify a missing package, unsupported document content or an error in a custom Blueprint. Retry with <strong>AAAAT Default</strong> to distinguish a custom layout problem.</li>
+<li><strong>Need the exact earlier result:</strong> open the retained PDF or export its original source project. A fresh render of today's edited CV may legitimately differ.</li>
+</ol>
+<p>For operating-system installer details, see the <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/INSTALLATION.md">installation guide</a>.</p>
 </div>
-<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine AAAAT-generated CV PDF." width="953" height="1348" loading="lazy"></a><figcaption>A real generated document, not an illustration of a software interface.</figcaption></figure>
+<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine AAAAT-generated CV PDF." width="953" height="1348" loading="lazy"></a><figcaption>An actual AAAAT PDF. The future local capture should match the CV shown in the editor.</figcaption></figure>
+<!-- LOCAL CODEX: real screenshot of Locations with pdfLaTeX, Documents PDF Ready/Check PDF, PDF style with custom Blueprint; do not mock the desktop interface. -->
 </section>
 
 <section class="section guide-section" id="ai-choices">
@@ -259,31 +353,43 @@
 </section>
 
 <section class="section guide-section" id="ai-connections">
-<p class="eyebrow">AI · Configure and change models</p>
-<h2>Save several AI connections, choose which one works for you.</h2>
+<p class="eyebrow">AI · Included model and other providers</p>
+<h2>Start with Granite—or bring your own model.</h2>
 <div class="prose">
-<h3>Set up the local model</h3>
+<h3>Install the model AAAAT offers</h3>
+<p>The optional one-click local setup downloads <strong>IBM Granite 4.1 3B Q4_K_M</strong> and a compatible <strong>llama.cpp CPU runtime</strong>. This is the tested local model, not an AI subscription. Its download is about <strong>2 GB</strong>; allow further disk space for the runtime and enough free memory to run it. Response speed and quality vary with your hardware and the task. There is no guaranteed minimum inference speed.</p>
 <ol class="guide-steps">
-<li>On the first-run setup screen, select <strong>Local AI</strong> and choose <strong>Set up</strong>; or open <strong>Settings → AI → Local AI</strong> later. The tested Granite model and its local runtime are an additional download of roughly 2 GB.</li>
-<li>Let setup finish. The installed local model can start with AAAAT. Existing independently configured AI connections are preserved.</li>
-<li>Open <strong>Settings → AI</strong> to see saved connections. Use the one you want for ordinary AI actions.</li>
+<li>On the first-launch <strong>Make AAAAT ready for you</strong> panel select <strong>Local AI</strong>, then <strong>Set up</strong>. If you skipped it earlier, open <strong>Settings → AI → Local AI</strong> instead.</li>
+<li>Follow the visible download progress. AAAAT verifies and reuses completed tools where possible. If the option says <strong>Not available for this device</strong>, the packaged local model is not supported on that device; you can still use AAAAT and connect another compatible provider.</li>
+<li>Once installed, AAAAT offers <strong>Local Granite</strong> as a saved AI connection. When enabled, the installed runtime starts with AAAAT and stops on quitting the application. Try a small task, such as <strong>Fill</strong> on an application with some empty fields.</li>
+<li>If Windows prompts you to install a missing Microsoft Visual C++ runtime, follow that native installer. A working existing runtime is reused; AAAAT does not silently change system components or accept licences for you.</li>
 </ol>
-<h3>Add an AI you already use</h3>
+<p>The local model runs on your computer after installation. The initial download needs internet access; a separately configured remote model may send selected information to its own provider. The app does not require local AI to maintain applications or write documents.</p>
+
+<h3>Use an already-installed AI server or another provider</h3>
 <ol class="guide-steps">
-<li>Open <strong>Settings → AI</strong> and choose <strong>New connection</strong>.</li>
-<li>Enter a <strong>Connection name</strong> you'll recognize, the <strong>Model</strong>, and its server <strong>Address</strong>. The compatible service must offer a supported chat-completions route. Enter an optional API key or token if that service requires one.</li>
-<li>Choose <strong>Save</strong>. AAAAT checks whether it can reach the service. A successful connection check does not guarantee that every response will be useful.</li>
-<li>Under <strong>Saved connections</strong>, choose <strong>Use</strong> on the connection you want. The selected connection is the one AAAAT uses for its ordinary AI assistance; saving several connections does not automatically assign a different model to every feature.</li>
+<li>Open <strong>Settings → AI</strong> and select <strong>New connection</strong>.</li>
+<li>Choose a <strong>Connection name</strong>, enter the <strong>Model</strong> and its <strong>Address</strong>. AAAAT's direct connector expects an OpenAI-compatible chat-completions endpoint; local loopback HTTP and remote HTTPS are supported. Enter a credential only if the provider requires one.</li>
+<li>Choose <strong>Save</strong>. Reachability feedback tells you whether the connection responds, not whether it understands every AAAAT request.</li>
+<li>In <strong>Saved connections</strong>, choose <strong>Use</strong> on the connection you want for normal in-app assistance. You can keep multiple models and switch between them; there is no separate mandatory model for each feature.</li>
 </ol>
-<h3>Edit, change or remove a connection</h3>
-<p>Each saved connection offers <strong>Edit</strong> for its name, model and address; <strong>Replace credential</strong> or <strong>Clear credential</strong> for authentication; and <strong>Remove</strong> when it is no longer needed. Select a different connection with <strong>Use</strong>. You can keep multiple models or providers available and switch between them without recreating your work.</p>
-<h3>Control automatic local startup</h3>
-<p>In <strong>Settings → AI → Startup</strong>, <strong>Run when AAAAT starts</strong> enables or disables automatic startup. The startup script is fully editable for users managing their own local model. <strong>Save</strong> applies your changes for the next launch; <strong>Cancel</strong> discards them; <strong>Use installed default</strong> restores the generated script. Most users do not need to edit it.</p>
-<h3>Move your connection choices to another computer</h3>
-<p>Expand <strong>Import or export AI connections</strong> in Settings → AI. <strong>Export</strong> saves connection names, servers, models and the selected default for later use. <strong>Import</strong> replaces the current connection settings after confirmation. Credentials are deliberately excluded, so add them on the new computer if needed.</p>
+<p>A provider without the compatible endpoint can still help through an <a href="#external-ai">editable copy-paste AI task</a>. AAAAT does not need a proprietary plugin or API integration for that route.</p>
+
+<h3>Edit or remove an AI connection</h3>
+<p>In <strong>Settings → AI → Saved connections</strong>, use <strong>Edit</strong> to change the connection name, endpoint or model; <strong>Replace credential</strong> / <strong>Clear credential</strong> to manage access; and <strong>Remove</strong> to delete a connection you no longer want. <strong>Use</strong> selects a different saved connection without removing the previous one.</p>
+
+<h3>Decide what starts when AAAAT opens</h3>
+<ol class="guide-steps">
+<li>Open <strong>Settings → AI → Startup</strong>. Turn <strong>Run when AAAAT starts</strong> on or off.</li>
+<li>Advanced users can modify the startup script for their own locally managed runtime. <strong>Save</strong> makes changes effective from the next launch; <strong>Cancel</strong> abandons them; <strong>Use installed default</strong> returns to the script AAAAT generated for its supplied runtime.</li>
+<li>This script runs with your local user permissions, so only edit commands you understand. AAAAT does not take over independently running AI services.</li>
+</ol>
+<h3>Take your connection choices with you</h3>
+<p>Open <strong>Settings → AI → Import or export AI connections</strong>. <strong>Export</strong> saves the names, addresses, models and selected default without secrets; <strong>Import</strong> replaces the destination AI connection configuration after confirmation. Re-enter credentials where necessary. This file is separate from your career workspace backup.</p>
+<p>Then customize <a href="#ai-prompts">the instruction for each AI action</a>, <a href="#ai-information">the information AAAAT may share</a>, or <a href="#ai-work">the way AI helps while you edit</a>.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/ai-settings.png" data-lightbox><img src="assets/screenshots/ai-settings.png" alt="Real AAAAT AI connection settings." width="1164" height="721" loading="lazy"></a><figcaption>Manage connections from AAAAT's actual Settings → AI screen.</figcaption></figure>
-<!-- LOCAL CODEX: real separate captures of saved connections (multiple named choices), edit connection, AI instructions, Local AI startup. Hide API keys. -->
+<figure class="figure"><a href="assets/screenshots/ai-settings.png" data-lightbox><img src="assets/screenshots/ai-settings.png" alt="Genuine AAAAT AI connection settings." width="1164" height="721" loading="lazy"></a><figcaption>Current AAAAT Settings → AI screen. Future capture should show the Granite option and named alternative connections without credentials.</figcaption></figure>
+<!-- LOCAL CODEX: actual Granite setup, Saved connections Use/Edit, Startup options, AI instructions. No compositing or fake UI. -->
 </section>
 
 <section class="section guide-section" id="ai-prompts">

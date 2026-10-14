@@ -10,6 +10,14 @@ After opening it, use the fixed left rail to move between Home, Applications, Do
 
 Use **Settings → Workspace** to create or open another workspace. Reset and deletion are separate destructive actions with confirmation. Demo data lives in its own workspace. It contains 12 fictional opportunities across community programmes, editorial work, visitor services and other professions. Alex Morgan’s fictional profile includes a custom **Community work** group and a saved **Public-facing emphasis** variation. Explore the Common Ground Cooperative CV and cover letter, the standalone general CV and the **Community & communications** composition template without using personal information.
 
+### Home, status and activity
+
+**Home** shows the current workspace, **Recent applications** and **Recent editable work**. Open a recent item directly, or use **Open Applications** / **Open Documents** for the full collections.
+
+The left rail gives compact environment readiness: **Data** is Demo or Local; **AI** is Off, Checking, Ready or Needs attention; and **PDF** is Ready or Unavailable. Use **Test AI** or **Retry AI** if a saved connection is not responding; edit its address/model/credentials in **Settings → AI**. For PDF readiness, go to **Settings → Documents** and check the detected `pdflatex` executable.
+
+The top bar's **Activity** opens the AI activity monitor; **Status** opens the environment-status view without navigating away from your work. Neither is a required application-stage workflow.
+
 ## Applications
 
 ### Create one application
@@ -46,6 +54,12 @@ The eye controls whether AI may use an item. Storing it locally or showing it pr
 
 ## Documents
 
+In **Documents**, the top-bar **New CV from** selector offers **My information**, **Blank** and saved templates; choose **New CV** to start. **New letter** starts a standalone cover letter.
+
+The **Editable** collection contains the CVs and letters you can still change. Expand **CV templates** to start another CV from saved content or to rename a template. Expand **Generated files** to reopen finished CV, letter and combined application PDFs. Use **Edit a copy** beside a generated CV to create a new working version; it does not rewrite the existing PDF.
+
+
+
 Start a CV from My information, a saved template or a blank page. Start a cover letter independently or inside an application. Opening a new document creates a provisional editor; Save keeps it, Cancel abandons it. Application names provide context in the document collection.
 
 Compose a CV by editing information, arranging sections and choosing the wording you want. Section names are yours to change. Templates preserve reusable composition; Main/Secondary roles are presentation hints, not fixed left/right columns. Save-back controls distinguish reuse from edits to the current document.
@@ -56,15 +70,47 @@ Saved documents have a secondary **Remove** action with confirmation. Removing a
 
 **Settings → Documents** shows PDF readiness and optional diagnostics. Choose **PDF setup** to install the supported TeX distribution for your device; an existing installation is reused. Editing works without it. Downloads require your explicit selection. See [installation](INSTALLATION.md).
 
+### Prepare PDF generation
+
+AAAAT uses **pdfLaTeX** (the `pdflatex` executable supplied by a TeX distribution) to render CVs, letters and combined application PDFs. Editing these documents does **not** require pdfLaTeX; generating a finished PDF does.
+
+1. Open **Settings → Documents**. Inspect the current PDF readiness status. Select **PDF setup** when `pdflatex` is not available.
+2. Under **Make AAAAT ready for you**, choose **PDF generation** and **Set up**. AAAAT opens the native TeX distribution installer or software manager for your platform: MiKTeX on Windows or Intel Mac, BasicTeX on Apple Silicon, and TeX Live on Linux.
+3. If you have your own installation, expand **Locations**, choose **pdfLaTeX → Browse**, select `pdflatex` (or `pdflatex.exe` on Windows), and **Save**. AAAAT can reuse this instead of installing the suggested distribution.
+4. Return to **Settings → Documents**, choose **Refresh**, and use **Check PDF** to verify that rendering is available. The compiler being installed does not guarantee that every third-party LaTeX package or custom Blueprint will compile.
+5. Open an editable document and choose **PDF**. Check the result in **Documents → Generated files**. The editable document and previously generated outputs remain separate.
+
+See [installation](INSTALLATION.md) for prerequisites and platforms, and the [website PDF guide](https://didacll.github.io/AAAAT/explore.html#pdf) for every UI step.
+
+### Personalise the design with a Blueprint
+
+A **CV template** saves reusable content and composition. A **Blueprint** is different: it is a `.tex` file controlling how CV sections and items appear on the page. AAAAT supplies **AAAAT Default**, and advanced users may add their own.
+
+1. Copy the [built-in Blueprint source](../src/main/latex/default-blueprint.tex) and modify a copy in your preferred LaTeX/text editor. The [shared AAAAT package](../src/main/latex/aaaat.sty) documents the relevant rendering commands.
+2. Save it as a named `.tex` file inside the `blueprints` folder of AAAAT's **application configuration** location (Electron `userData`; not inside a career workspace).
+3. Reopen the CV editor, expand **Document options**, and select your named file from **PDF style**. This choice is offered when more than one Blueprint is available.
+4. Choose **PDF** and inspect the result. If your custom TeX fails, correct it or select **AAAAT Default** to return to the built-in layout.
+
+The **Header**, **Main body**, **Secondary body**, and **Footer** section positions are semantic composition hints interpreted by the Blueprint. They do not force a permanent two-column design. AAAAT is not an in-app LaTeX IDE.
+
+### Export and modify an entire document outside AAAAT
+
+1. Open **Documents → Generated files**, or a retained generated file inside its application, and choose **Export source project**.
+2. Choose a writable destination. AAAAT exports a separate copy of the actual retained PDF project, leaving the managed original intact.
+3. Edit the exported LaTeX in another program. Current generator entry files are typically `cv.tex`, `cover-letter.tex`, or `application-document.tex`, with `aaaat.sty` in the project.
+4. Recompile using the matching `pdflatex` command in that exported folder, such as `pdflatex cv.tex`. The document and any required TeX packages must be supported by the installed distribution.
+
+Changes to the exported copy do not update AAAAT's working CV or earlier retained PDFs. This is intentional: the user owns both the original output and any separately modified version.
+
 ## Optional AI
 
 ### Connect a model
 
 In **Settings → AI**, add a named connection, its endpoint, model and credential when needed. The current adapter uses OpenAI-compatible chat completions. Loopback HTTP and remote HTTPS are accepted. Choose the connection AAAAT will use for assistance.
 
-The optional connection check reports reachability without changing the selected connection. There are no per-feature checks or routing prerequisites. A reachable server may still return an invalid or unhelpful result. Instructions are editable and can be reset to the shipped default.
+The optional connection check reports reachability without changing the selected connection. There are no per-feature checks or routing prerequisites. A reachable server may still return an invalid or unhelpful result. Instructions are editable **per AI action**, not just as one permanent instruction for every job. Under **Settings → AI → AI instructions**, open an action, read **Context AAAAT sends** and **Expected response**, edit **Effective instruction**, then **Save**. Choose **Reset to shipped default** to undo a change; the **Shipped default** can be inspected before resetting.
 
-**Local AI** installs llama.cpp with the tested Granite 4.1 3B model. A workspace without connections receives **Local Granite** automatically. Existing connections are preserved. The installed server starts with AAAAT and stops when AAAAT quits. **Startup** holds its editable script, an on/off choice and **Use installed default**; saved changes apply on the next launch. Other servers remain under your own control.
+**Local AI** installs the llama.cpp **CPU runtime** with the tested **IBM Granite 4.1 3B Q4_K_M** model (about 2 GB of download, plus runtime storage and working memory). Actual inference speed and response quality depend on the computer and the task. The locally offered package may be unavailable on some devices; direct compatible connections and text-capable LLMs through copy-paste remain available.  A workspace without connections receives **Local Granite** automatically. Existing connections are preserved. The installed server starts with AAAAT and stops when AAAAT quits. **Startup** holds its editable script, an on/off choice and **Use installed default**; saved changes apply on the next launch. Other servers remain under your own control.
 
 ### Use it beside your work
 

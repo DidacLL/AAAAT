@@ -23,10 +23,10 @@
 <h2>Open AAAAT and get ready</h2>
 <ol class="steps">
 <li><a href="download.html">Download AAAAT for your computer</a>, install it, and open the desktop app.</li>
-<li>On first launch, AAAAT offers <strong>PDF generation</strong> and <strong>Local AI</strong>. Choose what you'll use: PDF generation lets you turn CVs and letters into files you can send; Local AI can help with job-offer details and writing without a paid AI subscription. Select either or both and choose <strong>Set up</strong>. If PDF tools are already installed, AAAAT can use them. Local AI may require an additional download of about 2 GB. Follow any system installation prompts.</li>
+<li>On first launch, <strong>Make AAAAT ready for you</strong> offers two independent options. <strong>PDF generation</strong> uses <strong>pdfLaTeX</strong> to turn your CVs and letters into PDFs. If you already have a compatible TeX installation, AAAAT can reuse its <code>pdflatex</code> executable; otherwise the setup opens MiKTeX, BasicTeX or TeX Live as appropriate for your computer. <strong>Local AI</strong> offers the tested <strong>IBM Granite 4.1 3B Q4_K_M</strong> model with <strong>llama.cpp</strong> on your CPU (approximately 2 GB to download). Choose either or both and select <strong>Set up</strong>. Follow the native installation steps shown on your computer.</li>
 <li>When you're ready, choose <strong>Open demo</strong> to look around with example information, or <strong>New workspace</strong> to use your own information. Choose an empty folder for the workspace. Your information will be kept there, on your computer.</li>
 </ol>
-<p>Only need to browse job offers for now? You can choose <strong>Not now</strong> for tools you don't need, and enable them whenever you're ready. Nothing about normal application management requires AI. For PDF documents you will need PDF generation set up.</p>
+<p>Want to use your existing TeX or change where downloads go? Expand <strong>Locations</strong> in the setup dialog. Choose <strong>pdfLaTeX → Browse</strong> to select an existing <code>pdflatex</code> executable, or choose folders under <strong>Local tools</strong> and <strong>Downloads</strong>. You can return to these options later in Settings. Manual application and CV editing work without AI; PDF output requires pdfLaTeX.</p>
 <!-- Local Codex screenshot request: capture the real first-launch “Make AAAAT ready for you” dialog with both PDF generation and Local AI clearly visible; capture Welcome showing New workspace/Open demo. Insert when captured, no drawn/mocked UI. -->
 </section>
 <section class="section" id="demo">
@@ -78,7 +78,7 @@
 <li>Open <strong>My information</strong> and add the experience, skills and education you'll want to use in your CV. If you're in the demo workspace, there's already an example profile you can explore.</li>
 <li>Open <strong>Documents</strong>. In <strong>New CV from</strong>, choose <strong>My information</strong> to reuse what you've saved, or <strong>Blank</strong> to start fresh. Select <strong>New CV</strong>.</li>
 <li>Edit the content, change the section order and save the CV when you're happy with it.</li>
-<li>Choose <strong>PDF</strong> in the top bar to generate a finished document. If PDF generation isn't ready yet, open <strong>Settings → Documents → PDF setup</strong> and complete the setup, then return to the CV.</li>
+<li>Choose <strong>PDF</strong> in the top bar to generate a finished document. If AAAAT reports that pdfLaTeX is unavailable, open <strong>Settings → Documents → PDF setup</strong>, install the offered TeX distribution or select an existing <code>pdflatex</code> under <strong>Locations</strong>, then return to the CV. <a href="explore.html#pdf">Detailed PDF and LaTeX guide →</a></li>
 <li>To write a letter, choose <strong>New letter</strong> in Documents. You can also prepare a CV and letter from inside a saved application when you want them associated with that opportunity.</li>
 </ol>
 </div>
