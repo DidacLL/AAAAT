@@ -12,146 +12,425 @@
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><a class="brand" href="index.html"><img src="assets/logo.png" alt="" width="46" height="46"><span>AAAAT<small>Your private application workshop</small></span></a><nav class="site-nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="get-started.html">Get Started</a><a href="explore.html" aria-current="page">Explore AAAAT</a><a href="how-its-built.html">How It’s Built</a><a href="download.html">Download</a></nav></header>
-<main id="main" class="container">
+<main id="main" class="container manual">
 <header class="page-intro">
-<p class="eyebrow">Explore AAAAT</p>
-<h1>Whatever you need to do next.</h1>
-<p>Whether you're preparing several applications, comparing job offers, writing different CVs or using your favourite AI, choose the guide that helps with what you're doing today.</p>
-<p><a href="get-started.html">New to AAAAT? Follow the simple getting-started tutorial first.</a></p>
+<p class="eyebrow">The AAAAT guide · beginner to full control</p>
+<h1>Everything you can do with AAAAT.</h1>
+<p>AAAAT can be a simple place to remember job offers, a workshop for making CVs and cover letters, or a workspace assisted by the AI you choose. You decide how much to use. This guide starts with everyday tasks and then explains the more detailed controls you can use when you need them.</p>
+<div class="actions"><a class="button" href="get-started.html">New here? Start with the illustrated basics</a><a class="button secondary" href="download.html">Download AAAAT</a></div>
 </header>
-<nav class="toc" aria-label="Choose a topic">
-<a href="#applications">Remember a conversation</a>
-<a href="#fields">Compare opportunities</a>
-<a href="#tags">Keep useful categories</a>
-<a href="#my-information">Reuse experience</a>
-<a href="#documents">Tailor a CV or letter</a>
-<a href="#ai">Save time with AI</a>
-<a href="#external-ai">Use my own LLM</a>
-<a href="#ownership">Keep my data safe</a>
+<nav class="toc guide-index" aria-label="Everything in this guide">
+<a href="#orientation">Find your way</a>
+<a href="#applications">Save & find opportunities</a>
+<a href="#sources">Sources and conversations</a>
+<a href="#fields">Your fields and card appearance</a>
+<a href="#tags">Tags</a>
+<a href="#profile">Professional information</a>
+<a href="#cv">CVs</a>
+<a href="#letters">Cover letters & application PDFs</a>
+<a href="#pdf">PDFs and document files</a>
+<a href="#ai-choices">Choose your AI</a>
+<a href="#ai-connections">AI connections and startup</a>
+<a href="#ai-prompts">Edit AI instructions</a>
+<a href="#ai-information">Control AI information</a>
+<a href="#ai-work">AI help while you work</a>
+<a href="#external-ai">Use another LLM</a>
+<a href="#connected-ai">Connect an external assistant</a>
+<a href="#settings">Workspaces, backup and recovery</a>
+<a href="#help">Help and troubleshooting</a>
 </nav>
 
-<section class="section" id="applications">
-<h2>Remember exactly what you discussed.</h2>
+<section class="section guide-section" id="orientation">
+<p class="eyebrow">Start here · Finding your way</p>
+<h2>Find the right place in AAAAT.</h2>
 <div class="prose">
-<p>When you save a job offer, the original text stays with the application. You can return to it alongside anything you learned from a recruiter, interviews or your own research.</p>
-<ol>
-<li>Open <strong>Applications</strong> and find the opportunity you want.</li>
-<li>Choose <strong>Open / Edit</strong>. Add useful details or notes, such as the recruiter's name, the interview location or a question you want to ask.</li>
-<li id="sources">Open its <strong>Sources</strong> to read the original offer or message again. Keep new notes without losing the original context.</li>
-<li>Save the information so it's there when you return.</li>
+<p>After opening a workspace, AAAAT has three main places to work: <strong>Applications</strong> for opportunities and related notes; <strong>My information</strong> for professional details you will reuse; and <strong>Documents</strong> for editable CVs, cover letters and generated files. <strong>Settings</strong> is where you choose your workspace, AI connections, document tools and backups.</p>
+<ol class="guide-steps">
+<li><strong>Just installed AAAAT?</strong> On the welcome screen, choose <strong>Open demo</strong> to explore examples or <strong>New workspace</strong> to start with your own information. Each uses a folder you choose.</li>
+<li><strong>Want finished PDFs or private AI assistance?</strong> On the first-run <strong>Make AAAAT ready for you</strong> panel, select <strong>PDF generation</strong>, <strong>Local AI</strong> or both, then <strong>Set up</strong>. Existing compatible PDF tools can be reused. AI remains optional.</li>
+<li><strong>Where are the actions?</strong> Look in the fixed top bar for actions such as <strong>New</strong>, <strong>Save</strong>, <strong>PDF</strong> and the <strong>⋯</strong> menu; the actions change with the area you are using. Use the left navigation to switch areas.</li>
 </ol>
-<p>Even a short note can be worth keeping. You don't have to complete a form or maintain an application stage.</p>
+<p>To see a complete first-use walkthrough before continuing, use <a href="get-started.html">Get Started</a>. You can return here at any point for the deeper controls.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/new-application.png" data-lightbox><img src="assets/screenshots/new-application.png" alt="Real AAAAT application editor with original material and editable information." loading="lazy" width="1440" height="900"></a><figcaption>Job material and useful details belong together in AAAAT.</figcaption></figure>
+<!-- LOCAL CODEX: actual first-launch optional-tools panel and welcome screen, screenshots only, no mock UI. -->
 </section>
 
-<section class="section" id="fields">
-<h2>Compare opportunities at a glance.</h2>
+<section class="section guide-section" id="applications">
+<p class="eyebrow">Applications · From a few words to full context</p>
+<h2>Keep an opportunity and recognise it immediately.</h2>
 <div class="prose">
-<p>For one search, the job title and company might be enough. In another, salary, remote work or the type of contract may matter just as much.</p>
-<ol>
-<li>Open an application and look at the information you've saved.</li>
-<li>Use the <strong>star</strong> beside useful information to mark it as a favourite. Use the field settings when you want to change the order or how prominently that information appears on its cover.</li>
-<li>Return to <strong>Applications</strong>. Your cards now reflect what matters most to you.</li>
+<h3>Save a job offer or recruiter message</h3>
+<ol class="guide-steps">
+<li>Open <strong>Applications → New</strong>. Paste the copied offer, URL-containing message or note into <strong>Application text</strong> on the left. Add known details on the right if you wish.</li>
+<li>Choose <strong>Save</strong>. Keeping only a Source is fine; you do not need to invent an employer, pay or application stage. You can also save fields without pasting text.</li>
+<li>If a selected AI connection is available, <strong>Fill</strong> can suggest details and Tags from the pasted text. Review them or keep working manually. You are never required to use AI to save.</li>
 </ol>
-<p>You can also add a new kind of information if the initial fields don't cover your needs. For example, you might want to remember travel requirements, working hours or a specific certification.</p>
+<h3>Search, inspect and change applications</h3>
+<ol class="guide-steps">
+<li>Return to <strong>Applications</strong>. Use <strong>Search</strong> to look through saved fields, Sources and Tags. Filters let you see <strong>Current</strong>, <strong>Archived</strong> or <strong>All</strong> opportunities, and narrow by recently added or changed entries.</li>
+<li>Select a cover to expand it and reveal more of the information you retained. The compact covers are for quick recognition, not mandatory status reporting.</li>
+<li>Choose <strong>Open / Edit</strong> to change a field, see Sources, attach Tags or create documents for this opportunity. Use the top-bar <strong>←</strong> to go back to the collection.</li>
+<li>Use <strong>⋯ → Archive</strong> to move an application out of the current collection without erasing it. Show <strong>Archived</strong> and choose <strong>Restore</strong> when you need it again.</li>
+</ol>
+<p><strong>When a recruiter calls:</strong> search the company or title, expand the matching cover and inspect your saved posting or notes. AAAAT does not demand that you maintain statuses such as Applied or Interviewing to keep this useful.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/applications.png" data-lightbox><img src="assets/screenshots/applications.png" alt="Real AAAAT application covers with content-driven text hierarchy." loading="lazy" width="1440" height="900"></a><figcaption>Applications can be recognizable by their actual content—not arbitrary stages or colours.</figcaption></figure>
+<figure class="figure"><a href="assets/screenshots/applications.png" data-lightbox><img src="assets/screenshots/applications.png" alt="Genuine AAAAT Applications collection with searchable typographic covers and Tag monitor." width="1440" height="900" loading="lazy"></a><figcaption>The real desktop collection. A future local capture will show more legible, conventional example employers and job titles.</figcaption></figure>
 </section>
 
-<section class="section" id="tags">
-<h2>Keep a useful label consistent across applications.</h2>
+<section class="section guide-section" id="sources">
+<p class="eyebrow">Applications · Keep the original</p>
+<h2>Remember where information came from.</h2>
 <div class="prose">
-<p>Tags help you group opportunities and keep useful explanations close by. For example, you could use a Tag for <strong>Hybrid</strong>, a technology, a certification or an industry.</p>
-<ol>
-<li>Open an application and find the <strong>Tags</strong> area.</li>
-<li>Type a Tag name. Select an existing one, or create a new one and give it a short, useful definition.</li>
-<li>Use the same Tag on another application. Its meaning stays consistent wherever you attach it.</li>
-<li>Back in <strong>Applications</strong>, select or focus a Tag on a cover to read its definition in the left-hand monitor.</li>
+<p>A Source is the material you saved about an opportunity: a job posting, recruiter's email, application form, conversation, link or personal note. You can keep several Sources for the same application, so the original posting and later conversations remain available together.</p>
+<ol class="guide-steps">
+<li>Open the relevant application and find <strong>Sources</strong>.</li>
+<li>Choose the add action. Select the material's type: <strong>Recruiter message</strong>, <strong>Job posting</strong>, <strong>Application form</strong>, <strong>Conversation</strong>, <strong>Link</strong> or <strong>Other</strong>.</li>
+<li>Give it a useful title; enter a URL if applicable; paste or write the content. Save the Source.</li>
+<li>Select a saved Source to read it, open <strong>Original</strong> to inspect retained text, or choose its editing action to correct details. You can remove a Source you no longer want.</li>
 </ol>
-<p>You can include aliases or extra notes when they help, but a simple name and clear definition are enough to begin.</p>
+<p>Editing application fields or asking AI to extract useful facts does not replace the original Source. This is useful when a posting disappears or a recruiter describes the role differently later.</p>
 </div>
-<!-- Future local screenshot pass: show an actual selected Tag and readable definition in the AAAAT monitor; no fake UI. -->
+<figure class="figure"><a href="assets/screenshots/new-application.png" data-lightbox><img src="assets/screenshots/new-application.png" alt="Real AAAAT capture screen with source material beside editable application information." width="1440" height="900" loading="lazy"></a><figcaption>Original material and the information you want to keep can be entered side by side.</figcaption></figure>
+<!-- LOCAL CODEX: optional additional real capture Sources list + reader, showing type, title, Original and an edited conversation. -->
 </section>
 
-<section class="section" id="my-information">
-<h2>Write your experience once, use it in different CVs.</h2>
+<section class="section guide-section" id="fields">
+<p class="eyebrow">Applications · Deep personalisation</p>
+<h2>Keep your own kind of information—and make it stand out.</h2>
 <div class="prose">
-<p><strong>My information</strong> is where you keep professional experience, projects, skills and education you expect to use again.</p>
-<ol>
-<li>Open <strong>My information</strong> and add an experience, skill or project. Write what you did in your own words.</li>
-<li>When you need the same experience presented differently, open the item and save another wording as a <strong>variation</strong>.</li>
-<li id="variations">When building a CV, choose the wording that best fits the job. Changing the CV doesn't mean you have to change your reusable information.</li>
+<p>Job searches differ. A pilot may need flight hours; a nurse may need registration details; a software professional may care about technology and remote work. AAAAT's initial fields are starting points, not the full list you must live with.</p>
+<h3>Add a new field</h3>
+<ol class="guide-steps">
+<li>Open an application. Under <strong>Details</strong>, expand <strong>Information setup</strong> and choose <strong>Add information</strong>.</li>
+<li>Enter a clear <strong>Name</strong>, such as <em>Travel required</em> or <em>Required certification</em>. In <strong>Details</strong>, explain what the field means and how you want it used.</li>
+<li>Open <strong>Value format</strong> if you need something beyond simple text. Choose <strong>Short text</strong>, <strong>Long text</strong>, <strong>Number</strong>, <strong>Yes / no</strong>, <strong>Date</strong>, <strong>URL</strong> or <strong>Choice list</strong>. Choose <strong>One value</strong> or <strong>Several values</strong> as appropriate; choice lists can have their own choices.</li>
+<li>Choose <strong>Add</strong>. The field becomes available for application information. Enter the value relevant to the opportunity; leave unknown information empty.</li>
 </ol>
-<p>You can add your own information groups, too. AAAAT doesn't assume every profession needs the same categories.</p>
+<h3>Change meaning without losing control</h3>
+<ol class="guide-steps">
+<li>On an existing field, open its <strong>⚙</strong> menu and expand <strong>Edit field definition</strong>.</li>
+<li>Change its shared label or descriptive details and choose <strong>Save shared field</strong>. A field definition describes what this information means across applications; it is not just a decoration on one card.</li>
+<li>Use precise descriptions when you want AI to recognize unusual information. AI extraction works with your current fields instead of only a fixed developer list. Rewording a field can therefore change what you ask AI to recognize; check future AI suggestions after editing it.</li>
+</ol>
+<p><strong>Important distinction:</strong> renaming a field does not magically convert old values to a new meaning or change an application's underlying identity. Use clear, stable meanings for information you want to compare across opportunities. A field's label is not a hardcoded special command: AAAAT lets you define the information that matters.</p>
+<h3>Control what appears on an application cover</h3>
+<ol class="guide-steps">
+<li>Use the <strong>☆</strong> next to a field to include it among your favourites—the details that appear most prominently when browsing applications.</li>
+<li>Open <strong>⚙</strong> on a favourite field to move it earlier or later, and set <strong>Card prominence</strong> to <strong>Small</strong>, <strong>Regular</strong> or <strong>Large</strong>.</li>
+<li>Return to the application collection and see how the cards now emphasise your chosen information. This changes presentation, not the information you saved.</li>
+</ol>
+<h3>What each field control does</h3>
+<p><strong>✎ Edit</strong> changes a value. <strong>☆ Favourite</strong> affects what stands out on the cover. <strong>👁 AI may use</strong> chooses whether the field is available for AAAAT's AI help. <strong>✨ Ask AI</strong> requests help for that field. <strong>⚙ Settings</strong> changes ordering, prominence and shared definition. These are independent choices: a field can be important to your own view without being shared with AI.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/my-information.png" data-lightbox><img src="assets/screenshots/my-information.png" alt="Real AAAAT My information area with reusable professional entries." loading="lazy" width="1164" height="721"></a><figcaption>Keep experience in one place and reuse it in the documents you make.</figcaption></figure>
+<!-- LOCAL CODEX: capture application edit with field controls, Information setup form and actual Card prominence menu. -->
 </section>
 
-<section class="section" id="documents">
-<h2>Prepare a different CV for a different role.</h2>
+<section class="section guide-section" id="tags">
+<p class="eyebrow">Applications · Shared Tags</p>
+<h2>Use a name once, and keep its meaning consistent.</h2>
 <div class="prose">
-<p>One CV doesn't have to serve every opportunity. AAAAT lets you reuse career information while making each document say what you want.</p>
-<ol>
-<li>Open <strong>Documents</strong>. Under <strong>New CV from</strong>, choose <strong>My information</strong> or an existing template, then choose <strong>New CV</strong>.</li>
-<li>Adjust the text and sections for the opportunity. Move the most relevant experience forward and remove anything that doesn't help.</li>
-<li>Save the CV and choose <strong>PDF</strong> when it's ready. Open the generated file to check how it reads.</li>
-<li id="templates">For a letter, choose <strong>New letter</strong> from Documents, or open a particular application and create the documents there so they're easy to find together.</li>
+<p>Tags are useful for work arrangements, industries, qualifications, tools or anything else you want to recognize across multiple opportunities. A Tag has a <strong>Name</strong>, optional <strong>Aliases</strong>, a <strong>Definition</strong> and your own <strong>Notes</strong>.</p>
+<ol class="guide-steps">
+<li>Open an application and find <strong>Tags</strong>. Type a name to search your existing Tags. Select one to attach it.</li>
+<li>To create a new Tag, enter its name and definition. Add aliases when other names should identify the same Tag; add notes if more explanation helps. Save it.</li>
+<li>Use the Tag again in another application. You are reusing the shared Tag, not creating a separate copy of its meaning.</li>
+<li>Return to <strong>Applications</strong>; hover, focus or select a Tag to read its meaning in the left-hand monitor. Edit a shared Tag when you want to update that meaning across its uses.</li>
+<li>With AI configured, choose <strong>Suggest Tags with AI</strong>. Review suggestions: existing Tags may be matched, while a proposed new Tag lets you edit its name, definition and aliases before choosing <strong>Create</strong> or <strong>Ignore</strong>.</li>
 </ol>
-<p>You can also produce a combined CV-and-letter PDF from an application. If you like reusing the same CV structure, save a CV template for future documents.</p>
+<p>Tags help you remember and retrieve information; they are not compulsory application stages or a project-management system.</p>
 </div>
-<figure class="figure"><img src="assets/career-documents.png" alt="Approved AAAAT illustration of reusable professional information becoming CVs, cover letters and PDFs." loading="lazy" width="1672" height="941"><figcaption>Reuse what you've written. Make a different document when you need one.</figcaption></figure>
-<figure class="figure"><a href="assets/screenshots/cv-editor.png" data-lightbox><img src="assets/screenshots/cv-editor.png" alt="Actual AAAAT editor for a working CV." loading="lazy" width="1440" height="900"></a><figcaption>Edit your CV's content and sections before sending it.</figcaption></figure>
-<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine PDF generated by AAAAT." loading="lazy" width="953" height="1348"></a><figcaption>Check the finished PDF before sharing it.</figcaption></figure>
+<!-- LOCAL CODEX: real application cover with focused Tag + monitor, and a real Tag editor/suggestion proposal. -->
 </section>
 
-<section class="section" id="ai">
-<h2>Save time when a job posting is long.</h2>
+<section class="section guide-section" id="profile">
+<p class="eyebrow">Your career · Reuse without retyping</p>
+<h2>One professional history, different ways to present it.</h2>
 <div class="prose">
-<p>If you're copying information from long job advertisements, AI can help extract the useful details. Select your preferred connection and use the result as editable information in AAAAT.</p>
-<ol>
-<li>Open <strong>Settings → AI</strong>. Set up the optional local model or choose another compatible AI connection.</li>
-<li>Open <strong>Applications → New</strong> and paste a job offer into <strong>Application text</strong>.</li>
-<li>Choose <strong>Fill</strong>. AAAAT can suggest details from the posting and help recognize Tags.</li>
-<li>Read the result, adjust anything you want and save the application.</li>
+<h3>Keep your experience in My information</h3>
+<ol class="guide-steps">
+<li>Open <strong>My information</strong> and choose <strong>＋ New</strong>.</li>
+<li>Choose the useful information type or group. Add a title, such as your job role or project name; add organisation, dates, descriptions and other relevant details. Use the add-detail control for additional information.</li>
+<li>Choose <strong>Save</strong>. Repeat for professional experience, education, projects, skills, certifications, languages, contact details and whatever else is useful in your field.</li>
 </ol>
-<p>You can also request AI help while editing fields, CVs and letters. You choose what AAAAT is allowed to share with your configured AI.</p>
+<p>You're not restricted to preset career categories. You can use your own groups and labels. This is your professional material, not a form designed for one kind of applicant.</p>
+<h3>Write different versions of the same experience</h3>
+<ol class="guide-steps">
+<li>Open a saved item and expand <strong>Saved variations</strong>.</li>
+<li>Choose <strong>New variation</strong>. Give it a meaningful name—for example <em>Project leadership</em> or <em>Customer support focus</em>—and write the alternate emphasis.</li>
+<li>Save it. Later, when making a CV, you can choose the current description or a saved variation for that CV.</li>
+<li>Use <strong>Edit variation</strong> to refine or remove an alternate version. The original professional entry remains distinct.</li>
+</ol>
+<h3>Keep your career preferences available</h3>
+<p>Use <strong>Career preferences</strong> to record the direction you're looking for, preferred locations, working arrangements, objectives and other useful context. Add or edit a preference directly. These are your stated preferences, not facts AAAAT should invent about you.</p>
+<h3>Choose what AI can know</h3>
+<p>On a professional-information item, use its <strong>👁</strong> control to choose whether AAAAT's AI assistance may use it. Career preferences have their own disclosure choices. Local storage, showing information in the interface and using it in an AI request are different decisions.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/ai-settings.png" data-lightbox><img src="assets/screenshots/ai-settings.png" alt="Actual AAAAT AI connection settings." loading="lazy" width="1164" height="721"></a><figcaption>Use your chosen AI connection when you want assistance.</figcaption></figure>
+<figure class="figure"><a href="assets/screenshots/my-information.png" data-lightbox><img src="assets/screenshots/my-information.png" alt="Real AAAAT My information editor with reusable career entries." width="1164" height="721" loading="lazy"></a><figcaption>Keep career experience in AAAAT and choose wording that fits each document.</figcaption></figure>
+<!-- LOCAL CODEX: real Saved variations editor plus AI-permission control and Career preferences, using same fictional profile. -->
 </section>
 
-<section class="section" id="external-ai">
-<h2>Use the LLM you already like.</h2>
+<section class="section guide-section" id="cv">
+<p class="eyebrow">Documents · Full CV control</p>
+<h2>Build, tailor, save and reuse your CVs.</h2>
 <div class="prose">
-<p>Already using a text-capable LLM elsewhere? You can ask it for help with an AAAAT application without installing a special integration.</p>
-<ol>
-<li>Open the application you want to work on and choose <strong>⋯ → AI task</strong>.</li>
-<li>Read the prepared request. Change the instructions or remove any information you don't want to share.</li>
-<li>Choose <strong>Copy</strong> and paste the text into your chosen LLM. Read its answer before using it.</li>
-<li>Keep anything useful by adding it back to the application or document in AAAAT.</li>
+<h3>Start with what you already have</h3>
+<ol class="guide-steps">
+<li>Open <strong>Documents</strong>. Under <strong>New CV from</strong>, choose <strong>My information</strong>, <strong>Blank</strong> or a saved CV template; then choose <strong>New CV</strong>.</li>
+<li>Give the CV a useful title and edit it. Use <strong>＋ Add section</strong> for sections such as Experience, Education or Projects.</li>
+<li>Within a section, use <strong>＋ Add information</strong> to include an item from My information or <strong>Add custom content</strong> for text that belongs only in this CV.</li>
+<li>Choose <strong>Save</strong> in the top bar to keep the editable CV. <strong>Cancel</strong> abandons a new unsaved draft; closing an existing document does not silently rewrite it.</li>
 </ol>
-<p>This copy-paste route works without a special plugin or API key from AAAAT. The external AI service's own terms still apply. Connected options are available for compatible hosts if you want to explore them later.</p>
+<h3>Change order, wording and sections</h3>
+<ol class="guide-steps">
+<li>Use a section's <strong>•••</strong> menu to rename it, move it up or down, or remove it. Use the item's own controls to <strong>Edit</strong>, move or remove that content.</li>
+<li>For an item linked to <strong>My information</strong>, select <strong>Current version</strong> or an appropriate saved variation. <strong>Reset from My information</strong> restores the reusable wording; <strong>Open My information</strong> lets you inspect the original entry.</li>
+<li>Edit an item's title, subtitle, description, dates or link directly. Edits to this CV may intentionally differ from your reusable career history.</li>
+<li>Choose <strong>Save this edit for reuse</strong> when you actually want to keep wording beyond this CV: as another My information version, an update to the current My information entry, or—when applicable—an update to the source CV template.</li>
+</ol>
+<p>Not every job application needs the same CV. Prepare a concise version for one role and a detailed one for another without losing the career information they share.</p>
+<h3>Adjust composition and PDF appearance</h3>
+<ol class="guide-steps">
+<li>Open a section's presentation options to choose <strong>Header</strong>, <strong>Main body</strong>, <strong>Secondary body</strong> or <strong>Footer</strong>. These are hints for document composition, not mandatory fixed columns.</li>
+<li>Under <strong>Document options</strong>, choose a language if useful, and edit PDF metadata such as <strong>Title</strong>, <strong>Author</strong>, <strong>Subject</strong> and <strong>Keywords</strong>. An optional <strong>Parser summary</strong> is also available.</li>
+<li>When more than one document presentation style is available, choose the <strong>PDF style</strong> that fits the result you want. Styles determine appearance; your CV sections and content remain yours.</li>
+<li>Choose <strong>PDF</strong> and inspect the rendered document. Return to the editor if you need a better result.</li>
+</ol>
+<h3>Reuse a whole CV layout</h3>
+<p>Under <strong>Document options → Save this CV for reuse</strong>, save a <strong>new reusable CV template</strong> or, for a CV started from a template, choose to update that template. Templates hold reusable content and composition; a PDF is a finished output, not the template itself.</p>
+<h3>Make a copy of something already rendered</h3>
+<p>In <strong>Documents</strong>, expand <strong>Generated files</strong>. Open a retained PDF, or use <strong>Edit a copy</strong> on a generated CV to start a fresh editable version. Your earlier generated file remains available.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/ai-task.png" data-lightbox><img src="assets/screenshots/ai-task.png" alt="AAAAT's real editable AI request and Copy or Export actions." loading="lazy" width="1164" height="721"></a><figcaption>Review the request before you take it to another AI.</figcaption></figure>
+<figure class="figure"><a href="assets/screenshots/cv-editor.png" data-lightbox><img src="assets/screenshots/cv-editor.png" alt="Genuine AAAAT CV editor with editable sections." width="1440" height="900" loading="lazy"></a><figcaption>The actual CV editor. Future screenshots will show the same profile as the finished PDF.</figcaption></figure>
+<!-- LOCAL CODEX: separate real captures for section menu, variations selector, Save this edit for reuse, Document options/PDF style, and template options. -->
 </section>
 
-<section class="section" id="ownership">
-<h2>Keep a backup of your job search.</h2>
+<section class="section guide-section" id="letters">
+<p class="eyebrow">Documents · Cover letters and applications</p>
+<h2>Write the letter you want to send—and keep it with the right job.</h2>
 <div class="prose">
-<p>Your applications, career information and saved documents are in a local workspace folder. Once you start using AAAAT regularly, keep a backup.</p>
-<ol>
-<li>Open <strong>Settings → Backup</strong>.</li>
-<li>Choose to create a backup and select a separate destination folder.</li>
-<li>Keep the backup somewhere safe. If you ever need it, use the restore option to open it into a new empty folder.</li>
+<h3>Write a cover letter yourself</h3>
+<ol class="guide-steps">
+<li>Open <strong>Documents → New letter</strong> to start without a particular application, or open a saved application and create a letter there.</li>
+<li>Edit the title, <strong>From</strong> details, body paragraphs and closing. The sender details used for this letter can differ from your reusable profile.</li>
+<li>Choose <strong>Save</strong>, then <strong>PDF</strong> when you're ready to produce the final letter.</li>
 </ol>
-<p>AI connection setup can be exported separately under <strong>Settings → AI</strong>. You don't need to configure AI to back up your work.</p>
+<h3>Ask AI for a first draft, then make it yours</h3>
+<ol class="guide-steps">
+<li>In the letter editor, choose <strong>Context</strong> to see which professional details, career preferences, application information and Sources could inform the draft.</li>
+<li>If the letter belongs to an application, choose which Sources to include using the checkboxes. The application's document AI permission must also allow its documents to be used.</li>
+<li>Choose <strong>Draft</strong>. When a suggestion is ready, open <strong>Draft ready</strong>, read it and choose <strong>Use</strong> or <strong>Dismiss</strong>.</li>
+<li>Edit the resulting letter as you wish. Save and render it only when its content is right for you.</li>
+</ol>
+<h3>Create one application PDF</h3>
+<p>Within an application, create or choose its editable CV and cover letter. The application top bar offers <strong>PDF</strong> when a CV, a letter and a suitable presentation style are selected. This creates a combined application document. The individual documents remain independently useful.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/backup.png" data-lightbox><img src="assets/screenshots/backup.png" alt="AAAAT's actual local workspace Backup settings." loading="lazy" width="1164" height="721"></a><figcaption>Keep an extra copy of your workspace in a location you control.</figcaption></figure>
+<!-- LOCAL CODEX: actual cover letter with Draft/Context and real application PDF choices; no invented buttons. -->
 </section>
 
-<section class="section prose">
-<h2>Need help with a particular detail?</h2>
-<p>The <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/USER_GUIDE.md">full user guide</a> goes deeper. You'll also find <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/INSTALLATION.md">installation help</a> and the <a href="how-its-built.html">story of how AAAAT is developed</a>.</p>
+<section class="section guide-section" id="pdf">
+<p class="eyebrow">Documents · Finish and keep your outputs</p>
+<h2>Turn editable work into documents you own.</h2>
+<div class="prose">
+<ol class="guide-steps">
+<li>On first launch, choose <strong>PDF generation</strong> under <strong>Make AAAAT ready for you</strong> if you want to produce PDFs. You can return later through <strong>Settings → Documents → PDF setup</strong>.</li>
+<li>AAAAT uses an existing compatible PDF tool if found, or launches the native setup for your operating system. Follow any third-party installer or system-software-manager choices shown on your device.</li>
+<li>In a CV or letter, choose <strong>PDF</strong>. Read the finished result before sending it. Change the editable original and render again if you need another version.</li>
+<li>In <strong>Documents → Generated files</strong>, you can reopen retained CV PDFs, letter PDFs and combined application PDFs.</li>
+<li>Advanced users can use <strong>Export source project</strong> on a generated document to take its retained editable presentation sources elsewhere. Ordinary users do not need to know LaTeX to create or send a PDF.</li>
+</ol>
+<p>The editable document and the finished file are different things. Later edits or removal of an editable document do not retroactively rewrite the PDF you already created.</p>
+</div>
+<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine AAAAT-generated CV PDF." width="953" height="1348" loading="lazy"></a><figcaption>A real generated document, not an illustration of a software interface.</figcaption></figure>
+</section>
+
+<section class="section guide-section" id="ai-choices">
+<p class="eyebrow">AI · Your choice, not a requirement</p>
+<h2>Use AI in the way that suits you.</h2>
+<div class="prose">
+<p>There are several equally useful ways to work. You can do everything manually; ask your configured AI for help inside AAAAT; copy an editable AAAAT request into an external text-capable LLM; or give a compatible external assistant access to specific AAAAT actions. These are choices, not levels you must complete in order.</p>
+<div class="guide-paths">
+<article><h3>Work yourself</h3><p>Save offers, edit professional information, write letters and render documents without an AI connection.</p><a href="#applications">Applications →</a></article>
+<article><h3>AI inside AAAAT</h3><p>Have your selected model help fill fields, suggest Tags or draft document text beside your work.</p><a href="#ai-work">Using AI actions →</a></article>
+<article><h3>Your external LLM</h3><p>Edit a request, copy it into a chat assistant you already use, then retain the useful answer.</p><a href="#external-ai">Copy-paste rendezvous →</a></article>
+<article><h3>Connected assistant</h3><p>Let a compatible local external assistant use selected AAAAT actions with explicit boundaries.</p><a href="#connected-ai">Connected use →</a></article>
+</div>
+<p>Choosing an AI does not make AAAAT an AI chat destination or a provider marketplace. Your application, career and document work remain the focus.</p>
+</div>
+</section>
+
+<section class="section guide-section" id="ai-connections">
+<p class="eyebrow">AI · Configure and change models</p>
+<h2>Save several AI connections, choose which one works for you.</h2>
+<div class="prose">
+<h3>Set up the local model</h3>
+<ol class="guide-steps">
+<li>On the first-run setup screen, select <strong>Local AI</strong> and choose <strong>Set up</strong>; or open <strong>Settings → AI → Local AI</strong> later. The tested Granite model and its local runtime are an additional download of roughly 2 GB.</li>
+<li>Let setup finish. The installed local model can start with AAAAT. Existing independently configured AI connections are preserved.</li>
+<li>Open <strong>Settings → AI</strong> to see saved connections. Use the one you want for ordinary AI actions.</li>
+</ol>
+<h3>Add an AI you already use</h3>
+<ol class="guide-steps">
+<li>Open <strong>Settings → AI</strong> and choose <strong>New connection</strong>.</li>
+<li>Enter a <strong>Connection name</strong> you'll recognize, the <strong>Model</strong>, and its server <strong>Address</strong>. The compatible service must offer a supported chat-completions route. Enter an optional API key or token if that service requires one.</li>
+<li>Choose <strong>Save</strong>. AAAAT checks whether it can reach the service. A successful connection check does not guarantee that every response will be useful.</li>
+<li>Under <strong>Saved connections</strong>, choose <strong>Use</strong> on the connection you want. The selected connection is the one AAAAT uses for its ordinary AI assistance; saving several connections does not automatically assign a different model to every feature.</li>
+</ol>
+<h3>Edit, change or remove a connection</h3>
+<p>Each saved connection offers <strong>Edit</strong> for its name, model and address; <strong>Replace credential</strong> or <strong>Clear credential</strong> for authentication; and <strong>Remove</strong> when it is no longer needed. Select a different connection with <strong>Use</strong>. You can keep multiple models or providers available and switch between them without recreating your work.</p>
+<h3>Control automatic local startup</h3>
+<p>In <strong>Settings → AI → Startup</strong>, <strong>Run when AAAAT starts</strong> enables or disables automatic startup. The startup script is fully editable for users managing their own local model. <strong>Save</strong> applies your changes for the next launch; <strong>Cancel</strong> discards them; <strong>Use installed default</strong> restores the generated script. Most users do not need to edit it.</p>
+<h3>Move your connection choices to another computer</h3>
+<p>Expand <strong>Import or export AI connections</strong> in Settings → AI. <strong>Export</strong> saves connection names, servers, models and the selected default for later use. <strong>Import</strong> replaces the current connection settings after confirmation. Credentials are deliberately excluded, so add them on the new computer if needed.</p>
+</div>
+<figure class="figure"><a href="assets/screenshots/ai-settings.png" data-lightbox><img src="assets/screenshots/ai-settings.png" alt="Real AAAAT AI connection settings." width="1164" height="721" loading="lazy"></a><figcaption>Manage connections from AAAAT's actual Settings → AI screen.</figcaption></figure>
+<!-- LOCAL CODEX: real separate captures of saved connections (multiple named choices), edit connection, AI instructions, Local AI startup. Hide API keys. -->
+</section>
+
+<section class="section guide-section" id="ai-prompts">
+<p class="eyebrow">AI · Deep personalisation</p>
+<h2>Change how AAAAT asks AI for help.</h2>
+<div class="prose">
+<p>You don't have to accept every instruction AAAAT sends to a model. Its <strong>AI instructions</strong> editor lets you change the request for each supported AI action, rather than replacing one global prompt for everything.</p>
+<ol class="guide-steps">
+<li>Open <strong>Settings → AI</strong>, then expand <strong>AI instructions</strong>.</li>
+<li>Open the action you want to change—for example, the action that extracts job information or helps draft a document. Its entry shows <strong>Default</strong> or <strong>Customized</strong>.</li>
+<li>Read <strong>Context AAAAT sends</strong> and <strong>Expected response</strong>. These explain the information available to that action and what kind of answer AAAAT expects.</li>
+<li>Change <strong>Effective instruction</strong> and choose <strong>Save</strong>. You can ask for a different emphasis, clearer wording, another language, or a style more appropriate to your work, provided the expected response remains usable.</li>
+<li>To undo your changes, choose <strong>Reset to shipped default</strong>. Expand <strong>Shipped default</strong> to compare the original instruction first.</li>
+</ol>
+<p><strong>Why the different prompts matter:</strong> asking AI to fill an application field is different from asking it to rewrite CV experience or draft a letter. Edit the instruction for the job you're doing. AAAAT still checks the returned information before using it, so changing the instruction too radically may produce suggestions you must correct or cannot use.</p>
+<h3>Want different information for different AI actions?</h3>
+<p>Use the field and professional-information <strong>👁</strong> controls described below, and the document <strong>Context</strong> view, to choose the applicable information. For an external assistant, you can edit the entire prepared request before copying. These choices are more precise than stuffing every detail into a single permanent prompt.</p>
+</div>
+<!-- LOCAL CODEX: real AI instructions panel, opened operation with Context AAAAT sends / Expected response / Effective instruction / Reset, no secrets. -->
+</section>
+
+<section class="section guide-section" id="ai-information">
+<p class="eyebrow">AI · Privacy and context</p>
+<h2>Decide what the AI can use—not just which model you use.</h2>
+<div class="prose">
+<p>AAAAT makes separate decisions for what is saved on your computer, what is prominent on screen, and what may be used for AI assistance. You can keep information locally without including it in a request to a model.</p>
+<ol class="guide-steps">
+<li><strong>Application information:</strong> open an application and use the <strong>👁</strong> control beside an information field. This controls AI use of that shared kind of information. The <strong>☆</strong> beside it controls display prominence instead; the two are independent.</li>
+<li><strong>My information:</strong> on a saved professional item, change <strong>AI may use this information</strong> using its eye control. Keep sensitive details out of AI context without deleting them from your profile.</li>
+<li><strong>Career preferences:</strong> inspect or edit the career context you want to use, along with its AI disclosure choices. A career goal is not the same thing as a verified achievement.</li>
+<li><strong>CVs and application documents:</strong> when working in a document linked to an application, use the document <strong>👁</strong> control to allow or disallow use of that application's documents with AI. This permission is separate from a field's local visibility.</li>
+<li><strong>Before asking AI to write:</strong> choose <strong>Context</strong> in a CV or letter editor to inspect which professional details, career preferences and application details are prepared. In a cover letter, you can select which application <strong>Sources</strong> to include.</li>
+<li><strong>Before going to another assistant:</strong> review the whole request in <strong>AI task</strong>. The text you see and edit is what <strong>Copy</strong> or <strong>Export</strong> uses.</li>
+</ol>
+<p>For an independently hosted AI service, what you send is also subject to that provider's handling. Granting another tool broad access to your computer is a separate choice from what AAAAT itself shares through a bounded request.</p>
+</div>
+<!-- LOCAL CODEX: real single-field Eye, profile-item Eye, document AI control, and Context popover showing representative allowed info. -->
+</section>
+
+<section class="section guide-section" id="ai-work">
+<p class="eyebrow">AI · Help beside the task</p>
+<h2>Different AI actions for different moments.</h2>
+<div class="prose">
+<h3>1. Fill a new application from pasted text</h3>
+<ol class="guide-steps">
+<li>Open <strong>Applications → New</strong>, paste an offer, and choose <strong>Fill</strong> once your AI connection is ready.</li>
+<li>Review which empty fields were populated and which Tags were suggested. Existing manual values do not need to be overwritten to use the result.</li>
+<li>Edit anything incorrect, accept only the new shared Tags you actually want, and choose <strong>Save</strong>. The original pasted posting is kept.</li>
+</ol>
+<h3>2. Complete or revisit a saved application</h3>
+<ol class="guide-steps">
+<li>Open a saved application using <strong>Open / Edit</strong>. Choose top-bar <strong>Fill</strong> for missing AI-enabled information, or use a field's <strong>✨</strong> button for focused help with just that field.</li>
+<li>When AI suggests a value, choose <strong>Use this value</strong>, <strong>Edit</strong> or <strong>Dismiss</strong> as appropriate. If a result needs review, you can correct it, retry that field or dismiss it.</li>
+<li>For Tags, use <strong>Suggest Tags with AI</strong>. Match an existing Tag or edit the proposed new Tag before creating it. You remain responsible for whether a suggestion is worth retaining.</li>
+</ol>
+<h3>3. Improve selected CV wording</h3>
+<ol class="guide-steps">
+<li>Open a working CV. Edit an individual item, such as a professional experience, and find the AI action beside <strong>Title</strong>, <strong>Subtitle</strong> or <strong>Description</strong>.</li>
+<li>Request help for the specific text you want to improve. Review the suggestion rather than replacing the CV automatically.</li>
+<li>Keep the edit in this CV, or use <strong>Save this edit for reuse</strong> if you deliberately want it available in My information or a template.</li>
+</ol>
+<h3>4. Draft a cover letter with your chosen context</h3>
+<ol class="guide-steps">
+<li>Open a letter linked to an application. Use <strong>Context</strong> to inspect the information and choose which original Sources to include.</li>
+<li>Choose <strong>Draft</strong>; open <strong>Draft ready</strong> to read the proposed paragraphs.</li>
+<li>Select <strong>Use</strong> or <strong>Dismiss</strong>, edit the letter as you wish, then save and render it.</li>
+</ol>
+<p>AI results are suggestions, not verified career facts. AAAAT preserves manual work and lets you continue working while assistance is pending.</p>
+</div>
+<!-- LOCAL CODEX: capture real new-app Fill, field-level sparkle and its review, new-Tag proposal, CV Write-with-AI, letter Draft ready. -->
+</section>
+
+<section class="section guide-section" id="external-ai">
+<p class="eyebrow">AI · Universal copy-paste rendezvous</p>
+<h2>Work with the LLM you already use.</h2>
+<div class="prose">
+<p>You might prefer ChatGPT, Claude, a local chat tool, or another text-capable LLM. It does not need to understand AAAAT, support an API, or have a special integration to help with an editable text request.</p>
+<ol class="guide-steps">
+<li>Open the application you want help with. In the top bar choose <strong>⋯ → AI task</strong>.</li>
+<li>Under <strong>Request</strong>, choose <strong>Application details</strong> when you want help with application information, or <strong>Interview</strong> when you want to work on interview-related text.</li>
+<li>Read and edit the complete request. Change the question, remove data you do not want to share or add your own instructions.</li>
+<li>Choose <strong>Copy</strong> and paste the request into your chosen LLM, or <strong>Export</strong> when you prefer a file-based handoff.</li>
+<li>Review the answer. Use the request editor's <strong>Result</strong> area and the available <strong>Import</strong> / <strong>Use</strong> action for the selected request. Interview text can be retained as an application Source; application-detail results can be reviewed for relevant field updates.</li>
+</ol>
+<p>This manual route works with any text-capable LLM that can accept your request and return useful text. No provider-specific AAAAT plugin or API key is required. You still decide whether its output is accurate and worth saving.</p>
+</div>
+<figure class="figure"><a href="assets/screenshots/ai-task.png" data-lightbox><img src="assets/screenshots/ai-task.png" alt="Real AAAAT application AI task with editable text and Copy and Export actions." width="1164" height="721" loading="lazy"></a><figcaption>Read and change your request before you bring it to another assistant.</figcaption></figure>
+</section>
+
+<section class="section guide-section" id="connected-ai">
+<p class="eyebrow">AI · Advanced connected use</p>
+<h2>Let a compatible external assistant work with AAAAT.</h2>
+<div class="prose">
+<p>Copy and paste is the universal path. If your external assistant supports the connection provided by AAAAT, it can also perform selected AAAAT actions without repeated re-entry. This is a different route with its own setup and permissions.</p>
+<ol class="guide-steps">
+<li>Open <strong>Settings → AI → Connect another AI</strong>. Expand <strong>Connection setup</strong> for the information your assistant host needs.</li>
+<li>Follow the host's instructions to register the AAAAT connection. The required procedure depends on that host; it is not the same as choosing a model for assistance inside AAAAT.</li>
+<li>Use <strong>Use AAAAT with another AI</strong> to inspect reusable instructions; choose <strong>Copy</strong> or <strong>Export</strong> if you want to give those to the assistant.</li>
+<li>For a particular application, <strong>⋯ → AI task</strong> can also let you allow or turn off <strong>future connected AI reads</strong> of its selected request. Review the text before granting access. Turning it off prevents further reads through that route; it cannot retract information already shared.</li>
+</ol>
+<details class="guide-detail"><summary>If you want the assistant to help with local setup</summary>
+<p>Under <strong>Connect another AI</strong>, there are separate permissions for bounded <strong>installer.ai</strong> and <strong>configurator.ai</strong> setup actions. Enable only the kind of setup help you intend to allow. These do not grant arbitrary access to your database, files or operating system, and an assistant host may have its own broader permissions outside AAAAT.</p>
+</details>
+<p>Connected support depends on what the external host can actually run. The manual editable-request route is always available when you do not want connected setup.</p>
+</div>
+</section>
+
+<section class="section guide-section" id="settings">
+<p class="eyebrow">Your workspace · Keep control and recover it</p>
+<h2>Manage your local work with confidence.</h2>
+<div class="prose">
+<h3>Switch or create a workspace</h3>
+<p>Open <strong>Settings → Workspace</strong>. Choose <strong>New workspace</strong> for a new folder or <strong>Open workspace</strong> to return to an existing one. A demo workspace is separate from the information you choose to keep for yourself.</p>
+<h3>Back up and restore</h3>
+<ol class="guide-steps">
+<li>Open <strong>Settings → Backup</strong> and choose <strong>Back up</strong>. Select a separate folder for the backup and let AAAAT complete it.</li>
+<li>Store the backup in a safe place. When you need to recover it, choose <strong>Restore</strong> and select a fresh empty destination folder.</li>
+<li>If you have unsaved edits, review them first. Restoring does not mean overwriting the active workspace without an appropriate destination.</li>
+</ol>
+<p>Your workspace backup and AI connection settings are separate. AI setup can be exported from <strong>Settings → AI</strong>, without carrying credentials in the portable connection export.</p>
+<h3>Remove information deliberately</h3>
+<p>Open <strong>Settings → Workspace → Reset</strong>. Choose what to clear: <strong>Applications</strong>, <strong>My information</strong>, or <strong>Applications and My information</strong>. Read the confirmation before proceeding. Generated PDFs and retained source projects are preserved by this reset, and shared Tags and settings remain.</p>
+<h3>Find the right settings page</h3>
+<p>The top selector in Settings switches between <strong>Workspace</strong>, <strong>AI</strong>, <strong>Documents</strong> and <strong>Backup</strong>. Use <strong>AI</strong> for connections, instructions, local-model startup and external assistants; <strong>Documents</strong> for PDF readiness and setup; <strong>Backup</strong> for safe copies; and <strong>Workspace</strong> for folders and Reset.</p>
+</div>
+<figure class="figure"><a href="assets/screenshots/backup.png" data-lightbox><img src="assets/screenshots/backup.png" alt="Genuine AAAAT Settings Backup screen." width="1164" height="721" loading="lazy"></a><figcaption>Settings → Backup in the actual desktop application.</figcaption></figure>
+</section>
+
+<section class="section guide-section" id="help">
+<p class="eyebrow">Help · Common questions</p>
+<h2>If something doesn't work as expected.</h2>
+<div class="prose">
+<details class="guide-detail"><summary>I saved an offer but cannot see the company on its cover.</summary>
+<p>Open the application and check which information you've saved. Mark the useful field with <strong>☆</strong>, then adjust its order and <strong>Card prominence</strong> under <strong>⚙</strong>. A card can represent only the Source or a sparse note; it need not have a title until you add one.</p></details>
+<details class="guide-detail"><summary>PDF isn't available.</summary>
+<p>Open <strong>Settings → Documents</strong> and inspect PDF readiness. Choose <strong>PDF setup</strong> to install a supported tool or use an existing compatible installation, then return to your document and choose PDF again. See <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/INSTALLATION.md">platform installation help</a> if the system's installation step needs attention.</p></details>
+<details class="guide-detail"><summary>My AI connection is saved but the model doesn't help.</summary>
+<p>In <strong>Settings → AI</strong>, confirm which connection is marked <strong>Selected</strong>, and check its address/model/credentials. Reachability is only a connectivity check. The model still needs to provide useful content for the particular action; try a simpler request, review <strong>AI instructions</strong> or choose another connection.</p></details>
+<details class="guide-detail"><summary>AI is missing something important—or uses information I don't want shared.</summary>
+<p>Check the relevant application fields and their <strong>👁</strong> controls, the professional item disclosures in <strong>My information</strong>, and document <strong>Context</strong>. If a field's definition is unclear, adjust its shared name or description under <strong>⚙ → Edit field definition</strong>. For external LLM handoffs, edit the request itself before copying.</p></details>
+<details class="guide-detail"><summary>I need a different CV for another kind of role.</summary>
+<p>Start another CV from <strong>My information</strong> or a saved template. Choose the useful item variations, alter your sections and wording, and save it independently. You can keep the earlier CV and generated PDF.</p></details>
+<details class="guide-detail"><summary>Can I work with AI that AAAAT doesn't integrate directly?</summary>
+<p>Yes. Open an application and choose <strong>⋯ → AI task</strong>. Edit and copy the request into any text-capable LLM. Direct integrations are another option, not a prerequisite.</p></details>
+<p>Need a fuller control reference? Read the <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/USER_GUIDE.md">user guide</a> and <a href="https://github.com/DidacLL/AAAAT/blob/main/docs/INSTALLATION.md">installation guide</a>. For a problem in the software, use the <a href="https://github.com/DidacLL/AAAAT/issues">public issue tracker</a> with fictional example data rather than personal career information.</p>
+</div>
+<div class="actions"><a class="button" href="get-started.html">Back to getting started</a><a class="button secondary" href="download.html">Download AAAAT</a></div>
 </section>
 </main>
 <footer class="site-footer"><div class="container"><p><strong>AAAAT</strong> · Your data. Your documents. Your computer.</p><nav aria-label="Project links"><a href="https://github.com/DidacLL/AAAAT">Source on GitHub</a><a href="https://github.com/DidacLL/AAAAT/issues">Issues &amp; ideas</a><a href="download.html">Get AAAAT</a></nav></div></footer>
