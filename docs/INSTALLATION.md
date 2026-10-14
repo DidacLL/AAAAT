@@ -1,6 +1,6 @@
 # Install AAAAT
 
-The v2 preview has no published release yet. Native packages are being prepared; when available, choose the file for your device from [Releases](https://github.com/DidacLL/AAAAT/releases).
+Choose the AAAAT 2 package for your device from [Releases](https://github.com/DidacLL/AAAAT/releases).
 
 | Device | Package | Installation |
 | --- | --- | --- |
@@ -8,7 +8,7 @@ The v2 preview has no published release yet. Native packages are being prepared;
 | macOS Intel / Apple Silicon | `AAAAT-macos-….dmg` | Open the disk image and drag AAAAT to Applications. |
 | Ubuntu / Debian x64 / ARM64 | `AAAAT-linux-….deb` | Open with your system's package installer. |
 
-Portable ZIPs are also built for each platform. Installed packages include the application runtime; Node.js and npm are not installation requirements. The Windows minimum follows Electron's Windows 10 baseline. Preview packages are unsigned: operating-system checks may require you to allow this preview to open. There is no automatic updater. Removing the app does not remove your separately chosen workspace.
+Portable ZIPs are also built for each platform. Installed packages include the application runtime; Node.js and npm are not installation requirements. The Windows minimum follows Electron's Windows 10 baseline. Packages are unsigned: operating-system checks may require you to allow AAAAT to open. There is no automatic updater. Removing the app does not remove your separately chosen workspace.
 
 ## Two optional extras
 
@@ -39,4 +39,4 @@ The Windows prerequisite comes from [Microsoft's Visual C++ redistributable](htt
 
 AAAAT pins the CPU runtime and exact tested GGUF revision and verifies downloaded archives against their published hashes. The initial tool/download location is local application data, outside the career workspace; both folders are editable under **Locations**. The generated startup script defaults to `127.0.0.1:47842` and is fully editable for the user’s setup.
 
-An independently installed compatible AI or TeX installation remains supported. AAAAT does not change your system PATH or overwrite your selected AI defaults. Building installers yourself is described in the [README](../README.md#run-the-current-preview).
+An independently installed compatible AI or TeX installation remains supported. AAAAT does not change your system PATH or overwrite your selected AI defaults. Building installers yourself is described in the [README](../README.md#build-from-source).

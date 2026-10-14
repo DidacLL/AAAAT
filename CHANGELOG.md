@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0-alpha.0 — Current preview
+## 2.0.0
 
 - One application creation screen combines original material and editable information.
 - Content-driven sans-serif application covers use configurable prominence and anchored expansion; Tag definitions stay in the left monitor.
@@ -12,10 +12,11 @@
 - Application document permission is checked before configured AI calls; actual context is inspectable on demand.
 - Application-linked external requests are fully editable, with exact Copy/Export and explicit future-read permission. Interview requests remain secondary.
 - Independent PDF/source projects survive editable-source removal; an application can produce one combined CV-and-letter PDF.
-- Development migration machinery is removed. Current schemas are corrected directly; no legacy-workspace compatibility is promised.
-- Required verification is static typecheck/lint. Packaging runs explicitly or for version-matched release tags.
+- Native Windows, macOS and Linux installers include optional local llama.cpp/Granite and PDF setup through native installers/software managers.
+- Local tools, downloads, pdfLaTeX and the local server's startup script are user-configurable.
+- Reset can clear applications, My information or both while preserving generated PDFs and source projects.
 
-This preview is merged product development, not a published release. Remaining integration evidence is tracked in [Current Mission](.agentic/CURRENT_MISSION.md) and GitHub.
+AAAAT 2 replaces the earlier prototype with a fresh desktop application. Releases are prepared as drafts; publication is a separate owner action.
 
 ## Earlier development
 

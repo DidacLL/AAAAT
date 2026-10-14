@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
+import { version } from "../../package.json";
 import { externalCandidatureCreateInputSchema } from "../shared/ai-contracts";
 import {
   externalApplicationInformationProposalInputSchema,
@@ -107,7 +108,7 @@ export function mcpWorkspaceFromInvocation(argv: readonly string[]): string {
 }
 
 function createServerForWorkspace(rootPath: string): McpServer {
-  const server = new McpServer({ name: "aaaat", version: "2.0.0-alpha.0" });
+  const server = new McpServer({ name: "aaaat", version });
   const documentSession = createExternalDocumentSession(rootPath);
 
   server.registerTool(

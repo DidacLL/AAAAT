@@ -8,9 +8,9 @@
 
 Keep an offer, find it when the recruiter calls, and turn your own career information into a CV and cover letter. **AAAAT is a local desktop workspace: your information, your documents, your choice of AI.**
 
-[Quick tour](#a-quick-tour) · [User guide](docs/USER_GUIDE.md) · [Advanced use](#a-little-more-control) · [Build from source](#run-the-current-preview)
+[Quick tour](#a-quick-tour) · [User guide](docs/USER_GUIDE.md) · [Advanced use](#a-little-more-control) · [Build from source](#build-from-source)
 
-**Current version: `2.0.0-alpha.0`.** This repository contains the v2 preview. There are no published downloadable releases yet; [Releases](https://github.com/DidacLL/AAAAT/releases) is where future packages will appear. The current preview can be [run from source](#run-the-current-preview).
+**Version `2.0.0`.** [Releases and downloads](https://github.com/DidacLL/AAAAT/releases) · [Installation guide](docs/INSTALLATION.md)
 
 <p align="center"><img width="2172" height="724" alt="image" src="https://github.com/user-attachments/assets/d609b279-8ee9-451c-95be-5b4cedfdc5af" /></p>
 
@@ -101,7 +101,7 @@ For an easy local start, choose **Local AI** during optional setup or in **Setti
 
 You can also connect your own server. The current adapter uses an OpenAI-compatible chat-completions endpoint. Loopback servers may use HTTP; remote endpoints must use HTTPS. For example, a local compatible server may expose `http://127.0.0.1:8080/v1`. You manage independently installed servers yourself.
 
-Normal AI use does not require running all feature checks first. Connection and per-feature checks are optional diagnostics; reachability is different from producing useful, valid results. Instructions for application information, Tags, CV writing and letters are editable, with a reset to the shipped default.
+**Check connection** checks server reachability. Instructions for application information, Tags, CV writing and letters are editable, with a reset to the shipped default.
 
 AI is optional information processing. AAAAT validates returned structure and keeps results editable; it cannot guarantee the model's factual accuracy or recognise every synonymous Tag. A repeated existing Tag is attached only once. A new name with an overlapping meaning remains a proposal you can edit or dismiss.
 
@@ -135,9 +135,9 @@ The rendering path is TypeScript-generated document data → LaTeX presentation 
 
 A workspace backup contains a consistent SQLite snapshot and retained workspace files. It uses an inspectable directory with a manifest and file hashes. Machine-local AI configuration and credential material are excluded; portable AI setup is exported separately.
 
-The v2 preview has no established real-user upgrade baseline. Development-era workspaces can become incompatible when the current schema changes. Keep any material you need in user-owned exports and backups; this preview does not provide a legacy-schema migration programme.
+AAAAT 2 is a fresh application. It does not import workspaces from the earlier prototype.
 
-## Run the current preview
+## Build from source
 
 For source users: use a current Node.js LTS release and its bundled npm. The locked dependencies declare their actual tool requirements; AAAAT adds no separate npm version gate or Node major ceiling. Installed packages include their own runtime and do not need Node.js or npm.
 
@@ -154,7 +154,7 @@ To make a native package for the current machine:
 npm run make
 ```
 
-Packages appear under `out/make/`. Windows builds additionally require [Inno Setup 6](https://jrsoftware.org/isdl.php); a compiler outside its standard location can be selected with `ISCC_PATH`. The release workflow builds native Windows setup EXEs, macOS DMGs and Linux DEBs, each on x64 and ARM64, plus portable ZIPs. Preview packages are unsigned and there is no automatic updater.
+Packages appear under `out/make/`. Windows builds additionally require [Inno Setup 6](https://jrsoftware.org/isdl.php); a compiler outside its standard location can be selected with `ISCC_PATH`. The release workflow builds native Windows setup EXEs, macOS DMGs and Linux DEBs, each on x64 and ARM64, plus portable ZIPs. Packages are unsigned and there is no automatic updater.
 
 Optional PDF setup opens the native MiKTeX installer on Windows/Intel macOS, BasicTeX on Apple Silicon, or the native software manager for TeX Live on Linux. Existing compatible pdfLaTeX installations work too. Downloads start only after you select them. See [installation details](docs/INSTALLATION.md) for supported systems, download sources and permissions. Neither AI nor PDF setup blocks ordinary application work or document editing.
 

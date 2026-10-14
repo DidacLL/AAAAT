@@ -1,6 +1,6 @@
 # AAAAT user guide
 
-This guide describes the `2.0.0-alpha.0` desktop preview. Start with the [README tour](../README.md) for a quick introduction.
+This guide describes AAAAT `2.0.0`. Start with the [README tour](../README.md) for a quick introduction.
 
 ## Start or switch workspaces
 
@@ -103,9 +103,9 @@ Generated documents also expose **Export source project**. It copies the retaine
 | AI action cannot run | Settings → AI: saved default, endpoint, model and the action's error |
 | AI supplied unusable information | Edit or dismiss the proposal; inspect the exchange on demand |
 | PDF cannot be generated | Settings → Documents: `pdflatex` availability and rendering error |
-| Old development workspace will not open | Use a fresh preview workspace; there is no historical-schema migration layer |
+| Earlier prototype or development workspace will not open | Create a new workspace; AAAAT 2 does not import the earlier prototype |
 | Need to undo an unfinished edit | Its explicit Cancel action; navigation alone preserves the draft |
 
-There are no published releases yet. The preview is unsigned, has no automatic updater and has no established real-user upgrade baseline. Native cross-platform packaging exists; release availability and evidence limits are tracked in [Current Mission](../.agentic/CURRENT_MISSION.md) and GitHub. Instructions for running the preview are in the [README](../README.md#run-the-current-preview).
+Download installers and portable packages from [Releases](https://github.com/DidacLL/AAAAT/releases). Packages are unsigned and there is no automatic updater. See the [installation guide](INSTALLATION.md), or [build from source](../README.md#build-from-source).
 
 Please report problems with fictional examples. Keep real workspaces, career documents and credentials out of public issues; see [Security](../SECURITY.md).
