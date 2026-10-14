@@ -1,34 +1,42 @@
-<!doctype html>
-<html lang="en">
-<head>
+<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Get Started · AAAAT</title>
 <meta name="description" content="Your first minutes with AAAAT: create a local workspace, keep an opportunity, or make a document. AI is optional.">
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/site.css">
-<script src="assets/site.js" defer></script>
+<script src="assets/site.js" defer=""></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="site-header"><a class="brand" href="index.html"><img src="assets/logo.png" alt="" width="46" height="46"><span>AAAAT<small>Your private application workshop</small></span></a><nav class="site-nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="get-started.html" aria-current="page">Get Started</a><a href="explore.html">Explore AAAAT</a><a href="how-its-built.html">How It’s Built</a><a href="download.html">Download</a></nav></header>
+<header class="site-header"><a class="brand" href="index.html" aria-label="AAAAT home — Agent-Agnostic Auto Application Tracker"><img src="assets/masthead.png" alt="Agent-Agnostic Auto Application Tracker — AAAAT. Private desktop assistant for thoughtful job applications." width="2172" height="724" fetchpriority="high"></a><nav class="site-nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="get-started.html" aria-current="page">Get Started</a><a href="explore.html" aria-label="Explore AAAAT">Explore</a><a href="how-its-built.html">How It’s Built</a><a href="download.html">Download</a></nav></header>
 <main id="main" class="container">
 <header class="page-intro">
 <p class="eyebrow">Get started</p>
 <h1>Make AAAAT yours.</h1>
 <p>Open the app, choose what you want to do, and see how your applications and documents fit together. You can explore with the included demo or work with your own information from the start.</p>
-<nav class="toc" aria-label="Jump to what you want to do"><a href="#ready">Open AAAAT</a><a href="#demo">Explore the demo</a><a href="#offer">Save an offer</a><a href="#find">Find it again</a><a href="#document">Make a CV</a><a href="#ai">Get AI help</a></nav>
+<nav class="toc" aria-label="Jump to what you want to do"><a href="#ready">Open AAAAT</a><a href="#demo">Explore the demo</a><a href="#offer">Save an offer</a><a href="#find">Find it again</a><a href="#covers">Choose what stands out</a><a href="#profile">Keep your career information</a><a href="#document">Make a CV or letter</a><a href="#ai">Get AI help</a></nav>
 </header>
-<section class="section prose" id="ready">
+<section class="section" id="ready">
 <h2>Open AAAAT and get ready</h2>
+<div class="prose">
+<p>Choose the tools you want for your work. PDF generation makes finished documents; Local AI helps with wording and information. You can set up either or both, and return to these choices later.</p>
 <ol class="steps">
 <li><a href="download.html">Download AAAAT for your computer</a>, install it, and open the desktop app.</li>
-<li>On first launch, <strong>Make AAAAT ready for you</strong> offers two independent options. <strong>PDF generation</strong> uses <strong>pdfLaTeX</strong> to turn your CVs and letters into PDFs. If you already have a compatible TeX installation, AAAAT can reuse its <code>pdflatex</code> executable; otherwise the setup opens MiKTeX, BasicTeX or TeX Live as appropriate for your computer. <strong>Local AI</strong> offers the tested <strong>IBM Granite 4.1 3B Q4_K_M</strong> model with <strong>llama.cpp</strong> on your CPU (approximately 2 GB to download). Choose either or both and select <strong>Set up</strong>. Follow the native installation steps shown on your computer.</li>
-<li>When you're ready, choose <strong>Open demo</strong> to look around with example information, or <strong>New workspace</strong> to use your own information. Choose an empty folder for the workspace. Your information will be kept there, on your computer.</li>
+<li>In <strong>Make AAAAT ready for you</strong>, select <strong>PDF generation</strong>, <strong>Local AI</strong> or both, then choose <strong>Set up</strong>. Follow any installation steps shown on your computer. <strong>Not now</strong> opens the app without installing the extras; you can return to setup later.</li>
+<li>Choose <strong>Open demo</strong> to look around with fictional examples, or <strong>New workspace</strong> for your own information. Pick an empty folder for the workspace.</li>
 </ol>
-<p>Want to use your existing TeX or change where downloads go? Expand <strong>Locations</strong> in the setup dialog. Choose <strong>pdfLaTeX → Browse</strong> to select an existing <code>pdflatex</code> executable, or choose folders under <strong>Local tools</strong> and <strong>Downloads</strong>. You can return to these options later in Settings. Manual application and CV editing work without AI; PDF output requires pdfLaTeX.</p>
-<!-- Local Codex screenshot request: capture the real first-launch “Make AAAAT ready for you” dialog with both PDF generation and Local AI clearly visible; capture Welcome showing New workspace/Open demo. Insert when captured, no drawn/mocked UI. -->
-</section>
+<p><strong>You're ready:</strong> your chosen folder holds your applications, career information and documents on your computer.</p>
+<details class="guide-detail"><summary>What gets installed, and how to use tools you already have</summary>
+<p><strong>PDF generation</strong> uses <strong>pdfLaTeX</strong> to turn CVs and letters into PDFs. If you already have a compatible TeX installation, AAAAT can reuse its <code>pdflatex</code> executable; otherwise setup opens MiKTeX, BasicTeX or TeX Live as appropriate for your computer.</p>
+<p><strong>Local AI</strong> offers the tested <strong>IBM Granite 4.1 3B Q4_K_M</strong> model with the <strong>llama.cpp CPU runtime</strong>, approximately 2 GB to download. It runs on your computer; speed depends on your hardware. The installed model starts with AAAAT and stops when you quit.</p>
+<p>Expand <strong>Locations</strong> in the setup dialog to select an existing <strong>pdfLaTeX → Browse</strong> executable or folders under <strong>Local tools</strong> and <strong>Downloads</strong>. These folder choices affect future installations without moving existing tools. You can return through <strong>Settings → Documents → PDF setup</strong> or <strong>Settings → AI → Local AI</strong>.</p>
+<p>Application and document editing work without these extra tools. Generating a PDF requires pdfLaTeX; in-app AI help needs a selected connection. <a href="explore.html#pdf">Full PDF setup guide</a> · <a href="explore.html#ai-connections">Local AI and other connections</a></p>
+</details>
+</div>
+
+
+<div class="setup-pair"><figure class="figure"><a href="assets/screenshots/setup.png" data-lightbox=""><img src="assets/screenshots/setup.png" alt="The actual AAAAT setup dialog offering PDF generation and Local AI." loading="lazy" width="544" height="356"></a><figcaption>Choose the tools for your work. Select any screenshot to enlarge it.</figcaption></figure><figure class="figure"><a href="assets/screenshots/welcome.png" data-lightbox=""><img src="assets/screenshots/welcome.png" alt="AAAAT welcome screen with New workspace and Open demo actions." loading="lazy" width="760" height="460"></a><figcaption>Open the examples or choose a home for your own information.</figcaption></figure></div></section>
 <section class="section" id="demo">
 <h2>Explore what AAAAT looks like</h2>
 <div class="prose">
@@ -40,8 +48,6 @@
 </ol>
 <p>You don't have to use the demo to get started. A new, empty workspace works just as well for saving an opportunity or making a CV.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/applications.png" data-lightbox><img src="assets/screenshots/applications.png" alt="Real AAAAT Applications view showing saved opportunities in a fictional workspace." loading="lazy" width="1440" height="900"></a><figcaption>These are real AAAAT application covers, not an imitation interface. Select the screenshot to enlarge it.</figcaption></figure>
-<!-- Local Codex: replace with a genuine refreshed Applications screenshot with recognizable fictional employers and roles, not a dominant wall of Source text. -->
 </section>
 <section class="section" id="offer">
 <h2>Save an interesting job offer</h2>
@@ -55,7 +61,7 @@
 </ol>
 <p>Prefer to enter the details yourself? That's fine too. You can save just a few words or a useful fragment and add the rest another day.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/new-application.png" data-lightbox><img src="assets/screenshots/new-application.png" alt="AAAAT’s actual New application screen with pasted offer text and editable details." loading="lazy" width="1440" height="900"></a><figcaption>The original posting stays next to the details you want to remember.</figcaption></figure>
+<figure class="figure"><a href="assets/screenshots/new-application.png" data-lightbox=""><img src="assets/screenshots/new-application.png" alt="AAAAT’s actual New application screen with pasted offer text and editable details." loading="lazy" width="1440" height="900"></a><figcaption>The original posting stays next to the details you want to remember.</figcaption></figure>
 </section>
 <section class="section" id="find">
 <h2>Find it again when somebody calls</h2>
@@ -64,37 +70,71 @@
 <ol class="steps">
 <li>Open <strong>Applications</strong> and use <strong>Search</strong> to look for the employer, role or another detail you remember.</li>
 <li>Choose the matching cover to see more. Select <strong>Open / Edit</strong> when you want the original offer, saved notes or complete information.</li>
-<li>After the call, add a note about what you discussed so it will be there next time.</li>
+<li>After the call, go to <strong>Sources → Add</strong>, choose <strong>Conversation</strong>, write the useful details and select <strong>Add source</strong>.</li>
 </ol>
-<p>You can customize which details stand out on an application cover. The <a href="explore.html#fields">advanced guide</a> explains how.</p>
+<p><strong>Now you have the context:</strong> the original posting and later conversation stay with the same opportunity.</p>
 </div>
+<figure class="figure"><a href="assets/screenshots/applications.png" data-lightbox=""><img src="assets/screenshots/applications.png" alt="Real AAAAT Applications view with searchable fictional job opportunities." loading="lazy" width="1440" height="900"></a><figcaption>Recognize an opportunity by the details you chose to keep.</figcaption></figure>
+<figure class="figure"><a href="assets/screenshots/source.png" data-lightbox=""><img src="assets/screenshots/source.png" alt="AAAAT’s real Source reader retaining material for a fictional application." loading="lazy" width="1440" height="900"></a><figcaption>Read a saved Source when you need the original wording.</figcaption></figure>
+</section>
+<section class="section" id="covers">
+<h2>Choose what stands out on the covers</h2>
+<div class="prose">
+<p>Maybe you recognize a job by its company, location or working hours. Put those details where you can spot them quickly.</p><figure class="figure"><a href="assets/screenshots/field-prominence.png" data-lightbox=""><img src="assets/screenshots/field-prominence.png" alt="An actual favourite field’s gear menu showing Card prominence and earlier/later arrow controls." loading="lazy" width="675" height="196"></a><figcaption>The star chooses favourite information; the gear controls its order and prominence.</figcaption></figure>
+<ol class="steps">
+<li>Open an application with <strong>Open / Edit</strong>. Find the field you want to emphasize and select its <strong>☆</strong> star to make it a favourite. A filled <strong>★</strong> shows it is selected.</li>
+<li>Open that field's <strong>⚙</strong> gear. Under <strong>Card prominence</strong>, choose <strong>Small</strong>, <strong>Regular</strong> or <strong>Large</strong>. For example, make the employer Large and a secondary detail Small.</li>
+<li>Use <strong>↑</strong> to move the favourite earlier or <strong>↓</strong> to move it later. Return to <strong>Applications</strong> with the top-bar <strong>←</strong> to see the result.</li>
+</ol>
+<p><strong>Your covers now follow your priorities.</strong> These choices affect how you browse applications; they do not change the saved facts.</p>
+<p>Need a detail that isn't listed? Under <strong>Details → Information setup</strong>, choose <strong>Add information</strong>, give it a name and select <strong>Add</strong>. Then enter its value and star it if you want it on covers. <a href="explore.html#fields">More about fields and their controls →</a></p>
+</div>
+
+</section>
+<section class="section" id="profile">
+<h2>Keep your career information ready to reuse</h2>
+<div class="prose">
+<p>Your experience need not be rewritten every time you make a CV. Save the useful facts once, then choose how to present them.</p>
+<ol class="steps">
+<li>Open <strong>My information → ＋ New</strong>. Choose an <strong>Information type</strong>, such as Experience, or type your own group name.</li>
+<li>Enter the main detail, such as your <strong>Role</strong>. Use <strong>Add detail</strong> for the description, organisation, dates or other information you need. Choose <strong>Save</strong>.</li>
+<li>For another emphasis, open the saved item, expand <strong>Saved variations</strong> and select <strong>New variation</strong>. Give it a clear name, adjust the wording and choose top-bar <strong>Save</strong>.</li>
+</ol>
+<p><strong>The facts stay reusable:</strong> when editing a linked CV item, <strong>Use My information</strong> lets you choose its current version or a named variation. The demo shows Alex Morgan's <strong>Public-facing emphasis</strong> alongside the original community-programmes experience.</p>
+<p><a href="explore.html#profile">More about your information and career preferences →</a></p>
+</div>
+<figure class="figure"><a href="assets/screenshots/profile-variation.png" data-lightbox=""><img src="assets/screenshots/profile-variation.png" alt="Alex Morgan’s fictional reusable experience and saved variation in the real My information editor." loading="lazy" width="1440" height="900"></a><figcaption>Different emphasis for different roles, using the same professional history.</figcaption></figure>
 </section>
 <section class="section" id="document">
 <h2>Make a CV and cover letter</h2>
-<p>You don't need an application saved to make documents. AAAAT can start with reusable career information or a blank CV.</p>
-<figure class="figure"><img src="assets/career-documents.png" alt="The approved AAAAT illustration of professional information becoming CVs, cover letters and PDFs." loading="lazy" width="1672" height="941"><figcaption>Write your career information once, then build documents that fit different opportunities.</figcaption></figure>
+<p>Start with the career information you've saved or write from a blank CV. Documents also work independently of job applications.</p>
+<figure class="figure"><img src="assets/career-documents.png" alt="The approved AAAAT illustration of professional information becoming CVs, cover letters and PDFs." loading="lazy" width="1672" height="941"><figcaption>AAAAT illustration: write your career information once, then build documents for different opportunities.</figcaption></figure>
 <div class="prose">
 <ol class="steps">
-<li>Open <strong>My information</strong> and add the experience, skills and education you'll want to use in your CV. If you're in the demo workspace, there's already an example profile you can explore.</li>
 <li>Open <strong>Documents</strong>. In <strong>New CV from</strong>, choose <strong>My information</strong> to reuse what you've saved, or <strong>Blank</strong> to start fresh. Select <strong>New CV</strong>.</li>
-<li>Edit the content, change the section order and save the CV when you're happy with it.</li>
-<li>Choose <strong>PDF</strong> in the top bar to generate a finished document. If AAAAT reports that pdfLaTeX is unavailable, open <strong>Settings → Documents → PDF setup</strong>, install the offered TeX distribution or select an existing <code>pdflatex</code> under <strong>Locations</strong>, then return to the CV. <a href="explore.html#pdf">Detailed PDF and LaTeX guide →</a></li>
-<li>To write a letter, choose <strong>New letter</strong> in Documents. You can also prepare a CV and letter from inside a saved application when you want them associated with that opportunity.</li>
+<li>Edit the wording. Use <strong>＋ Add section</strong> and <strong>＋ Add information</strong> when you need more content; a section's <strong>•••</strong> menu changes its name or order. Choose <strong>Save</strong> to keep the CV.</li>
+<li>Choose <strong>PDF</strong> in the top bar. Open the finished output from <strong>Documents → Generated files</strong>.</li>
 </ol>
+<p><strong>You have an editable CV and a finished PDF.</strong> Later edits do not rewrite the PDF you already made.</p>
+<details class="guide-detail"><summary>If PDF generation needs setup</summary><p>Open <strong>Settings → Documents → PDF setup</strong>. Complete the offered TeX installation, or select your existing <code>pdflatex</code> executable under <strong>Locations</strong>. Return to the document and choose <strong>PDF</strong> again. <a href="explore.html#pdf">Detailed PDF and LaTeX guide →</a></p></details>
 </div>
-<figure class="figure"><a href="assets/screenshots/cv-editor.png" data-lightbox><img src="assets/screenshots/cv-editor.png" alt="Actual AAAAT CV editor with editable professional information and document actions." loading="lazy" width="1440" height="900"></a><figcaption>AAAAT's CV editor: you decide what goes into the document.</figcaption></figure>
-<figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox><img src="assets/screenshots/pdf.png" alt="Genuine CV PDF produced in AAAAT." loading="lazy" width="953" height="1348"></a><figcaption>A genuine PDF generated by AAAAT.</figcaption></figure>
-<!-- Local Codex: recapture CV editor and its matching PDF using the same coherent example information. -->
+<figure class="figure"><a href="assets/screenshots/documents.png" data-lightbox=""><img src="assets/screenshots/documents.png" alt="AAAAT Documents collection with editable CVs, letters, reusable templates and generated files." loading="lazy" width="1440" height="900"></a><figcaption>Start a document or return to a version you've already saved.</figcaption></figure>
+<div class="document-pair"><figure class="figure"><a href="assets/screenshots/cv-editor.png" data-lightbox=""><img src="assets/screenshots/cv-editor.png" alt="Actual AAAAT CV editor with editable professional information and document actions." loading="lazy" width="1440" height="900"></a><figcaption>AAAAT's CV editor: you decide what goes into the document.</figcaption></figure><figure class="figure pdf-figure"><a href="assets/screenshots/pdf.png" data-lightbox=""><img src="assets/screenshots/pdf.png" alt="Genuine CV PDF produced in AAAAT." loading="lazy" width="953" height="1348"></a><figcaption>Generated by AAAAT from Alex Morgan’s fictional career information. <a href="assets/examples/alex-morgan-cv.pdf">Open the CV PDF</a> · <a href="assets/examples/alex-morgan-letter.pdf">Open the matching letter PDF</a>.</figcaption></figure></div>
+
+<div class="prose"><h3>Add a letter when you need one</h3><p>In <strong>Documents</strong>, choose <strong>New letter</strong>. Edit the sender details, recipient, body and closing, then choose <strong>Save</strong> and <strong>PDF</strong>. To keep it beside an opportunity, open that application and choose <strong>Create cover letter</strong> (or <strong>New cover letter</strong> if one already exists) instead.</p><p><a href="explore.html#letters">Letters and combined application PDFs →</a> · <a href="explore.html#cv">CV variations and reusable templates →</a></p></div>
+<figure class="figure"><a href="assets/screenshots/letter.png" data-lightbox=""><img src="assets/screenshots/letter.png" alt="Alex Morgan’s fictional cover letter in AAAAT’s real letter editor." loading="lazy" width="1440" height="900"></a><figcaption>Keep the letter in your own words, with the right details for this opportunity.</figcaption></figure>
 </section>
 <section class="section prose" id="ai">
 <h2>Use AI when it helps</h2>
-<p>AI can help you fill information from a long job posting or work on a CV or letter. If you installed <strong>Local AI</strong> at the beginning, it's available from within AAAAT. You can also configure another compatible provider or use a text-capable LLM through copy and paste—no dedicated integration needed.</p>
+<p>Use AI for a particular task: picking details out of a long posting, improving a CV sentence or drafting a letter. You review the wording and decide what to keep.</p>
 <ol class="steps">
 <li>Open <strong>Applications → New</strong> and paste a job offer.</li>
-<li>Choose <strong>Fill</strong> to ask your configured AI to suggest useful details. Review what it adds and change anything you want.</li>
-<li>Save the application. You can always work manually, with or without AI.</li>
+<li>Choose <strong>Fill</strong> to ask your selected AI to find useful details. Review what it adds and correct anything inaccurate.</li>
+<li>Select any proposed new Tags you want to keep, then choose <strong>Save</strong>.</li>
 </ol>
-<p>For other AI options, see <a href="explore.html#ai-choices">Explore AAAAT</a>.</p>
+<p>If you installed <strong>Local AI</strong>, check <strong>Settings → AI</strong> for the selected connection. You can also choose another compatible provider there.</p>
+<p>Prefer the assistant you already use? Open a saved application and choose <strong>⋯ → AI task</strong>. Review the request, select <strong>Copy</strong> and paste it into your assistant. <a href="explore.html#external-ai">See how to bring its answer back →</a></p>
+<p><a href="explore.html#ai-choices">Explore your AI choices</a> · <a href="explore.html#ai-prompts">Change the instructions</a> · <a href="explore.html#ai-information">Choose what information is shared</a></p>
 </section>
 <section class="section prose">
 <h2>Keep going at your own pace</h2>
@@ -103,5 +143,6 @@
 </section>
 </main>
 <footer class="site-footer"><div class="container"><p><strong>AAAAT</strong> · Your data. Your documents. Your computer.</p><nav aria-label="Project links"><a href="https://github.com/DidacLL/AAAAT">Source on GitHub</a><a href="https://github.com/DidacLL/AAAAT/issues">Issues &amp; ideas</a><a href="download.html">Get AAAAT</a></nav></div></footer>
-</body>
-</html>
+
+
+</body></html>

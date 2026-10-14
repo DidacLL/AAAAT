@@ -1,4 +1,4 @@
-<p align="center"><img src="site/assets/logo.png" width="180" alt="AAAAT’s patched hooded robot mascot"></p>
+![AAAAT — Agent-Agnostic Auto Application Tracker](site/assets/masthead.png)
 
 # AAAAT — Agent-Agnostic Auto Application Tracker
 
@@ -6,7 +6,7 @@
 
 AAAAT is a free, open-source desktop workspace for thoughtful job applications. Keep opportunities and original source material, reuse your career information, and make editable CVs, cover letters and PDFs. Your information lives in a local folder you choose. AI is optional.
 
-[Website](https://didacll.github.io/AAAAT/) · [Get Started](https://didacll.github.io/AAAAT/get-started.html) · [Download v2.0.0](https://github.com/DidacLL/AAAAT/releases/tag/v2.0.0) · [User guide](docs/USER_GUIDE.md)
+[Website](https://didacll.github.io/AAAAT/) · [Get Started](https://didacll.github.io/AAAAT/get-started.html) · [Download AAAAT](https://github.com/DidacLL/AAAAT/releases/latest) · [User guide](docs/USER_GUIDE.md)
 
 ![AAAAT’s private application workshop — promotional illustration](site/assets/workshop.png)
 
@@ -24,9 +24,9 @@ There is no required application stage or completeness checklist. AAAAT does not
 
 ## Start simply
 
-Install the package for your device, open AAAAT and **New workspace** in an empty folder. AI and PDF tools can be configured later. Installed packages include the application runtime; Node.js and npm are unnecessary for ordinary use.
+Install the package for your device and open AAAAT. First launch offers **PDF generation** and **Local AI**; select either or both and complete **Set up**, or return to them later. Choose **New workspace** in an empty folder for your own information. Installed packages include the application runtime; Node.js and npm are unnecessary for ordinary use.
 
-Choose **Open demo** in a separate empty folder to explore 12 fictional opportunities across community work, editorial work, visitor services and other professions. Alex Morgan’s fictional background includes reusable information, a custom Community work group, a wording variation, CVs, a letter and a composition template.
+Choose **Open demo** in a separate empty folder to explore 12 fictional opportunities across community work, editorial work, visitor services and other professions. Alex Morgan’s fictional background includes reusable information, a custom Community work group, a wording variation, CVs, a letter and a composition template. The demo uses mixed field prominence; use favourite stars and the field gear to choose the details and sizes that work for your search.
 
 [First minutes](https://didacll.github.io/AAAAT/get-started.html) · [Explore the capabilities](https://didacll.github.io/AAAAT/explore.html) · [Installation details](docs/INSTALLATION.md)
 
