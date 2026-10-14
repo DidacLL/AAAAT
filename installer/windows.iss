@@ -11,10 +11,10 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=arm64
 ArchitecturesInstallIn64BitMode=arm64
 #else
-ArchitecturesAllowed=x64compatible and not arm64
+ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #endif
-MinVersion=10.0.22000
+MinVersion=10.0
 OutputDir={#InstallerOutput}
 OutputBaseFilename=AAAAT-windows-{#AppArch}-setup
 Compression=lzma2

@@ -2,7 +2,7 @@
 
 Start with [AGENTS.md](AGENTS.md). Work through bounded GitHub Issues and short-lived branches. Once the Product Definition and derived architecture establish the outcome, proceed autonomously; do not ask the Product Owner to repeat settled meaning.
 
-Use Node 24 and the committed lockfile:
+Use a current Node.js LTS release, its bundled npm and the committed lockfile. Dependency manifests declare their actual version requirements; a CI toolchain choice does not impose an additional product restriction.
 
 ```text
 npm ci

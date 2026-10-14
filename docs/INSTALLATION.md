@@ -4,11 +4,11 @@ The v2 preview has no published release yet. Native packages are being prepared;
 
 | Device | Package | Installation |
 | --- | --- | --- |
-| Windows 11 x64 / ARM64 | `AAAAT-windows-…-setup.exe` | Open setup; AAAAT installs for your account. |
+| Windows 10 or later, x64 / ARM64 | `AAAAT-windows-…-setup.exe` | Open setup; AAAAT installs for your account. Choose the native architecture where possible. |
 | macOS Intel / Apple Silicon | `AAAAT-macos-….dmg` | Open the disk image and drag AAAAT to Applications. |
 | Ubuntu / Debian x64 / ARM64 | `AAAAT-linux-….deb` | Open with your system's package installer. |
 
-Portable ZIPs are also built for each platform. Preview packages are unsigned: operating-system checks may require you to allow this preview to open. There is no automatic updater. Removing the app does not remove your separately chosen workspace.
+Portable ZIPs are also built for each platform. Installed packages include the application runtime; Node.js and npm are not installation requirements. The Windows minimum follows Electron's Windows 10 baseline. Preview packages are unsigned: operating-system checks may require you to allow this preview to open. There is no automatic updater. Removing the app does not remove your separately chosen workspace.
 
 ## Two optional extras
 
@@ -16,19 +16,19 @@ On a fresh installed launch, choose either, both or neither. **Not now** takes y
 
 **Local AI** downloads the official llama.cpp CPU runtime and IBM Granite 4.1 3B Q4_K_M, approximately 2 GB. This is the model tested with AAAAT. It runs on your computer; speed depends on your hardware. The installed server starts with AAAAT and stops when you quit. **Settings → AI → Startup** provides an editable script, an on/off choice and **Use installed default**. Saved changes apply on the next launch. The generated default includes the installed executable and model paths; advanced users can configure their own setup. Startup scripts run locally with your account privileges and are not editable by connected AI tools. New workspaces without an AI connection receive it automatically. Existing connections and manually deleted connections remain as you chose them.
 
-On Windows, Local AI also checks its Microsoft Visual C++ runtime dependency. A working tested version is reused. If it is missing, Microsoft's own setup opens with its license and permission choices; AAAAT does not approve these for you.
+On Windows, Local AI checks whether llama.cpp can start with the available runtime. A working installation is reused, without imposing a version threshold. If Windows reports a missing runtime DLL or DLL entry point, Microsoft's own setup opens with its license and permission choices; AAAAT does not approve these for you.
 
 **PDF generation** uses an existing pdfLaTeX installation where available. Otherwise it installs:
 
 | Device | PDF tool |
 | --- | --- |
-| Windows 11, including ARM64 through Windows x64 support | MiKTeX |
+| Windows 10 or later on x64; Windows 11 on ARM64 through x64 emulation | MiKTeX |
 | macOS Intel | MiKTeX |
 | Apple Silicon | BasicTeX, the small TeX Live distribution |
 | Ubuntu / Debian x64 | MiKTeX |
 | Ubuntu / Debian ARM64 | Native TeX Live |
 
-Automatic Linux PDF setup supports Ubuntu 22.04, 24.04 and 26.04, corresponding Linux Mint releases, and Debian 11–13. It uses the system package manager and may ask for administrator authorization. The DEB includes the small authorization/key prerequisites; portable ZIP users need `pkexec` and `gpg` for automatic PDF setup. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
+Automatic Linux PDF setup uses APT and may ask for administrator authorization. ARM64 uses the distribution's TeX Live packages; x64 uses MiKTeX's published repository for the detected Ubuntu/Debian base, without a release-name whitelist. Other systems can use an existing pdfLaTeX installation. The DEB includes the small authorization/key prerequisites; portable ZIP users need `pkexec` and `gpg` for automatic PDF setup. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
 
 You can cancel a download or continue using AAAAT while setup runs. Once native installation starts, allow it to finish. A failed optional download leaves completed tools available and does not prevent manual work. Setup errors remain visible so you can retry.
 

@@ -272,6 +272,8 @@ Architecture should prefer:
 - typed validation and narrow privileged boundaries;
 - no speculative framework, registry, plugin system, workflow engine or compatibility programme.
 
+AAAAT should be broadly compatible. Do not impose operating-system, architecture, dependency or development-tool restrictions without a concrete technical need. A chosen development or CI environment is not a user requirement. Limitations of optional AI/PDF setup must stay separate from whether the application itself can run.
+
 Implementation history is not product authority. Before a real-use compatibility baseline exists, wrong development representations should be corrected directly rather than preserved through migration ceremony.
 
 ## Historical interpretation rule

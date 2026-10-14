@@ -114,24 +114,29 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
     await writeFile(script, "param([string]$Archive,[string]$Destination)\n$ErrorActionPreference='Stop'\nExpand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force\n");
     const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
     await run(powershell, ["-NoProfile", "-NonInteractive", "-File", script, "-Archive", downloaded, "-Destination", directory]);
-    await installWindowsRuntime(signal);
+    await installWindowsRuntime(signal, await findExecutable(directory, "llama-server.exe"));
   } else {
     await run("tar", ["-xzf", downloaded, "-C", directory]);
   }
-  await obtain(graniteModel, "Downloading Granite 4.1 3B · about 2 GB…", signal);
   message = "Checking local AI…";
   const executable = await findExecutable(directory, process.platform === "win32" ? "llama-server.exe" : "llama-server");
   await run(executable, ["--version"], 10_000);
+  await obtain(graniteModel, "Downloading Granite 4.1 3B · about 2 GB…", signal);
   writeFileSync(path.join(installedToolsDirectory(), "granite-installed.json"), JSON.stringify({ executable: path.relative(directory, executable), runtime: "b11429", modelSha256: graniteModel.hash }) + "\n");
   startLocalAiWithApp();
 }
 
-async function installWindowsRuntime(signal: AbortSignal): Promise<void> {
+async function installWindowsRuntime(signal: AbortSignal, executable: string): Promise<void> {
   const system = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
-  const query = spawnSync(path.join(system, "reg.exe"), ["query", `HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\${process.arch}`, "/reg:64"], { windowsHide: true, encoding: "utf8", timeout: 5000 });
-  const version = query.stdout?.match(/Version\s+REG_SZ\s+v?([\d.]+)/i)?.[1]?.split(".").map(Number);
-  const [major = 0, minor = 0] = version ?? [];
-  if (/Installed\s+REG_DWORD\s+0x1/i.test(query.stdout ?? "") && (major > 14 || (major === 14 && minor >= 50))) return;
+  const probe = spawnSync(executable, ["--version"], { windowsHide: true, encoding: "utf8", timeout: 10_000 });
+  if (probe.status === 0) return;
+  if (probe.error) throw probe.error;
+  // Windows loader errors: missing DLL or an unavailable DLL entry point.
+  // A working runtime needs no version-based replacement.
+  const status = (probe.status ?? 0) >>> 0;
+  if (status !== 0xc0000135 && status !== 0xc0000139) {
+    throw new Error(probe.stderr?.trim() || probe.stdout?.trim() || "The downloaded llama.cpp runtime could not start on this device.");
+  }
   // Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
   const installer = await obtain(visualCppWindows, "Downloading the Microsoft runtime…", signal);
   message = "Microsoft runtime · follow its Windows setup…";
@@ -193,19 +198,27 @@ function linuxDistribution(): { family: "ubuntu" | "debian"; suite: string } {
     return [line.slice(0, separator), line.slice(separator + 1).replace(/^"|"$/g, "")];
   }));
   const suite = values.UBUNTU_CODENAME ?? values.VERSION_CODENAME ?? "";
-  if (["jammy", "noble", "resolute"].includes(suite)) return { family: "ubuntu", suite };
-  if (["bullseye", "bookworm", "trixie"].includes(suite)) return { family: "debian", suite };
-  throw new Error("Automatic PDF setup supports current Ubuntu, Linux Mint and Debian releases. An existing pdfLaTeX installation can still be used.");
+  const families = [values.ID, ...(values.ID_LIKE ?? "").split(/\s+/)];
+  const family = values.UBUNTU_CODENAME || families.includes("ubuntu") ? "ubuntu" : families.includes("debian") ? "debian" : null;
+  if (family && /^[a-z][a-z0-9-]*$/.test(suite)) return { family, suite };
+  throw new Error("Automatic MiKTeX setup needs an Ubuntu or Debian repository base. An existing pdfLaTeX installation can still be used.");
 }
 
 async function installLinuxPdf(): Promise<void> {
   const root = installedToolsDirectory();
-  const distribution = linuxDistribution();
+  const apt = spawnSync("apt-get", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (apt.status !== 0) throw new Error("Automatic PDF setup needs APT. Install pdfLaTeX with your system's package manager; AAAAT can use it directly.");
   const script = path.join(root, "install-pdf.sh");
   let commands: string;
   if (process.arch === "arm64") {
     commands = "apt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-lang-european texlive-lang-spanish texlive-lang-french texlive-lang-german texlive-lang-italian texlive-lang-portuguese\n";
   } else {
+    const distribution = linuxDistribution();
+    const repository = await fetch(`https://miktex.org/download/${distribution.family}/dists/${distribution.suite}/Release`, { signal: AbortSignal.timeout(30_000) });
+    await repository.body?.cancel();
+    if (!repository.ok) throw new Error(repository.status === 404
+      ? "MiKTeX does not publish a repository for this system. An existing pdfLaTeX installation can still be used."
+      : "Could not check the MiKTeX repository. Please retry.");
     const response = await fetch("https://miktex.org/download/key", { signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error("Could not download the official MiKTeX repository key.");
     const key = path.join(root, "miktex-key.asc");

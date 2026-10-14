@@ -61,10 +61,8 @@ jobs:
       - uses: actions/setup-node@v7
         if: steps.scope.outputs.code == 'true'
         with:
-          node-version: 24.20.0
+          node-version: lts/*
           cache: npm
-      - run: npm install --global npm@12.2.0
-        if: steps.scope.outputs.code == 'true'
       - run: npm ci
         if: steps.scope.outputs.code == 'true'
       - run: npm run typecheck
