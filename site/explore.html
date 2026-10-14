@@ -41,18 +41,25 @@
 </nav>
 
 <section class="section guide-section" id="orientation">
-<p class="eyebrow">Start here · Finding your way</p>
-<h2>Find the right place in AAAAT.</h2>
+<p class="eyebrow">Start here · Choose how you want to work</p>
+<h2>Know what AAAAT needs—and what it gives you.</h2>
 <div class="prose">
-<p>After opening a workspace, AAAAT has three main places to work: <strong>Applications</strong> for opportunities and related notes; <strong>My information</strong> for professional details you will reuse; and <strong>Documents</strong> for editable CVs, cover letters and generated files. <strong>Settings</strong> is where you choose your workspace, AI connections, document tools and backups.</p>
+<p>AAAAT's installed desktop application runs on Windows, macOS and Linux. Download the package matching your computer; its runtime is included, with no Node.js, account or paid AI subscription needed. <a href="download.html">Choose your download →</a></p>
+<h3>Pick the capabilities you want</h3>
 <ol class="guide-steps">
-<li><strong>Just installed AAAAT?</strong> On the welcome screen, choose <strong>Open demo</strong> to explore examples or <strong>New workspace</strong> to start with your own information. Each uses a folder you choose.</li>
-<li><strong>Want finished PDFs or private AI assistance?</strong> On the first-run <strong>Make AAAAT ready for you</strong> panel, select <strong>PDF generation</strong>, <strong>Local AI</strong> or both, then <strong>Set up</strong>. Existing compatible PDF tools can be reused. AI remains optional.</li>
-<li><strong>Where are the actions?</strong> Look in the fixed top bar for actions such as <strong>New</strong>, <strong>Save</strong>, <strong>PDF</strong> and the <strong>⋯</strong> menu; the actions change with the area you are using. Use the left navigation to switch areas.</li>
+<li><strong>Applications, notes, professional information and document editing:</strong> ready inside the desktop workspace, without optional AI or TeX software.</li>
+<li><strong>Finished PDF files:</strong> require a compatible TeX distribution supplying <code>pdflatex</code>. AAAAT offers a native setup or can reuse your own installation. <a href="#pdf">PDF setup and customization →</a></li>
+<li><strong>Private local AI assistance:</strong> optional <strong>IBM Granite 4.1 3B Q4_K_M</strong> running through the <strong>llama.cpp CPU runtime</strong>. Expect an approximately 2 GB download plus runtime storage and memory usage. Performance varies by hardware. If local AI is not offered for your device, you can configure another compatible model or work through copy and paste. <a href="#ai-connections">Local AI and other models →</a></li>
 </ol>
-<p>To see a complete first-use walkthrough before continuing, use <a href="get-started.html">Get Started</a>. You can return here at any point for the deeper controls.</p>
+<h3>On your first launch</h3>
+<ol class="guide-steps">
+<li>In <strong>Make AAAAT ready for you</strong>, choose <strong>PDF generation</strong>, <strong>Local AI</strong> or both, then <strong>Set up</strong>. A detected pdfLaTeX installation appears as <strong>Already available</strong>. If you want to use your own executable, expand <strong>Locations</strong>.</li>
+<li>Choose <strong>Open demo</strong> for a ready-made fictional workspace to explore, or <strong>New workspace</strong> for your own career information. Each uses a folder you choose.</li>
+<li>From the left navigation use <strong>Applications</strong>, <strong>Documents</strong>, <strong>My information</strong> or <strong>Settings</strong>. Main task actions appear in the top bar. You can revisit PDF and AI setup at any time through Settings.</li>
+</ol>
+<p>Nothing here is a required sequence: you may start with a CV, only save applications, use no AI, or configure everything on the first day. <a href="get-started.html">Follow the illustrated first-use guide →</a></p>
 </div>
-<!-- LOCAL CODEX: actual first-launch optional-tools panel and welcome screen, screenshots only, no mock UI. -->
+<!-- LOCAL CODEX: show actual welcome screen and the setup dialog with both capabilities and Locations expanded; no invented UI. -->
 </section>
 
 <section class="section guide-section" id="applications">
@@ -312,31 +319,43 @@
 </section>
 
 <section class="section guide-section" id="ai-connections">
-<p class="eyebrow">AI · Configure and change models</p>
-<h2>Save several AI connections, choose which one works for you.</h2>
+<p class="eyebrow">AI · Included model and other providers</p>
+<h2>Start with Granite—or bring your own model.</h2>
 <div class="prose">
-<h3>Set up the local model</h3>
+<h3>Install the model AAAAT offers</h3>
+<p>The optional one-click local setup downloads <strong>IBM Granite 4.1 3B Q4_K_M</strong> and a compatible <strong>llama.cpp CPU runtime</strong>. This is the tested local model, not an AI subscription. Its download is about <strong>2 GB</strong>; allow further disk space for the runtime and enough free memory to run it. Response speed and quality vary with your hardware and the task. There is no guaranteed minimum inference speed.</p>
 <ol class="guide-steps">
-<li>On the first-run setup screen, select <strong>Local AI</strong> and choose <strong>Set up</strong>; or open <strong>Settings → AI → Local AI</strong> later. The tested Granite model and its local runtime are an additional download of roughly 2 GB.</li>
-<li>Let setup finish. The installed local model can start with AAAAT. Existing independently configured AI connections are preserved.</li>
-<li>Open <strong>Settings → AI</strong> to see saved connections. Use the one you want for ordinary AI actions.</li>
+<li>On the first-launch <strong>Make AAAAT ready for you</strong> panel select <strong>Local AI</strong>, then <strong>Set up</strong>. If you skipped it earlier, open <strong>Settings → AI → Local AI</strong> instead.</li>
+<li>Follow the visible download progress. AAAAT verifies and reuses completed tools where possible. If the option says <strong>Not available for this device</strong>, the packaged local model is not supported on that device; you can still use AAAAT and connect another compatible provider.</li>
+<li>Once installed, AAAAT offers <strong>Local Granite</strong> as a saved AI connection. When enabled, the installed runtime starts with AAAAT and stops on quitting the application. Try a small task, such as <strong>Fill</strong> on an application with some empty fields.</li>
+<li>If Windows prompts you to install a missing Microsoft Visual C++ runtime, follow that native installer. A working existing runtime is reused; AAAAT does not silently change system components or accept licences for you.</li>
 </ol>
-<h3>Add an AI you already use</h3>
+<p>The local model runs on your computer after installation. The initial download needs internet access; a separately configured remote model may send selected information to its own provider. The app does not require local AI to maintain applications or write documents.</p>
+
+<h3>Use an already-installed AI server or another provider</h3>
 <ol class="guide-steps">
-<li>Open <strong>Settings → AI</strong> and choose <strong>New connection</strong>.</li>
-<li>Enter a <strong>Connection name</strong> you'll recognize, the <strong>Model</strong>, and its server <strong>Address</strong>. The compatible service must offer a supported chat-completions route. Enter an optional API key or token if that service requires one.</li>
-<li>Choose <strong>Save</strong>. AAAAT checks whether it can reach the service. A successful connection check does not guarantee that every response will be useful.</li>
-<li>Under <strong>Saved connections</strong>, choose <strong>Use</strong> on the connection you want. The selected connection is the one AAAAT uses for its ordinary AI assistance; saving several connections does not automatically assign a different model to every feature.</li>
+<li>Open <strong>Settings → AI</strong> and select <strong>New connection</strong>.</li>
+<li>Choose a <strong>Connection name</strong>, enter the <strong>Model</strong> and its <strong>Address</strong>. AAAAT's direct connector expects an OpenAI-compatible chat-completions endpoint; local loopback HTTP and remote HTTPS are supported. Enter a credential only if the provider requires one.</li>
+<li>Choose <strong>Save</strong>. Reachability feedback tells you whether the connection responds, not whether it understands every AAAAT request.</li>
+<li>In <strong>Saved connections</strong>, choose <strong>Use</strong> on the connection you want for normal in-app assistance. You can keep multiple models and switch between them; there is no separate mandatory model for each feature.</li>
 </ol>
-<h3>Edit, change or remove a connection</h3>
-<p>Each saved connection offers <strong>Edit</strong> for its name, model and address; <strong>Replace credential</strong> or <strong>Clear credential</strong> for authentication; and <strong>Remove</strong> when it is no longer needed. Select a different connection with <strong>Use</strong>. You can keep multiple models or providers available and switch between them without recreating your work.</p>
-<h3>Control automatic local startup</h3>
-<p>In <strong>Settings → AI → Startup</strong>, <strong>Run when AAAAT starts</strong> enables or disables automatic startup. The startup script is fully editable for users managing their own local model. <strong>Save</strong> applies your changes for the next launch; <strong>Cancel</strong> discards them; <strong>Use installed default</strong> restores the generated script. Most users do not need to edit it.</p>
-<h3>Move your connection choices to another computer</h3>
-<p>Expand <strong>Import or export AI connections</strong> in Settings → AI. <strong>Export</strong> saves connection names, servers, models and the selected default for later use. <strong>Import</strong> replaces the current connection settings after confirmation. Credentials are deliberately excluded, so add them on the new computer if needed.</p>
+<p>A provider without the compatible endpoint can still help through an <a href="#external-ai">editable copy-paste AI task</a>. AAAAT does not need a proprietary plugin or API integration for that route.</p>
+
+<h3>Edit or remove an AI connection</h3>
+<p>In <strong>Settings → AI → Saved connections</strong>, use <strong>Edit</strong> to change the connection name, endpoint or model; <strong>Replace credential</strong> / <strong>Clear credential</strong> to manage access; and <strong>Remove</strong> to delete a connection you no longer want. <strong>Use</strong> selects a different saved connection without removing the previous one.</p>
+
+<h3>Decide what starts when AAAAT opens</h3>
+<ol class="guide-steps">
+<li>Open <strong>Settings → AI → Startup</strong>. Turn <strong>Run when AAAAT starts</strong> on or off.</li>
+<li>Advanced users can modify the startup script for their own locally managed runtime. <strong>Save</strong> makes changes effective from the next launch; <strong>Cancel</strong> abandons them; <strong>Use installed default</strong> returns to the script AAAAT generated for its supplied runtime.</li>
+<li>This script runs with your local user permissions, so only edit commands you understand. AAAAT does not take over independently running AI services.</li>
+</ol>
+<h3>Take your connection choices with you</h3>
+<p>Open <strong>Settings → AI → Import or export AI connections</strong>. <strong>Export</strong> saves the names, addresses, models and selected default without secrets; <strong>Import</strong> replaces the destination AI connection configuration after confirmation. Re-enter credentials where necessary. This file is separate from your career workspace backup.</p>
+<p>Then customize <a href="#ai-prompts">the instruction for each AI action</a>, <a href="#ai-information">the information AAAAT may share</a>, or <a href="#ai-work">the way AI helps while you edit</a>.</p>
 </div>
-<figure class="figure"><a href="assets/screenshots/ai-settings.png" data-lightbox><img src="assets/screenshots/ai-settings.png" alt="Real AAAAT AI connection settings." width="1164" height="721" loading="lazy"></a><figcaption>Manage connections from AAAAT's actual Settings → AI screen.</figcaption></figure>
-<!-- LOCAL CODEX: real separate captures of saved connections (multiple named choices), edit connection, AI instructions, Local AI startup. Hide API keys. -->
+<figure class="figure"><a href="assets/screenshots/ai-settings.png" data-lightbox><img src="assets/screenshots/ai-settings.png" alt="Genuine AAAAT AI connection settings." width="1164" height="721" loading="lazy"></a><figcaption>Current AAAAT Settings → AI screen. Future capture should show the Granite option and named alternative connections without credentials.</figcaption></figure>
+<!-- LOCAL CODEX: actual Granite setup, Saved connections Use/Edit, Startup options, AI instructions. No compositing or fake UI. -->
 </section>
 
 <section class="section guide-section" id="ai-prompts">
