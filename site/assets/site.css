@@ -151,7 +151,7 @@ figcaption { margin-top: 10px; font-size: .84rem; color: var(--muted); line-heig
   .brand { font-size: 1.2rem; }
   .brand img { width: 34px; height: 34px; }
   .brand small { display:block; }
-  .site-nav { width: 100%; gap: 1px; justify-content: space-between; }
+  .site-nav { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
   .site-nav a { font-size: .73rem; padding: 7px 5px; }
   .hero { min-height: 590px; }
   .hero-art { object-position: 68% center; opacity: .45; }
@@ -179,3 +179,5 @@ figcaption { margin-top: 10px; font-size: .84rem; color: var(--muted); line-heig
   .artwork .grid { grid-template-columns:1fr; }
 }
 @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+
+.pdf-figure img { width: min(100%, 620px); margin-inline: auto; }

@@ -1,13 +1,13 @@
 (() => {
   "use strict";
   const definitions = {
-    "Community": "Work that brings people together through local programmes, shared spaces or community services.",
-    "Hybrid": "A mix of on-site and remote work. Keep the actual arrangement in the opportunity’s information.",
-    "Human-readable": "A posting that describes the work before describing its passion for describing the work.",
-    "Remote": "Work can be done away from the employer’s office. Location and working-hour restrictions still matter.",
-    "Writing": "Clear written communication is a substantial part of the role.",
-    "Public-facing": "Regular work with visitors, customers or members of the public."
-  };
+  "Community": "Work that connects people with local services, activities or mutual support.",
+  "Hybrid": "A mix of workplace and home working. Check the actual days before applying.",
+  "Human-readable": "A posting that describes the work before describing its passion for describing the work.",
+  "Remote": "Work away from the employer’s premises. Geographic restrictions still matter.",
+  "Writing": "Clear writing and editing are central to the work.",
+  "Public-facing": "Regular, direct contact with visitors, customers or participants."
+};
   const preview = document.querySelector("[data-preview]");
   if (preview) {
     const search = preview.querySelector("input[type=search]");
