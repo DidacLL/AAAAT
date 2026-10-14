@@ -77,7 +77,7 @@ function tagDraft(tag: TagRecord): TagInput {
 }
 function normalizedTagText(value: string): string { return value.trim().toLocaleLowerCase(); }
 function hasJobExtractionRoute(connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>): boolean {
-  return connections.some((connection) => connection.defaultForOperations.includes("job_extraction") || connection.isDefault);
+  return connections.some((connection) => connection.isDefault);
 }
 function aiRequestFeedbackMessage(kind: AiRequestFeedback): string {
   if (kind === "unconfigured") return "AI isn't configured for this action";

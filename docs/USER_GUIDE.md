@@ -60,9 +60,9 @@ Saved documents have a secondary **Remove** action with confirmation. Removing a
 
 ### Connect a model
 
-In **Settings → AI**, add a named connection, its endpoint, model and credential when needed. The current adapter uses OpenAI-compatible chat completions. Loopback HTTP and remote HTTPS are accepted. Choose a general default or a validated per-operation default.
+In **Settings → AI**, add a named connection, its endpoint, model and credential when needed. The current adapter uses OpenAI-compatible chat completions. Loopback HTTP and remote HTTPS are accepted. Choose the connection AAAAT will use for assistance.
 
-Connection and feature checks are optional diagnostics. Normal assistance does not require checking every feature first. A reachable server may still return an invalid or unhelpful result. Instructions are editable and can be reset to the shipped default.
+The optional connection check reports reachability without changing the selected connection. There are no per-feature checks or routing prerequisites. A reachable server may still return an invalid or unhelpful result. Instructions are editable and can be reset to the shipped default.
 
 **Local AI** installs llama.cpp with the tested Granite 4.1 3B model. A workspace without connections receives **Local Granite** automatically. Existing connections are preserved. The installed server starts with AAAAT and stops when AAAAT quits. **Startup** holds its editable script, an on/off choice and **Use installed default**; saved changes apply on the next launch. Other servers remain under your own control.
 
@@ -80,9 +80,15 @@ Connected reads require a separate explicit choice. Editing the request turns fu
 
 Interview work is an optional request in this secondary application-linked editor. The request stays fully editable; AAAAT does not prescribe model advice. Returned text can be deliberately retained as an application Source.
 
-For a compatible local assistant host, **Settings → AI → Connect another AI to AAAAT** provides the executable/workspace arguments. The current integration uses bounded MCP tools for application, document and setup intentions. It grants no generic database, filesystem or shell access. Separate installer/configurator permissions enable only their named setup actions. Current registrations are defined in [the MCP server](../src/main/mcp-server.ts), rather than a frozen tool-count checklist.
+For a compatible local assistant host, **Settings → AI → Connect another AI to AAAAT** provides the executable/workspace arguments. The current integration uses bounded MCP tools for application, document and setup intentions. It grants no generic database, filesystem or shell access. Separate setup permissions enable only the named setup actions; selecting a connection does not require model certification. Current registrations are defined in [the MCP server](../src/main/mcp-server.ts), rather than a frozen tool-count checklist.
 
-## Backup and portable setup
+## Reset, workspace folders and portable setup
+
+Use **Settings → Workspace → Reset** to clear applications, My information, or both. Generated PDFs and source projects remain. Shared Tags and settings remain. Existing document content is kept when reusable My information is cleared.
+
+You can also keep a copy of the workspace folder and reopen it. Close AAAAT before copying it so the database is no longer being written.
+
+### Backup and portable setup
 
 Use **Settings → Backup** to create a backup or restore one into an empty destination. Restore validates the snapshot and retained files before activation. A failed restore must not replace the active workspace.
 

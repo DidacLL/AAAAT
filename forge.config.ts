@@ -58,7 +58,6 @@ const config: ForgeConfig = {
         options: {
           maintainer: "AAAAT contributors",
           homepage: "https://github.com/DidacLL/AAAAT",
-          depends: ["gpg", "pkexec | policykit-1"],
         },
       },
     },

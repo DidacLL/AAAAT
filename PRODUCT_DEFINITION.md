@@ -28,9 +28,9 @@ Sparse information is normal. The UI should avoid forcing large empty forms or m
 
 When the user asks for AI assistance inside AAAAT, AAAAT owns the local product experience: it chooses/configures the intended route, prepares only the allowed context, invokes the configured intelligence, validates the result and presents it for useful review/editing.
 
-AI is optional. Manual/no-AI operation remains complete.
+AI is optional. Manual/no-AI operation remains complete, including while an AI request is pending. Ordinary assistance uses one user-selected connection; diagnostics do not select routes or certify models.
 
-Native installers cover Windows, macOS and Linux. Optional setup can install llama.cpp with the tested lightweight Granite model and a compatible pdfLaTeX distribution. MiKTeX is the default where supported; Apple Silicon uses BasicTeX and Linux ARM64 uses TeX Live. Existing tools and chosen AI connections remain intact. AAAAT starts its installed local model with the app using an installation-derived default script. Users can edit or disable the startup script, including for their own setup; independently managed providers remain external resources. This bounded setup does not make AAAAT a model-management platform.
+Native installers cover Windows, macOS and Linux. Optional setup can install llama.cpp with the tested lightweight Granite model and a compatible pdfLaTeX distribution. TeX setup delegates to native installers or the system software manager; MiKTeX is a Windows default, not a product requirement. Tool/download locations and the pdfLaTeX executable are user-editable. Existing tools and chosen AI connections remain intact. AAAAT starts its installed local model with the app using an installation-derived default script. Users can edit or disable the startup script, including for their own setup; independently managed providers remain external resources. This bounded setup does not make AAAAT a model-management platform.
 
 ### AI → AAAAT
 
@@ -249,7 +249,7 @@ TeX, AI connections and external-host integration are configured when relevant r
 
 Setup should answer practical user questions instead of exposing MCP, ports, schemas or provider internals. The same underlying setup knowledge may support both guided UI and AI-assisted setup where useful.
 
-Configuration portability and full workspace backup are distinct concerns.
+Configuration portability and full workspace backup are distinct concerns. A workspace remains an ordinary local folder that the user can retain, copy and reopen. Reset can clear applications, My information, or both; it never deletes generated PDFs or portable document projects. Defaults and actual configuration choices remain user-editable.
 
 ## Product character
 

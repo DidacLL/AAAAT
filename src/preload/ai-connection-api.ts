@@ -1,7 +1,6 @@
 import {
   aiConnectionIdSchema,
   aiConnectionManagementChannels,
-  aiConnectionOperationInputSchema,
   aiConnectionProbeResultSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
@@ -43,24 +42,6 @@ export function createAiConnectionDesktopApi(invoke: Invoke): AiConnectionDeskto
           await invoke(
             aiConnectionManagementChannels.probe,
             aiConnectionIdSchema.parse(connectionId),
-          ),
-        ),
-      validateOperation: async (
-        input: Parameters<AiConnectionDesktopApi["aiConnections"]["validateOperation"]>[0],
-      ) =>
-        namedAiConnectionListSchema.parse(
-          await invoke(
-            aiConnectionManagementChannels.validateOperation,
-            aiConnectionOperationInputSchema.parse(input),
-          ),
-        ),
-      setOperationDefault: async (
-        input: Parameters<AiConnectionDesktopApi["aiConnections"]["setOperationDefault"]>[0],
-      ) =>
-        namedAiConnectionListSchema.parse(
-          await invoke(
-            aiConnectionManagementChannels.setOperationDefault,
-            aiConnectionOperationInputSchema.parse(input),
           ),
         ),
       exportPortable: async () =>

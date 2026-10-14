@@ -237,7 +237,7 @@ CREATE INDEX rendered_cvs_candidature_idx ON rendered_cvs(candidature_id, create
 
 CREATE TABLE application_packets (
   id TEXT PRIMARY KEY,
-  candidature_id TEXT NOT NULL REFERENCES candidatures(id) ON DELETE CASCADE,
+  candidature_id TEXT REFERENCES candidatures(id) ON DELETE SET NULL,
   working_cv_id TEXT REFERENCES working_cvs(id) ON DELETE SET NULL,
   cover_letter_id TEXT REFERENCES cover_letters(id) ON DELETE SET NULL,
   title TEXT NOT NULL,

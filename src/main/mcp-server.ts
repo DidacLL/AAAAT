@@ -33,14 +33,12 @@ import {
   externalConfiguratorConnectionInputSchema,
   externalConfiguratorConnectionResultSchema,
   externalConfiguratorDefaultResultSchema,
-  externalConfiguratorOperationInputSchema,
-  externalConfiguratorValidationResultSchema,
+  externalConfiguratorSelectionInputSchema,
 } from "../shared/external-action-contracts";
 import {
   listAiConnections,
   saveNamedAiConnection,
-  setAiOperationDefault,
-  validateAiConnectionOperation,
+  setDefaultAiConnection,
 } from "./ai-connection-service";
 import {
   selectedInterviewPreparationContext,
@@ -81,8 +79,7 @@ export const installerStatusReadToolName = "installer_status_read";
 export const installerRenderingSelfTestToolName = "installer_rendering_self_test";
 export const configuratorStatusReadToolName = "configurator_status_read";
 export const configuratorAiConnectionSaveToolName = "configurator_ai_connection_save";
-export const configuratorAiOperationValidateToolName = "configurator_ai_operation_validate";
-export const configuratorAiOperationDefaultToolName = "configurator_ai_operation_default";
+export const configuratorAiConnectionSelectToolName = "configurator_ai_connection_select";
 
 function exactlyOne(values: readonly string[], value: string): boolean {
   return values.filter((candidate) => candidate === value).length === 1;
@@ -399,7 +396,7 @@ function createServerForWorkspace(rootPath: string): McpServer {
   server.registerTool(
     configuratorStatusReadToolName,
     {
-      description: "Read privacy-minimal optional AI configuration coverage and per-operation validated-route availability.",
+      description: "Read privacy-minimal optional AI connection configuration.",
       inputSchema: emptyInputSchema,
     },
     async (input) => {
@@ -434,33 +431,16 @@ function createServerForWorkspace(rootPath: string): McpServer {
   );
 
   server.registerTool(
-    configuratorAiOperationValidateToolName,
+    configuratorAiConnectionSelectToolName,
     {
-      description: "Validate one named configured connection for one typed AAAAT AI operation. The user must enable configurator.ai actions first.",
-      inputSchema: externalConfiguratorOperationInputSchema,
+      description: "Select the named connection used for AAAAT AI assistance. Requires the user's configuration permission.",
+      inputSchema: externalConfiguratorSelectionInputSchema,
     },
     async (input) => {
       requireConfiguratorActionsAllowed(rootPath);
-      const parsed = externalConfiguratorOperationInputSchema.parse(input);
-      const connectionId = connectionIdByName(rootPath, parsed.connectionName);
-      await validateAiConnectionOperation(rootPath, { connectionId, operation: parsed.operation });
-      const result = externalConfiguratorValidationResultSchema.parse({ validated: true, operation: parsed.operation });
-      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
-    },
-  );
-
-  server.registerTool(
-    configuratorAiOperationDefaultToolName,
-    {
-      description: "Choose one already validated named connection as the default for one typed AAAAT AI operation.",
-      inputSchema: externalConfiguratorOperationInputSchema,
-    },
-    async (input) => {
-      requireConfiguratorActionsAllowed(rootPath);
-      const parsed = externalConfiguratorOperationInputSchema.parse(input);
-      const connectionId = connectionIdByName(rootPath, parsed.connectionName);
-      setAiOperationDefault(rootPath, { connectionId, operation: parsed.operation });
-      const result = externalConfiguratorDefaultResultSchema.parse({ defaulted: true, operation: parsed.operation });
+      const parsed = externalConfiguratorSelectionInputSchema.parse(input);
+      setDefaultAiConnection(rootPath, connectionIdByName(rootPath, parsed.connectionName));
+      const result = externalConfiguratorDefaultResultSchema.parse({ defaulted: true });
       return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
     },
   );

@@ -84,7 +84,7 @@ Choose **PDF generation** during optional setup, or **Settings → Documents →
 
 Ordinary navigation keeps unfinished work available without silently saving it. Use **Save** to commit an edit and **Cancel** to discard it.
 
-Use **Settings → Backup** to make a portable workspace backup. Restore into an empty folder. AI connection configuration has its own import/export in **Settings → AI**.
+Your workspace is an ordinary local folder: you can retain a copy and open it later. **Settings → Workspace → Reset** can clear applications, My information, or both while keeping generated PDFs/projects. **Settings → Backup** also provides a consistent saved-workspace copy. Restore into an empty folder. AI connection configuration has its own import/export in **Settings → AI**.
 <p align="center"><img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/e29a383a-5872-4104-953f-0ef4288e39da" /></p>
 
 ---
@@ -95,9 +95,9 @@ The desktop workflow above needs no programming or AI knowledge. The options bel
 
 ### Bring your own AI
 
-In **Settings → AI**, add a named connection with an endpoint and model, plus a credential if that server requires one. Set the general default, or choose a checked connection for an individual operation.
+In **Settings → AI**, add a named connection with an endpoint and model, plus a credential if that server requires one. Choose the connection AAAAT will use for assistance. You can edit or switch it at any time; no feature certification is required.
 
-For an easy local start, choose **Local AI** during optional setup or in **Settings → AI**. This downloads llama.cpp and the tested Granite 4.1 3B Q4 model (about 2 GB). AAAAT starts this installed model when the app opens and stops its own server when you quit. **Settings → AI → Startup** contains the editable startup script, an on/off choice and the installed default. A new workspace without another connection gets **Local Granite** automatically; existing connections stay as you chose them.
+For an easy local start, choose **Local AI** during optional setup or in **Settings → AI**. This downloads llama.cpp and the tested Granite 4.1 3B Q4 model (about 2 GB). AAAAT starts this installed model when the app opens and stops its own server when you quit. **Settings → AI → Startup** contains the editable startup script, an on/off choice and the installed default. Optional setup offers editable tool/download folders and a pdfLaTeX path under **Locations**. A new workspace without another connection gets **Local Granite** automatically. Explicit Local AI setup can add it alongside an existing connection without changing your selected default.
 
 You can also connect your own server. The current adapter uses an OpenAI-compatible chat-completions endpoint. Loopback servers may use HTTP; remote endpoints must use HTTPS. For example, a local compatible server may expose `http://127.0.0.1:8080/v1`. You manage independently installed servers yourself.
 
@@ -156,7 +156,7 @@ npm run make
 
 Packages appear under `out/make/`. Windows builds additionally require [Inno Setup 6](https://jrsoftware.org/isdl.php); a compiler outside its standard location can be selected with `ISCC_PATH`. The release workflow builds native Windows setup EXEs, macOS DMGs and Linux DEBs, each on x64 and ARM64, plus portable ZIPs. Preview packages are unsigned and there is no automatic updater.
 
-Optional setup installs MiKTeX for PDF generation on Windows and x64 macOS/Linux. Apple Silicon uses BasicTeX; Linux ARM64 uses TeX Live. Downloads start only after you select them. See [installation details](docs/INSTALLATION.md) for supported systems, download sources and permissions. Neither AI nor PDF setup blocks ordinary application work or document editing.
+Optional PDF setup opens the native MiKTeX installer on Windows/Intel macOS, BasicTeX on Apple Silicon, or the native software manager for TeX Live on Linux. Existing compatible pdfLaTeX installations work too. Downloads start only after you select them. See [installation details](docs/INSTALLATION.md) for supported systems, download sources and permissions. Neither AI nor PDF setup blocks ordinary application work or document editing.
 
 ## Help improve AAAAT
 

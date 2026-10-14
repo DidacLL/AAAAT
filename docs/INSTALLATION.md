@@ -14,7 +14,7 @@ Portable ZIPs are also built for each platform. Installed packages include the a
 
 On a fresh installed launch, choose either, both or neither. **Not now** takes you straight to AAAAT. You can return through **Settings → AI → Local AI** or **Settings → Documents → PDF setup**.
 
-**Local AI** downloads the official llama.cpp CPU runtime and IBM Granite 4.1 3B Q4_K_M, approximately 2 GB. This is the model tested with AAAAT. It runs on your computer; speed depends on your hardware. The installed server starts with AAAAT and stops when you quit. **Settings → AI → Startup** provides an editable script, an on/off choice and **Use installed default**. Saved changes apply on the next launch. The generated default includes the installed executable and model paths; advanced users can configure their own setup. Startup scripts run locally with your account privileges and are not editable by connected AI tools. New workspaces without an AI connection receive it automatically. Existing connections and manually deleted connections remain as you chose them.
+**Local AI** downloads the official llama.cpp CPU runtime and IBM Granite 4.1 3B Q4_K_M, approximately 2 GB. This is the model tested with AAAAT. It runs on your computer; speed depends on your hardware. The installed server starts with AAAAT and stops when you quit. **Settings → AI → Startup** provides an editable script, an on/off choice and **Use installed default**. Saved changes apply on the next launch. The generated default includes the installed executable and model paths; advanced users can configure their own setup. Startup scripts run locally with your account privileges and are not editable by connected AI tools. New workspaces without an AI connection receive it automatically. Explicit Local AI setup adds its connection when needed, preserving the current default. Opening a workspace does not repeatedly restore deliberately removed connections. **Locations** lets you edit download/tool folders and select a pdfLaTeX executable; changes affect future downloads/installations and leave existing files in place.
 
 On Windows, Local AI checks whether llama.cpp can start with the available runtime. A working installation is reused, without imposing a version threshold. If Windows reports a missing runtime DLL or DLL entry point, Microsoft's own setup opens with its license and permission choices; AAAAT does not approve these for you.
 
@@ -25,10 +25,9 @@ On Windows, Local AI checks whether llama.cpp can start with the available runti
 | Windows 10 or later on x64; Windows 11 on ARM64 through x64 emulation | MiKTeX |
 | macOS Intel | MiKTeX |
 | Apple Silicon | BasicTeX, the small TeX Live distribution |
-| Ubuntu / Debian x64 | MiKTeX |
-| Ubuntu / Debian ARM64 | Native TeX Live |
+| Linux x64 / ARM64 | Native TeX Live through the system software manager |
 
-Automatic Linux PDF setup uses APT and may ask for administrator authorization. ARM64 uses the distribution's TeX Live packages; x64 uses MiKTeX's published repository for the detected Ubuntu/Debian base, without a release-name whitelist. Other systems can use an existing pdfLaTeX installation. The DEB includes the small authorization/key prerequisites; portable ZIP users need `pkexec` and `gpg` for automatic PDF setup. BasicTeX installation also uses macOS authorization. MiKTeX installs for your account. Fonts and language packages may download when needed for PDF generation.
+PDF setup opens the third-party native installer or software manager. On Linux, AAAAT asks the [system’s APT link handler](https://help.ubuntu.com/community/AptURL) to install TeX Live; if none is available, use the system software manager to install TeX Live. AAAAT does not add package repositories, manipulate keys, run package updates or accept third-party license choices. Existing compatible pdfLaTeX installations remain usable. MiKTeX is a default, not a requirement.
 
 You can cancel a download or continue using AAAAT while setup runs. Once native installation starts, allow it to finish. A failed optional download leaves completed tools available and does not prevent manual work. Setup errors remain visible so you can retry.
 
@@ -38,6 +37,6 @@ Downloads come from [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/t
 
 The Windows prerequisite comes from [Microsoft's Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). Setup pins version 14.50, matching the working Windows runtime used with the tested Granite model, and verifies the download digest. Microsoft's x64 package also supplies ARM64 binaries on ARM64 Windows.
 
-AAAAT pins the CPU runtime and exact tested GGUF revision and verifies downloaded archives against their published hashes. It keeps these files in its local application-data directory, outside your career workspace. Its local server listens only on `127.0.0.1`, at port `47842`. There is no public network listener, model marketplace or general server-management system.
+AAAAT pins the CPU runtime and exact tested GGUF revision and verifies downloaded archives against their published hashes. The initial tool/download location is local application data, outside the career workspace; both folders are editable under **Locations**. The generated startup script defaults to `127.0.0.1:47842` and is fully editable for the user’s setup.
 
 An independently installed compatible AI or TeX installation remains supported. AAAAT does not change your system PATH or overwrite your selected AI defaults. Building installers yourself is described in the [README](../README.md#run-the-current-preview).

@@ -129,7 +129,7 @@ function emptyDirectory(directoryPath: string): string {
 
 function nested(parent: string, candidate: string): boolean {
   const relative = path.relative(parent, candidate);
-  return relative === "" || (!relative.startsWith(".." + path.sep) && relative !== "..");
+  return relative === "" || (!path.isAbsolute(relative) && !relative.startsWith(".." + path.sep) && relative !== "..");
 }
 
 function rejectOverlap(left: string, right: string): void {

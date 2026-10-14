@@ -44,16 +44,6 @@ const babelLanguageByName: Readonly<Record<string, string>> = Object.freeze({
   spanish: "spanish",
 });
 
-const supportedLanguageNames = Object.freeze([
-  "English",
-  "Catalan",
-  "German",
-  "Spanish",
-  "French",
-  "Italian",
-  "Portuguese",
-]);
-
 export function encodeDocumentText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
@@ -74,12 +64,9 @@ export function resolveDocumentBabelLanguage(language: string | undefined): stri
   const primaryCode = normalizedLanguage.match(/^([a-z]{2})(?:[-_/\s]|$)/u)?.[1];
   const babelLanguage = primaryCode ? babelLanguageByPrimaryCode[primaryCode] : undefined;
   if (babelLanguage) return babelLanguage;
-  throw new Error(
-    "Unsupported document language \"" + language
-      + "\". AAAAT currently supports these Latin-script languages through Babel: "
-      + supportedLanguageNames.join(", ")
-      + ". Use a supported language name, primary ISO code, or region variant.",
-  );
+  // A language label must not prevent otherwise renderable text. Babel names
+  // are optional typography hints; character support belongs to TeX/fonts.
+  return /^[a-z]+$/.test(normalizedLanguage) ? normalizedLanguage : "english";
 }
 
 function pdfMetadataSource(metadata: DocumentPdfMetadata): string {
@@ -198,8 +185,12 @@ function letterMetadata(letter: CoverLetterSnapshot): DocumentPdfMetadata {
 
 function serializeLatexDocument(input: RenderDocumentInput): string {
   const packageMode = input.mode === "combined" ? "combined" : input.mode;
+  const languages = input.mode === "cv" ? [input.cv.language] : input.mode === "letter"
+    ? [input.letter.language] : [input.cv.language, input.letter.language];
   const lines = [
     "\\documentclass[11pt,a4paper]{article}",
+    ...[...new Set(languages.map(resolveDocumentBabelLanguage))].map(language =>
+      `\\IfFileExists{${language}.ldf}{\\PassOptionsToPackage{${language}}{babel}}{}`),
     "\\usepackage[" + packageMode + "]{aaaat}",
   ];
 

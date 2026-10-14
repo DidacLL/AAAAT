@@ -58,11 +58,10 @@ interface Props {
 
 function routeReady(
   connections: Awaited<ReturnType<typeof window.aaaat.aiConnections.list>>,
-  tagsOnly: boolean,
 ): boolean {
   return connections.some(
     (connection) =>
-      connection.defaultForOperations.includes(tagsOnly ? "tag_inference" : "job_extraction") || connection.isDefault,
+      connection.isDefault,
   );
 }
 
@@ -115,7 +114,7 @@ export function CandidatureInferencePanel({
       .then(([retainedSources, connections]) => {
         if (!active) return;
         setSources(retainedSources);
-        setAiReady(routeReady(connections, scopeFieldIds.length === 0 && includeTagInference));
+        setAiReady(routeReady(connections));
       })
       .catch(() => {
         if (!active) return;

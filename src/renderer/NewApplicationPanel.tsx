@@ -80,6 +80,7 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
   const sourceRef = useRef(source);
   const fieldRevisions = useRef(new Map<string, number>());
   const [tags, setTags] = useState<TagRecord[]>([]);
+  const tagRevision = useRef(0);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [newTags, setNewTags] = useState<(TagInput & { selected: boolean })[]>([]);
   const [tagQuery, setTagQuery] = useState("");
@@ -98,7 +99,7 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
         if (!active) return;
         const enabled = configured.filter(field => field.definition.enabled);
         setFields(enabled); setDrafts(draftsFor(enabled)); setTags(glossary);
-        setRouteName((connections.find(c => c.defaultForOperations.includes("job_extraction")) ?? connections.find(c => c.isDefault))?.name ?? null);
+        setRouteName(connections.find(c => c.isDefault)?.name ?? null);
         setLoading(false);
       }).catch(reason => { if (active) { setLoading(false); setError(aiTaskFailure(reason).message); } });
     return () => { active = false; if (requestId.current) { void window.aaaat.aiTasks.cancelJobExtraction(requestId.current); void window.aaaat.aiTasks.cancelTagInference(requestId.current + ":tags"); } };
@@ -201,12 +202,13 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
   const fill = async () => {
     if (filling || saving || !source.trim()) return;
     const connections = await window.aaaat.aiConnections.list().catch(() => []);
-    const route = connections.find(c => c.defaultForOperations.includes("job_extraction")) ?? connections.find(c => c.isDefault);
+    const route = connections.find(c => c.isDefault);
     if (!route) { openSettingsFor("ai", "candidatures"); return; }
     setRouteName(route.name); setFilling(true); setError(null); setFeedback(null);
     const requestedText = source;
     const requested = fields.filter(field => field.preferences.aiUseAllowed && emptyDraft(drafts[field.definition.id] ?? { text: "", choices: [] }));
     const revisions = new Map(fieldRevisions.current);
+    const startedTagRevision = tagRevision.current;
     const id = crypto.randomUUID(); requestId.current = id;
     const request = { sourceTitle: "Application text", sourceUrl: "", sourceText: requestedText };
     try {
@@ -228,7 +230,7 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
       } else setError(aiTaskFailure(fieldResult.reason).message);
       if (tagResult.status === "fulfilled") {
         const result: PartialTagInferenceResult = tagResult.value;
-        setTagIds(current => [...new Set([...current, ...result.existingTags.map(tag => tag.tagId)])]);
+        if (tagRevision.current === startedTagRevision) setTagIds(current => [...new Set([...current, ...result.existingTags.map(tag => tag.tagId)])]);
         setNewTags(current => [...current, ...result.newTags.filter(tag => !current.some(existing => existing.name.toLocaleLowerCase() === tag.name.toLocaleLowerCase())).map(tag => ({ name: tag.name, definition: tag.definition, aliases: tag.aliases, selected: false }))]);
         if (result.issues.length) setFeedback(result.issues.map(issue => issue.reason).join(" "));
       } else setFeedback("Tag suggestions unavailable. " + aiTaskFailure(tagResult.reason).message);
@@ -236,6 +238,15 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
     } finally { if (requestId.current === id) { requestId.current = null; setFilling(false); } }
   };
 
+  const stopFill = () => {
+    const id = requestId.current;
+    requestId.current = null;
+    setFilling(false);
+    if (id) {
+      void window.aaaat.aiTasks.cancelJobExtraction(id).catch(() => undefined);
+      void window.aaaat.aiTasks.cancelTagInference(id + ":tags").catch(() => undefined);
+    }
+  };
   const save = async () => {
     setError(null);
     try {
@@ -244,6 +255,7 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
         return value !== null && (!Array.isArray(value) || value.length) ? [{ fieldId: field.definition.id, value }] : [];
       });
       if (!values.length && !source.trim()) { setError("Add application text or a detail."); return; }
+      stopFill();
       setSaving(true);
       const created = await window.aaaat.candidatures.create({ values, tagIds,
         newTags: newTags.filter(tag => tag.selected).map(tag => ({ name: tag.name, definition: tag.definition, aliases: tag.aliases, notes: tag.notes })),
@@ -258,7 +270,8 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
   return <section className="new-application-editor" aria-label="New application">
     <PageToolbar>
       <button type="button" disabled={saving || filling || loading || !source.trim()} title={routeName ? "Fill empty fields and suggest Tags from Application text with " + routeName : "Configure AI to fill from Application text"} onClick={() => void fill()}>{filling ? "Filling…" : "Fill"}</button>
-      <button type="button" disabled={saving || filling || loading} onClick={() => void save()}>{saving ? "Saving…" : "Save"}</button>
+      <button type="button" disabled={saving || loading} onClick={() => void save()}>{saving ? "Saving…" : "Save"}</button>
+      {filling ? <button type="button" onClick={stopFill}>Stop</button> : null}
       <button type="button" disabled={saving} onClick={cancel}>Cancel</button>
     </PageToolbar>
     <h2>New application</h2>
@@ -279,9 +292,9 @@ export function NewApplicationPanel({ onCreated, onCancel, onDirtyChange }: {
         </div>}
         <section className="new-application-tags" aria-label="Tags">
           <h3>Tags</h3>
-          <div className="tag-chip-list">{tagIds.map(id => <span className="tag-chip" key={id}>{tags.find(tag => tag.id === id)?.name ?? "Tag"}<button type="button" aria-label={"Remove " + (tags.find(tag => tag.id === id)?.name ?? "Tag")} onClick={() => setTagIds(current => current.filter(tagId => tagId !== id))}>×</button></span>)}</div>
+          <div className="tag-chip-list">{tagIds.map(id => <span className="tag-chip" key={id}>{tags.find(tag => tag.id === id)?.name ?? "Tag"}<button type="button" aria-label={"Remove " + (tags.find(tag => tag.id === id)?.name ?? "Tag")} onClick={() => { tagRevision.current++; setTagIds(current => current.filter(tagId => tagId !== id)); }}>×</button></span>)}</div>
           <input aria-label="Add Tag" placeholder="Find a Tag…" value={tagQuery} onChange={event => setTagQuery(event.target.value)} />
-          {matches.map(tag => <button type="button" key={tag.id} onClick={() => { setTagIds(current => [...current, tag.id]); setTagQuery(""); }}>{tag.name}</button>)}
+          {matches.map(tag => <button type="button" key={tag.id} onClick={() => { tagRevision.current++; setTagIds(current => [...new Set([...current, tag.id])]); setTagQuery(""); }}>{tag.name}</button>)}
           {tagQuery.trim() && !tags.some(tag => [tag.name, ...tag.aliases].some(name => name.toLocaleLowerCase() === tagQuery.trim().toLocaleLowerCase())) ? <button type="button" onClick={() => { setNewTags(current => [...current, { name: tagQuery.trim(), definition: "", aliases: [], selected: true }]); setTagQuery(""); }}>Create “{tagQuery.trim()}”</button> : null}
           {newTags.map((tag, index) => <div className="new-tag-draft" key={index}>
             <label><input type="checkbox" checked={tag.selected} onChange={event => setNewTags(current => current.map((item, i) => i === index ? { ...item, selected: event.target.checked } : item))} />{tag.name}</label>

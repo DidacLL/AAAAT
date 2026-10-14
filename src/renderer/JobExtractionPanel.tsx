@@ -24,7 +24,7 @@ interface JobExtractionPanelProps {
 
 function extractionConnection(connections: NamedAiConnection[]) {
   const operationDefault = connections.find((connection) =>
-    connection.defaultForOperations.includes("job_extraction"),
+    connection.isDefault,
   );
   if (operationDefault) return operationDefault;
   return connections.find((connection) => connection.isDefault) ?? null;

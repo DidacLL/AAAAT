@@ -28,7 +28,6 @@ interface SettingsWorkspaceProps {
   readonly onAiValidationState: (connectionName: string, needsAttention: boolean) => void;
   readonly onRestored: (workspace: WorkspaceInfo) => void;
   readonly onWorkspaceReset: (workspace: WorkspaceInfo) => void;
-  readonly onWorkspaceDeleted: () => void;
   readonly protectedWorkDirty?: boolean;
 }
 
@@ -164,47 +163,25 @@ function ExternalAssistantConnectionPanel() {
 }
 
 function ResetWorkspacePanel({ onReset }: { readonly onReset: (workspace: WorkspaceInfo) => void }) {
+  const [scope, setScope] = useState<"applications" | "personal" | "all">("applications");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  return (
-    <section className="profile-column destructive-settings" aria-label="Reset workspace">
-      <div className="section-heading"><div><p className="eyebrow">Destructive</p><h2>Reset workspace data</h2></div></div>
-      <p>Erase this workspace's saved AAAAT data and keep the workspace folder ready for fresh use.</p>
-      <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
-        if (!window.confirm("Reset this workspace? This permanently removes saved applications, Sources, Tags, professional information, documents, PDFs and AI connections in this folder.")) return;
-        setBusy(true);
-        setError(null);
-        void window.aaaat.workspace.reset().then(onReset).catch((reason: unknown) => {
-          setError(reason instanceof Error ? reason.message : "AAAAT could not reset this workspace.");
-          setBusy(false);
-        });
-      }}>{busy ? "Resetting…" : "Reset workspace data"}</button>
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
-    </section>
-  );
-}
-
-function DeleteWorkspacePanel({ onDeleted }: { readonly onDeleted: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  return (
-    <section className="profile-column destructive-settings" aria-label="Delete workspace">
-      <div className="section-heading"><div><p className="eyebrow">Destructive</p><h2>Delete workspace data</h2></div></div>
-      <p>Remove AAAAT's data from this folder and return to Welcome. The empty folder remains on your computer.</p>
-      <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
-        if (!window.confirm("Delete this workspace's AAAAT data? This permanently removes saved applications, Sources, Tags, professional information, documents, PDFs and AI connections in this folder.")) return;
-        setBusy(true);
-        setError(null);
-        void window.aaaat.workspace.delete().then(onDeleted).catch((reason: unknown) => {
-          setError(reason instanceof Error ? reason.message : "AAAAT could not delete this workspace.");
-          setBusy(false);
-        });
-      }}>{busy ? "Deleting…" : "Delete workspace data"}</button>
-      {error ? <p className="error-message" role="alert">{error}</p> : null}
-    </section>
-  );
+  const labels = { applications: "Applications", personal: "My information", all: "Applications and My information" };
+  return <section className="profile-column destructive-settings" aria-label="Reset workspace">
+    <div className="row-actions reset-controls">
+    <label>Clear<select aria-label="Reset scope" value={scope} disabled={busy} onChange={event => setScope(event.target.value as typeof scope)}>
+      {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select></label>
+    <button type="button" className="compact-secondary" disabled={busy} onClick={() => {
+      if (!window.confirm(`Remove ${labels[scope].toLowerCase()}? Generated PDFs and source projects will be kept. Settings and shared Tags will be kept.`)) return;
+      setBusy(true); setError(null);
+      void window.aaaat.workspace.reset(scope).then(onReset).catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : "AAAAT could not reset the selected data.");
+      }).finally(() => setBusy(false));
+    }}>{busy ? "Resetting…" : "Reset"}</button>
+    </div>
+    {error ? <p className="error-message" role="alert">{error}</p> : null}
+  </section>;
 }
 
 export function SettingsWorkspace({
@@ -220,7 +197,6 @@ export function SettingsWorkspace({
   onAiValidationState,
   onRestored,
   onWorkspaceReset,
-  onWorkspaceDeleted,
   protectedWorkDirty = false,
 }: SettingsWorkspaceProps) {
   const [detailDirty, setDetailDirty] = useState(false);
@@ -262,9 +238,8 @@ export function SettingsWorkspace({
               </div>
             </div>
             <details className="settings-destructive-stack">
-              <summary>Reset or delete workspace data</summary>
+              <summary>Reset</summary>
               <ResetWorkspacePanel onReset={onWorkspaceReset} />
-              <DeleteWorkspacePanel onDeleted={onWorkspaceDeleted} />
             </details>
           </div>
         ) : null}

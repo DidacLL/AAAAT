@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { localAiStartupInputSchema, type LocalAiStartupInput, type LocalAiStartupSettings } from "../shared/optional-tools-contracts";
-import { installedToolsDirectory } from "./installed-tool-paths";
+import { installedToolsDirectory, toolDownloadsDirectory, toolSettingsDirectory } from "./installed-tool-paths";
 
 export const localGraniteConnection = Object.freeze({
   name: "Local Granite",
@@ -18,12 +18,11 @@ let startupError: string | null = null;
 export function installedGraniteFiles(): { executable: string; model: string } | null {
   try {
     const root = installedToolsDirectory();
-    const saved = JSON.parse(readFileSync(path.join(root, "granite-installed.json"), "utf8")) as { executable?: unknown };
+    const saved = JSON.parse(readFileSync(path.join(toolSettingsDirectory(), "granite-installed.json"), "utf8")) as { executable?: unknown; model?: unknown };
     if (typeof saved.executable !== "string") return null;
     const executable = path.resolve(root, "llama", saved.executable);
-    const runtimeRoot = path.resolve(root, "llama") + path.sep;
-    const model = path.join(root, "downloads", "granite-4.1-3b-Q4_K_M.gguf");
-    return executable.startsWith(runtimeRoot) && existsSync(executable) && existsSync(model) ? { executable, model } : null;
+    const model = typeof saved.model === "string" ? saved.model : path.join(toolDownloadsDirectory(), "granite-4.1-3b-Q4_K_M.gguf");
+    return existsSync(executable) && existsSync(model) ? { executable, model } : null;
   } catch { return null; }
 }
 
@@ -38,7 +37,7 @@ function defaultStartupScript(): string {
 
 export function localAiStartupSettings(): LocalAiStartupSettings {
   const defaultScript = defaultStartupScript();
-  const filename = path.join(installedToolsDirectory(), "local-ai-startup.json");
+  const filename = path.join(toolSettingsDirectory(), "local-ai-startup.json");
   let preference: LocalAiStartupInput = { enabled: Boolean(defaultScript), script: defaultScript };
   if (existsSync(filename)) {
     try { preference = localAiStartupInputSchema.parse(JSON.parse(readFileSync(filename, "utf8"))); }
@@ -50,7 +49,7 @@ export function localAiStartupSettings(): LocalAiStartupSettings {
 export function saveLocalAiStartupSettings(input: LocalAiStartupInput): LocalAiStartupSettings {
   const preference = localAiStartupInputSchema.parse(input);
   if (preference.enabled && !preference.script.trim()) throw new Error("Enter a startup script or turn startup off.");
-  const root = installedToolsDirectory();
+  const root = toolSettingsDirectory();
   mkdirSync(root, { recursive: true });
   writeFileSync(path.join(root, "local-ai-startup.json"), JSON.stringify(preference, null, 2) + "\n");
   startupError = null;
@@ -61,6 +60,7 @@ export function startLocalAiWithApp(): void {
   if (server) return;
   const settings = localAiStartupSettings();
   if (!settings.enabled || !settings.script.trim()) return;
+  mkdirSync(installedToolsDirectory(), { recursive: true });
   startupError = null;
   const windows = process.platform === "win32";
   const shell = windows ? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : "/bin/sh";

@@ -15,7 +15,7 @@ Keep one small setup-environment snapshot derived from existing product services
 - current workspace readiness;
 - availability of the known `pdflatex` command and document-rendering readiness;
 - optional AI configuration readability and connection count;
-- per-operation validated AI-route availability.
+- selected AI-connection availability.
 
 The normal Settings UI renders this live state directly through two product projections:
 

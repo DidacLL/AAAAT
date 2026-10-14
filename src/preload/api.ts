@@ -15,8 +15,6 @@ import {
   aiTaskCancellationChannels,
   aiTaskCancellationResultSchema,
   aiTaskIdSchema,
-  cancellableAiConnectionValidationRequestSchema,
-  cancellableAiConnectionValidationResultSchema,
   cancellableCoverLetterDraftRequestSchema,
   cancellableCoverLetterDraftResultSchema,
   cancellableCvWritingRequestSchema,
@@ -82,13 +80,12 @@ export function createDesktopApi(
     recent: async () => recentWorkspacePathSchema.parse(await invoke(channels.workspaceRecent)),
     continueRecent: async () => optionalWorkspaceInfoSchema.parse(await invoke(channels.workspaceContinue)),
     close: async () => { await invoke(channels.workspaceClose); },
-    delete: async () => { await invoke(channels.workspaceDelete); },
     choose: async (choice: "create" | "open") =>
       optionalWorkspaceInfoSchema.parse(
         await invoke(channels.workspaceChoose, workspaceChoiceSchema.parse(choice)),
       ),
     createDemo: async () => optionalWorkspaceInfoSchema.parse(await invoke(channels.workspaceCreateDemo)),
-    reset: async () => workspaceInfoSchema.parse(await invoke(channels.workspaceReset)),
+    reset: async (scope: Parameters<DesktopApi["workspace"]["reset"]>[0]) => workspaceInfoSchema.parse(await invoke(channels.workspaceReset, scope)),
     status: async () => workspaceStatusSchema.parse(await invoke(channels.workspaceStatus)),
   });
 
@@ -217,23 +214,6 @@ export function createDesktopApi(
   });
 
   const aiTasks = Object.freeze({
-    validateConnection: async (
-      taskId: string,
-      request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["validateConnection"]>[1],
-    ) =>
-      cancellableAiConnectionValidationResultSchema.parse(
-        await invoke(
-          aiTaskCancellationChannels.connectionValidate,
-          cancellableAiConnectionValidationRequestSchema.parse({ taskId, request }),
-        ),
-      ),
-    cancelConnectionValidation: async (taskId: string) =>
-      aiTaskCancellationResultSchema.parse(
-        await invoke(
-          aiTaskCancellationChannels.connectionValidateCancel,
-          aiTaskIdSchema.parse(taskId),
-        ),
-      ),
     extractJob: async (
       taskId: string,
       request: Parameters<AiTaskCancellationDesktopApi["aiTasks"]["extractJob"]>[1],

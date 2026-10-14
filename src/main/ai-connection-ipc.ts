@@ -6,7 +6,6 @@ import {
   aiConnectionIdSchema,
   aiConnectionManagementChannels,
   aiConnectionProbeResultSchema,
-  aiConnectionOperationInputSchema,
   namedAiConnectionInputSchema,
   namedAiConnectionListSchema,
   portableAiSetupExportResultSchema,
@@ -20,9 +19,7 @@ import {
   removeAiConnection,
   replaceAiConnectionsFromPortableSetup,
   saveNamedAiConnection,
-  setAiOperationDefault,
   setDefaultAiConnection,
-  validateAiConnectionOperation,
 } from "./ai-connection-service";
 
 const maxPortableAiSetupBytes = 64 * 1024;
@@ -104,26 +101,6 @@ export function registerAiConnectionManagementIpc(mainWindow: BrowserWindow): vo
     assertTrustedSender(event, mainWindow);
     return aiConnectionProbeResultSchema.parse(
       await probeAiConnection(requireWorkspaceRoot(), aiConnectionIdSchema.parse(connectionId)),
-    );
-  });
-
-  ipcMain.handle(aiConnectionManagementChannels.validateOperation, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return namedAiConnectionListSchema.parse(
-      await validateAiConnectionOperation(
-        requireWorkspaceRoot(),
-        aiConnectionOperationInputSchema.parse(input),
-      ),
-    );
-  });
-
-  ipcMain.handle(aiConnectionManagementChannels.setOperationDefault, (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return namedAiConnectionListSchema.parse(
-      setAiOperationDefault(
-        requireWorkspaceRoot(),
-        aiConnectionOperationInputSchema.parse(input),
-      ),
     );
   });
 

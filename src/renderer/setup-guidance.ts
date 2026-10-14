@@ -52,8 +52,8 @@ export function buildSetupGuidance(
       label: aiOperationLabels[status.operation],
       ready: status.available,
       detail: status.available
-        ? "A validated route is available."
-        : "No validated route is configured. Manual use remains available.",
+        ? "The selected AI connection is available."
+        : "Choose an AI connection when needed.",
     })),
   ];
   const anyAiRoute = snapshot.ai.operations.some((status) => status.available);
@@ -77,11 +77,11 @@ export function buildSetupGuidance(
       summary: !snapshot.ai.configurationReadable
         ? "Optional AI configuration needs attention."
         : anyAiRoute
-          ? "One or more bounded AI operations have a validated route."
+          ? "An AI connection is selected."
           : "AI is optional; AAAAT remains fully usable without a configured route.",
       checks: configuratorChecks,
       externalCapability:
-        "A connected assistant may always inspect this privacy-minimal configuration coverage. If the user explicitly enables configurator.ai actions in Settings, it may save a typed name/endpoint/model connection, ask AAAAT to validate one known operation, and select an already validated per-operation default. It cannot bypass validation, add credentials or arbitrary provider options, or gain generic machine authority.",
+        "A connected assistant may always inspect this privacy-minimal configuration coverage. If the user explicitly enables configurator.ai actions in Settings, it may save a name/endpoint/model connection and select the active connection. It cannot add credentials or gain generic machine authority.",
     },
   ] as const;
 }

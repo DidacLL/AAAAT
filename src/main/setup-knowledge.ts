@@ -20,8 +20,7 @@ export const externalAssistantMcpContract = Object.freeze({
     "installer.rendering.self_test",
     "configurator.status.read",
     "configurator.ai_connection.save",
-    "configurator.ai_operation.validate",
-    "configurator.ai_operation.default",
+    "configurator.ai_connection.select",
   ] as const),
   toolNames: Object.freeze([
     "candidature_create",
@@ -43,11 +42,10 @@ export const externalAssistantMcpContract = Object.freeze({
     "installer_rendering_self_test",
     "configurator_status_read",
     "configurator_ai_connection_save",
-    "configurator_ai_operation_validate",
-    "configurator_ai_operation_default",
+    "configurator_ai_connection_select",
   ] as const),
   permissionScope:
-    "Perform only typed AAAAT product intentions: create an application from supplied Source material; work with the one locally selected application's prepared application-information or interview-preparation task; separately work with the one application the user explicitly selected for external document work; choose and inspect one reusable CV; create and write an application CV one existing field at a time; create and write one application cover letter; inspect rendering availability; render only a session-bound document; inspect setup readiness; and, only while the user enables the matching local setup authority, run AAAAT's fixed rendering self-test or save/validate/select typed AI connection configuration. Application-information/interview selection does not grant document authority. No capability provides generic candidature/document CRUD, corpus access, storage access, Blueprint control, or machine authority." as const,
+    "Perform only typed AAAAT product intentions: create an application from supplied Source material; work with the one locally selected application's prepared application-information or interview-preparation task; separately work with the one application the user explicitly selected for external document work; choose and inspect one reusable CV; create and write an application CV one existing field at a time; create and write one application cover letter; inspect rendering availability; render only a session-bound document; inspect setup readiness; and, only while the user enables the matching local setup authority, run AAAAT's fixed rendering self-test or save or select typed AI connection configuration. Application-information/interview selection does not grant document authority. No capability provides generic candidature/document CRUD, corpus access, storage access, Blueprint control, or machine authority." as const,
   privacyDisclosure:
     "The external assistant receives only the payload of the bounded capability it invokes. Application-information uses one locally selected application, task-local field/choice references, retained task context, and only the field information AAAAT assigned and allows for AI use. Existing-application document work uses a separate deliberate local selection. Reusable-CV choice exposes only user-facing names; only the chosen reusable CV may then expose permitted content. Content without an applicable AI-disclosure choice fails closed: actual values and semantic item data stay local and only AAAAT-supplied USERPRIVATE placeholders leave. Exact placeholder/value bindings remain local, are scoped to document work, and only exact unambiguous placeholders AAAAT supplied are restored before editable CV or cover-letter content is saved. Document references are session-local and expose no durable document/application IDs. Rendering returns only availability or success/failure and no paths, TeX, PDF content, Blueprint choices, commands, process access, or filesystem authority. No application capability exposes corpus browsing, generic database/filesystem/process/shell authority, or unrelated application data. Setup tools remain independently bounded and expose no application data." as const,
 });

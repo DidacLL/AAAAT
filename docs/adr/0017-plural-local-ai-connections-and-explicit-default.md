@@ -1,12 +1,12 @@
 # ADR 0017 — Named AI connections and an explicit general default
 
-Status: accepted, updated for the current configuration. [ADR 0006](0006-first-direct-ai-provider-boundary.md) owns endpoint/credential boundaries; [ADR 0018](0018-validated-ai-operation-capabilities.md) owns diagnostics and operation defaults.
+Status: accepted, updated for the current configuration. [ADR 0006](0006-first-direct-ai-provider-boundary.md) owns endpoint/credential boundaries; All assistance uses the selected connection; the capability-certification and per-operation-routing design has been removed.
 
 ## Decision
 
 Workspace-local AI configuration stores named connections with stable identities and case-insensitively unique names. Each identifies an endpoint and model, with an optional protected credential. The user selects a nullable general default.
 
-The first connection becomes the general default when there is no ambiguity. Adding or editing later connections does not silently change it. Removing it clears that default rather than selecting another server. An operation resolves an explicitly configured per-operation default first, then the general default; it does not search or switch providers automatically.
+The first connection becomes the general default when there is no ambiguity. Adding or editing later connections does not silently change it. Removing it clears that default rather than selecting another server. All assistance uses the general default; it does not search or switch providers automatically.
 
 ## Consequences
 

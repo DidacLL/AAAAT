@@ -6,7 +6,6 @@ export const channels = Object.freeze({
   workspaceRecent: "aaaat:workspace-recent",
   workspaceContinue: "aaaat:workspace-continue",
   workspaceClose: "aaaat:workspace-close",
-  workspaceDelete: "aaaat:workspace-delete",
   workspaceChoose: "aaaat:workspace-choose",
   workspaceCreateDemo: "aaaat:workspace-create-demo",
   workspaceReset: "aaaat:workspace-reset",
@@ -47,6 +46,9 @@ export type SystemInfo = z.infer<typeof systemInfoSchema>;
 
 export const workspaceChoiceSchema = z.enum(["create", "open"]);
 export type WorkspaceChoice = z.infer<typeof workspaceChoiceSchema>;
+export const workspaceResetScopeSchema = z.enum(["applications", "personal", "all"]);
+export type WorkspaceResetScope = z.infer<typeof workspaceResetScopeSchema>;
+
 export const workspaceInfoSchema = z.object({ rootPath: z.string().min(1) }).strict();
 export const optionalWorkspaceInfoSchema = workspaceInfoSchema.nullable();
 export const recentWorkspacePathSchema = z.string().min(1).nullable();
@@ -296,10 +298,9 @@ export interface DesktopApi {
     readonly recent: () => Promise<string | null>;
     readonly continueRecent: () => Promise<WorkspaceInfo | null>;
     readonly close: () => Promise<void>;
-    readonly delete: () => Promise<void>;
     readonly choose: (choice: WorkspaceChoice) => Promise<WorkspaceInfo | null>;
     readonly createDemo: () => Promise<WorkspaceInfo | null>;
-    readonly reset: () => Promise<WorkspaceInfo>;
+    readonly reset: (scope: WorkspaceResetScope) => Promise<WorkspaceInfo>;
     readonly status: () => Promise<WorkspaceStatus>;
   };
   readonly profile: {
