@@ -16,9 +16,9 @@ On a fresh installed launch, choose either, both or neither. **Not now** takes y
 
 **Local AI** downloads the official llama.cpp CPU runtime and IBM Granite 4.1 3B Q4_K_M, approximately 2 GB. This is the model tested with AAAAT. It runs on your computer; speed depends on your hardware. The installed server starts with AAAAT and stops when you quit. **Settings → AI → Startup** provides an editable script, an on/off choice and **Use installed default**. Saved changes apply on the next launch. The generated default includes the installed executable and model paths; advanced users can configure their own setup. Startup scripts run locally with your account privileges and are not editable by connected AI tools. New workspaces without an AI connection receive it automatically. Existing connections and manually deleted connections remain as you chose them.
 
-**PDF generation** uses an existing pdfLaTeX installation where available. Otherwise it installs:
-
 On Windows, Local AI also checks its Microsoft Visual C++ runtime dependency. A working tested version is reused. If it is missing, Microsoft's own setup opens with its license and permission choices; AAAAT does not approve these for you.
+
+**PDF generation** uses an existing pdfLaTeX installation where available. Otherwise it installs:
 
 | Device | PDF tool |
 | --- | --- |

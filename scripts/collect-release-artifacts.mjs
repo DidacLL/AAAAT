@@ -54,7 +54,7 @@ if (distributables.length === 0) {
 const usedNames = new Set();
 for (const source of distributables) {
   const extension = path.extname(source).toLowerCase();
-  const targetName = "AAAAT-" + platformName + "-" + arch + extension;
+  const targetName = "AAAAT-" + platformName + "-" + arch + (extension === ".exe" ? "-setup" : "") + extension;
   if (usedNames.has(targetName)) {
     throw new Error("Multiple distributables would map to " + targetName);
   }

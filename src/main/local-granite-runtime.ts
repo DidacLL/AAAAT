@@ -109,9 +109,7 @@ export async function ensureInstalledGranite(endpoint: string, model: string): P
   if (endpoint !== localGraniteConnection.endpoint || model !== localGraniteConnection.model) return;
   if (await serverReady()) return;
   if (starting) return starting;
-  const settings = localAiStartupSettings();
-  if (!settings.enabled || !settings.script.trim()) throw new Error("Local AI startup is off. Start your server or enable Settings → AI → Startup.");
-  startLocalAiWithApp();
+  if (!server) throw new Error(startupError ?? "Local AI is not running. Restart AAAAT to use the saved startup script, or start your server.");
   starting = (async () => {
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
