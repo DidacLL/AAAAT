@@ -2,6 +2,9 @@
 
 ## 2.0.0
 
+- Public product website with beginner instructions, independent feature chapters, a clearly labelled fictional interactive preview and platform-specific download guidance.
+- A deliberately written 12-opportunity demo spanning community, editorial, visitor services and other work, with consistent fictional career information and reusable documents.
+
 - One application creation screen combines original material and editable information.
 - Content-driven sans-serif application covers use configurable prominence and anchored expansion; Tag definitions stay in the left monitor.
 - Fixed navigation and contextual top-bar actions keep ordinary work readable.
@@ -16,7 +19,7 @@
 - Local tools, downloads, pdfLaTeX and the local server's startup script are user-configurable.
 - Reset can clear applications, My information or both while preserving generated PDFs and source projects.
 
-AAAAT 2 replaces the earlier prototype with a fresh desktop application. Releases are prepared as drafts; publication is a separate owner action.
+AAAAT 2 replaces the earlier prototype with a fresh desktop application. The packaging workflow prepares draft releases; publication follows explicit Product Owner authorization.
 
 ## Earlier development
 

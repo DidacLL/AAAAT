@@ -1,6 +1,6 @@
 # AAAAT user guide
 
-This guide describes AAAAT `2.0.0`. Start with the [README tour](../README.md) for a quick introduction.
+This guide describes AAAAT `2.0.0`. Start with [Get Started](https://didacll.github.io/AAAAT/get-started.html) for a quick introduction, or [Explore AAAAT](https://didacll.github.io/AAAAT/explore.html) for independently navigable feature chapters.
 
 ## Start or switch workspaces
 
@@ -8,7 +8,7 @@ On Welcome, create a workspace in an empty folder, open an existing current work
 
 After opening it, use the fixed left rail to move between Home, Applications, Documents, My information and Settings. Main actions follow your current work in the fixed top bar. Activity and Status open on demand rather than filling the rail with task logs.
 
-Use **Settings → Workspace** to create or open another workspace. Reset and deletion are separate destructive actions with confirmation. Demo data lives in its own workspace.
+Use **Settings → Workspace** to create or open another workspace. Reset and deletion are separate destructive actions with confirmation. Demo data lives in its own workspace. It contains 12 fictional opportunities across community programmes, editorial work, visitor services and other professions. Alex Morgan’s fictional profile includes a custom **Community work** group and a saved **Public-facing emphasis** variation. Explore the Common Ground Cooperative CV and cover letter, the standalone general CV and the **Community & communications** composition template without using personal information.
 
 ## Applications
 

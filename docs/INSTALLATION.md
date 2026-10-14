@@ -1,6 +1,6 @@
 # Install AAAAT
 
-Choose the AAAAT 2 package for your device from [Releases](https://github.com/DidacLL/AAAAT/releases).
+Choose the AAAAT 2 package for your device from [the download page](https://didacll.github.io/AAAAT/download.html) or [v2.0.0 Releases](https://github.com/DidacLL/AAAAT/releases/tag/v2.0.0). See [Get Started](https://didacll.github.io/AAAAT/get-started.html) for your first workspace and independent application/document tasks.
 
 | Device | Package | Installation |
 | --- | --- | --- |
