@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
+import { ensureInstalledGranite } from "./local-granite-runtime";
 
 import {
   coverLetterDraftSchema,
@@ -440,12 +441,15 @@ export function createOpenAiCompatibleProvider(
 
   const provider: ModelProvider = {
     async extractJob(connection, request, signal) {
+      await ensureInstalledGranite(connection.endpoint, connection.model);
       return runStructuredOperation(fetchImpl, connection, "job_extraction", instructionFor("job_extraction"), request, providerJobExtractionEnvelopeSchema, timeout, signal);
     },
     async inferTags(connection, request, signal) {
+      await ensureInstalledGranite(connection.endpoint, connection.model);
       return runStructuredOperation(fetchImpl, connection, "tag_inference", instructionFor("tag_inference"), request, providerTagInferenceResultSchema, timeout, signal);
     },
     async writeCvField(connection, context, signal) {
+      await ensureInstalledGranite(connection.endpoint, connection.model);
       return runTextOperation(
         fetchImpl,
         connection,
@@ -458,6 +462,7 @@ export function createOpenAiCompatibleProvider(
       );
     },
     async draftCoverLetter(connection, context, signal) {
+      await ensureInstalledGranite(connection.endpoint, connection.model);
       return runStructuredOperation(fetchImpl, connection, "cover_letter_draft", instructionFor("cover_letter_draft"), context, coverLetterDraftSchema, timeout, signal);
     },
   };

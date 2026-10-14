@@ -204,6 +204,14 @@ Setup is product infrastructure. Ordinary UI describes practical outcomes rather
 
 The same underlying setup knowledge may support normal UI and optional AI-assisted configuration; do not build a general installer/orchestration platform before a concrete need exists.
 
+Native packaging produces per-user Windows Inno Setup EXEs, macOS DMGs and Linux DEBs, alongside portable ZIPs. Optional tools are installed through a single typed main-process intention with two fixed choices: local Granite and PDF generation. Installer inputs cannot supply commands, download URLs or installation paths. The separate user-owned Startup settings intentionally accept an editable local shell script, run when the desktop app starts; they are not exposed through MCP or AI operations. Fixed upstream archives and the tested IBM GGUF revision are verified by their pinned cryptographic digest before use. Existing TeX installations and named AI connections are preserved.
+
+The installed llama.cpp CPU runtime binds only loopback. Its default script runs when the desktop app starts, using the installed executable and model paths. Advanced users can edit the PowerShell or POSIX shell script, disable startup or restore that default. Changes apply on the next launch; AI requests only wait for an already started server and cannot execute the saved script. AAAAT stops its attached startup process tree/group on quit; it does not stop independently launched servers. Ordinary AI permission/context checks still precede provider invocation. Model files and runtime live in local application data, separately from portable workspaces. A workspace receives this connection only once and only when it has no existing connections; explicit deletion does not resurrect it.
+
+The official Windows CPU binary imports the Visual C++ runtime. Setup reuses an installed runtime at least as recent as the tested 14.50 stack, or obtains Microsoft's pinned redistributable and opens its native interactive setup. It never accepts Microsoft's license or elevation choices on the user's behalf. A requested Windows restart remains visible and leaves local-AI setup retryable.
+
+PDF setup selects MiKTeX on Windows and x64 macOS/Linux, BasicTeX on Apple Silicon, and distribution TeX Live on Linux ARM64. OS authorization is used where necessary. Downloads can be canceled; native package installation is allowed to complete rather than being killed mid-write. Rendering and readiness probes resolve the same installed executable, without requiring users to edit PATH. This setup is not exposed as arbitrary external-agent process authority.
+
 Workspace backup/recovery and portable AI/integration configuration are distinct boundaries. Keep secrets/local-machine concerns separate from user-owned workspace data where required.
 
 ## Local ownership and privileged operations

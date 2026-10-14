@@ -42,6 +42,11 @@ const config: ForgeConfig = {
   },
   makers: [
     {
+      name: "@electron-forge/maker-dmg",
+      platforms: ["darwin"],
+      config: {},
+    },
+    {
       name: "@electron-forge/maker-zip",
       platforms: ["win32", "darwin", "linux"],
       config: {},
@@ -53,6 +58,7 @@ const config: ForgeConfig = {
         options: {
           maintainer: "AAAAT contributors",
           homepage: "https://github.com/DidacLL/AAAAT",
+          depends: ["gpg", "pkexec | policykit-1"],
         },
       },
     },

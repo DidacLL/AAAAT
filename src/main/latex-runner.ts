@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { installedPdfLatexExecutable } from "./installed-tool-paths";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -175,7 +176,7 @@ export async function runPdfLatex(
     try {
       // pdflatex is an executable on supported Windows TeX distributions. Invoke it
       // directly so cmd.exe quoting/parsing cannot corrupt -jobname or project args.
-      child = spawn("pdflatex", pdfLatexArgs, {
+      child = spawn(installedPdfLatexExecutable(), pdfLatexArgs, {
         cwd: projectPath,
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,

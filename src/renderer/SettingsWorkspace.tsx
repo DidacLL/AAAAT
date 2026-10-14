@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
+import type { OptionalToolsChoice } from "../shared/optional-tools-contracts";
 import type {
   ExternalAssistantConnection,
   ExternalAssistantGuidance,
@@ -15,6 +16,8 @@ import { ToolbarVisible } from "./toolbar-context";
 export type SettingsView = "workspace" | "ai" | "documents" | "backup";
 
 interface SettingsWorkspaceProps {
+  readonly onOpenTools: (choice: OptionalToolsChoice) => void;
+  readonly toolsRevision: number;
   readonly currentWorkspace: WorkspaceInfo;
   readonly demoWorkspace: boolean;
   readonly view: SettingsView;
@@ -205,6 +208,8 @@ function DeleteWorkspacePanel({ onDeleted }: { readonly onDeleted: () => void })
 }
 
 export function SettingsWorkspace({
+  onOpenTools,
+  toolsRevision,
   currentWorkspace,
   demoWorkspace,
   view,
@@ -241,6 +246,8 @@ export function SettingsWorkspace({
           <button type="button" onClick={() => onChooseWorkspace("create")}>New workspace</button>
           <button type="button" onClick={() => onChooseWorkspace("open")}>Open workspace</button>
         </> : null}
+        {view === "ai" ? <button type="button" onClick={() => onOpenTools({ localAi: true, pdf: false })}>Local AI</button> : null}
+        {view === "documents" ? <button type="button" onClick={() => onOpenTools({ localAi: false, pdf: true })}>PDF setup</button> : null}
       </PageToolbar>
 
       <section className="settings-active-panel" aria-label={`${settingsLabels[view]} settings`}>
@@ -265,6 +272,7 @@ export function SettingsWorkspace({
         <ToolbarVisible.Provider value={visible && view === "ai"}>
           <div hidden={view !== "ai"}>
             <AiSettingsWorkspace
+              refreshRevision={toolsRevision}
               view="all"
               onDirtyChange={setDetailDirty}
               onEnvironmentChange={onEnvironmentChange}
@@ -284,7 +292,7 @@ export function SettingsWorkspace({
 
         <ToolbarVisible.Provider value={visible && view === "documents"}>
           <div hidden={view !== "documents"}>
-          <SetupEnvironmentPanel view="rendering" onEnvironmentChange={onEnvironmentChange} />
+          <SetupEnvironmentPanel view="rendering" refreshRevision={toolsRevision} onEnvironmentChange={onEnvironmentChange} />
           </div>
         </ToolbarVisible.Provider>
 

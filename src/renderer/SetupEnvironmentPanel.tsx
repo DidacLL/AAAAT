@@ -77,9 +77,11 @@ export function SetupActionAuthority({
 
 export function SetupEnvironmentPanel({
   view = "all",
+  refreshRevision = 0,
   onEnvironmentChange,
 }: {
   readonly view?: SetupEnvironmentView;
+  readonly refreshRevision?: number;
   readonly onEnvironmentChange?: () => void;
 }) {
   const [snapshot, setSnapshot] = useState<SetupEnvironmentSnapshot | null>(null);
@@ -129,7 +131,7 @@ export function SetupEnvironmentPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshRevision]);
 
   const updateAccess = async (next: SetupAssistantAccess) => {
     setSavingAccess(true);

@@ -117,6 +117,7 @@ import {
 } from "./candidature-service";
 import { getCareerContext, updateCareerContext } from "./career-context-service";
 import { createDemoWorkspace } from "./demo-workspace";
+import { prepareInstalledAiConnection } from "./optional-tools-service";
 import {
   addProfileItem,
   getProfile,
@@ -148,6 +149,7 @@ function currentOrRememberedWorkspace(): WorkspaceInfo | null {
   const rememberedPath = readLastWorkspacePath(workspaceSettingsPath());
   if (!rememberedPath) return null;
   currentWorkspace = openWorkspace(rememberedPath);
+  prepareInstalledAiConnection(currentWorkspace.rootPath);
   return currentWorkspace;
 }
 
@@ -173,6 +175,7 @@ async function chooseWorkspace(
   const selectedPath = selection.filePaths[0];
   if (!selectedPath) return null;
   const workspace = creating ? createOrOpenWorkspace(selectedPath) : openWorkspace(selectedPath);
+  prepareInstalledAiConnection(workspace.rootPath);
   rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
   currentWorkspace = workspace;
   return workspace;
@@ -187,6 +190,7 @@ async function createDemo(mainWindow: BrowserWindow): Promise<WorkspaceInfo | nu
   const selectedPath = selection.filePaths[0];
   if (selection.canceled || !selectedPath) return null;
   const workspace = createDemoWorkspace(selectedPath);
+  prepareInstalledAiConnection(workspace.rootPath);
   rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
   currentWorkspace = workspace;
   return workspace;

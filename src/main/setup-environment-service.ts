@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { installedPdfLatexExecutable } from "./installed-tool-paths";
 
 import { aiOperations } from "../shared/ai-connection-contracts";
 import {
@@ -42,7 +43,7 @@ export function probeSetupTexCommand(command: SetupTexCommand): Promise<SetupTex
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn(command, [...probeArguments[command]], {
+      child = spawn(command === "pdflatex" ? installedPdfLatexExecutable() : command, [...probeArguments[command]], {
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,

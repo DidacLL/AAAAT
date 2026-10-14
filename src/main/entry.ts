@@ -1,12 +1,17 @@
 import { app, safeStorage } from "electron";
 
 import { configureAiCredentialProtection } from "./ai-connection-service";
+import { initializeInstalledToolPaths } from "./installed-tool-paths";
+import { startLocalAiWithApp, stopInstalledGranite } from "./local-granite-runtime";
 import { isMcpInvocation, runMcpProcess } from "./mcp-server";
 import {
   isWorkspaceBackupInvocation,
   isWorkspaceRestoreInvocation,
   runWorkspaceRecoveryProcess,
 } from "./workspace-backup";
+
+initializeInstalledToolPaths(app.getPath("userData"));
+app.on("before-quit", stopInstalledGranite);
 
 configureAiCredentialProtection({
   isSecure: () =>
@@ -33,5 +38,6 @@ if (isWorkspaceBackupInvocation(process.argv) || isWorkspaceRestoreInvocation(pr
     () => app.exit(2),
   );
 } else {
+  void app.whenReady().then(startLocalAiWithApp);
   void import("./main");
 }

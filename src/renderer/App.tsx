@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { WorkspaceChoice, WorkspaceInfo } from "../shared/contracts";
+import type { OptionalToolsChoice } from "../shared/optional-tools-contracts";
+import { OptionalToolsDialog } from "./OptionalToolsDialog";
 import { AiTaskStatus } from "./AiTaskStatus";
 import logoMachine from "./assets/aaaat-logo-dark.png";
 import logoPaper from "./assets/aaaat-logo-light.png";
@@ -89,6 +91,8 @@ function DocumentsArea({ onDirtyChange }: { readonly onDirtyChange: (dirty: bool
 }
 
 export function App() {
+  const [optionalToolsChoice, setOptionalToolsChoice] = useState<OptionalToolsChoice | null>(null);
+  const [toolsRevision, setToolsRevision] = useState(0);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
   const [utility, setUtility] = useState<"activity" | "status" | null>(null);
   const utilityDialog = useRef<HTMLDialogElement>(null);
@@ -149,6 +153,20 @@ export function App() {
 
   const resetEnvironmentProjection = useCallback(() => {
     setAiAttentionConnectionName(null);
+    refreshRailStatus();
+  }, [refreshRailStatus]);
+
+  useEffect(() => {
+    if (workspacePhase !== "idle" || recentWorkspacePath) return;
+    let active = true;
+    void window.aaaat.optionalTools.current().then(status => {
+      if (active && status.packaged && !status.offered) setOptionalToolsChoice({ localAi: false, pdf: false });
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [workspacePhase, recentWorkspacePath]);
+
+  const optionalToolsChanged = useCallback(() => {
+    setToolsRevision(current => current + 1);
     refreshRailStatus();
   }, [refreshRailStatus]);
 
@@ -502,6 +520,7 @@ export function App() {
             <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("create")}>{choosing ? "Choosing folder..." : "New workspace"}</button>
             <button className="primary-action" type="button" disabled={choosing} onClick={() => void chooseWorkspace("open")}>Open folder</button>
             <button className="secondary-action" type="button" disabled={choosing} onClick={() => void createDemoWorkspace()}>Open demo</button>
+            <button className="secondary-action" type="button" disabled={choosing} onClick={() => setOptionalToolsChoice({ localAi: false, pdf: false })}>Optional tools</button>
           </div>
           <WorkspaceRecoveryPanel currentWorkspace={null} editorDirty={false} onRestored={openRestoredWorkspace} />
         </>
@@ -525,6 +544,7 @@ export function App() {
     <ToolbarHost.Provider value={toolbarHost}>
     <ContextualHandoffContext.Provider value={handoffApi}>
       <div className="app-shell">
+        {optionalToolsChoice ? <OptionalToolsDialog initialChoice={optionalToolsChoice} onClose={() => setOptionalToolsChoice(null)} onChanged={optionalToolsChanged} /> : null}
         <header className="app-header">
           <div className="brand-lockup">
             <img className="brand-mark" src={logoMachine} alt="" />
@@ -568,6 +588,8 @@ export function App() {
                       </button>
                     </div> : null}
                     <SettingsWorkspace
+                      onOpenTools={setOptionalToolsChoice}
+                      toolsRevision={toolsRevision}
                       currentWorkspace={workspace}
                       demoWorkspace={demoWorkspace}
                       view={settingsView}

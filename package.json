@@ -4,11 +4,15 @@
   "version": "2.0.0-alpha.0",
   "description": "Private, local-first career workspace",
   "private": true,
+  "allowScripts": {
+    "macos-alias@0.2.12": true,
+    "fs-xattr@0.3.1": true
+  },
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make",
+    "make": "node scripts/make.mjs",
     "build": "electron-forge package",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "eslint src scripts test/ai-eval forge.config.ts vite.main.config.mts vite.preload.config.mts vite.renderer.config.mts --max-warnings 0",
@@ -35,6 +39,7 @@
   "devDependencies": {
     "@electron-forge/cli": "7.11.2",
     "@electron-forge/maker-deb": "7.11.2",
+    "@electron-forge/maker-dmg": "7.11.2",
     "@electron-forge/maker-zip": "7.11.2",
     "@electron-forge/plugin-fuses": "7.11.2",
     "@electron-forge/plugin-vite": "7.11.2",

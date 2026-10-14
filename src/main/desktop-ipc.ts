@@ -7,6 +7,7 @@ import { registerCandidatureOpportunityResearchAccessIpc } from "./candidature-o
 import { registerCandidatureSearchIpc } from "./candidature-search-ipc";
 import { registerCareerContextAiDisclosureIpc } from "./career-context-ai-disclosure-ipc";
 import { registerCoreDesktopIpc } from "./core-desktop-ipc";
+import { registerOptionalToolsIpc } from "./optional-tools-ipc";
 import { registerDocumentDomainIpc } from "./document-domain-ipc";
 import { registerProfileAiContextIpc } from "./profile-ai-context-ipc";
 import { registerProfileVariantIpc } from "./profile-variant-ipc";
@@ -15,6 +16,7 @@ import { registerSetupEnvironmentIpc } from "./setup-environment-ipc";
 
 export function registerDesktopIpc(mainWindow: BrowserWindow): void {
   registerCoreDesktopIpc(mainWindow);
+  registerOptionalToolsIpc(mainWindow);
   registerAiConnectionManagementIpc(mainWindow);
   registerAiPromptIpc(mainWindow);
   registerCandidatureActivityIpc(mainWindow);
