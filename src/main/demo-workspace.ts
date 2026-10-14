@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { readdirSync } from "node:fs";
 
+import type { CvTemplateSection } from "../shared/document-domain-contracts";
+
 import { createCoverLetter, createCvTemplate, createWorkingCv } from "./document-domain-service";
 import { createProfileVariant } from "./profile-variant-service";
 import { createOrOpenWorkspace, withWorkspaceDatabase } from "./workspace";
@@ -264,7 +266,7 @@ export function createDemoWorkspace(rootPath: string) {
       profile.run(randomUUID(), "contact", "Manchester, UK", "Location",
         null, null, null, 2, now, now);
       profile.run(programmeExperienceId, "experience", "Community Programmes Coordinator", "Neighbourhood House",
-        "Plan monthly workshops with resident groups, brief 24 volunteers and track a £18,000 annual activities budget. Introduced clearer booking instructions and a shared session calendar; average attendance grew from 18 to 27 participants over one year.",
+        "Plan monthly workshops with resident groups, brief 24 volunteers and track an £18,000 annual activities budget. Introduced clearer booking instructions and a shared session calendar; average attendance grew from 18 to 27 participants over one year.",
         "2022-04", null, 3, now, now);
       profile.run(randomUUID(), "experience", "Visitor Services & Communications Assistant", "Lantern Arts Centre",
         "Welcomed visitors, coordinated front-desk rotas and wrote plain-language event guides. Worked with colleagues to improve access information and produced a monthly newsletter for 1,200 subscribers.",
@@ -321,7 +323,7 @@ export function createDemoWorkspace(rootPath: string) {
     name: "Community & communications",
     language: "en",
     pdfMetadata: { title: "Alex Morgan — CV", author: "Alex Morgan", subject: "Community and communications", keywords: "" },
-    sections: generalCv.sections.map(section => ({
+    sections: generalCv.sections.map<CvTemplateSection>(section => ({
       id: randomUUID(),
       name: section.name,
       presentationRole: section.name === "Profile" ? "header" : section.name === "Skills" || section.name === "Languages" ? "secondary" : "main",
