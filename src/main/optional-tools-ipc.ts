@@ -1,6 +1,7 @@
-import { ipcMain, type BrowserWindow } from "electron";
+import { dialog, ipcMain, type BrowserWindow } from "electron";
 
-import { optionalToolsChannels, optionalToolsChoiceSchema, optionalToolsStatusSchema, localAiStartupInputSchema } from "../shared/optional-tools-contracts";
+import { optionalToolsChannels, optionalToolsChoiceSchema, optionalToolsStatusSchema, localAiStartupInputSchema, toolLocationsSchema, toolPathKindSchema } from "../shared/optional-tools-contracts";
+import { saveToolLocations } from "./installed-tool-paths";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 import { refreshSetupEnvironmentSnapshot } from "./setup-environment-service";
 import { localAiStartupSettings, saveLocalAiStartupSettings } from "./local-granite-runtime";
@@ -17,7 +18,9 @@ export function registerOptionalToolsIpc(mainWindow: BrowserWindow): void {
     const choice = optionalToolsChoiceSchema.parse(input);
     const result = await installOptionalTools(choice);
     if (choice.localAi && result.localAiReady) {
-      try { prepareInstalledAiConnection(requireWorkspaceRoot()); } catch { /* A first-run workspace may not exist yet. */ }
+      let rootPath: string | null = null;
+      try { rootPath = requireWorkspaceRoot(); } catch { /* First-run setup can precede a workspace. */ }
+      if (rootPath) prepareInstalledAiConnection(rootPath, true);
     }
     if (choice.pdf && result.pdfReady) {
       try { await refreshSetupEnvironmentSnapshot(requireWorkspaceRoot()); } catch { /* First-run setup can precede a workspace. */ }
@@ -39,5 +42,20 @@ export function registerOptionalToolsIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(optionalToolsChannels.startupSave, (event, input: unknown) => {
     assertTrustedSender(event, mainWindow);
     return saveLocalAiStartupSettings(localAiStartupInputSchema.parse(input));
+  });
+  ipcMain.handle(optionalToolsChannels.locationsSave, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    if ((await optionalToolsStatus()).busy) throw new Error("Wait for the current installation to finish.");
+    saveToolLocations(toolLocationsSchema.parse(input));
+    try { await refreshSetupEnvironmentSnapshot(requireWorkspaceRoot()); } catch { /* Setup can precede a workspace. */ }
+  });
+  ipcMain.handle(optionalToolsChannels.choosePath, async (event, input: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    const kind = toolPathKindSchema.parse(input);
+    const selection = await dialog.showOpenDialog(mainWindow, {
+      title: kind === "directory" ? "Choose folder" : "Choose pdfLaTeX",
+      properties: kind === "directory" ? ["openDirectory", "createDirectory"] : ["openFile"],
+    });
+    return selection.canceled ? null : selection.filePaths[0] ?? null;
   });
 }

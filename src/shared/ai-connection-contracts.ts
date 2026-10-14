@@ -24,19 +24,12 @@ export const aiConnectionManagementChannels = Object.freeze({
   setDefault: "aaaat:ai-connections-set-default",
   remove: "aaaat:ai-connections-remove",
   probe: "aaaat:ai-connections-probe",
-  validateOperation: "aaaat:ai-connections-validate-operation",
-  setOperationDefault: "aaaat:ai-connections-set-operation-default",
   exportPortable: "aaaat:ai-connections-export-portable",
   importPortable: "aaaat:ai-connections-import-portable",
 } as const);
 
 export const aiConnectionIdSchema = z.string().uuid();
 export const aiConnectionProbeResultSchema = z.boolean();
-export const aiConnectionOperationInputSchema = z
-  .object({ connectionId: aiConnectionIdSchema, operation: aiOperationSchema })
-  .strict();
-export type AiConnectionOperationInput = z.infer<typeof aiConnectionOperationInputSchema>;
-
 export const namedAiConnectionInputSchema = aiConnectionInputSchema
   .extend({
     id: aiConnectionIdSchema.optional(),
@@ -50,8 +43,6 @@ export const namedAiConnectionSchema = aiConnectionInputSchema
     id: aiConnectionIdSchema,
     hasCredential: z.boolean().optional(),
     isDefault: z.boolean(),
-    validatedOperations: z.array(aiOperationSchema).max(aiOperations.length),
-    defaultForOperations: z.array(aiOperationSchema).max(aiOperations.length),
   })
   .strict();
 export type NamedAiConnection = z.infer<typeof namedAiConnectionSchema>;
@@ -94,8 +85,6 @@ export interface AiConnectionDesktopApi {
     readonly setDefault: (connectionId: string) => Promise<NamedAiConnection[]>;
     readonly remove: (connectionId: string) => Promise<NamedAiConnection[]>;
     readonly probe?: (connectionId: string) => Promise<boolean>;
-    readonly validateOperation: (input: AiConnectionOperationInput) => Promise<NamedAiConnection[]>;
-    readonly setOperationDefault: (input: AiConnectionOperationInput) => Promise<NamedAiConnection[]>;
     readonly exportPortable: () => Promise<PortableAiSetupExportResult>;
     readonly importPortable: () => Promise<PortableAiSetupImportResult>;
   };

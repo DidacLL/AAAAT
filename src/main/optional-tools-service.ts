@@ -1,13 +1,14 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
+import { existsSync, writeFileSync } from "node:fs";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { app } from "electron";
+import { app, shell } from "electron";
 
 import type { OptionalToolsChoice, OptionalToolsStatus } from "../shared/optional-tools-contracts";
 import { basicTexMac, graniteModel, llamaCpuArchives, miktexMac, miktexWindows, visualCppWindows } from "./optional-tool-assets";
-import { installedPdfLatexExecutable, installedToolsDirectory } from "./installed-tool-paths";
+import { installedToolsDirectory, toolDownloadsDirectory, toolLocations, toolSettingsDirectory } from "./installed-tool-paths";
+import { probeSetupTexCommand } from "./setup-environment-service";
 import { installedGraniteFiles, localGraniteConnection, startLocalAiWithApp } from "./local-granite-runtime";
 import { listAiConnections, saveNamedAiConnection } from "./ai-connection-service";
 import { downloadTool } from "./tool-download";
@@ -20,12 +21,18 @@ let downloadedBytes = 0;
 let totalBytes = 0;
 let error: string | null = null;
 
-export function prepareInstalledAiConnection(rootPath: string): void {
+export function prepareInstalledAiConnection(rootPath: string, explicitInstall = false): void {
   if (!installedGraniteFiles()) return;
   const offered = withWorkspaceDatabase(rootPath, database => database.prepare("SELECT value FROM workspace_metadata WHERE key = 'setup.local-ai-offered'").get());
-  if (offered) return;
-  if (listAiConnections(rootPath).length === 0) saveNamedAiConnection(rootPath, localGraniteConnection);
-  withWorkspaceDatabase(rootPath, database => database.prepare("INSERT INTO workspace_metadata(key, value) VALUES ('setup.local-ai-offered', 'true')").run());
+  if (offered && !explicitInstall) return;
+  const connections = listAiConnections(rootPath);
+  const existing = connections.some(connection => connection.endpoint === localGraniteConnection.endpoint && connection.model === localGraniteConnection.model);
+  if (!existing && (explicitInstall || connections.length === 0)) {
+    let name: string = localGraniteConnection.name;
+    for (let suffix = 2; connections.some(connection => connection.name.toLocaleLowerCase() === name.toLocaleLowerCase()); suffix++) name = `${localGraniteConnection.name} ${suffix}`;
+    saveNamedAiConnection(rootPath, { ...localGraniteConnection, name });
+  }
+  withWorkspaceDatabase(rootPath, database => database.prepare("INSERT OR REPLACE INTO workspace_metadata(key, value) VALUES ('setup.local-ai-offered', 'true')").run());
 }
 
 function run(command: string, args: string[], timeout?: number, input?: string): Promise<void> {
@@ -50,7 +57,7 @@ function run(command: string, args: string[], timeout?: number, input?: string):
 }
 
 export async function optionalToolsStatus(): Promise<OptionalToolsStatus> {
-  const root = installedToolsDirectory();
+  const root = toolSettingsDirectory();
   return {
     packaged: app.isPackaged,
     offered: existsSync(path.join(root, "setup-offered")),
@@ -61,14 +68,15 @@ export async function optionalToolsStatus(): Promise<OptionalToolsStatus> {
     totalBytes,
     localAiReady: installedGraniteFiles() !== null,
     localAiSupported: Boolean(llamaCpuArchives[`${process.platform}-${process.arch}`]),
-    pdfReady: installedPdfLatexExecutable() !== "pdflatex" && !existsSync(path.join(root, "pdf-install-pending")),
-    pdfLabel: process.arch === "arm64" && process.platform !== "win32" ? process.platform === "darwin" ? "BasicTeX" : "TeX Live" : "MiKTeX",
+    pdfReady: (await probeSetupTexCommand("pdflatex")).available,
+    pdfLabel: process.platform === "linux" ? "TeX Live" : process.platform === "darwin" && process.arch === "arm64" ? "BasicTeX" : "MiKTeX",
     error,
+    locations: toolLocations(),
   };
 }
 
 export async function dismissOptionalTools(): Promise<void> {
-  const root = installedToolsDirectory();
+  const root = toolSettingsDirectory();
   await mkdir(root, { recursive: true });
   await writeFile(path.join(root, "setup-offered"), "User continued from optional setup.\n");
 }
@@ -82,7 +90,7 @@ async function obtain(source: Parameters<typeof downloadTool>[1], label: string,
   downloadedBytes = 0;
   totalBytes = 0;
   canCancel = true;
-  const file = await downloadTool(path.join(installedToolsDirectory(), "downloads"), source, signal, (received, total) => {
+  const file = await downloadTool(toolDownloadsDirectory(), source, signal, (received, total) => {
     downloadedBytes = received;
     totalBytes = total;
   });
@@ -121,8 +129,9 @@ async function installLocalAi(signal: AbortSignal): Promise<void> {
   message = "Checking local AI…";
   const executable = await findExecutable(directory, process.platform === "win32" ? "llama-server.exe" : "llama-server");
   await run(executable, ["--version"], 10_000);
-  await obtain(graniteModel, "Downloading Granite 4.1 3B · about 2 GB…", signal);
-  writeFileSync(path.join(installedToolsDirectory(), "granite-installed.json"), JSON.stringify({ executable: path.relative(directory, executable), runtime: "b11429", modelSha256: graniteModel.hash }) + "\n");
+  const model = await obtain(graniteModel, "Downloading Granite 4.1 3B · about 2 GB…", signal);
+  await mkdir(toolSettingsDirectory(), { recursive: true });
+  writeFileSync(path.join(toolSettingsDirectory(), "granite-installed.json"), JSON.stringify({ executable, model }) + "\n");
   startLocalAiWithApp();
 }
 
@@ -145,100 +154,23 @@ async function installWindowsRuntime(signal: AbortSignal, executable: string): P
   await run(path.join(system, "WindowsPowerShell", "v1.0", "powershell.exe"), ["-NoProfile", "-NonInteractive", "-File", script, "-Installer", installer]);
 }
 
-const texLivePackages = "babel babel-english babel-catalan babel-spanish babel-french babel-german babel-italian babel-portuges geometry hyperref xcolor enumitem titlesec parskip microtype lm psnfss ec cm-super";
-const miktexPdfPackages = ["babel", "babel-english", "babel-catalan", "babel-german", "babel-spanish", "babel-french", "babel-italian", "babel-portuges", "hyperref", "ec", "cm-super"];
-
 async function installWindowsPdf(signal: AbortSignal): Promise<void> {
   const installer = await obtain(miktexWindows, "Downloading MiKTeX…", signal);
-  const root = installedToolsDirectory();
-  message = "Installing MiKTeX…";
-  await run(installer, ["--private", "--unattended", `--user-install=${path.join(root, "miktex")}`, `--user-config=${path.join(root, "miktex-config")}`, `--user-data=${path.join(root, "miktex-data")}`]);
-  const initexmf = path.join(root, "miktex", "miktex", "bin", "x64", "initexmf.exe");
-  await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
+  message = "Follow the MiKTeX installer…";
+  await run(installer, []);
 }
 
 async function installMacPdf(signal: AbortSignal): Promise<void> {
-  const root = installedToolsDirectory();
-  if (process.arch === "arm64") {
-    const installer = await obtain(basicTexMac, "Downloading BasicTeX…", signal);
-    message = "Installing BasicTeX · approve the macOS request…";
-    const script = path.join(root, "install-basictex.applescript");
-    await writeFile(script, `on run argv\n do shell script "/usr/sbin/installer -pkg " & quoted form of item 1 of argv & " -target / && /Library/TeX/texbin/tlmgr update --self && /Library/TeX/texbin/tlmgr install ${texLivePackages}" with administrator privileges\nend run\n`);
-    await run("osascript", [script, installer]);
-  } else {
-    const image = await obtain(miktexMac, "Downloading MiKTeX…", signal);
-    const mount = path.join(root, "miktex-image");
-    await mkdir(mount, { recursive: true });
-    message = "Installing MiKTeX…";
-    // The user's explicit install selection covers MiKTeX's published copying
-    // conditions; its DMG otherwise waits for an interactive stdin answer.
-    await run("hdiutil", ["attach", image, "-nobrowse", "-readonly", "-mountpoint", mount], undefined, "yes\n");
-    try {
-      const destination = path.join(root, "MiKTeX Console.app");
-      await run("ditto", [path.join(mount, "MiKTeX Console.app"), destination]);
-      const setup = await findExecutable(destination, "miktexsetup");
-      await run(setup, ["--shared=no", "finish"]);
-      const initexmf = await findExecutable(destination, "initexmf");
-      await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
-      message = "Preparing MiKTeX packages…";
-      // The official macOS DMG is MiKTeX 22.1; its packaged CLI is mpm.
-      const packageManager = await findExecutable(destination, "mpm");
-      await run(packageManager, ["--update-db"]);
-      await run(packageManager, ["--update"]);
-      for (const packageId of miktexPdfPackages) await run(packageManager, [`--install=${packageId}`]);
-      await run(initexmf, ["--dump=pdflatex"]);
-    } finally { await run("hdiutil", ["detach", mount]); }
-  }
-}
-
-function linuxDistribution(): { family: "ubuntu" | "debian"; suite: string } {
-  const release = readFileSync("/etc/os-release", "utf8");
-  const values = Object.fromEntries(release.split("\n").filter(line => line.includes("=")).map(line => {
-    const separator = line.indexOf("=");
-    return [line.slice(0, separator), line.slice(separator + 1).replace(/^"|"$/g, "")];
-  }));
-  const suite = values.UBUNTU_CODENAME ?? values.VERSION_CODENAME ?? "";
-  const families = [values.ID, ...(values.ID_LIKE ?? "").split(/\s+/)];
-  const family = values.UBUNTU_CODENAME || families.includes("ubuntu") ? "ubuntu" : families.includes("debian") ? "debian" : null;
-  if (family && /^[a-z][a-z0-9-]*$/.test(suite)) return { family, suite };
-  throw new Error("Automatic MiKTeX setup needs an Ubuntu or Debian repository base. An existing pdfLaTeX installation can still be used.");
+  const installer = await obtain(process.arch === "arm64" ? basicTexMac : miktexMac, "Downloading PDF tools…", signal);
+  message = "Finish installation in the native installer.";
+  const problem = await shell.openPath(installer);
+  if (problem) throw new Error(problem);
 }
 
 async function installLinuxPdf(): Promise<void> {
-  const root = installedToolsDirectory();
-  const apt = spawnSync("apt-get", ["--version"], { encoding: "utf8", timeout: 5000 });
-  if (apt.status !== 0) throw new Error("Automatic PDF setup needs APT. Install pdfLaTeX with your system's package manager; AAAAT can use it directly.");
-  const script = path.join(root, "install-pdf.sh");
-  let commands: string;
-  if (process.arch === "arm64") {
-    commands = "apt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-lang-european texlive-lang-spanish texlive-lang-french texlive-lang-german texlive-lang-italian texlive-lang-portuguese\n";
-  } else {
-    const distribution = linuxDistribution();
-    const repository = await fetch(`https://miktex.org/download/${distribution.family}/dists/${distribution.suite}/Release`, { signal: AbortSignal.timeout(30_000) });
-    await repository.body?.cancel();
-    if (!repository.ok) throw new Error(repository.status === 404
-      ? "MiKTeX does not publish a repository for this system. An existing pdfLaTeX installation can still be used."
-      : "Could not check the MiKTeX repository. Please retry.");
-    const response = await fetch("https://miktex.org/download/key", { signal: AbortSignal.timeout(30_000) });
-    if (!response.ok) throw new Error("Could not download the official MiKTeX repository key.");
-    const key = path.join(root, "miktex-key.asc");
-    await writeFile(key, await response.text());
-    commands = `gpg --batch --yes --dearmor -o /usr/share/keyrings/aaaat-miktex.gpg "$1"\nprintf '%s\\n' 'deb [signed-by=/usr/share/keyrings/aaaat-miktex.gpg] https://miktex.org/download/${distribution.family} ${distribution.suite} universe' > /etc/apt/sources.list.d/aaaat-miktex.list\napt-get update\nDEBIAN_FRONTEND=noninteractive apt-get install -y miktex\n`;
-  }
-  await writeFile(script, `#!/bin/sh\nset -eu\n${commands}`);
-  message = `Installing ${process.arch === "arm64" ? "TeX Live" : "MiKTeX"} · approve the system request…`;
-  await run("pkexec", ["/bin/sh", script, path.join(root, "miktex-key.asc")]);
-  if (process.arch !== "arm64") {
-    await run("miktexsetup", ["--shared=no", "finish"]);
-    const sibling = path.join(path.dirname(installedPdfLatexExecutable()), "initexmf");
-    const initexmf = existsSync(sibling) ? sibling : "initexmf";
-    await run(initexmf, ["--set-config-value", "[MPM]AutoInstall=1"]);
-    message = "Preparing MiKTeX packages…";
-    await run("miktex", ["packages", "update-package-database"]);
-    await run("miktex", ["packages", "update"]);
-    await run("miktex", ["packages", "install", ...miktexPdfPackages]);
-    await run("miktex", ["formats", "build", "pdflatex"]);
-  }
+  message = "Finish TeX Live installation in your system software manager.";
+  try { await shell.openExternal("apt:texlive-latex-recommended"); }
+  catch { throw new Error("Open your system software manager and install TeX Live, then return to AAAAT."); }
 }
 
 export async function installOptionalTools(choice: OptionalToolsChoice): Promise<OptionalToolsStatus> {
@@ -250,18 +182,15 @@ export async function installOptionalTools(choice: OptionalToolsChoice): Promise
     await mkdir(installedToolsDirectory(), { recursive: true });
     if (choice.localAi) await installLocalAi(controller.signal);
     controller.signal.throwIfAborted();
-    const pendingPdf = path.join(installedToolsDirectory(), "pdf-install-pending");
-    if (choice.pdf && (installedPdfLatexExecutable() === "pdflatex" || existsSync(pendingPdf))) {
-      await writeFile(pendingPdf, "PDF setup is not finished.\n");
+    if (choice.pdf && !(await probeSetupTexCommand("pdflatex")).available) {
       canCancel = false;
       if (process.platform === "win32") await installWindowsPdf(controller.signal);
       else if (process.platform === "darwin") await installMacPdf(controller.signal);
       else if (process.platform === "linux") await installLinuxPdf();
       else throw new Error("PDF setup is not available for this operating system.");
-      await run(installedPdfLatexExecutable(), ["--version"], 10_000);
-      await unlink(pendingPdf);
     }
-    message = "Selected tools are ready.";
+    message = choice.pdf && !(await probeSetupTexCommand("pdflatex")).available
+      ? "Finish the native PDF setup, then return to AAAAT." : "Selected tools are ready.";
   } catch (reason) {
     error = controller.signal.aborted ? "Download canceled. Completed tools remain available." : reason instanceof Error ? reason.message : "Tool setup could not finish.";
     message = "";

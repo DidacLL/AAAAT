@@ -52,7 +52,7 @@
 
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
-\RequirePackage[english,catalan,ngerman,spanish,french,italian,portuguese]{babel}
+\RequirePackage[main=english]{babel}
 \RequirePackage[pdfencoding=auto,psdextra]{hyperref}
 
 \ExplSyntaxOn
@@ -89,7 +89,7 @@
 
 \NewDocumentCommand{\AAAATSelectDocumentLanguage}{}
   {
-    \tl_if_empty:NF \g_aaaat_document_language_tl
+    \cs_if_exist:cT {captions \tl_use:N \g_aaaat_document_language_tl}
       {\exp_args:NV \selectlanguage \g_aaaat_document_language_tl}
   }
 

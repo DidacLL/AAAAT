@@ -18,8 +18,6 @@ import {
   aiTaskCancellationChannels,
   aiTaskCancellationResultSchema,
   aiTaskIdSchema,
-  cancellableAiConnectionValidationRequestSchema,
-  cancellableAiConnectionValidationResultSchema,
   cancellableCoverLetterDraftRequestSchema,
   cancellableCoverLetterDraftResultSchema,
   cancellableCvWritingRequestSchema,
@@ -66,6 +64,7 @@ import {
   tagUpdateSchema,
   workspaceChoiceSchema,
   workspaceStatusSchema,
+  workspaceResetScopeSchema,
   type WorkspaceInfo,
 } from "../shared/contracts";
 import {
@@ -82,12 +81,10 @@ import {
   writeCvField,
 } from "./ai-service";
 import {
-  cancelCancellableAiConnectionValidation,
   cancelCancellableCoverLetterDraft,
   cancelCancellableCvWriting,
   cancelCancellableJobExtraction,
   cancelCancellableTagInference,
-  runCancellableAiConnectionValidation,
   runCancellableCoverLetterDraft,
   runCancellableCvWriting,
   runCancellableJobExtraction,
@@ -129,8 +126,6 @@ import { createWorkspaceBackup, restoreWorkspaceBackup } from "./workspace-backu
 import { assertTrustedSender } from "./desktop-ipc-context";
 import {
   createOrOpenWorkspace,
-  deleteWorkspace,
-  forgetWorkspacePath,
   openWorkspace,
   readLastWorkspacePath,
   rememberWorkspacePath,
@@ -267,12 +262,6 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     currentWorkspace = null;
   });
-  ipcMain.handle(channels.workspaceDelete, (event) => {
-    assertTrustedSender(event, mainWindow);
-    deleteWorkspace(requireWorkspaceRoot());
-    currentWorkspace = null;
-    forgetWorkspacePath(workspaceSettingsPath());
-  });
   ipcMain.handle(channels.workspaceChoose, async (event, choice: unknown) => {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(await chooseWorkspace(mainWindow, choice));
@@ -281,9 +270,9 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return optionalWorkspaceInfoSchema.parse(await createDemo(mainWindow));
   });
-  ipcMain.handle(channels.workspaceReset, (event) => {
+  ipcMain.handle(channels.workspaceReset, (event, scope: unknown) => {
     assertTrustedSender(event, mainWindow);
-    const workspace = resetWorkspace(requireWorkspaceRoot());
+    const workspace = resetWorkspace(requireWorkspaceRoot(), workspaceResetScopeSchema.parse(scope));
     rememberWorkspacePath(workspaceSettingsPath(), workspace.rootPath);
     currentWorkspace = workspace;
     return workspace;
@@ -503,23 +492,6 @@ export function registerCoreDesktopIpc(mainWindow: BrowserWindow): void {
     assertTrustedSender(event, mainWindow);
     return aiTaskCancellationResultSchema.parse(
       cancelCancellableTagInference(aiTaskIdSchema.parse(taskId)),
-    );
-  });
-  ipcMain.handle(aiTaskCancellationChannels.connectionValidate, async (event, input: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    const parsed = cancellableAiConnectionValidationRequestSchema.parse(input);
-    return cancellableAiConnectionValidationResultSchema.parse(
-      await runCancellableAiConnectionValidation(
-        requireWorkspaceRoot(),
-        parsed.taskId,
-        parsed.request,
-      ),
-    );
-  });
-  ipcMain.handle(aiTaskCancellationChannels.connectionValidateCancel, (event, taskId: unknown) => {
-    assertTrustedSender(event, mainWindow);
-    return aiTaskCancellationResultSchema.parse(
-      cancelCancellableAiConnectionValidation(aiTaskIdSchema.parse(taskId)),
     );
   });
   ipcMain.handle(aiTaskCancellationChannels.cvWrite, async (event, input: unknown) => {

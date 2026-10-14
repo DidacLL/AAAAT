@@ -269,17 +269,6 @@ export function App() {
     setWelcomeOpen(true);
   };
 
-  const afterWorkspaceDeleted = () => {
-    resetDirty();
-    resetHandoffs();
-    setAiAttentionConnectionName(null);
-    setWorkspace(null);
-    setRecentWorkspacePath(null);
-    setSettingsOpen(false);
-    setWorkspacePhase("idle");
-    setWelcomeOpen(true);
-  };
-
   const afterWorkspaceReset = (resetWorkspace: WorkspaceInfo) => {
     resetDirty();
     resetHandoffs();
@@ -600,7 +589,6 @@ export function App() {
                       onAiValidationState={reportAiValidationState}
                       onRestored={openRestoredWorkspace}
                       onWorkspaceReset={afterWorkspaceReset}
-                      onWorkspaceDeleted={afterWorkspaceDeleted}
                       protectedWorkDirty={protectedWorkDirty}
                     />
                   </div>

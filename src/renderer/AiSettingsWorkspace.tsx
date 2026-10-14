@@ -6,7 +6,6 @@ import { AiPromptTransparencyPanel } from "./AiPromptTransparencyPanel";
 import { LocalAiStartupPanel } from "./LocalAiStartupPanel";
 import { PageToolbar } from "./PageToolbar";
 import { clearAiReachabilityEvidence, recordAiReachabilityEvidence } from "./ai-reachability-store";
-import { clearAiTask } from "./ai-task-store";
 
 type CredentialIntent = "unchanged" | "replace" | "clear";
 
@@ -197,9 +196,6 @@ export function AiSettingsWorkspace({
           (previous.endpoint !== savedConnection.endpoint || previous.model !== savedConnection.model);
         const credentialBoundaryChanged =
           previous !== null && draft.credentialIntent !== "unchanged";
-        if (capabilityBoundaryChanged || credentialBoundaryChanged) {
-          clearAiTask(`ai-validation:${savedConnection.id}`);
-        }
         const probe = window.aaaat.aiConnections?.probe;
         if (probe && (!previous || capabilityBoundaryChanged || credentialBoundaryChanged)) {
           void probe(savedConnection.id)
@@ -251,7 +247,6 @@ export function AiSettingsWorkspace({
     clearAiReachabilityEvidence();
     try {
       const next = await window.aaaat.aiConnections.remove(connection.id);
-      clearAiTask(`ai-validation:${connection.id}`);
       acceptConnections(next);
       if (connection.id === editingId) {
         setEditingId(null);
@@ -270,7 +265,7 @@ export function AiSettingsWorkspace({
     try {
       const result = await window.aaaat.aiConnections.exportPortable();
       if (result === "exported") {
-        setPortabilityStatus("Portable AI setup exported without local IDs or validation state.");
+        setPortabilityStatus("Portable AI setup exported.");
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "AAAAT could not export the portable AI setup.");
@@ -283,7 +278,7 @@ export function AiSettingsWorkspace({
     if (!confirmDiscard()) return;
     if (
       !window.confirm(
-        "Import portable AI setup? This replaces all current AI connections and clears operation validations and operation defaults. You will need to validate AI capabilities again on this computer.",
+        "Import this AI setup? This replaces the current connection settings.",
       )
     ) {
       return;
@@ -295,7 +290,6 @@ export function AiSettingsWorkspace({
     try {
       const result = await window.aaaat.aiConnections.importPortable();
       if (result.status === "imported") {
-        for (const connection of connections) clearAiTask(`ai-validation:${connection.id}`);
         acceptConnections(result.connections);
         setEditingId(null);
         setDraft(emptyDraft);
@@ -447,10 +441,10 @@ export function AiSettingsWorkspace({
                     <h3>{connection.name}</h3>
                     <p>Model: {connection.model} · Address: <code>{connection.endpoint}</code></p>
                     <p>Authentication: {connection.hasCredential ? <strong>Credential configured</strong> : "None"}</p>
-                    {connection.isDefault ? <p><strong>General default connection</strong></p> : null}
+                    {connection.isDefault ? <p><strong>Selected</strong></p> : null}
                   </div>
                   <div className="button-row">
-                    {!connection.isDefault ? <button type="button" className="compact-secondary" onClick={() => void setDefault(connection)} aria-label={`Use ${connection.name} as the general default`}>General default</button> : null}
+                    {!connection.isDefault ? <button type="button" className="compact-secondary" onClick={() => void setDefault(connection)} aria-label={`Use ${connection.name}`}>Use</button> : null}
                     <button type="button" className="compact-secondary" onClick={() => beginEdit(connection)} aria-label={`Edit ${connection.name}`}>Edit</button>
                     {connection.hasCredential ? (
                       <>
@@ -462,7 +456,6 @@ export function AiSettingsWorkspace({
                   </div>
                   <AiConnectionValidationPanel
                     connection={connection}
-                    onConnections={acceptConnections}
                     onValidationState={onValidationState}
                   />
                 </article>
@@ -470,7 +463,7 @@ export function AiSettingsWorkspace({
             </div>
           )}
 
-          {connections.length > 0 && !defaultConnection ? <p className="error-message">No general default AI connection is selected. Choose one unless every AI action has its own selected connection.</p> : null}
+          {connections.length > 0 && !defaultConnection ? <p className="error-message">Choose a connection to use AI assistance.</p> : null}
         </div>
       ) : null}
 

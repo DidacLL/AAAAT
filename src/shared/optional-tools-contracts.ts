@@ -7,7 +7,17 @@ export const optionalToolsChannels = Object.freeze({
   dismiss: "aaaat:optional-tools-dismiss",
   startupCurrent: "aaaat:local-ai-startup-current",
   startupSave: "aaaat:local-ai-startup-save",
+  locationsSave: "aaaat:tool-locations-save",
+  choosePath: "aaaat:tool-path-choose",
 });
+
+export const toolLocationsSchema = z.object({
+  installDirectory: z.string().trim().min(1),
+  downloadDirectory: z.string().trim().min(1),
+  pdfLatexExecutable: z.string().trim(),
+}).strict();
+export type ToolLocations = z.infer<typeof toolLocationsSchema>;
+export const toolPathKindSchema = z.enum(["directory", "pdflatex"]);
 
 export const localAiStartupInputSchema = z.object({ enabled: z.boolean(), script: z.string().max(16000) }).strict();
 export const localAiStartupSettingsSchema = localAiStartupInputSchema.extend({ defaultScript: z.string(), shell: z.enum(["PowerShell", "Shell"]), error: z.string().nullable() }).strict();
@@ -28,6 +38,7 @@ export const optionalToolsStatusSchema = z.object({
   pdfReady: z.boolean(),
   pdfLabel: z.string(),
   error: z.string().nullable(),
+  locations: toolLocationsSchema,
 }).strict();
 
 export type OptionalToolsChoice = z.infer<typeof optionalToolsChoiceSchema>;
@@ -40,5 +51,7 @@ export interface OptionalToolsDesktopApi {
     dismiss(): Promise<void>;
     startupCurrent(): Promise<LocalAiStartupSettings>;
     startupSave(input: LocalAiStartupInput): Promise<LocalAiStartupSettings>;
+    locationsSave(input: ToolLocations): Promise<void>;
+    choosePath(kind: "directory" | "pdflatex"): Promise<string | null>;
   };
 }

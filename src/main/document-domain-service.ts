@@ -122,7 +122,7 @@ interface RenderedLetterRow {
 }
 interface PacketRow {
   readonly id: string;
-  readonly candidatureId: string;
+  readonly candidatureId: string|null;
   readonly workingCvId: string|null;
   readonly coverLetterId: string|null;
   readonly title: string;
@@ -1088,15 +1088,7 @@ export async function createApplicationPacket(
       typeof blueprintSourceOrTimeout === 'number' ? blueprintSourceOrTimeout : timeoutMs;
   const {working, letter} = withWorkspaceDatabase(rootPath, (database) => {
     requireCandidature(database, input.candidatureId);
-    const currentWorking = input.workingCvId
-      ? requireWorkingCv(database, input.workingCvId)
-      : (() => {
-          const legacy = requireRenderedRow(database, input.renderedCvId!);
-          if (!legacy.workingCvId)
-            throw new DocumentDomainServiceError(
-                'The legacy Rendered CV is not linked to an editable CV source.');
-          return requireWorkingCv(database, legacy.workingCvId);
-        })();
+    const currentWorking = requireWorkingCv(database, input.workingCvId);
     const currentLetter = requireLetter(database, input.coverLetterId);
     if (currentWorking.candidatureId !== input.candidatureId)
       throw new DocumentDomainServiceError('Choose a CV owned by this application.');
