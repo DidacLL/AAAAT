@@ -1,13 +1,13 @@
 :root {
-  --paper:#f4ead5;
-  --sheet:#fff9ed;
-  --paper-strong:#eadbc0;
-  --machine:#34433c;
-  --machine-raised:#43534a;
-  --machine-deep:#24332e;
+  --paper:#cfc9b3;
+  --sheet:#eee5d0;
+  --paper-strong:#bdb79f;
+  --machine:#38433a;
+  --machine-raised:#50594b;
+  --machine-deep:#202920;
   --ink:#24342e;
-  --muted:#59665d;
-  --line:#c7b99c;
+  --muted:#475448;
+  --line:#9d9d83;
   --edge:#778176;
   --rust:#ae4827;
   --rust-dark:#85331e;
@@ -21,12 +21,13 @@
   box-sizing:border-box
 }
 html {
-  scroll-behavior:smooth;
+  scroll-behavior:auto;
   scroll-padding-top:24px
 }
 body {
   margin:0;
-  background:var(--paper);
+  background:#171e19;
+  background-image:radial-gradient(ellipse at top,#455044 0,transparent 65%);
   line-height:1.65
 }
 button,input,select,textarea {
@@ -81,7 +82,7 @@ code {
   outline:3px solid var(--focus);
   outline-offset:4px
 }
-.site-nav :focus-visible,.site-footer :focus-visible {
+.site-header :focus-visible,.hero :focus-visible,.site-footer :focus-visible {
   outline-color:var(--cyan)
 }
 .skip-link {
@@ -96,7 +97,9 @@ code {
   top:12px
 }
 .site-header {
-  padding-top:16px
+  padding-top:20px;
+  background:linear-gradient(#414b3f,#273329);
+  border-top:4px solid var(--rust)
 }
 .brand {
   display:block;
@@ -109,15 +112,17 @@ code {
 .brand img {
   width:100%;
   height:auto;
-  border:1px solid #a89d83
+  border:2px solid #8c8c6e;
+  box-shadow:0 5px 16px #10171080
 }
 .site-nav {
   display:flex;
   justify-content:center;
   align-items:stretch;
   flex-wrap:nowrap;
-  background:var(--machine);
-  border-block:1px solid var(--machine-deep)
+  background:linear-gradient(#4c5748,#303c32);
+  border-block:1px solid #81876b;
+  box-shadow:0 4px 8px #0a120a60
 }
 .site-nav a {
   color:var(--sheet);
@@ -144,8 +149,16 @@ code {
   width:min(1200px,calc(100% - 64px));
   margin-inline:auto
 }
+main.container,.home main>.container {
+  padding-inline:32px;
+  margin-block:24px;
+  background:linear-gradient(110deg,#d6cdb5,#c4c3ac);
+  border:1px solid #8a8d75;
+  border-radius:9px 9px 2px 2px;
+  box-shadow:0 3px 18px #070e0780
+}
 .section {
-  padding-block:52px;
+  padding-block:38px;
   border-bottom:1px solid var(--line)
 }
 .eyebrow,.panel-number {
@@ -163,19 +176,22 @@ code {
   max-width:640px
 }
 .hero {
-  width:min(1360px,100%);
-  margin:0 auto;
+  width:min(1200px,calc(100% - 64px));
+  margin:24px auto 0;
   display:grid;
   grid-template-columns:1fr 1.12fr;
-  background:var(--sheet);
-  border-bottom:3px solid var(--rust)
+  background:linear-gradient(120deg,#424d40,#26352c);
+  color:var(--sheet);
+  border:1px solid #81876b;
+  border-bottom:3px solid var(--rust);
+  box-shadow:0 3px 18px #070e0780
 }
 .hero-art {
   grid-column:2;
   grid-row:1;
   width:100%;
   height:100%;
-  min-height:440px;
+  min-height:390px;
   object-fit:cover;
   object-position:76% center
 }
@@ -183,7 +199,7 @@ code {
   grid-column:1;
   grid-row:1;
   width:auto;
-  padding:48px clamp(26px,4vw,64px);
+  padding:36px clamp(26px,3vw,44px);
   display:flex;
   align-items:center
 }
@@ -191,7 +207,7 @@ code {
   max-width:520px
 }
 .hero h1 {
-  font-size:clamp(2.2rem,3.8vw,3.6rem);
+  font-size:clamp(2.1rem,3.3vw,3.1rem);
   line-height:1.08
 }
 .hero .lede {
@@ -199,8 +215,19 @@ code {
 }
 .hero-note {
   font-size:.82rem;
-  color:var(--muted);
+  color:#d4d3bb;
   margin:0
+}
+.hero .eyebrow {
+  color:#e7a982
+}
+.hero .button.secondary {
+  background:transparent;
+  border-color:#a0aa91;
+  color:var(--sheet)
+}
+.hero .button.secondary:hover {
+  background:var(--machine-raised)
 }
 .actions {
   display:flex;
@@ -331,7 +358,7 @@ figcaption {
   font-weight:650
 }
 .page-intro {
-  padding:40px 0 32px;
+  padding:32px 0 26px;
   max-width:1000px
 }
 .page-intro>p {
@@ -555,6 +582,19 @@ figcaption {
 }
 .document-pair .pdf-figure {
   width:100%
+}
+.layout-samples {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+  margin-block:24px
+}
+.layout-samples .figure {
+  margin:0;
+  min-width:0
+}
+.layout-samples figcaption {
+  font-size:.82rem
 }
 .artwork-feature {
   padding-block:28px
@@ -890,7 +930,7 @@ figcaption {
 .guide-chapter>summary {
   position:relative;
   cursor:pointer;
-  padding:24px 40px 24px 24px;
+  padding:20px 40px 20px 24px;
   list-style:none
 }
 .guide-chapter>summary::-webkit-details-marker {
@@ -948,6 +988,15 @@ figcaption {
   width:100%
 }
 @media(max-width:700px) {
+main.container,.home main>.container {
+    width:calc(100% - 16px);
+    padding-inline:16px;
+    margin-block:12px
+  }
+.hero {
+    width:calc(100% - 16px);
+    margin-top:12px
+  }
 .guide-controls {
     display:block
   }

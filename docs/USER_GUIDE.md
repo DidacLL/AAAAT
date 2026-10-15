@@ -66,6 +66,8 @@ Start a CV from My information, a saved template or a blank page. Start a cover 
 
 Compose a CV by editing information, arranging sections and choosing the wording you want. Section names are yours to change. Templates preserve reusable composition; Main/Secondary roles are presentation hints, not fixed left/right columns. Save-back controls distinguish reuse from edits to the current document.
 
+Under **Document options → PDF style**, select **Professional**, **Classic** (single-column monochrome) or **Editorial** (main and secondary content). Near the CV title, expand **Photo or banner**, choose **Choose image** and select a PNG or JPEG. Set **Use as** to **Photo** or **Banner**, then **Save**. Images keep their proportions, without cropping controls. **Replace image** selects another file; **Remove image** removes it from this CV. The image is optional and remains separate from reusable career facts.
+
 Choose **PDF** in the top bar to generate output. Within an application, select its CV and letter and use the application top-bar PDF action to create one combined file. Generated files remain separate from editable documents. Their retained project includes the source needed to reproduce them.
 
 Saved documents have a secondary **Remove** action with confirmation. Removing an editable CV or letter preserves independently generated output; it does not delete an already produced PDF. Opening a generated CV for editing prepares a new provisional copy rather than rewriting that output.
@@ -86,12 +88,12 @@ See [installation](INSTALLATION.md) for prerequisites and platforms, and the [we
 
 ### Personalise the design with a Blueprint
 
-A **CV template** saves reusable content and composition. A **Blueprint** is different: it is a `.tex` file controlling how CV sections and items appear on the page. AAAAT supplies **AAAAT Default**, and advanced users may add their own.
+A **CV template** saves reusable content and composition. A **Blueprint** is different: it is a `.tex` file controlling how CV sections and items appear on the page. AAAAT supplies **Professional**, **Classic** and **Editorial**, and advanced users may add their own.
 
 1. Copy the [built-in Blueprint source](../src/main/latex/default-blueprint.tex) and modify a copy in your preferred LaTeX/text editor. The [shared AAAAT package](../src/main/latex/aaaat.sty) documents the relevant rendering commands.
 2. Save it as a named `.tex` file inside the `blueprints` folder of AAAAT's **application configuration** location (Electron `userData`; not inside a career workspace).
-3. Reopen the CV editor, expand **Document options**, and select your named file from **PDF style**. This choice is offered when more than one Blueprint is available.
-4. Choose **PDF** and inspect the result. If your custom TeX fails, correct it or select **AAAAT Default** to return to the built-in layout.
+3. Reopen the CV editor, expand **Document options**, and select your named file from **PDF style**, alongside the supplied Professional, Classic and Editorial styles.
+4. Choose **PDF** and inspect the result. If your custom TeX fails, correct it or select **Professional** to return to the built-in layout.
 
 The **Header**, **Main body**, **Secondary body**, and **Footer** section positions are semantic composition hints interpreted by the Blueprint. They do not force a permanent two-column design. AAAAT is not an in-app LaTeX IDE.
 
@@ -126,15 +128,27 @@ Results are editable. A CV response that arrives after a newer manual edit stays
 
 ### Use another AI environment
 
-Open **⋯ → AI task** inside the relevant application and choose a request. **Application details** prepares help for missing AI-enabled information; the demo’s sparse Library services recruiter message is a useful example. Edit the entire request, including its context. **Copy** and **Export** use exactly that text. Closing or navigating preserves the local draft and does not send it.
+Connect a compatible external assistant through the packaged app's **Settings → AI → Connect another AI → Connection setup**. It shows the **Command** (AAAAT's executable) and **Arguments** for your active workspace: `--mcp --workspace "your workspace folder"`. Register these actual values as a local stdio MCP server in your assistant host. The host must support launching that local tool; a browser-only chat does not gain the connection by reading instructions.
 
-Expand **Result** to paste a returned answer or choose **Import** for a result file. **Application details → Use suggestions** expects the structured proposal response requested in the prepared text and places it on the application fields for review. **Interview → Save as Source** retains returned text as an application Source. Review the answer before using either action.
+Give the assistant the [downloadable AAAAT instructions](../site/assets/skills/SKILLS.md), or use **Use AAAAT with another AI → Copy / Export** in Settings. Put the instructions in the host's project/custom instructions or skills according to its conventions. This file guides the assistant; MCP registration supplies the tools.
 
-Connected reads require a separate explicit choice. Editing the request turns future reads off. Turning permission off stops future access through that route; it cannot undo an earlier model request or recall copied information.
+#### Make one application task available
 
-Interview work is an optional request in this secondary application-linked editor. The request stays fully editable; AAAAT does not prescribe model advice. Returned text can be deliberately retained as an application Source.
+Open **application → ⋯ → AI task**, choose **Application details** and edit the complete request. Its **👁** control, **Allow connected AI to read this request**, makes that request available to the connected assistant. Ask it to perform the task; returned field proposals are validated and presented for review in AAAAT. The demo's sparse Library services recruiter message is a useful example.
 
-For a compatible local assistant host, **Settings → AI → Connect another AI to AAAAT** provides the executable/workspace arguments. The current integration uses bounded MCP tools for application, document and setup intentions. It grants no generic database, filesystem or shell access. Separate setup permissions enable only the named setup actions; selecting a connection does not require model certification. Current registrations are defined in [the MCP server](../src/main/mcp-server.ts), rather than a frozen tool-count checklist.
+**Interview** is a separate secondary request. Its returned text can be deliberately retained as a Source; AAAAT does not prescribe or guarantee model advice. Editing a request turns future connected reads off. Its eye control can also turn them off; this cannot recall information already read or copied.
+
+#### Select application document work
+
+For an existing application, open **CV + cover letter** and enable **AI access**. This selects document work independently of application-information or interview access. Ask the assistant to list reusable CV names, read the one you choose, create an application CV, change specific existing wording, create and write a cover letter, or render output. Creation, writing and rendering are separate bounded actions. Tool-written content remains ordinary editable AAAAT document content.
+
+Document permission does not expose the whole career/application collection. My information, career preferences and fields keep their own AI-use choices. Private values stay local through exact AAAAT-supplied placeholders. Document tools cannot reorder CV sections, choose layouts/Blueprints or read PDF/TeX files; use the desktop interface for composition and presentation. Turn **AI access** off when you no longer want that application available for document work.
+
+#### Copy-paste fallback
+
+If your assistant cannot connect, use **⋯ → AI task → Copy / Export** to carry the exact visible request to any text-capable LLM. Expand **Result** to paste its answer or choose **Import** for a result file. **Application details → Use suggestions** expects the structured proposal response requested in the text and puts it on the application's fields for review. **Interview → Save as Source** retains returned text. Review the answer before using either action. Closing the editor or navigating keeps the local draft without sending it.
+
+The connection grants no generic database, filesystem or shell access. Separate setup permissions enable only the named setup actions. Use a host that can launch the local command shown by AAAAT; otherwise use the copy-paste fallback. Current tool registrations are defined in [the MCP server](../src/main/mcp-server.ts).
 
 ## Reset, workspace folders and portable setup
 

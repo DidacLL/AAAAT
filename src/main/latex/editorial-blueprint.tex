@@ -1,0 +1,102 @@
+% Editorial: a narrow supporting column beside the main professional story.
+% Each region is split across pages; neither region is cropped or discarded.
+\ExplSyntaxOn
+\box_new:N \l_aaaat_editorial_header_box
+\box_new:N \l_aaaat_editorial_secondary_box
+\box_new:N \l_aaaat_editorial_main_box
+\box_new:N \l_aaaat_editorial_secondary_page_box
+\box_new:N \l_aaaat_editorial_main_page_box
+\dim_new:N \l_aaaat_editorial_page_height_dim
+\dim_new:N \l_aaaat_editorial_remaining_height_dim
+\bool_new:N \l_aaaat_editorial_header_pending_bool
+
+\cs_new_protected:Npn \aaaat_editorial_prepare_body:
+  {
+    \setbox\l_aaaat_editorial_secondary_box=\vbox
+      {
+        \hsize=0.27\textwidth\linewidth=\hsize
+        \fontsize{10}{13.5}\selectfont
+        \AAAATRenderSecondaryBody\par
+      }
+    \setbox\l_aaaat_editorial_main_box=\vbox
+      {
+        \hsize=0.68\textwidth\linewidth=\hsize
+        \AAAATRenderMainBody\par
+      }
+  }
+
+\cs_new_protected:Npn \aaaat_editorial_render_page:
+  {
+    \dim_set:Nn \l_aaaat_editorial_page_height_dim {\textheight}
+    \bool_if:NT \l_aaaat_editorial_header_pending_bool
+      {
+        \dim_sub:Nn \l_aaaat_editorial_page_height_dim
+          {\box_ht:N \l_aaaat_editorial_header_box
+           +\box_dp:N \l_aaaat_editorial_header_box+1em}
+      }
+    \dim_set:Nn \l_aaaat_editorial_remaining_height_dim
+      {\dim_max:nn
+        {\box_ht:N \l_aaaat_editorial_secondary_box+\box_dp:N \l_aaaat_editorial_secondary_box}
+        {\box_ht:N \l_aaaat_editorial_main_box+\box_dp:N \l_aaaat_editorial_main_box}}
+    % A short final row occupies only its content height, not the whole page.
+    \dim_compare:nNnT {\l_aaaat_editorial_remaining_height_dim}
+      < {\l_aaaat_editorial_page_height_dim}
+      {\dim_set_eq:NN \l_aaaat_editorial_page_height_dim \l_aaaat_editorial_remaining_height_dim}
+    \setbox\l_aaaat_editorial_secondary_page_box=
+      \vsplit\l_aaaat_editorial_secondary_box to \l_aaaat_editorial_page_height_dim
+    \setbox\l_aaaat_editorial_main_page_box=
+      \vsplit\l_aaaat_editorial_main_box to \l_aaaat_editorial_page_height_dim
+    \par\nointerlineskip
+    \bool_if:NT \l_aaaat_editorial_header_pending_bool
+      {\box\l_aaaat_editorial_header_box\vspace{1em}\nointerlineskip}
+    \hbox to \textwidth
+      {
+        \hbox to 0.27\textwidth
+          {\vbox to \l_aaaat_editorial_page_height_dim
+            {\unvbox\l_aaaat_editorial_secondary_page_box\vfil}\hss}
+        \hfil
+        \hbox to 0.68\textwidth
+          {\vbox to \l_aaaat_editorial_page_height_dim
+            {\unvbox\l_aaaat_editorial_main_page_box\vfil}\hss}
+      }
+    \bool_set_false:N \l_aaaat_editorial_header_pending_bool
+    \ifvoid\l_aaaat_editorial_secondary_box
+      \ifvoid\l_aaaat_editorial_main_box
+        \par\medskip\AAAATRenderFooter
+      \else
+        \newpage\aaaat_editorial_render_page:
+      \fi
+    \else
+      \newpage\aaaat_editorial_render_page:
+    \fi
+  }
+
+\NewDocumentCommand{\AAAATRenderCvBlueprint}{}
+  {
+    \newgeometry{left=18mm,right=18mm,top=18mm,bottom=20mm}
+    \pagestyle{empty}
+    \sffamily\fontsize{10.5}{14}\selectfont\color{aaaatInk}
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{0.25em}
+    \setlength{\emergencystretch}{2em}
+    \raggedright
+    \setbox\l_aaaat_editorial_header_box=\vbox
+      {\hsize=\textwidth\AAAATRenderCvHeader\par}
+    \dim_compare:nNnTF
+      {\box_ht:N \l_aaaat_editorial_header_box+\box_dp:N \l_aaaat_editorial_header_box}
+      > {0.4\textheight}
+      {
+        % Unusually long header content stays in ordinary breakable flow.
+        \AAAATRenderCvHeader\AAAATRenderMainBody
+        \AAAATRenderSecondaryBody\AAAATRenderFooter
+      }
+      {
+        \bool_set_true:N \l_aaaat_editorial_header_pending_bool
+        \begingroup
+        \splittopskip=0pt\splitmaxdepth=0pt
+        \aaaat_editorial_prepare_body:
+        \aaaat_editorial_render_page:
+        \endgroup
+      }
+  }
+\ExplSyntaxOff

@@ -10,6 +10,8 @@ import {
   cvTemplateInputSchema,
   cvTemplateRecordSchema,
   cvTemplateUpdateSchema,
+  cvDocumentImageSchema,
+  cvImagePreviewSchema,
   documentCollectionsSchema,
   documentDomainChannels,
   openGeneratedResultSchema,
@@ -45,6 +47,8 @@ export function createDocumentDomainDesktopApi(invoke: Invoke): DocumentDomainDe
     documentDomain: Object.freeze({
       collections: async () => documentCollectionsSchema.parse(await invoke(documentDomainChannels.collections)),
       blueprints: async () => availableBlueprintsSchema.parse(await invoke(documentDomainChannels.blueprints)),
+      chooseCvImage: async () => cvDocumentImageSchema.nullable().parse(await invoke(documentDomainChannels.chooseCvImage)),
+      cvImagePreview: async (assetId: string) => cvImagePreviewSchema.parse(await invoke(documentDomainChannels.cvImagePreview, cvDocumentImageSchema.shape.assetId.parse(assetId))),
       externalApplicationAccess: async (candidatureId: string) =>
         applicationDocumentExternalAccessSchema.parse(
           await invoke(

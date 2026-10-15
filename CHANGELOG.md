@@ -2,6 +2,8 @@
 
 ## 2.0.1
 
+- CVs offer Professional, Classic and Editorial PDF styles, with an optional local photo or banner image retained in portable document projects. CV and letter typography is clearer and more compact.
+- Downloadable external-assistant skill instructions and connected MCP setup now lead the AI guide; copy/export remains the fallback for assistants without a local connection.
 - Public website rebuilt around the original AAAAT artwork, with a cleaned roadside masthead, one-row mobile navigation and real application captures.
 - Illustrated first-use guidance includes cover prominence and reusable career information; the complete guide opens in focused chapters with accurate control instructions.
 - Fictional demo labels are shorter, with varied field prominence and consistent career, CV and letter examples.

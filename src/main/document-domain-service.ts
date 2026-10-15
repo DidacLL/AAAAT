@@ -20,6 +20,8 @@ import {
   type CoverLetterUpdate,
   coverLetterUpdateSchema,
   type CvContent,
+  type CvDocumentImage,
+  cvDocumentImageSchema,
   type CvPdfMetadata,
   cvPdfMetadataSchema,
   type CvTemplateInput,
@@ -59,6 +61,7 @@ import {
   writeCvLatexProject,
 } from './document-latex';
 import {BUILTIN_BLUEPRINT_SOURCE} from './document-blueprints';
+import {cvImagePath, restoreRenderedCvImage, stageCvImage} from './document-image-service';
 import {LatexRunnerError, runPdfLatex} from './latex-runner';
 import {getProfile, getProfileItem, updateProfileItem} from './profile-service';
 import {createProfileVariant, getProfileVariant, listProfileVariants} from './profile-variant-service';
@@ -68,6 +71,7 @@ interface TemplateRow {
   readonly id: string;
   readonly name: string;
   readonly language: string|null;
+  readonly imageJson: string|null;
   readonly pdfMetadataJson: string;
   readonly parserSummary: string;
   readonly compositionJson: string;
@@ -78,6 +82,7 @@ interface WorkingRow {
   readonly id: string;
   readonly title: string;
   readonly language: string|null;
+  readonly imageJson: string|null;
   readonly sourceTemplateId: string|null;
   readonly candidatureId: string|null;
   readonly pdfMetadataJson: string;
@@ -152,11 +157,20 @@ function requireCandidature(database: DatabaseSync, candidatureId: string): void
   if (!database.prepare('SELECT 1 FROM candidatures WHERE id = ?').get(candidatureId))
     throw new DocumentDomainServiceError('The application no longer exists.');
 }
+function storedImage(imageJson: string|null): CvDocumentImage|null {
+  return imageJson === null ? null : parseJson(imageJson, value => cvDocumentImageSchema.parse(value), 'Stored CV image is invalid.');
+}
+function imageJson(rootPath: string, image: CvDocumentImage|null|undefined): string|null {
+  if (!image) return null;
+  cvImagePath(rootPath, image);
+  return JSON.stringify(image);
+}
 function toTemplate(row: TemplateRow): CvTemplateRecord {
   return cvTemplateRecordSchema.parse({
     id: row.id,
     name: row.name,
     language: optional(row.language),
+    image: storedImage(row.imageJson),
     pdfMetadata: parseJson(
         row.pdfMetadataJson, (value) => cvPdfMetadataSchema.parse(value),
         'Stored CV template PDF metadata is invalid.'),
@@ -171,14 +185,14 @@ function toTemplate(row: TemplateRow): CvTemplateRecord {
 function readTemplates(database: DatabaseSync): CvTemplateRecord[] {
   return (database
               .prepare(
-                  `SELECT id, name, language, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates ORDER BY name COLLATE NOCASE, id`)
+                  `SELECT id, name, language, image_json AS imageJson, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates ORDER BY name COLLATE NOCASE, id`)
               .all() as unknown as TemplateRow[])
       .map(toTemplate);
 }
 function requireTemplate(database: DatabaseSync, id: string): CvTemplateRecord {
   const row =
       database.prepare(
-                  `SELECT id, name, language, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates WHERE id = ?`)
+                  `SELECT id, name, language, image_json AS imageJson, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM cv_templates WHERE id = ?`)
               .get(id) as unknown as TemplateRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The CV template no longer exists.');
@@ -189,6 +203,7 @@ function toWorking(row: WorkingRow): WorkingCvRecord {
     id: row.id,
     title: row.title,
     language: optional(row.language),
+    image: storedImage(row.imageJson),
     sourceTemplateId: row.sourceTemplateId,
     candidatureId: row.candidatureId,
     pdfMetadata: parseJson(
@@ -205,14 +220,14 @@ function toWorking(row: WorkingRow): WorkingCvRecord {
 function readWorkingCvs(database: DatabaseSync): WorkingCvRecord[] {
   return (database
               .prepare(
-                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs ORDER BY updated_at DESC, id DESC`)
+                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, image_json AS imageJson, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs ORDER BY updated_at DESC, id DESC`)
               .all() as unknown as WorkingRow[])
       .map(toWorking);
 }
 function requireWorkingCv(database: DatabaseSync, id: string): WorkingCvRecord {
   const row =
       database.prepare(
-                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs WHERE id = ?`)
+                  `SELECT id, title, language, source_template_id AS sourceTemplateId, candidature_id AS candidatureId, image_json AS imageJson, pdf_metadata_json AS pdfMetadataJson, parser_summary AS parserSummary, composition_json AS compositionJson, created_at AS createdAt, updated_at AS updatedAt FROM working_cvs WHERE id = ?`)
               .get(id) as unknown as WorkingRow |
       undefined;
   if (!row) throw new DocumentDomainServiceError('The CV no longer exists.');
@@ -594,9 +609,9 @@ export function createCvTemplate(rootPath: string, rawInput: CvTemplateInput): D
     const now = new Date().toISOString();
     database
         .prepare(
-            `INSERT INTO cv_templates(id, name, language, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+            `INSERT INTO cv_templates(id, name, language, image_json, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(
-            id, input.name, nullable(input.language), JSON.stringify(input.pdfMetadata),
+            id, input.name, nullable(input.language), imageJson(rootPath, input.image), JSON.stringify(input.pdfMetadata),
             input.parserSummary, JSON.stringify(input.sections), now, now);
     return documentCollectionsSchema.parse({
       templates: readTemplates(database),
@@ -613,12 +628,12 @@ export function updateCvTemplate(
   const input = cvTemplateUpdateSchema.parse(rawInput);
   validateTemplateItems(rootPath, input.sections);
   return withWorkspaceDatabase(rootPath, (database) => {
-    requireTemplate(database, input.id);
+    const previous = requireTemplate(database, input.id);
     database
         .prepare(
-            `UPDATE cv_templates SET name = ?, language = ?, pdf_metadata_json = ?, parser_summary = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
+            `UPDATE cv_templates SET name = ?, language = ?, image_json = ?, pdf_metadata_json = ?, parser_summary = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
         .run(
-            input.name, nullable(input.language), JSON.stringify(input.pdfMetadata),
+            input.name, nullable(input.language), imageJson(rootPath, input.image === undefined ? previous.image : input.image), JSON.stringify(input.pdfMetadata),
             input.parserSummary, JSON.stringify(input.sections), new Date().toISOString(), input.id);
     return documentCollectionsSchema.parse({
       templates: readTemplates(database),
@@ -655,6 +670,7 @@ export function prepareWorkingCv(rootPath: string, rawInput: WorkingCvCreate): W
   const input = workingCvCreateSchema.parse(rawInput);
   let sourceTemplateId: string|null = null;
   let language = input.language;
+  let image = input.image;
   let pdfMetadata: CvPdfMetadata|undefined;
   let parserSummary = '';
   let sections: WorkingCvSection[] = [];
@@ -667,6 +683,7 @@ export function prepareWorkingCv(rootPath: string, rawInput: WorkingCvCreate): W
     validateTemplateItems(rootPath, template.sections);
     sourceTemplateId = template.id;
     language ??= template.language;
+    if (image === undefined) image = template.image;
     pdfMetadata = template.pdfMetadata;
     parserSummary = template.parserSummary;
     sections = template.sections.map(
@@ -683,26 +700,27 @@ export function prepareWorkingCv(rootPath: string, rawInput: WorkingCvCreate): W
     if (input.candidatureId) requireCandidature(database, input.candidatureId);
     const title = uniqueDocumentTitle(input.title, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
     const now = new Date().toISOString();
-    return workingCvRecordSchema.parse({ id: input.id ?? randomUUID(), title, language, sourceTemplateId, candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections, createdAt: now, updatedAt: now });
+    imageJson(rootPath, image);
+    return workingCvRecordSchema.parse({ id: input.id ?? randomUUID(), title, language, image: image ?? null, sourceTemplateId, candidatureId: input.candidatureId, pdfMetadata, parserSummary, sections, createdAt: now, updatedAt: now });
   });
 }
 export function createWorkingCv(rootPath: string, rawInput: WorkingCvCreate): WorkingCvRecord {
   const draft = prepareWorkingCv(rootPath, rawInput);
   return withWorkspaceDatabase(rootPath, database => {
-    database.prepare('INSERT INTO working_cvs(id, title, language, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(draft.id, draft.title, nullable(draft.language), draft.sourceTemplateId, draft.candidatureId, JSON.stringify(draft.pdfMetadata), draft.parserSummary, JSON.stringify(draft.sections), draft.createdAt, draft.updatedAt);
+    database.prepare('INSERT INTO working_cvs(id, title, language, image_json, source_template_id, candidature_id, pdf_metadata_json, parser_summary, composition_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(draft.id, draft.title, nullable(draft.language), imageJson(rootPath, draft.image), draft.sourceTemplateId, draft.candidatureId, JSON.stringify(draft.pdfMetadata), draft.parserSummary, JSON.stringify(draft.sections), draft.createdAt, draft.updatedAt);
     return requireWorkingCv(database, draft.id);
   });
 }
 export function updateWorkingCv(rootPath: string, rawInput: WorkingCvUpdate): WorkingCvRecord {
   const input = workingCvUpdateSchema.parse(rawInput);
   return withWorkspaceDatabase(rootPath, (database) => {
-    requireWorkingCv(database, input.id);
+    const previous = requireWorkingCv(database, input.id);
     database
         .prepare(
-            `UPDATE working_cvs SET title = ?, language = ?, pdf_metadata_json = ?, parser_summary = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
+            `UPDATE working_cvs SET title = ?, language = ?, image_json = ?, pdf_metadata_json = ?, parser_summary = ?, composition_json = ?, updated_at = ? WHERE id = ?`)
         .run(
-            input.title, nullable(input.language), JSON.stringify(input.pdfMetadata),
+            input.title, nullable(input.language), imageJson(rootPath, input.image === undefined ? previous.image : input.image), JSON.stringify(input.pdfMetadata),
             input.parserSummary, JSON.stringify(input.sections), new Date().toISOString(), input.id);
     return requireWorkingCv(database, input.id);
   });
@@ -822,6 +840,7 @@ export function saveWorkingCvAsTemplate(
     name: input.name,
     ...(working.language ? {language: working.language} : {}),
     pdfMetadata: working.pdfMetadata,
+    image: working.image,
     parserSummary: working.parserSummary,
     sections: templateSectionsFromWorking(working)
   });
@@ -857,6 +876,7 @@ export async function renderWorkingCv(
   const stagePath = `${projectPath}.stage-${randomUUID()}`;
   const snapshot = renderedCvSnapshotSchema.parse({
     title: working.title,
+    image: working.image,
     ...(working.language ? {language: working.language} : {}),
     sourceTemplateId: working.sourceTemplateId,
     candidatureId: working.candidatureId,
@@ -866,6 +886,7 @@ export async function renderWorkingCv(
   });
   try {
     const sourceFileName = writeCvLatexProject(stagePath, working, blueprintSource);
+    stageCvImage(rootPath, working.image, stagePath);
     await compileProject(stagePath, working.title, 'cv', timeoutMs, sourceFileName);
     renameSync(stagePath, projectPath);
     const createdAt = new Date().toISOString();
@@ -901,6 +922,7 @@ export function prepareRenderedCvCopy(rootPath: string, renderedCvId: string): W
       row.snapshotJson, (value) => renderedCvSnapshotSchema.parse(value),
       'Stored Rendered CV snapshot is invalid.');
   const liveProfileItemIds = new Set(getProfile(rootPath).items.map((item) => item.id));
+  const image = snapshot.image ? restoreRenderedCvImage(rootPath, snapshot.image, renderedProjectPath(rootPath, row)) : null;
   return withWorkspaceDatabase(rootPath, (database) => {
     const id = randomUUID();
     const now = new Date().toISOString();
@@ -927,7 +949,7 @@ export function prepareRenderedCvCopy(rootPath: string, renderedCvId: string): W
         }));
     const title = uniqueDocumentTitle(`${snapshot.title} copy`, database.prepare('SELECT title FROM working_cvs').all() as unknown as { title: string }[]);
     return workingCvRecordSchema.parse({
-      id, title, language: snapshot.language, sourceTemplateId: row.sourceTemplateId,
+      id, title, language: snapshot.language, image, sourceTemplateId: row.sourceTemplateId,
       candidatureId: row.candidatureId, pdfMetadata: snapshot.pdfMetadata,
       parserSummary: snapshot.parserSummary, sections, createdAt: now, updatedAt: now,
     });
@@ -1109,6 +1131,7 @@ export async function createApplicationPacket(
             title, 'Application documents',
             letter.sender.name.trim() || cvDocumentAuthor(working),
             working.pdfMetadata.keywords));
+    stageCvImage(rootPath, working.image, stagePath);
     await compileProject(
         stagePath, title, 'application-document', effectiveTimeoutMs, sourceFileName);
     renameSync(stagePath, projectPath);

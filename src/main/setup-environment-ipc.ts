@@ -60,7 +60,7 @@ export function registerSetupEnvironmentIpc(mainWindow: BrowserWindow): void {
     const selection = await dialog.showSaveDialog(mainWindow, {
       title: "Save reusable AAAAT AI instructions",
       buttonLabel: "Save instructions",
-      defaultPath: "AAAAT.md",
+      defaultPath: "SKILL.md",
       filters: [
         { name: "Markdown", extensions: ["md"] },
         { name: "Text", extensions: ["txt"] },

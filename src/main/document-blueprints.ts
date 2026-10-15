@@ -8,10 +8,18 @@ import {
 } from "../shared/document-domain-contracts";
 
 import builtInBlueprintSource from "./latex/default-blueprint.tex?raw";
+import classicBlueprintSource from "./latex/classic-blueprint.tex?raw";
+import editorialBlueprintSource from "./latex/editorial-blueprint.tex?raw";
 
 export const BUILTIN_BLUEPRINT_ID = "builtin:default";
 export const BUILTIN_BLUEPRINT_SOURCE = builtInBlueprintSource;
 export const BLUEPRINT_DIRECTORY_NAME = "blueprints";
+
+const builtInBlueprints: Readonly<Record<string, { name: string; source: string }>> = {
+  [BUILTIN_BLUEPRINT_ID]: { name: "Professional", source: builtInBlueprintSource },
+  "builtin:classic": { name: "Classic", source: classicBlueprintSource },
+  "builtin:editorial": { name: "Editorial", source: editorialBlueprintSource },
+};
 
 function blueprintDirectory(userDataPath: string): string {
   return path.join(userDataPath, BLUEPRINT_DIRECTORY_NAME);
@@ -33,7 +41,7 @@ function userBlueprintFiles(userDataPath: string): string[] {
 
 export function listAvailableBlueprints(userDataPath: string): BlueprintSummary[] {
   const blueprints: BlueprintSummary[] = [
-    { id: BUILTIN_BLUEPRINT_ID, name: "AAAAT Default" },
+    ...Object.entries(builtInBlueprints).map(([id, blueprint]) => ({ id, name: blueprint.name })),
     ...userBlueprintFiles(userDataPath).map((fileName) => ({
       id: userBlueprintId(fileName),
       name: path.basename(fileName, path.extname(fileName)),
@@ -44,7 +52,8 @@ export function listAvailableBlueprints(userDataPath: string): BlueprintSummary[
 
 export function resolveBlueprintSource(userDataPath: string, rawBlueprintId: string): string {
   const blueprintId = blueprintIdSchema.parse(rawBlueprintId);
-  if (blueprintId === BUILTIN_BLUEPRINT_ID) return BUILTIN_BLUEPRINT_SOURCE;
+  const builtIn = builtInBlueprints[blueprintId];
+  if (builtIn) return builtIn.source;
 
   const fileName = userBlueprintFiles(userDataPath).find(
     (candidate) => userBlueprintId(candidate) === blueprintId,
