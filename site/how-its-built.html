@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How It’s Built · AAAAT</title>
-<meta name="description" content="One human directing substantial AI engineering work: AAAAT’s open-source development experiment, its sources of truth and its limitations.">
+<meta name="description" content="How a final-year engineering student built an AI-written open-source desktop app with constrained providers, Git as shared agent memory, and extensive corrections to model drift.">
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/site.css?v=20261015-masthead">
 <script src="assets/site.js" defer></script>
@@ -13,34 +13,96 @@
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header"><a class="brand" href="index.html" aria-label="AAAAT home — Agent-Agnostic Auto Application Tracker"><img src="assets/masthead-spacious.png" alt="Agent-Agnostic Auto Application Tracker — AAAAT. Private desktop assistant for thoughtful job applications." width="2172" height="724" fetchpriority="high"></a><nav class="site-nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="get-started.html">Get Started</a><a href="explore.html" aria-label="Explore AAAAT">Explore</a><a href="how-its-built.html" aria-current="page">How It’s Built</a><a href="download.html">Download</a></nav></header>
 <main id="main" class="container">
-<div class="built-intro"><header class="page-intro">
-<p class="eyebrow">Behind AAAAT</p>
-<h1>One developer. AI agents doing real engineering work.</h1>
-<p>AAAAT is an open-source job-application tool. Building it is also an experiment: how far can one person develop a useful, understandable product with AI agents taking on substantial engineering work?</p>
+<div class="built-intro">
+<header class="page-intro">
+<p class="eyebrow">Behind AAAAT · An engineering experiment</p>
+<h1>The code is AI-written. The decisions weren't outsourced.</h1>
+<p>I'm a final-year engineering student. I started AAAAT to see whether I could take a real desktop application from nothing to a public release with AI writing all the implementation code—and still keep the product and engineering decisions mine.</p>
+<p>The current implementation is entirely AI-written; I haven't personally written a line of its code. That wasn't the difficult part of the experiment. The difficult part was getting several AI systems to keep building the <em>same intended product</em>, especially when they disagreed with the principles I had already set.</p>
+<p>This is how the experiment actually developed, including the discarded work. It isn't a claim that AI can replace engineering judgment or that the current UI is the one I ultimately want.</p>
 </header>
-<figure class="figure editorial-art"><a href="assets/blueprint.png" data-lightbox><img src="assets/blueprint.png" alt="The original AAAAT engineering drawing showing the small patched explorer robot from several angles." width="941" height="1672" fetchpriority="high"></a><figcaption>The AAAAT robot character study, from the project's original illustration collection. Select to see the full drawing.</figcaption></figure></div>
-<section class="section prose">
-<h2>What AI actually does</h2>
-<p>AI agents don't just finish sentences in an editor. They investigate problems, propose and implement changes, review work, help with documentation and sometimes challenge earlier solutions. This is a substantial part of AAAAT's engineering.</p>
-<p>One human developer directs the project: deciding what AAAAT should be, which problems are worth solving, whether the experience actually helps people, and what work is good enough to release.</p>
+<figure class="figure editorial-art"><a href="assets/blueprint.png" data-lightbox><img src="assets/blueprint.png" alt="Original AAAAT explorer robot character blueprint, displayed as an engineering drawing." width="941" height="1672" fetchpriority="high"></a><figcaption>The original AAAAT robot blueprint. The imperfect, repaired explorer has become a fitting character for this project.</figcaption></figure>
+</div>
+<nav class="toc" aria-label="Engineering story sections">
+<a href="#constraints">The experiment</a>
+<a href="#git-memory">Git as memory</a>
+<a href="#drift">The drift problem</a>
+<a href="#ownership">User ownership</a>
+<a href="#model">Small models, real evidence</a>
+<a href="#interface">The unfinished UI</a>
+<a href="#lessons">What it demonstrates</a>
+</nav>
+
+<section class="section prose" id="constraints">
+<h2>First constraint: student accounts, not an agent platform</h2>
+<p>I didn't begin with an expensive autonomous coding service or a fleet of agents sharing a commercial orchestration system. I had limited student access to different AI providers. Those models were capable of doing useful work, but not of maintaining a long, continuous project context together. Accounts, context windows and session availability became engineering constraints.</p>
+<p>So the experiment was also about the development process. A task might be planned with one model, implemented through another, reviewed with a third and revisited in a later session without access to the earlier conversation. I had to find a way for a new agent to recover what mattered without trusting whatever story the previous agent happened to tell.</p>
+<p>My responsibility was the product direction, architecture, decisions, coordination and acceptance. AI produced the current code. In practice, much of my time went into recovering context, challenging plausible-looking solutions and redirecting work that had wandered away from the intention. Counting generated lines or closed issues would badly misrepresent that work.</p>
 </section>
-<section class="section prose">
-<h2>Why make the experiment public?</h2>
-<p>Because the process is interesting, and because AI-led development should be open to scrutiny. The repository contains instructions, product decisions, code changes, discussions and corrections. Anyone can look at what was proposed and how it changed.</p>
-<p>AI also makes mistakes. Work that looks convincing may miss the intended user experience. AAAAT has had approaches revised or discarded when they didn't serve the product. The experiment is about producing a better tool with human direction—not pretending that AI always gets it right.</p>
+
+<section class="section prose" id="git-memory">
+<h2>Git became the shared project memory</h2>
+<p>Git was already where the code lived. I started using the repository as the durable state that independent AI sessions could inspect: product definition, explanatory context, development principles, current mission, decisions, Issues, branches, PRs and verification evidence. An agent arriving without yesterday's chat should be able to work out what AAAAT is supposed to be, what it is doing now, and which decisions have been rejected.</p>
+<p>But a pile of Markdown isn't automatically memory. Early versions let old plans, tests and implementation choices quietly become new requirements. Once an idea had been merged, later agents treated it as unquestionable truth—even when it was only a development hypothesis. More documentation sometimes made that worse.</p>
+<p>The correction was an explicit order of authority: <strong>current owner direction → Product Definition → derived specification and current mission → tests → implementation</strong>. Context and history can explain a decision, but they don't get to overrule it. A single current mission tells a new agent what is active; Git retains earlier, including wrong, development states without forcing the product to support them.</p>
+<p>The repository shows that approach being formalized in <a href="https://github.com/DidacLL/AAAAT/pull/240">PR #240</a>. It also shows how fragile it can be: <a href="https://github.com/DidacLL/AAAAT/pull/325">PR #325</a> had to repair the master-plan state after mechanisms were recorded as completed user capabilities. Git provides a reviewable trail of decisions and corrections, <em>not</em> a complete transcript of every model's private reasoning or every unrecorded session.</p>
+<p>This is one of the things I would carry into another project: agent continuity doesn't have to come from one provider remembering everything. It can come from a small, inspectable body of repository state—as long as that state is allowed to be corrected.</p>
 </section>
+
+<section class="section prose" id="drift">
+<h2>The recurring problem was not bad code. It was the wrong problem.</h2>
+<p>Models often write code confidently. They also have strong habits about what a respectable software project is supposed to contain. AAAAT repeatedly drifted into familiar patterns that sound safe and professional: an application-status pipeline, additional configuration layers, provider-routing machinery, compatibility migrations for disposable development databases, elaborate setup paths, or tests protecting whichever implementation had just been generated.</p>
+<p>None of those things is inherently wrong in every project. They were wrong here when they solved no current AAAAT need, displaced a simpler user interaction or contradicted an explicit decision. That's a more difficult failure to catch than a compiler error: the code may build, the PR may be tidy, and every test may pass.</p>
+<p>For example, <a href="https://github.com/DidacLL/AAAAT/pull/315">PR #315</a> recovered the product definition after AAAAT's application model acquired concepts and workflows that did not match how people were supposed to use it. <a href="https://github.com/DidacLL/AAAAT/pull/443">PR #443</a> later removed synthetic AI capability certification, per-operation model routing and schema fingerprint machinery. The application needed one user-selected AI connection and ordinary local data integrity—not an AI-provider certification platform or a development-era compatibility programme.</p>
+<p>Installation produced another example. <a href="https://github.com/DidacLL/AAAAT/pull/442">PR #442</a> was left unmerged because removing a few Linux installation obstacles would not repair the larger mistake: AAAAT was trying to own package repositories, signing keys and package updates instead of delegating to the computer's native TeX installer or software manager. The accepted correction in <a href="https://github.com/DidacLL/AAAAT/pull/443">#443</a> reduced that responsibility. <a href="https://github.com/DidacLL/AAAAT/pull/441">#441</a> also removed unjustified restrictions on operating systems and build tools.</p>
+<p>The recurring engineering work was deciding what AAAAT actually owns, finding where an apparently reasonable implementation crossed that boundary, and deleting or replacing it. Sometimes the best contribution from an AI agent was the code it stopped adding.</p>
+</section>
+
+<section class="section prose" id="ownership">
+<h2>Who is the software supposed to protect—and from whom?</h2>
+<p>The most stubborn disagreements concerned user ownership. AAAAT is free, open-source software running on someone's own computer. If that person wants to change the effective instruction for an AI action, point the app to their own model, inspect the information in a request, or edit the script that starts their local runtime, I don't want the application to fight them.</p>
+<p>Some agent proposals treated shipped prompts like untouchable policy or introduced additional approval and security machinery around things the user was intentionally doing on their own machine. My principle is simpler: <strong>the software should protect information and operations it actually owns, not invent authority over the person running it</strong>.</p>
+<p>This doesn't mean there are no security boundaries. AAAAT still needs typed validation, renderer/process isolation, narrow mutations and honest rules about what can leave the local workspace. An external assistant doesn't get arbitrary filesystem, database or shell access just because it's called an agent. A remote model may need a credential, but AAAAT doesn't need to turn into a general authentication or AI-security platform to support that connection. The boundary is discussed explicitly in <a href="https://github.com/DidacLL/AAAAT/pull/153">PR #153</a>.</p>
+<p>For the person using AAAAT, the useful distinction is between information <em>stored locally</em>, information <em>shown prominently</em>, and information <em>allowed into a particular AI request</em>. These are different decisions. A field may remain visible in the workspace without its value being sent for inference. Users can inspect and edit prepared context and, for supported actions, change the default AI instructions. The disclosure choice also matters when the configured model runs locally; it describes what the task may use, not just which company receives it.</p>
+<p>Optional local startup is deliberately editable too. The owner of the computer can change it, disable it or restore the installed default. AAAAT must not confuse a user-controlled configuration script with permission for a connected AI to execute arbitrary commands. That's freedom with a real boundary, not a security theatre dashboard.</p>
+</section>
+
+<section class="section prose" id="model">
+<h2>A small model changes the engineering problem</h2>
+<p>Another useful result is that AAAAT can do meaningful optional inference using the lightweight IBM Granite 4.1 3B Q4_K_M model through llama.cpp on a CPU. The product does not assume everyone has a premium model or a paid subscription, and its essential manual work needs neither.</p>
+<p>Working with a small model shifts effort from impressive prompts to well-bounded tasks. Asking one model invocation to extract arbitrary fields, invent new fields, classify Tags and write polished advice is tempting. It's also harder to validate, slower to recover from and easier for a limited model to get wrong. AAAAT's application assistance was split into narrower field-value and conservative Tag tasks, with local validation and results that the user can inspect or correct. The same philosophy applies to working on one CV field or drafting a letter from explicitly selected context.</p>
+<p>Evaluation became part of that search. <a href="https://github.com/DidacLL/AAAAT/pull/410">PR #410</a> added repeated local trials against real model endpoints; <a href="https://github.com/DidacLL/AAAAT/pull/411">#411</a> widened them to different in-app, copy-paste and connected-agent journeys. <a href="https://github.com/DidacLL/AAAAT/pull/416">#416</a> corrected an evaluator that launched a second llama.cpp process and depended on experimental server-side MCP support, rather than testing the user's already-running model and AAAAT's actual tool boundary.</p>
+<p>That distinction matters: a mock response doesn't demonstrate model usefulness, a packaged MCP server doesn't demonstrate a real external host can use it, and one successful run doesn't establish reliability. The repo contains actual local-host evidence alongside explicitly marked limitations. I consider the lightweight-model outcome useful and encouraging, not a universal benchmark or proof that every model and machine will behave the same way.</p>
+</section>
+
+<section class="section prose" id="interface">
+<h2>And yes, the interface is still a compromise</h2>
+<p>The UI has been one of the hardest parts to get right. This is where models most often replaced the intended human experience with the structure of the implementation: separate screens for what should be one action, too many explanatory panels, unnecessary AI ceremonies, technical vocabulary and controls that took space away from the work itself.</p>
+<p>It wasn't fixed by asking for nicer CSS. On 11 October, the desktop experience was explicitly blocked from release because the problem involved navigation, editing state, document ownership, disclosure and visual composition together. The original diagnosis and corrections are in <a href="https://github.com/DidacLL/AAAAT/issues/428">Issue #428</a>; the integration that followed is documented in <a href="https://github.com/DidacLL/AAAAT/pull/435">PR #435</a>.</p>
+<p>The current version is the most acceptable result of those iterations, not my ideal interface. It can be used and it is public, but that doesn't mean the visual and interaction design has reached the standard I'd eventually like. I would rather say that plainly than present a green verification check or a polished screenshot as proof of good UX.</p>
+<p>This taught me something awkward: correcting an agent's misunderstanding of a product interaction can take longer than implementing the underlying service. Getting the right architecture is important, but it doesn't automatically give someone a usable screen.</p>
+</section>
+
+<section class="section prose" id="lessons">
+<h2>What shipping AAAAT demonstrates—and what it doesn't</h2>
+<p>AAAAT shows that a final-year student with constrained access to several AI providers can coordinate an end-to-end, AI-coded open-source desktop project, including local information ownership, real document generation, optional lightweight inference and native releases. I haven't manually authored the implementation code at this stage. That is the experiment I set out to try.</p>
+<p>It does <em>not</em> establish that an agent can be trusted to decide the product, that a passing suite proves user experience, or that this architecture is the answer for every team. Nor is Git a substitute for engineering judgment: it makes the decisions and mistakes inspectable enough to be challenged, and sometimes proves how often they needed challenging.</p>
+<p>The biggest practical lesson for me has been to challenge the <em>premise</em> of a generated solution before debating its implementation. If an agent wants an extra framework, migration, permission layer or workflow, ask which real user problem needs it. If a test passes, ask what that test really exercised. If an AI provider or model changes, the product's meaning shouldn't change with it.</p>
+<p>Most of my effort has gone into that kind of direction and correction rather than typing code. The full project history includes false starts, rejected PRs, superseded plans and honest gaps in acceptance evidence. I think that record is more interesting—and more useful to other engineers—than a frictionless story about AI building an application automatically.</p>
+<p>This remains a personal experiment, not a finished theory of agentic software engineering. You're welcome to inspect it, disagree with the decisions, try AAAAT, or contribute improvements. The <a href="https://github.com/DidacLL/AAAAT/blob/main/PRODUCT_DEFINITION.md">Product Definition</a> says what the app is supposed to be; the <a href="https://github.com/DidacLL/AAAAT/blob/main/OWNER_DEVELOPMENT_PRINCIPLES.md">Development Principles</a> say how I try to keep the engineering honest; and the <a href="https://github.com/DidacLL/AAAAT/pulls?q=is%3Apr">pull requests</a> show where reality argued back.</p>
+</section>
+
 <section class="section">
-<h2>See how AAAAT is made.</h2>
+<h2>Explore the experiment—or use the app.</h2>
 <div class="cards">
-<article class="panel"><h3>The product vision</h3><p>What AAAAT is meant to do, who it serves and the boundaries it keeps.</p><a href="https://github.com/DidacLL/AAAAT/blob/main/PRODUCT_DEFINITION.md">Read the Product Definition →</a></article>
-<article class="panel"><h3>Instructions to AI agents</h3><p>The public guidance that tells agents what to read and how to respect the owner's decisions.</p><a href="https://github.com/DidacLL/AAAAT/blob/main/AGENTS.md">Read AGENTS.md →</a></article>
-<article class="panel"><h3>The work and corrections</h3><p>Explore the source code, proposals, discussions and merged changes.</p><a href="https://github.com/DidacLL/AAAAT">Source code →</a> <a href="https://github.com/DidacLL/AAAAT/pulls">Pull requests →</a></article>
+<article class="panel"><h3>Read the decisions</h3><p>The product definition, development principles and agent instructions are public and still open to correction.</p><a href="https://github.com/DidacLL/AAAAT/blob/main/PRODUCT_DEFINITION.md">Product Definition →</a> <a href="https://github.com/DidacLL/AAAAT/blob/main/AGENTS.md">Agent instructions →</a></article>
+<article class="panel"><h3>Inspect the actual history</h3><p>Look through the PRs and Issues, including rejected work and corrections—not just the current implementation.</p><a href="https://github.com/DidacLL/AAAAT/pulls?q=is%3Apr">Pull requests →</a> <a href="https://github.com/DidacLL/AAAAT/issues">Issues →</a></article>
+<article class="panel"><h3>Try AAAAT</h3><p>A local-first application for opportunities, professional information and documents; manual work and optional AI are both valid.</p><a href="download.html">Download AAAAT →</a> <a href="get-started.html">Getting started →</a></article>
 </div>
 </section>
 <section class="section prose">
-<h2>Open source, by design.</h2>
-<p>AAAAT is free to use and inspect, and its users keep their own work and documents. It's a personal project developed by one person with AI assistance—not a large company or a managed job-application service.</p>
-<p>Useful feedback and contributions are welcome. If you report an issue, please use fictional examples rather than uploading private application information.</p>
+<h2>Feedback is welcome</h2>
+<p>This is an open-source side project, not a managed recruitment service. If you find a problem or see a better way to express one of these principles, open an Issue or propose a change. Use fictional examples when discussing career data publicly.</p>
 <div class="actions"><a class="button" href="https://github.com/DidacLL/AAAAT/issues">Share feedback</a><a class="button secondary" href="https://github.com/DidacLL/AAAAT/blob/main/CONTRIBUTING.md">How to contribute</a></div>
 </section>
 </main>

@@ -1167,3 +1167,9 @@ main.container,.home main>.container {
 .setup-pair { display:grid; grid-template-columns:1fr 1.3fr; gap:28px; align-items:start; margin-top:24px; }
 .setup-pair .figure { margin:0; }
 @media(max-width:700px) { .setup-pair { grid-template-columns:1fr; gap:24px; } }
+
+/* Engineering story reads in sequence, not in two disconnected desktop columns. */
+.built main>.toc { grid-column:1/-1; max-width:88ch; width:100%; margin-inline:auto; }
+.built main>.section.prose { grid-column:1/-1; max-width:88ch; width:100%; margin-inline:auto; }
+.built main>.section.prose p { max-width:78ch; }
+.built main>.section.prose a { overflow-wrap:anywhere; }
