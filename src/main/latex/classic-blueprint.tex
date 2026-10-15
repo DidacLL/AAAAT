@@ -1,0 +1,33 @@
+% Classic: traditional monochrome serif typography with natural page flow.
+\ExplSyntaxOn
+\RenewDocumentCommand{\AAAATRenderSection}{mm}
+  {
+    \par
+    \bool_if:NF \l_aaaat_rendering_header_bool
+      {
+        \aaaat_keep_section_start:
+        \addvspace{0.9em}
+        \noindent{\large\bfseries #1\par}
+        \nobreak\vspace{0.2em}\nobreak
+      }
+    #2\par
+  }
+\NewDocumentCommand{\AAAATRenderCvBlueprint}{}
+  {
+    \newgeometry{left=20mm,right=20mm,top=18mm,bottom=20mm}
+    \pagestyle{empty}
+    \definecolor{aaaatAccent}{RGB}{35,43,40}
+    \rmfamily\fontsize{10.5}{13.5}\selectfont\color{aaaatInk}
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{0.1em}
+    \setlength{\medskipamount}{4pt plus 1pt minus 1pt}
+    \setlength{\emergencystretch}{2em}
+    \raggedright
+    \AAAATRenderCvHeader
+    {\color{aaaatMuted}\hrule height 0.35pt}
+    \smallskip
+    \AAAATRenderMainBody
+    \AAAATRenderSecondaryBody
+    \AAAATRenderFooter
+  }
+\ExplSyntaxOff

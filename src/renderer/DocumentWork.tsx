@@ -19,6 +19,7 @@ import { useContextualHandoffs } from "./contextual-handoffs";
 import { PageToolbar } from "./PageToolbar";
 import { ToolbarVisible } from "./toolbar-context";
 import "./documents.css";
+import "./document-image.css";
 
 const emptyCollections: DocumentCollections = {
   templates: [],
@@ -256,6 +257,19 @@ export function WorkingCvEditor({
   const { blueprints, selectedBlueprintId, setSelectedBlueprintId } = useBlueprintSelection();
   const documentAi = useApplicationDocumentAccess(document.candidatureId);
   const [draft, setDraft] = useState<WorkingCvRecord>(document);
+  const [error, setError] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ assetId: string; url: string } | null>(null);
+  const imageAssetId = draft.image?.assetId;
+  useEffect(() => {
+    if (!imageAssetId) return;
+    let active = true;
+    void window.aaaat.documentDomain.cvImagePreview(imageAssetId).then(url => {
+      if (active) setImagePreview({ assetId: imageAssetId, url });
+    }).catch(reason => {
+      if (active) setError(readableDocumentError(reason, "The CV image could not be opened."));
+    });
+    return () => { active = false; };
+  }, [imageAssetId]);
   const [writingSuggestion, setWritingSuggestion] = useState<CvWritingResult | null>(null);
   const writingSnapshot = useRef<{ itemId: string; field: CvWritingField; item: string; value: string } | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -279,16 +293,17 @@ export function WorkingCvEditor({
   const writingActive =
     writingTask?.status === "queued" || writingTask?.status === "working";
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [renderSettingsSuggested, setRenderSettingsSuggested] = useState(false);
   const dirty = JSON.stringify({
     title: draft.title,
+    image: draft.image,
     language: draft.language,
     pdfMetadata: draft.pdfMetadata,
     parserSummary: draft.parserSummary,
     sections: draft.sections,
   }) !== JSON.stringify({
     title: document.title,
+    image: document.image,
     language: document.language,
     pdfMetadata: document.pdfMetadata,
     parserSummary: document.parserSummary,
@@ -357,10 +372,12 @@ export function WorkingCvEditor({
   const persistDraft = async (): Promise<WorkingCvRecord> => {
     const saved = provisional ? await window.aaaat.documentDomain.createWorkingCv({
       id: draft.id, title: draft.title, language: draft.language, candidatureId: draft.candidatureId,
+      image: draft.image,
       source: draft.sourceTemplateId ? { kind: "template", templateId: draft.sourceTemplateId } : { kind: "blank" },
       content: { sections: draft.sections, pdfMetadata: draft.pdfMetadata, parserSummary: draft.parserSummary },
     }) : await window.aaaat.documentDomain.updateWorkingCv({
       id: draft.id,
+      image: draft.image,
       title: draft.title,
       language: draft.language,
       pdfMetadata: draft.pdfMetadata,
@@ -502,6 +519,7 @@ export function WorkingCvEditor({
         name: template.name,
         language: saved.language,
         pdfMetadata: saved.pdfMetadata,
+        image: saved.image,
         parserSummary: saved.parserSummary,
         sections: templateSections(saved),
       }));
@@ -537,6 +555,19 @@ export function WorkingCvEditor({
     setAiContext(null);
     try { setAiContext(await window.aaaat.ai.cvWritingContext(writingRequest(item.id, "description"))); }
     catch (reason) { setError(readableDocumentError(reason, "AAAAT could not read the AI context.")); }
+  };
+
+  const chooseImage = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const image = await window.aaaat.documentDomain.chooseCvImage();
+      if (image) setDraft(current => ({ ...current, image }));
+    } catch (reason) {
+      setError(readableDocumentError(reason, "The CV image could not be added."));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const askAiToWrite = (item: WorkingCvItem, field: CvWritingField) => {
@@ -643,6 +674,26 @@ export function WorkingCvEditor({
           />
           <small>{draft.candidatureId ? "Application CV" : "Standalone CV"}</small>
         </header>
+        <details className="cv-image-options">
+          <summary>Photo or banner <small>optional</small></summary>
+          <div className="cv-image-controls">
+            <button type="button" disabled={busy} onClick={() => void chooseImage()}>{draft.image ? "Replace image" : "Choose image"}</button>
+            {draft.image ? <>
+              <label>Use as
+                <select aria-label="CV image presentation" disabled={busy} value={draft.image.mode}
+                  onChange={event => setDraft(current => ({ ...current, image: current.image ? { ...current.image, mode: event.target.value as "photo" | "banner" } : null }))}>
+                  <option value="photo">Photo</option>
+                  <option value="banner">Banner</option>
+                </select>
+              </label>
+              <button type="button" disabled={busy} onClick={() => setDraft(current => ({ ...current, image: null }))}>Remove image</button>
+            </> : null}
+          </div>
+          {draft.image ? <figure className={`cv-document-image cv-document-image-${draft.image.mode}`}>
+            {imagePreview?.assetId === draft.image.assetId ? <img src={imagePreview.url} alt={draft.image.mode === "photo" ? "Selected CV photo" : "Selected CV banner"} /> : null}
+            <figcaption>{draft.image.name}</figcaption>
+          </figure> : <p className="compact-note">Choose a PNG or JPEG. Photos fit a square area; banners fit a wide area. The image keeps its proportions.</p>}
+        </details>
         {draft.sections.length === 0 ? <p className="compact-empty">Empty CV</p> : null}
         {draft.sections.length > 0 ? (
           <ol className="working-cv-sections" aria-label="CV sections">

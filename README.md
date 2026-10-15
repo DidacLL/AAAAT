@@ -17,10 +17,12 @@ AAAAT is a free, open-source desktop workspace for thoughtful job applications. 
 | Keep an offer or recruiter message | Original Sources beside editable details, including sparse records |
 | Recognize the right opportunity | Search, content-driven covers, expanded context and shared Tag definitions |
 | Stop rewriting your background | Reusable professional information, custom groups and saved wording variations |
-| Make a document your own | Independent CV and letter editing, composition templates and retained PDF/source projects |
-| Get help when useful | Optional configured AI and editable tasks to copy into another text-capable LLM |
+| Make a document your own | Independent CV and letter editing, reusable templates, three PDF styles, optional photo/banner and retained source projects |
+| Get help when useful | Optional configured AI, bounded external-assistant tools and editable copy-paste requests as a fallback |
 
 There is no required application stage or completeness checklist. AAAAT does not discover opportunities or submit applications for you. Applications and documents are independently useful.
+
+Use a compatible local assistant through **Settings → AI → Connect another AI → Connection setup**. The packaged app supplies its command and `--mcp --workspace` arguments for an MCP host. Prepare an application task or select its document access in AAAAT; the connection exposes only the relevant bounded work. [Connection guide](https://didacll.github.io/AAAAT/explore.html#connected-ai) · [Download assistant instructions](https://didacll.github.io/AAAAT/assets/skills/SKILLS.md). Copy-paste requests are available when a host cannot connect.
 
 ## Start simply
 

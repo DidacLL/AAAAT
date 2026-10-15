@@ -369,7 +369,7 @@ export function createDemoWorkspace(rootPath: string) {
       "At Lantern Arts Centre, I supported visitors and wrote plain-language event guides and a monthly newsletter. I would use that experience to make your programme welcoming and its information easy to act on. I speak fluent English and conversational Spanish.",
       "I would welcome the opportunity to discuss how I could support your residents and volunteer facilitators. Thank you for considering my application.",
     ],
-    closing: "Kind regards",
+    closing: "Kind regards\nAlex Morgan",
   });
   return workspace;
 }

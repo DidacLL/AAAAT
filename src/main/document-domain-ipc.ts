@@ -1,4 +1,6 @@
-import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, nativeImage, shell, type BrowserWindow } from "electron";
+import { readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { assertTrustedSender, requireWorkspaceRoot } from "./desktop-ipc-context";
 
 import {
@@ -13,6 +15,8 @@ import {
   cvTemplateInputSchema,
   cvTemplateRecordSchema,
   cvTemplateUpdateSchema,
+  cvDocumentImageSchema,
+  cvImagePreviewSchema,
   documentCollectionsSchema,
   documentDomainChannels,
   openGeneratedResultSchema,
@@ -58,6 +62,7 @@ import {
   updateApplicationDocumentExternalAccess,
 } from "./application-document-external-access-service";
 import { listAvailableBlueprints, resolveBlueprintSource } from "./document-blueprints";
+import { cvImageDimensions, maximumCvImageBytes, previewCvImage, storeCvImage } from "./document-image-service";
 
 export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   for (const channel of Object.values(documentDomainChannels)) ipcMain.removeHandler(channel);
@@ -69,6 +74,33 @@ export function registerDocumentDomainIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle(documentDomainChannels.blueprints, (event) => {
     assertTrustedSender(event, mainWindow);
     return availableBlueprintsSchema.parse(listAvailableBlueprints(app.getPath("userData")));
+  });
+  ipcMain.handle(documentDomainChannels.chooseCvImage, async (event) => {
+    assertTrustedSender(event, mainWindow);
+    const rootPath = requireWorkspaceRoot();
+    const selected = await dialog.showOpenDialog(mainWindow, {
+      title: "Choose a CV photo or banner",
+      properties: ["openFile"],
+      filters: [{ name: "PNG or JPEG image", extensions: ["png", "jpg", "jpeg"] }],
+    });
+    if (selected.canceled || !selected.filePaths[0]) return null;
+    if (requireWorkspaceRoot() !== rootPath) throw new Error("The workspace changed. Choose the image again.");
+    const file = selected.filePaths[0];
+    const size = statSync(file).size;
+    if (size === 0 || size > maximumCvImageBytes) throw new Error("Choose a non-empty PNG or JPEG image smaller than 20 MB.");
+    const bytes = readFileSync(file);
+    const dimensions = cvImageDimensions(bytes);
+    const decoded = nativeImage.createFromBuffer(bytes);
+    if (decoded.isEmpty()) throw new Error("This image could not be opened. Choose another PNG or JPEG.");
+    const actual = decoded.getSize();
+    const sameDimensions = actual.width === dimensions.width && actual.height === dimensions.height;
+    const rotatedDimensions = actual.width === dimensions.height && actual.height === dimensions.width;
+    if (!sameDimensions && !rotatedDimensions) throw new Error("The image dimensions could not be verified.");
+    return storeCvImage(rootPath, decoded.toPNG(), path.basename(file), actual.width / actual.height > 1.5 ? "banner" : "photo");
+  });
+  ipcMain.handle(documentDomainChannels.cvImagePreview, (event, assetId: unknown) => {
+    assertTrustedSender(event, mainWindow);
+    return cvImagePreviewSchema.parse(previewCvImage(requireWorkspaceRoot(), cvDocumentImageSchema.shape.assetId.parse(assetId)));
   });
   ipcMain.handle(
     documentDomainChannels.externalApplicationAccessCurrent,

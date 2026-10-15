@@ -53,7 +53,15 @@
 \RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
 \RequirePackage[main=english]{babel}
+\RequirePackage[scaled=0.95]{helvet}
+\RequirePackage{geometry}
+\RequirePackage{graphicx}
+\RequirePackage{color}
 \RequirePackage[pdfencoding=auto,psdextra]{hyperref}
+\renewcommand{\familydefault}{\sfdefault}
+\definecolor{aaaatInk}{RGB}{35,43,40}
+\definecolor{aaaatMuted}{RGB}{88,97,92}
+\definecolor{aaaatAccent}{RGB}{99,112,92}
 
 \ExplSyntaxOn
 
@@ -69,6 +77,11 @@
 \tl_new:N \g_aaaat_combined_cv_data_tl
 \tl_new:N \g_aaaat_sender_name_tl
 \tl_new:N \g_aaaat_sender_headline_tl
+\tl_new:N \g_aaaat_document_image_tl
+\tl_new:N \g_aaaat_document_image_mode_tl
+\bool_new:N \l_aaaat_rendering_header_bool
+\box_new:N \l_aaaat_image_header_box
+\dim_new:N \l_aaaat_entry_start_height_dim
 
 \seq_new:N \g_aaaat_sender_detail_seq
 \seq_new:N \g_aaaat_metadata_seq
@@ -121,6 +134,26 @@
 \NewDocumentCommand{\AAAATParserSummary}{m}
   {\tl_gset:Nn \g_aaaat_parser_summary_tl {#1}}
 
+% The serializer stages this file beside the portable document source.
+% Images preserve their aspect ratio; photo/banner are bounded presentation.
+\NewDocumentCommand{\AAAATDocumentImage}{mm}
+  {
+    \tl_gset:Nn \g_aaaat_document_image_tl {#1}
+    \tl_gset:Nn \g_aaaat_document_image_mode_tl {#2}
+  }
+
+\NewDocumentCommand{\AAAATRenderDocumentImage}{}
+  {
+    \tl_if_empty:NF \g_aaaat_document_image_tl
+      {
+        \str_if_eq:VnTF \g_aaaat_document_image_mode_tl {banner}
+          {\includegraphics[width=\linewidth,height=28mm,keepaspectratio]
+            {\tl_use:N \g_aaaat_document_image_tl}}
+          {\includegraphics[width=30mm,height=30mm,keepaspectratio]
+            {\tl_use:N \g_aaaat_document_image_tl}}
+      }
+  }
+
 \NewDocumentCommand{\AAAATCombinedLetterData}{+m}
   {\tl_gset:Nn \g_aaaat_combined_letter_data_tl {#1}}
 
@@ -163,6 +196,8 @@
     \tl_gclear:N \g_aaaat_parser_summary_tl
     \tl_gclear:N \g_aaaat_sender_name_tl
     \tl_gclear:N \g_aaaat_sender_headline_tl
+    \tl_gclear:N \g_aaaat_document_image_tl
+    \tl_gclear:N \g_aaaat_document_image_mode_tl
     \seq_gclear:N \g_aaaat_sender_detail_seq
     \seq_gclear:N \g_aaaat_metadata_seq
     \seq_gclear:N \g_aaaat_paragraph_seq
@@ -204,29 +239,86 @@
       }
   }
 
+% Keep a section heading with the beginning of its first item in ordinary
+% page flow. Internal column boxes retain their own splitting behaviour.
+\cs_new_protected:Npn \aaaat_keep_section_start:
+  {
+    \ifinner
+    \else
+      \dim_compare:nNnT {\pagegoal-\pagetotal} < {6\baselineskip}
+        {\newpage}
+    \fi
+  }
+
 \NewDocumentCommand{\AAAATRenderSection}{mm}
   {
-    \par\medskip\noindent
-    {\large\bfseries #1\par}
-    \vspace{0.2em}
-    \hrule height 0.35pt
-    \vspace{0.45em}
+    \par
+    \bool_if:NF \l_aaaat_rendering_header_bool
+      {
+        \aaaat_keep_section_start:
+        \addvspace{1.3em}
+        \noindent{\large\bfseries\color{aaaatAccent}#1\par}
+        \nobreak\vspace{0.35em}\nobreak
+      }
     #2
+    \par
   }
 
 \NewDocumentCommand{\AAAATEntry}{mmmmmm}
   {
-    \par\medskip\noindent
-    {\bfseries #2}
-    \tl_if_blank:nF {#4}
-      {\hfill{\small #4}}
-    \par
-    \tl_if_blank:nF {#3}
-      {{\small\itshape #3}\par}
+    \bool_if:NTF \l_aaaat_rendering_header_bool
+      {
+        \str_case:nnF {#1}
+          {
+            {identity}
+              {
+                \par\noindent{\fontsize{27}{31}\selectfont\bfseries #2\par}
+                \tl_if_blank:nF {#3}
+                  {\noindent{\large\color{aaaatMuted}#3\par}}
+                \tl_if_blank:nF {#4}{{\small #4\par}}
+                \tl_if_blank:nF {#5}{\smallskip #5\par}
+                \tl_if_blank:nF {#6}{{\small #6\par}}
+                \smallskip
+              }
+            {contact}
+              {
+                {\small\color{aaaatMuted}
+                  \tl_if_blank:nF {#3}{#3:\nobreakspace}#2
+                  \tl_if_blank:nF {#4}{\enspace #4}
+                  \tl_if_blank:nF {#5}{\enspace #5}
+                  \tl_if_blank:nF {#6}{\enspace #6}}
+                \quad\allowbreak
+              }
+          }
+          {\aaaat_regular_entry:nnnnnn {#1}{#2}{#3}{#4}{#5}{#6}}
+      }
+      {\aaaat_regular_entry:nnnnnn {#1}{#2}{#3}{#4}{#5}{#6}}
+  }
+
+\cs_new_protected:Npn \aaaat_regular_entry:nnnnnn #1#2#3#4#5#6
+  {
+    \par\addvspace{0.7em}
+    % Reserve the title, metadata and start of its description in normal page
+    % flow. The rest of a long entry remains free to break across pages.
+    \dim_set:Nn \l_aaaat_entry_start_height_dim {2\baselineskip}
+    \tl_if_blank:nF {#3#4}
+      {\dim_add:Nn \l_aaaat_entry_start_height_dim {\baselineskip}}
     \tl_if_blank:nF {#5}
-      {#5\par}
-    \tl_if_blank:nF {#6}
-      {{\footnotesize\ttfamily #6}\par}
+      {\dim_add:Nn \l_aaaat_entry_start_height_dim {\baselineskip}}
+    \ifinner
+    \else
+      \dim_compare:nNnT {\pagegoal-\pagetotal}
+        < {\l_aaaat_entry_start_height_dim}
+        {\newpage}
+    \fi
+    \noindent
+    {\bfseries #2\par}\nobreak
+    \tl_if_blank:nF {#3}{{\small\color{aaaatMuted}#3}}
+    \tl_if_blank:nF {#4}
+      {\tl_if_blank:nF {#3}{\quad}{\small\color{aaaatMuted}#4}}
+    \tl_if_blank:nF {#3#4}{\par\nobreak}
+    \tl_if_blank:nF {#5}{\vspace{0.15em}#5\par}
+    \tl_if_blank:nF {#6}{{\small\color{aaaatMuted}#6\par}}
   }
 
 \cs_new_protected:Npn \aaaat_render_blocks:N #1
@@ -240,7 +332,41 @@
   }
 
 \NewDocumentCommand{\AAAATRenderHeader}{}
-  {\aaaat_render_blocks:N \g_aaaat_header_blocks_seq}
+  {
+    \bool_set_true:N \l_aaaat_rendering_header_bool
+    \aaaat_render_blocks:N \g_aaaat_header_blocks_seq
+    \bool_set_false:N \l_aaaat_rendering_header_bool
+  }
+
+% Photo header uses the available width beside the image for ordinary compact
+% profiles. Very long header material returns to normal breakable page flow.
+\NewDocumentCommand{\AAAATRenderCvHeader}{}
+  {
+    \seq_if_empty:NT \g_aaaat_header_blocks_seq {\AAAATRenderDocumentTitle}
+    \tl_if_empty:NTF \g_aaaat_document_image_tl
+      {\AAAATRenderHeader}
+      {
+        \str_if_eq:VnTF \g_aaaat_document_image_mode_tl {banner}
+          {\par\noindent\AAAATRenderDocumentImage\par\medskip\AAAATRenderHeader}
+          {
+            \setbox\l_aaaat_image_header_box=\vbox
+              {\hsize=\dimexpr\textwidth-40mm\relax\linewidth=\hsize
+                \AAAATRenderHeader\par}
+            \dim_compare:nNnTF
+              {\box_ht:N \l_aaaat_image_header_box+\box_dp:N \l_aaaat_image_header_box}
+              > {0.4\textheight}
+              {\par\noindent\AAAATRenderDocumentImage\par\medskip\AAAATRenderHeader}
+              {
+                \par\noindent\hbox to \textwidth
+                  {\vtop{\hrule height 0pt\unvbox\l_aaaat_image_header_box}\hfil
+                    \vtop{\hrule height 0pt\hbox{\AAAATRenderDocumentImage}}}\par
+              }
+          }
+      }
+    \tl_if_empty:NF \g_aaaat_parser_summary_tl
+      {\par\medskip\AAAATRenderParserSummary}
+    \par\addvspace{0.8em}
+  }
 
 \NewDocumentCommand{\AAAATRenderMainBody}{}
   {\aaaat_render_blocks:N \g_aaaat_main_blocks_seq}
@@ -272,11 +398,10 @@
 
 \cs_new_protected:Npn \aaaat_sender_detail_render:nn #1#2
   {
-    \par\noindent
     \tl_if_blank:nTF {#1}
-      {{\footnotesize #2}}
-      {{\footnotesize\bfseries #1:}\nobreakspace{\footnotesize #2}}
-    \par
+      {{\small\color{aaaatMuted}#2}}
+      {{\small\color{aaaatMuted}#1:\nobreakspace #2}}
+    \quad\allowbreak
   }
 
 \cs_new_protected:Npn \aaaat_sender_render:
@@ -284,31 +409,33 @@
     \tl_if_empty:NF \g_aaaat_sender_name_tl
       {
         \par\noindent
-        {\Large\bfseries \tl_use:N \g_aaaat_sender_name_tl\par}
+        {\fontsize{25}{29}\selectfont\bfseries \tl_use:N \g_aaaat_sender_name_tl\par}
       }
     \tl_if_empty:NF \g_aaaat_sender_headline_tl
       {
         \par\noindent
-        {\small\itshape \tl_use:N \g_aaaat_sender_headline_tl\par}
+        {\large\color{aaaatMuted} \tl_use:N \g_aaaat_sender_headline_tl\par}
       }
     \seq_if_empty:NF \g_aaaat_sender_detail_seq
       {
-        \vspace{0.35em}
+        \smallskip\noindent
         \seq_map_inline:Nn \g_aaaat_sender_detail_seq {##1}
+        \par
       }
-    \tl_if_empty:NTF \g_aaaat_sender_name_tl
-      {
-        \tl_if_empty:NTF \g_aaaat_sender_headline_tl
-          {\seq_if_empty:NF \g_aaaat_sender_detail_seq {\vspace{0.9em}}}
-          {\vspace{0.9em}}
-      }
-      {\vspace{0.9em}}
+    \par\vspace{0.8em}
+    {\color{aaaatAccent}\hrule height 0.6pt}
+    \vspace{1.3em}
   }
 
 \cs_new_protected:Npn \aaaat_metadata_render:nn #1#2
   {
     \par\noindent
-    {\small\bfseries #1:}\nobreakspace{\small #2}
+    \str_case:nnF {#1}
+      {
+        {To}{{\small\color{aaaatMuted}#2}}
+        {Subject}{{\bfseries #2}}
+      }
+      {{\small\bfseries #1:}\nobreakspace{\small #2}}
     \par
   }
 
@@ -330,12 +457,12 @@
 \cs_new_protected:Npn \aaaat_apply_letter_layout:
   {
     \pagestyle{empty}
-    \setlength{\parskip}{0.8em}
-    \setlength{\oddsidemargin}{0in}
-    \setlength{\evensidemargin}{0in}
-    \setlength{\textwidth}{6.5in}
-    \setlength{\topmargin}{-0.35in}
-    \setlength{\textheight}{9.25in}
+    \newgeometry{left=24mm,right=24mm,top=22mm,bottom=24mm}
+    \sffamily\fontsize{10.5}{15}\selectfont\color{aaaatInk}
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{0.85em}
+    \setlength{\emergencystretch}{2em}
+    \raggedright
   }
 
 \cs_new_protected:Npn \aaaat_maybe_apply_pdf_metadata:
@@ -348,9 +475,7 @@
 
 \cs_new_protected:Npn \aaaat_default_cv_render:
   {
-    \AAAATRenderDocumentTitle
-    \vspace{0.6em}
-    \AAAATRenderHeader
+    \AAAATRenderCvHeader
     \AAAATRenderMainBody
     \AAAATRenderSecondaryBody
     \AAAATRenderFooter

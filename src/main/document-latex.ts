@@ -98,6 +98,7 @@ function cvData(working: WorkingCvRecord): string[] {
     working.pdfMetadata,
   );
   lines.push("\\AAAATParserSummary{" + encodeDocumentText(working.parserSummary) + "}");
+  if (working.image) lines.push("\\AAAATDocumentImage{document-image.png}{" + working.image.mode + "}");
   for (const section of working.sections) {
     lines.push(
       "\\AAAATBlock{" + section.presentationRole + "}{"

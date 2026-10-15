@@ -5,6 +5,8 @@ import { profileItemContentSchema, profileItemKindSchema } from "./contracts";
 export const documentDomainChannels = Object.freeze({
   collections: "aaaat:document-domain-collections",
   blueprints: "aaaat:document-blueprints",
+  chooseCvImage: "aaaat:cv-image-choose",
+  cvImagePreview: "aaaat:cv-image-preview",
   templateCreate: "aaaat:cv-template-create",
   templateUpdate: "aaaat:cv-template-update",
   templateRemove: "aaaat:cv-template-remove",
@@ -78,6 +80,13 @@ export const cvPdfMetadataSchema = z.object({
   keywords: z.string().max(500).default(""),
 }).strict();
 export type CvPdfMetadata = z.infer<typeof cvPdfMetadataSchema>;
+export const cvDocumentImageSchema = z.object({
+  assetId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  mode: z.enum(["photo", "banner"]),
+}).strict();
+export type CvDocumentImage = z.infer<typeof cvDocumentImageSchema>;
+export const cvImagePreviewSchema = z.string().startsWith("data:image/png;base64,").max(28_000_000);
 export const emptyCvPdfMetadata: CvPdfMetadata = Object.freeze({
   title: "",
   author: "",
@@ -109,6 +118,7 @@ export const cvTemplateSectionSchema = z.object({
 export type CvTemplateSection = z.infer<typeof cvTemplateSectionSchema>;
 export const cvTemplateInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
+  image: cvDocumentImageSchema.nullable().optional(),
   language: optionalLanguageSchema,
   pdfMetadata: cvPdfMetadataSchema.default(emptyCvPdfMetadata),
   parserSummary: cvParserSummarySchema.default(""),
@@ -153,6 +163,7 @@ export const workingCvSourceSchema = z.discriminatedUnion("kind", [
 export type WorkingCvSource = z.infer<typeof workingCvSourceSchema>;
 export const workingCvCreateSchema = z.object({
   id: z.string().uuid().optional(),
+  image: cvDocumentImageSchema.nullable().optional(),
   title: z.string().trim().min(1).max(200),
   language: optionalLanguageSchema,
   candidatureId: optionalUuidSchema,
@@ -166,6 +177,7 @@ export const workingCvCreateSchema = z.object({
 export type WorkingCvCreate = z.infer<typeof workingCvCreateSchema>;
 export const workingCvRecordSchema = z.object({
   id: z.string().uuid(),
+  image: cvDocumentImageSchema.nullable().optional(),
   title: z.string().trim().min(1).max(200),
   language: optionalLanguageSchema,
   sourceTemplateId: optionalUuidSchema,
@@ -179,6 +191,7 @@ export const workingCvRecordSchema = z.object({
 export type WorkingCvRecord = z.infer<typeof workingCvRecordSchema>;
 export const workingCvUpdateSchema = workingCvRecordSchema.pick({
   id: true,
+  image: true,
   title: true,
   language: true,
   pdfMetadata: true,
@@ -196,6 +209,7 @@ export type WorkingCvSaveTemplate = z.infer<typeof workingCvSaveTemplateSchema>;
 
 export const renderedCvSnapshotSchema = workingCvRecordSchema.pick({
   title: true,
+  image: true,
   language: true,
   sourceTemplateId: true,
   candidatureId: true,
@@ -320,6 +334,8 @@ export interface DocumentDomainDesktopApi {
   readonly documentDomain: {
     readonly collections: () => Promise<DocumentCollections>;
     readonly blueprints: () => Promise<BlueprintSummary[]>;
+    readonly chooseCvImage: () => Promise<CvDocumentImage | null>;
+    readonly cvImagePreview: (assetId: string) => Promise<string>;
     readonly externalApplicationAccess: (
       candidatureId: string,
     ) => Promise<ApplicationDocumentExternalAccess>;
