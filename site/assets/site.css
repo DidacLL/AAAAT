@@ -103,18 +103,20 @@ code {
 .brand,.home .brand {
   display:block;
   width:100%;
-  height:clamp(126px,15.4vw,360px);
+  aspect-ratio:6.4;
+  min-height:126px;
   margin:0;
-  overflow:hidden
+  overflow:hidden;
+  position:relative
 }
 .brand img {
+  position:absolute;
+  inset:0;
   width:100%;
   height:100%;
   max-width:none;
   object-fit:cover;
-  object-position:left 33%;
-  transform:scale(1.015);
-  transform-origin:left center
+  object-position:center 47%
 }
 .site-nav {
   display:flex;
@@ -857,10 +859,20 @@ figcaption {
 }
 @media(max-width:700px) {
 .brand,.home .brand {
-    height:clamp(106px,32vw,224px)
+    height:clamp(106px,32vw,224px);
+    min-height:0;
+    aspect-ratio:auto
   }
 .brand img {
-    object-position:left center
+    width:auto;
+    min-width:100%;
+    height:180%;
+    position:absolute;
+    left:-14%;
+    top:50%;
+    right:auto;
+    bottom:auto;
+    transform:translateY(-50%)
   }
 .site-nav a {
     padding:12px 4px;
